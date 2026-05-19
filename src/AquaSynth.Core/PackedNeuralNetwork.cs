@@ -178,7 +178,8 @@ public sealed class PackedNeuralNetwork
     public PackedNeuralBackpropagation TrainSingleFromOutputGradient(
         IReadOnlyList<float> input,
         IReadOnlyList<float> outputGradient,
-        float learningRate)
+        float learningRate,
+        float loss = 0)
     {
         if (learningRate <= 0) throw new ArgumentOutOfRangeException(nameof(learningRate), "learning rate must be positive");
         if (outputGradient.Count != OutputSize) throw new ArgumentException($"output gradient must have {OutputSize} values", nameof(outputGradient));
@@ -186,7 +187,7 @@ public sealed class PackedNeuralNetwork
         var scratch = TrainingScratch.Create(layers, InputSize, OutputSize);
         CopyChecked(input, scratch.Activations[0], "input");
         Forward(scratch);
-        return TrainSingleFromOutputGradient(scratch, outputGradient, learningRate, 0);
+        return TrainSingleFromOutputGradient(scratch, outputGradient, learningRate, loss);
     }
 
     private static void Validate(PackedNeuralTrainingOptions options)

@@ -69,6 +69,34 @@ public sealed class SpeechBackpropagationPipeline(
         return SynthDriver.Predict(example.Event, embedding);
     }
 
+    public PackedNeuralBackpropagation TrainSingleFromSynthOutputGradient(
+        UtteranceEmbeddingInput utteranceInput,
+        PhoneticEvent phoneticEvent,
+        IReadOnlyList<float> synthOutputGradient,
+        float utteranceLearningRate,
+        float synthDriverLearningRate,
+        float loss = 0)
+    {
+        if (utteranceLearningRate <= 0) throw new ArgumentOutOfRangeException(nameof(utteranceLearningRate), "utterance learning rate must be positive");
+        if (synthDriverLearningRate <= 0) throw new ArgumentOutOfRangeException(nameof(synthDriverLearningRate), "synth-driver learning rate must be positive");
+        if (synthOutputGradient.Count != SynthDriver.OutputSize)
+        {
+            throw new ArgumentException($"synth output gradient must have {SynthDriver.OutputSize} values", nameof(synthOutputGradient));
+        }
+
+        var utteranceFeatures = utteranceInput.ToFeatureVector();
+        var embedding = UtteranceEncoder.Encode(utteranceFeatures);
+        var synthResult = SynthDriver.TrainSingleFromOutputGradient(
+            phoneticEvent,
+            embedding.ToSemanticEmbedding(),
+            synthOutputGradient,
+            synthDriverLearningRate,
+            loss);
+        var embeddingGradient = SemanticEmbeddingGradient(synthResult.InputGradient);
+        UtteranceEncoder.TrainSingleFromOutputGradient(utteranceFeatures, embeddingGradient, utteranceLearningRate);
+        return synthResult;
+    }
+
     private float TrainSingle(SpeechBackpropagationTrainingExample example, SpeechBackpropagationTrainingOptions options)
     {
         var utteranceFeatures = example.UtteranceInput.ToFeatureVector();

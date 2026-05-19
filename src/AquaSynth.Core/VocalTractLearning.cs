@@ -115,6 +115,18 @@ public sealed class VocalTractNeuralMapper
             target.ToVector(MelBandCount, NeutralMelBand),
             learningRate);
 
+    public PackedNeuralBackpropagation TrainSingleFromOutputGradient(
+        PhoneticEvent phoneticEvent,
+        VocalTractSemanticEmbedding semanticEmbedding,
+        IReadOnlyList<float> outputGradient,
+        float learningRate,
+        float loss = 0) =>
+        network.TrainSingleFromOutputGradient(
+            EncodeInput(phoneticEvent, semanticEmbedding),
+            outputGradient,
+            learningRate,
+            loss);
+
     public VocalTractTrainingResult Train(
         IReadOnlyList<VocalTractTrainingExample> examples,
         VocalTractTrainingOptions? options = null)

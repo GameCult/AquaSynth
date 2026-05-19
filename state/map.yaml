@@ -39,6 +39,7 @@ modules:
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs
+  faust_rendered_speech_loss: src/AquaSynth.Faust/FaustRenderedSpeechLossSurface.cs
   dx7_reference_render_tests: tests/AquaSynth.Dsl.Tests/Dx7ReferenceParityTests.cs
   espeak_ng_reference_tests: tests/AquaSynth.Dsl.Tests/EspeakNgReferenceTests.cs
   espeak_ng_gradient_descent_tests: tests/AquaSynth.Dsl.Tests/EspeakNgGradientDescentTests.cs
@@ -76,7 +77,9 @@ boundaries:
     - learned utterance embedding encoder from speech text embeddings, prosody/emphasis hints, and Ghostlight/Epiphany-shaped character state vectors
     - learned phonetic-plus-utterance-embedding synth driver with packed-buffer native backprop/Adam for tract, AM/FM, LFO, filter, and mel spectral-envelope controls
     - chained utterance-embedding-to-synth-driver backpropagation that returns synth input gradients and updates the utterance encoder from downstream speech loss
+    - external-gradient speech backpropagation entry point for rendered loss surfaces
     - optional eSpeak NG generated ground-truth fixture for supervised utterance-embedding and synth-driver gradient descent
+    - Faust-rendered speech loss surface in AquaSynth.Faust, using rendered audio analysis and finite-difference controller-output gradients
   dev_only:
     - public-domain DX7 SysEx fixtures
     - pinned GPL ZynAddSubFX source for parity tests

@@ -1,5 +1,40 @@
 # Scratch
 
+Current slice:
+
+- Added the first Faust-rendered speech loss surface. `AquaSynth.Faust`
+  now owns `FaustRenderedSpeechLossSurface`, which turns a
+  `VocalTractControlTarget` into an inspectable AquaSynth script, renders it
+  through Faust, compares rendered log-mel evidence, and estimates
+  `d(loss)/d(controller output)` with finite differences over selected output
+  indices.
+- Added the missing Core backprop seam without making Core depend on Faust:
+  `SpeechBackpropagationPipeline.TrainSingleFromSynthOutputGradient` accepts an
+  external synth-output gradient, updates the synth driver, slices the returned
+  semantic embedding gradient, and updates the utterance encoder. This is the
+  handoff a Faust-rendered loss surface needs.
+- Added `VocalTractNeuralMapper.TrainSingleFromOutputGradient` and allowed
+  `PackedNeuralNetwork.TrainSingleFromOutputGradient` to preserve the external
+  loss value in its result.
+- The normal focused tests verify external-gradient backprop without invoking
+  Faust. The heavier rendered proof is opt-in via
+  `AQUASYNTH_RUN_FAUST_SPEECH_LOSS=1` because the current renderer recompiles
+  per finite-difference evaluation.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "SpeechBackpropagationPipelineTests|FaustRenderedSpeechLossSurfaceTests" -v minimal`:
+  3 passed.
+- Rendered proof verification:
+  `AQUASYNTH_RUN_FAUST_SPEECH_LOSS=1 dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "FaustRenderedSpeechLossSurfaceTests" -v minimal`:
+  1 passed in about 1m22s.
+- Build verification:
+  `dotnet build AquaSynth.sln -v minimal`: succeeded.
+- Current honesty: this is a real Faust-rendered loss surface and a real
+  backprop seam through both learned models. It is still black-box finite
+  difference over controller outputs, not analytic differentiation through
+  Faust DSP. The next coherent performance cut is render/compile caching or a
+  differentiable proxy that is explicitly trained against Faust, not pretending
+  recompiling Faust dozens of times is the final supercar.
+
 Current standing order: grow AquaSynth through external reference
 targets, not through speculative field sprawl. `state/spine.yaml` and
 `docs/reference-synth-roadmap.md` are the handoff surfaces for agents working on

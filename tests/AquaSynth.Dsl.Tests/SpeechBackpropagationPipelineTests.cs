@@ -33,6 +33,45 @@ public sealed class SpeechBackpropagationPipelineTests
         Assert.True(result.Steps[^1].Loss < result.Steps[0].Loss, "pipeline loss should decrease across epochs");
     }
 
+    [Fact]
+    public void SpeechPipelineAcceptsExternalRenderedLossGradient()
+    {
+        var utteranceEncoder = UtteranceEmbeddingNeuralEncoder.Create(
+            inputSize: 10,
+            embeddingSize: 8,
+            hiddenLayerSizes: [24, 16],
+            seed: 301);
+        var synthDriver = VocalTractNeuralMapper.Create(
+            semanticEmbeddingSize: 8,
+            melBandCount: 4,
+            hiddenLayerSizes: [28, 20],
+            seed: 307);
+        var pipeline = new SpeechBackpropagationPipeline(utteranceEncoder, synthDriver);
+        var example = Example(
+            "a",
+            new PhoneticFeatures(PhoneticManner.Vowel, Height: VowelHeight.Open, Backness: VowelBackness.Front),
+            new UtteranceEmbeddingInput([0.9f, 0.1f, 0.2f, 0.7f], [0.8f, 0.3f, 0.2f], [0.6f, 0.2f, 0.4f]),
+            SmallTarget([0.9f, 0.7f, 0.3f, 0.1f]));
+        var before = pipeline.Predict(example).ToVector(pipeline.SynthDriver.MelBandCount);
+        var gradient = new float[pipeline.SynthDriver.OutputSize];
+        gradient[14] = before[14] - 0.95f;
+        gradient[15] = before[15] - 0.75f;
+        gradient[16] = before[16] - 0.25f;
+        gradient[17] = before[17] - 0.05f;
+
+        var result = pipeline.TrainSingleFromSynthOutputGradient(
+            example.UtteranceInput,
+            example.Event,
+            gradient,
+            utteranceLearningRate: 0.08f,
+            synthDriverLearningRate: 0.08f,
+            loss: 1.25f);
+        var after = pipeline.Predict(example).ToVector(pipeline.SynthDriver.MelBandCount);
+
+        Assert.Equal(1.25f, result.Loss);
+        Assert.True(Math.Abs(after[14] - 0.95f) < Math.Abs(before[14] - 0.95f), "external output gradient should move the synth-driver output toward the rendered-loss target");
+    }
+
     private static IReadOnlyList<SpeechBackpropagationTrainingExample> TrainingSet() =>
     [
         Example(
@@ -75,6 +114,24 @@ public sealed class SpeechBackpropagationPipelineTests
             LfoDepth: mel[5],
             FilterCutoff: mel[10],
             FilterResonance: mel[11],
+            MelSpectralEnvelope: mel);
+
+    private static VocalTractControlTarget SmallTarget(IReadOnlyList<float> mel) =>
+        new(
+            TongueBody: 0.55f,
+            TongueTip: 0.45f,
+            LipAperture: 0.70f,
+            LipRounding: 0.08f,
+            Velum: 0.05f,
+            GlottalTenseness: 0.48f,
+            Turbulence: 0.20f,
+            Pressure: 0.62f,
+            AmDepth: 0.10f,
+            FmDepth: 0.12f,
+            LfoRate: 0.22f,
+            LfoDepth: 0.08f,
+            FilterCutoff: 0.54f,
+            FilterResonance: 0.20f,
             MelSpectralEnvelope: mel);
 
     private static float AverageLoss(SpeechBackpropagationPipeline pipeline, IReadOnlyList<SpeechBackpropagationTrainingExample> examples)
