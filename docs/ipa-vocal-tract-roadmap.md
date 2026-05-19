@@ -455,9 +455,10 @@ artifacts/parity/espeak-ng-ipa-workout/<timestamp>-tiny/
 ```
 
 The report records the source text, eSpeak IPA transcription, sample counts, and
-basic audio features. This is the first external speech judge for the vocal
-tract lane. It should pressure AquaSynth's future IPA/gesture/render path, not
-replace it.
+basic audio features. It also records normalized log-mel spectrogram summaries
+per fixture and a compact log-mel distance matrix across the workout. This is
+the first external speech judge for the vocal tract lane. It should pressure
+AquaSynth's future IPA/gesture/render path, not replace it.
 
 ## First Work Packets
 

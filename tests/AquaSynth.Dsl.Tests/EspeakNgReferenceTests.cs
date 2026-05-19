@@ -32,8 +32,10 @@ public sealed class EspeakNgReferenceTests
         {
             "eSpeak NG IPA workout",
             $"renderer: {renderer.CommandPath}",
-            "role: optional development reference for intelligibility, phoneme timing, and broad IPA/text coverage; not anatomy truth"
+            "role: optional development reference for intelligibility, phoneme timing, and broad IPA/text coverage; not anatomy truth",
+            "log_mel: 32 normalized bands; values are averages across frames from AudioAnalyzer"
         };
+        var analyses = new List<FixtureAnalysis>();
 
         foreach (var fixture in fixtures)
         {
@@ -45,7 +47,10 @@ public sealed class EspeakNgReferenceTests
 
             var samples = ReadMonoPcm16Wav(wavPath);
             Assert.True(samples.Length > 1024, $"{fixture.Id} rendered too few samples.");
-            var features = AudioAnalyzer.AnalyzeAudio(samples).Features;
+            var analysis = AudioAnalyzer.AnalyzeAudio(samples);
+            var features = analysis.Features;
+            var logMelMean = MeanBands(analysis.LogMelSpectrogram);
+            analyses.Add(new FixtureAnalysis(fixture, analysis, logMelMean));
             Assert.True(features.Peak > 0.001f, $"{fixture.Id} rendered near silence.");
 
             report.Add($"fixture: {fixture.Id}");
@@ -56,6 +61,18 @@ public sealed class EspeakNgReferenceTests
             report.Add($"  peak: {features.Peak:0.######}");
             report.Add($"  rms: {features.Rms:0.######}");
             report.Add($"  centroid_hz: {features.SpectralCentroidHz:0.######}");
+            report.Add($"  log_mel_frames: {analysis.LogMelSpectrogram.Frames}");
+            report.Add($"  log_mel_bands: {analysis.LogMelSpectrogram.Bands}");
+            report.Add($"  log_mel_mean: {FormatBands(logMelMean)}");
+        }
+
+        report.Add("log_mel_distance_matrix:");
+        report.Add($"  fixture,{string.Join(',', analyses.Select(item => item.Fixture.Id))}");
+        foreach (var row in analyses)
+        {
+            var distances = analyses.Select(column =>
+                LogMelDistance(row.Analysis.LogMelSpectrogram, column.Analysis.LogMelSpectrogram).ToString("0.######"));
+            report.Add($"  {row.Fixture.Id},{string.Join(',', distances)}");
         }
 
         await File.WriteAllLinesAsync(Path.Combine(artifactDir, "report.md"), report);
@@ -151,6 +168,48 @@ public sealed class EspeakNgReferenceTests
     }
 
     private sealed record EspeakNgFixture(string Id, string Text, string Voice);
+
+    private sealed record FixtureAnalysis(EspeakNgFixture Fixture, AudioAnalysis Analysis, float[] LogMelMean);
+
+    private static float[] MeanBands(Spectrogram spectrogram)
+    {
+        var means = new float[spectrogram.Bands];
+        for (var frame = 0; frame < spectrogram.Frames; frame++)
+        {
+            for (var band = 0; band < spectrogram.Bands; band++)
+            {
+                means[band] += spectrogram.At(frame, band);
+            }
+        }
+
+        for (var band = 0; band < means.Length; band++)
+        {
+            means[band] /= Math.Max(1, spectrogram.Frames);
+        }
+
+        return means;
+    }
+
+    private static float LogMelDistance(Spectrogram left, Spectrogram right)
+    {
+        var count = Math.Min(left.Values.Length, right.Values.Length);
+        if (count == 0)
+        {
+            return 0;
+        }
+
+        var sum = 0f;
+        for (var index = 0; index < count; index++)
+        {
+            var difference = left.Values[index] - right.Values[index];
+            sum += difference * difference;
+        }
+
+        return MathF.Sqrt(sum / count);
+    }
+
+    private static string FormatBands(IReadOnlyList<float> bands) =>
+        string.Join(',', bands.Select(value => value.ToString("0.###")));
 
     private sealed class EspeakNgReferenceRenderer(string commandPath)
     {
