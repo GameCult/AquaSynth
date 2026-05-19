@@ -183,17 +183,19 @@ features become overlapping constriction tasks and source events. It should not
 linearly interpolate phone presets unless a test proves that shortcut works for
 the current stage.
 
-The first learned controller lives below the handoff and above rendering:
-`VocalTractNeuralMapper` takes phonetic features plus a semantic embedding vector
-and predicts tract controls. The default shape is deliberately small but real:
-three hidden dense layers with tanh activations, sigmoid output controls, and a
-native C# training path using packed row-major buffers, unsafe hot loops, batched
-gradients, and Adam or SGD updates. Its output includes core tract parameters plus
-expressive synthesis lanes: AM depth, FM depth, LFO rate/depth, filter cutoff,
-filter resonance, and a full mel-frequency spectral envelope vector for
-PAD-style wavetable/formant coloration. Those lanes are not license to bypass
-tract anatomy; they are renderable expression controls the later synth can
-choose to honor.
+The first learned controllers live below the handoff and above rendering. Weksa
+or another language layer may provide speech text embeddings, prosody/emphasis
+hints, and Ghostlight/Epiphany-shaped character state vectors, but AquaSynth owns
+the gradient descent. `UtteranceEmbeddingNeuralEncoder` trains a tiny model to
+compress those ingredients into one utterance embedding. `VocalTractNeuralMapper`
+then takes phonetic features plus that embedding and predicts tract controls.
+Both controllers use the same native C# packed-network path: row-major buffers,
+unsafe hot loops, batched gradients, and Adam or SGD updates. The synth-driver
+output includes core tract parameters plus expressive synthesis lanes: AM depth,
+FM depth, LFO rate/depth, filter cutoff, filter resonance, and a full
+mel-frequency spectral envelope vector for PAD-style wavetable/formant
+coloration. Those lanes are not license to bypass tract anatomy; they are
+renderable expression controls the later synth can choose to honor.
 
 ### 4. Morphology Model
 
