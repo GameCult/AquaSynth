@@ -186,8 +186,9 @@ the current stage.
 The first learned controller lives below the handoff and above rendering:
 `VocalTractNeuralMapper` takes phonetic features plus a semantic embedding vector
 and predicts tract controls. The default shape is deliberately small but real:
-three hidden dense layers with tanh activations, sigmoid output controls, and
-plain SGD/backprop training. Its output includes core tract parameters plus
+three hidden dense layers with tanh activations, sigmoid output controls, and a
+native C# training path using packed row-major buffers, unsafe hot loops, batched
+gradients, and Adam or SGD updates. Its output includes core tract parameters plus
 expressive synthesis lanes: AM depth, FM depth, LFO rate/depth, filter cutoff,
 filter resonance, and a full mel-frequency spectral envelope vector for
 PAD-style wavetable/formant coloration. Those lanes are not license to bypass

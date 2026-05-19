@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>AquaSynth.Core</AssemblyName>
     <PackageId>AquaSynth.Core</PackageId>
     <Version>0.1.0-alpha.3</Version>

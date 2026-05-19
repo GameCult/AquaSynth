@@ -26,8 +26,20 @@ public sealed record VocalTractTrainingExample(
 
 public sealed record VocalTractTrainingOptions(
     int Epochs = 200,
-    float LearningRate = 0.03f,
-    int Seed = 1337);
+    float LearningRate = 0.01f,
+    int Seed = 1337,
+    VocalTractOptimizer Optimizer = VocalTractOptimizer.Adam,
+    int BatchSize = 32,
+    float Beta1 = 0.9f,
+    float Beta2 = 0.999f,
+    float Epsilon = 0.00000001f,
+    bool Shuffle = true);
+
+public enum VocalTractOptimizer
+{
+    Sgd,
+    Adam
+}
 
 public sealed record VocalTractTrainingStep(int Epoch, float Loss);
 
@@ -41,12 +53,14 @@ public sealed class VocalTractNeuralMapper
     private const int BaseOutputCount = 14;
     private const float NeutralMelBand = 0.5f;
     private readonly Layer[] layers;
+    private readonly int[] hiddenLayerSizes;
 
     private VocalTractNeuralMapper(int semanticEmbeddingSize, int melBandCount, Layer[] layers)
     {
         SemanticEmbeddingSize = semanticEmbeddingSize;
         MelBandCount = melBandCount;
         this.layers = layers;
+        hiddenLayerSizes = layers.Take(layers.Length - 1).Select(layer => layer.OutputSize).ToArray();
     }
 
     public int SemanticEmbeddingSize { get; }
@@ -57,7 +71,7 @@ public sealed class VocalTractNeuralMapper
 
     public int OutputSize => BaseOutputCount + MelBandCount;
 
-    public IReadOnlyList<int> HiddenLayerSizes => layers.Take(layers.Length - 1).Select(layer => layer.OutputSize).ToArray();
+    public IReadOnlyList<int> HiddenLayerSizes => hiddenLayerSizes;
 
     public static VocalTractNeuralMapper Create(
         int semanticEmbeddingSize,
@@ -95,8 +109,10 @@ public sealed class VocalTractNeuralMapper
 
     public VocalTractControlTarget Predict(PhoneticEvent phoneticEvent, VocalTractSemanticEmbedding semanticEmbedding)
     {
-        var output = Forward(BuildInput(phoneticEvent, semanticEmbedding));
-        return TargetFromVector(output[^1]);
+        var scratch = TrainingScratch.Create(layers, InputSize, OutputSize);
+        EncodeInput(phoneticEvent, semanticEmbedding, scratch.Activations[0]);
+        Forward(scratch);
+        return TargetFromVector(scratch.Output);
     }
 
     public VocalTractTrainingResult Train(
@@ -109,17 +125,51 @@ public sealed class VocalTractNeuralMapper
         }
 
         options ??= new VocalTractTrainingOptions();
+        Validate(options);
+
         var steps = new List<VocalTractTrainingStep>();
+        var order = Enumerable.Range(0, examples.Count).ToArray();
+        var random = new Random(options.Seed);
+        var scratch = TrainingScratch.Create(layers, InputSize, OutputSize);
+        var gradients = LayerBuffers.Create(layers);
+        var adamState = options.Optimizer == VocalTractOptimizer.Adam
+            ? OptimizerState.Create(layers)
+            : null;
+        var updateStep = 0;
+
         for (var epoch = 0; epoch < options.Epochs; epoch++)
         {
-            var loss = 0f;
-            foreach (var example in examples)
+            if (options.Shuffle)
             {
-                var input = BuildInput(example.Event, example.SemanticEmbedding);
-                var activations = Forward(input);
-                var target = VectorFromTarget(example.Target);
-                loss += MeanSquaredError(activations[^1], target);
-                Backward(activations, target, options.LearningRate);
+                Shuffle(order, random);
+            }
+
+            var loss = 0f;
+            for (var batchStart = 0; batchStart < order.Length; batchStart += options.BatchSize)
+            {
+                var batchEnd = Math.Min(batchStart + options.BatchSize, order.Length);
+                gradients.Clear();
+
+                for (var orderIndex = batchStart; orderIndex < batchEnd; orderIndex++)
+                {
+                    var example = examples[order[orderIndex]];
+                    EncodeInput(example.Event, example.SemanticEmbedding, scratch.Activations[0]);
+                    FillTarget(example.Target, scratch.Target);
+                    Forward(scratch);
+                    loss += MeanSquaredError(scratch.Output, scratch.Target);
+                    AccumulateGradients(scratch, gradients);
+                }
+
+                updateStep++;
+                var scale = 1f / (batchEnd - batchStart);
+                if (options.Optimizer == VocalTractOptimizer.Adam)
+                {
+                    adamState!.ApplyAdam(layers, gradients, scale, options.LearningRate, options.Beta1, options.Beta2, options.Epsilon, updateStep);
+                }
+                else
+                {
+                    ApplySgd(gradients, scale, options.LearningRate);
+                }
             }
 
             steps.Add(new VocalTractTrainingStep(epoch + 1, loss / examples.Count));
@@ -128,63 +178,77 @@ public sealed class VocalTractNeuralMapper
         return new VocalTractTrainingResult(this, steps);
     }
 
-    public float[] EncodeInput(PhoneticEvent phoneticEvent, VocalTractSemanticEmbedding semanticEmbedding) =>
-        BuildInput(phoneticEvent, semanticEmbedding);
-
-    private float[][] Forward(float[] input)
+    public float[] EncodeInput(PhoneticEvent phoneticEvent, VocalTractSemanticEmbedding semanticEmbedding)
     {
-        var activations = new float[layers.Length + 1][];
-        activations[0] = input;
-        for (var index = 0; index < layers.Length; index++)
-        {
-            activations[index + 1] = layers[index].Forward(activations[index]);
-        }
-
-        return activations;
+        var input = new float[InputSize];
+        EncodeInput(phoneticEvent, semanticEmbedding, input);
+        return input;
     }
 
-    private void Backward(float[][] activations, float[] target, float learningRate)
+    private static void Validate(VocalTractTrainingOptions options)
     {
-        var deltas = new float[layers.Length][];
-        var lastLayerIndex = layers.Length - 1;
-        deltas[lastLayerIndex] = new float[layers[lastLayerIndex].OutputSize];
-        for (var output = 0; output < deltas[lastLayerIndex].Length; output++)
+        if (options.Epochs <= 0)
         {
-            var actual = activations[^1][output];
-            deltas[lastLayerIndex][output] = 2f * (actual - target[output]) * layers[lastLayerIndex].Derivative(actual);
+            throw new ArgumentOutOfRangeException(nameof(options), "epoch count must be positive");
+        }
+
+        if (options.LearningRate <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "learning rate must be positive");
+        }
+
+        if (options.BatchSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), "batch size must be positive");
+        }
+    }
+
+    private void Forward(TrainingScratch scratch)
+    {
+        for (var index = 0; index < layers.Length; index++)
+        {
+            layers[index].Forward(scratch.Activations[index], scratch.Activations[index + 1]);
+        }
+    }
+
+    private void AccumulateGradients(TrainingScratch scratch, LayerBuffers gradients)
+    {
+        var lastLayerIndex = layers.Length - 1;
+        var outputDelta = scratch.Deltas[lastLayerIndex];
+        var output = scratch.Activations[^1];
+        for (var index = 0; index < outputDelta.Length; index++)
+        {
+            var actual = output[index];
+            outputDelta[index] = 2f * (actual - scratch.Target[index]) * layers[lastLayerIndex].Derivative(actual);
         }
 
         for (var layerIndex = lastLayerIndex - 1; layerIndex >= 0; layerIndex--)
         {
-            var layer = layers[layerIndex];
-            var next = layers[layerIndex + 1];
-            deltas[layerIndex] = new float[layer.OutputSize];
-            for (var output = 0; output < layer.OutputSize; output++)
-            {
-                var sum = 0f;
-                for (var nextOutput = 0; nextOutput < next.OutputSize; nextOutput++)
-                {
-                    sum += next.Weights[nextOutput][output] * deltas[layerIndex + 1][nextOutput];
-                }
-
-                deltas[layerIndex][output] = sum * layer.Derivative(activations[layerIndex + 1][output]);
-            }
+            layers[layerIndex].BackpropagateDelta(layers[layerIndex + 1], scratch.Deltas[layerIndex + 1], scratch.Activations[layerIndex + 1], scratch.Deltas[layerIndex]);
         }
 
         for (var layerIndex = 0; layerIndex < layers.Length; layerIndex++)
         {
-            layers[layerIndex].ApplyGradient(activations[layerIndex], deltas[layerIndex], learningRate);
+            gradients.Accumulate(layerIndex, scratch.Activations[layerIndex], scratch.Deltas[layerIndex]);
         }
     }
 
-    private float[] BuildInput(PhoneticEvent phoneticEvent, VocalTractSemanticEmbedding semanticEmbedding)
+    private void ApplySgd(LayerBuffers gradients, float scale, float learningRate)
+    {
+        for (var layerIndex = 0; layerIndex < layers.Length; layerIndex++)
+        {
+            layers[layerIndex].ApplySgd(gradients.WeightBuffers[layerIndex], gradients.BiasBuffers[layerIndex], scale, learningRate);
+        }
+    }
+
+    private void EncodeInput(PhoneticEvent phoneticEvent, VocalTractSemanticEmbedding semanticEmbedding, float[] input)
     {
         if (semanticEmbedding.Values.Count != SemanticEmbeddingSize)
         {
             throw new ArgumentException($"semantic embedding must have {SemanticEmbeddingSize} values", nameof(semanticEmbedding));
         }
 
-        var input = new float[InputSize];
+        Array.Clear(input);
         var offset = 0;
         offset = OneHot(input, offset, (int)phoneticEvent.Features.Manner, Enum.GetValues<PhoneticManner>().Length);
         offset = OneHot(input, offset, (int)phoneticEvent.Features.Place, Enum.GetValues<PhoneticPlace>().Length);
@@ -204,9 +268,10 @@ public sealed class VocalTractNeuralMapper
         {
             input[offset++] = Math.Clamp(value, -1, 1);
         }
-
-        return input;
     }
+
+    private void FillTarget(VocalTractControlTarget target, float[] output) =>
+        target.ToVector(output, MelBandCount, NeutralMelBand);
 
     private static int OneHot(float[] input, int offset, int value, int count)
     {
@@ -214,8 +279,14 @@ public sealed class VocalTractNeuralMapper
         return offset + count;
     }
 
-    private float[] VectorFromTarget(VocalTractControlTarget target) =>
-        target.ToVector(MelBandCount, NeutralMelBand);
+    private static void Shuffle(int[] values, Random random)
+    {
+        for (var index = values.Length - 1; index > 0; index--)
+        {
+            var swapIndex = random.Next(index + 1);
+            (values[index], values[swapIndex]) = (values[swapIndex], values[index]);
+        }
+    }
 
     private static VocalTractControlTarget TargetFromVector(IReadOnlyList<float> values)
     {
@@ -257,54 +328,179 @@ public sealed class VocalTractNeuralMapper
 
     private static float Clamp01(float value) => Math.Clamp(value, 0, 1);
 
+    private sealed class TrainingScratch
+    {
+        private TrainingScratch(float[][] activations, float[][] deltas, float[] target)
+        {
+            Activations = activations;
+            Deltas = deltas;
+            Target = target;
+        }
+
+        public float[][] Activations { get; }
+
+        public float[][] Deltas { get; }
+
+        public float[] Target { get; }
+
+        public float[] Output => Activations[^1];
+
+        public static TrainingScratch Create(IReadOnlyList<Layer> layers, int inputSize, int outputSize)
+        {
+            var activations = new float[layers.Count + 1][];
+            var deltas = new float[layers.Count][];
+            activations[0] = new float[inputSize];
+            for (var index = 0; index < layers.Count; index++)
+            {
+                activations[index + 1] = new float[layers[index].OutputSize];
+                deltas[index] = new float[layers[index].OutputSize];
+            }
+
+            return new TrainingScratch(activations, deltas, new float[outputSize]);
+        }
+    }
+
+    private sealed class LayerBuffers
+    {
+        private LayerBuffers(float[][] weightBuffers, float[][] biasBuffers)
+        {
+            WeightBuffers = weightBuffers;
+            BiasBuffers = biasBuffers;
+        }
+
+        public float[][] WeightBuffers { get; }
+
+        public float[][] BiasBuffers { get; }
+
+        public static LayerBuffers Create(IReadOnlyList<Layer> layers)
+        {
+            var weights = new float[layers.Count][];
+            var biases = new float[layers.Count][];
+            for (var index = 0; index < layers.Count; index++)
+            {
+                weights[index] = new float[layers[index].Weights.Length];
+                biases[index] = new float[layers[index].Biases.Length];
+            }
+
+            return new LayerBuffers(weights, biases);
+        }
+
+        public void Clear()
+        {
+            for (var index = 0; index < WeightBuffers.Length; index++)
+            {
+                Array.Clear(WeightBuffers[index]);
+                Array.Clear(BiasBuffers[index]);
+            }
+        }
+
+        public void Accumulate(int layerIndex, float[] input, float[] delta)
+        {
+            var weightGradients = WeightBuffers[layerIndex];
+            var biasGradients = BiasBuffers[layerIndex];
+            var inputSize = input.Length;
+
+            unsafe
+            {
+                fixed (float* inputBase = input)
+                fixed (float* deltaBase = delta)
+                fixed (float* weightBase = weightGradients)
+                fixed (float* biasBase = biasGradients)
+                {
+                    for (var output = 0; output < delta.Length; output++)
+                    {
+                        var deltaValue = deltaBase[output];
+                        var weightRow = weightBase + output * inputSize;
+                        for (var column = 0; column < inputSize; column++)
+                        {
+                            weightRow[column] += deltaValue * inputBase[column];
+                        }
+
+                        biasBase[output] += deltaValue;
+                    }
+                }
+            }
+        }
+    }
+
     private sealed class Layer
     {
         private readonly Activation activation;
 
-        private Layer(float[][] weights, float[] biases, Activation activation)
+        private Layer(int inputSize, int outputSize, float[] weights, float[] biases, Activation activation)
         {
+            InputSize = inputSize;
+            OutputSize = outputSize;
             Weights = weights;
             Biases = biases;
             this.activation = activation;
         }
 
-        public float[][] Weights { get; }
+        public int InputSize { get; }
+
+        public int OutputSize { get; }
+
+        public float[] Weights { get; }
 
         public float[] Biases { get; }
-
-        public int OutputSize => Biases.Length;
 
         public static Layer Create(int inputSize, int outputSize, Activation activation, Random random)
         {
             var scale = MathF.Sqrt(2f / Math.Max(1, inputSize));
-            var weights = new float[outputSize][];
-            for (var output = 0; output < outputSize; output++)
+            var weights = new float[inputSize * outputSize];
+            for (var index = 0; index < weights.Length; index++)
             {
-                weights[output] = new float[inputSize];
-                for (var input = 0; input < inputSize; input++)
-                {
-                    weights[output][input] = ((float)random.NextDouble() * 2f - 1f) * scale;
-                }
+                weights[index] = ((float)random.NextDouble() * 2f - 1f) * scale;
             }
 
-            return new Layer(weights, new float[outputSize], activation);
+            return new Layer(inputSize, outputSize, weights, new float[outputSize], activation);
         }
 
-        public float[] Forward(IReadOnlyList<float> input)
+        public void Forward(float[] input, float[] output)
         {
-            var output = new float[OutputSize];
-            for (var row = 0; row < OutputSize; row++)
+            unsafe
             {
-                var sum = Biases[row];
-                for (var column = 0; column < input.Count; column++)
+                fixed (float* inputBase = input)
+                fixed (float* outputBase = output)
+                fixed (float* weightBase = Weights)
+                fixed (float* biasBase = Biases)
                 {
-                    sum += Weights[row][column] * input[column];
+                    for (var row = 0; row < OutputSize; row++)
+                    {
+                        var sum = biasBase[row];
+                        var weightRow = weightBase + row * InputSize;
+                        for (var column = 0; column < InputSize; column++)
+                        {
+                            sum += weightRow[column] * inputBase[column];
+                        }
+
+                        outputBase[row] = Activate(sum);
+                    }
                 }
-
-                output[row] = Activate(sum);
             }
+        }
 
-            return output;
+        public void BackpropagateDelta(Layer nextLayer, float[] nextDelta, float[] activationValues, float[] delta)
+        {
+            unsafe
+            {
+                fixed (float* nextDeltaBase = nextDelta)
+                fixed (float* activationBase = activationValues)
+                fixed (float* deltaBase = delta)
+                fixed (float* nextWeightBase = nextLayer.Weights)
+                {
+                    for (var output = 0; output < OutputSize; output++)
+                    {
+                        var sum = 0f;
+                        for (var nextOutput = 0; nextOutput < nextLayer.OutputSize; nextOutput++)
+                        {
+                            sum += nextWeightBase[nextOutput * nextLayer.InputSize + output] * nextDeltaBase[nextOutput];
+                        }
+
+                        deltaBase[output] = sum * Derivative(activationBase[output]);
+                    }
+                }
+            }
         }
 
         public float Derivative(float activated) =>
@@ -315,16 +511,25 @@ public sealed class VocalTractNeuralMapper
                 _ => 1
             };
 
-        public void ApplyGradient(IReadOnlyList<float> input, IReadOnlyList<float> delta, float learningRate)
+        public void ApplySgd(float[] weightGradients, float[] biasGradients, float scale, float learningRate)
         {
-            for (var output = 0; output < OutputSize; output++)
+            unsafe
             {
-                for (var column = 0; column < input.Count; column++)
+                fixed (float* weightBase = Weights)
+                fixed (float* biasBase = Biases)
+                fixed (float* weightGradientBase = weightGradients)
+                fixed (float* biasGradientBase = biasGradients)
                 {
-                    Weights[output][column] -= learningRate * delta[output] * input[column];
-                }
+                    for (var index = 0; index < Weights.Length; index++)
+                    {
+                        weightBase[index] -= learningRate * weightGradientBase[index] * scale;
+                    }
 
-                Biases[output] -= learningRate * delta[output];
+                    for (var index = 0; index < Biases.Length; index++)
+                    {
+                        biasBase[index] -= learningRate * biasGradientBase[index] * scale;
+                    }
+                }
             }
         }
 
@@ -342,6 +547,96 @@ public sealed class VocalTractNeuralMapper
         Tanh,
         Sigmoid
     }
+
+    private sealed class OptimizerState
+    {
+        private readonly LayerBuffers firstMoment;
+        private readonly LayerBuffers secondMoment;
+
+        private OptimizerState(LayerBuffers firstMoment, LayerBuffers secondMoment)
+        {
+            this.firstMoment = firstMoment;
+            this.secondMoment = secondMoment;
+        }
+
+        public static OptimizerState Create(IReadOnlyList<Layer> layers) =>
+            new(LayerBuffers.Create(layers), LayerBuffers.Create(layers));
+
+        public void ApplyAdam(
+            IReadOnlyList<Layer> layers,
+            LayerBuffers gradients,
+            float scale,
+            float learningRate,
+            float beta1,
+            float beta2,
+            float epsilon,
+            int step)
+        {
+            var beta1Correction = 1f - MathF.Pow(beta1, step);
+            var beta2Correction = 1f - MathF.Pow(beta2, step);
+
+            for (var layerIndex = 0; layerIndex < layers.Count; layerIndex++)
+            {
+                ApplyAdam(
+                    layers[layerIndex].Weights,
+                    gradients.WeightBuffers[layerIndex],
+                    firstMoment.WeightBuffers[layerIndex],
+                    secondMoment.WeightBuffers[layerIndex],
+                    scale,
+                    learningRate,
+                    beta1,
+                    beta2,
+                    epsilon,
+                    beta1Correction,
+                    beta2Correction);
+                ApplyAdam(
+                    layers[layerIndex].Biases,
+                    gradients.BiasBuffers[layerIndex],
+                    firstMoment.BiasBuffers[layerIndex],
+                    secondMoment.BiasBuffers[layerIndex],
+                    scale,
+                    learningRate,
+                    beta1,
+                    beta2,
+                    epsilon,
+                    beta1Correction,
+                    beta2Correction);
+            }
+        }
+
+        private static void ApplyAdam(
+            float[] values,
+            float[] gradients,
+            float[] firstMoment,
+            float[] secondMoment,
+            float scale,
+            float learningRate,
+            float beta1,
+            float beta2,
+            float epsilon,
+            float beta1Correction,
+            float beta2Correction)
+        {
+            unsafe
+            {
+                fixed (float* valueBase = values)
+                fixed (float* gradientBase = gradients)
+                fixed (float* firstBase = firstMoment)
+                fixed (float* secondBase = secondMoment)
+                {
+                    for (var index = 0; index < values.Length; index++)
+                    {
+                        var gradient = gradientBase[index] * scale;
+                        firstBase[index] = beta1 * firstBase[index] + (1f - beta1) * gradient;
+                        secondBase[index] = beta2 * secondBase[index] + (1f - beta2) * gradient * gradient;
+                        var mHat = firstBase[index] / beta1Correction;
+                        var vHat = secondBase[index] / beta2Correction;
+                        valueBase[index] -= learningRate * mHat / (MathF.Sqrt(vHat) + epsilon);
+                    }
+                }
+            }
+        }
+    }
 }
 
 public static class VocalTractControlTargetExtensions
@@ -349,6 +644,17 @@ public static class VocalTractControlTargetExtensions
     public static float[] ToVector(this VocalTractControlTarget target, int melBandCount = 0, float neutralMelBand = 0.5f)
     {
         var output = new float[14 + melBandCount];
+        target.ToVector(output, melBandCount, neutralMelBand);
+        return output;
+    }
+
+    public static void ToVector(this VocalTractControlTarget target, float[] output, int melBandCount = 0, float neutralMelBand = 0.5f)
+    {
+        if (output.Length < 14 + melBandCount)
+        {
+            throw new ArgumentException($"output must have at least {14 + melBandCount} values", nameof(output));
+        }
+
         output[0] = Clamp01(target.TongueBody);
         output[1] = Clamp01(target.TongueTip);
         output[2] = Clamp01(target.LipAperture);
@@ -371,8 +677,6 @@ public static class VocalTractControlTargetExtensions
                 : neutralMelBand;
             output[14 + index] = Clamp01(band);
         }
-
-        return output;
     }
 
     private static float Clamp01(float value) => Math.Clamp(value, 0, 1);

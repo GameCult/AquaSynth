@@ -66,7 +66,7 @@ boundaries:
     - live patch compilation, native Faust factory lifetime, and offline sample-buffer render proof in AquaSynth.Faust
     - IPA-to-phonetic-feature planning, articulatory gesture planning, and human/alien vocal-tract roadmap design
     - phonetic intent, articulatory plan, morphology capability, and constraint-report contracts for vocal tract synthesis
-    - learned phonetic-plus-semantic embedding controller with gradient descent/backprop for tract, AM/FM, LFO, filter, and mel spectral-envelope controls
+    - learned phonetic-plus-semantic embedding controller with packed-buffer native backprop/Adam for tract, AM/FM, LFO, filter, and mel spectral-envelope controls
   dev_only:
     - public-domain DX7 SysEx fixtures
     - pinned GPL ZynAddSubFX source for parity tests
