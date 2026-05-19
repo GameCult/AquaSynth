@@ -4,6 +4,7 @@ obj/
 .idea/
 TestResults/
 artifacts/
+.voidbot/
 target/
 *.user
 *.suo
