@@ -40,6 +40,7 @@ modules:
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs
   dx7_reference_render_tests: tests/AquaSynth.Dsl.Tests/Dx7ReferenceParityTests.cs
   espeak_ng_reference_tests: tests/AquaSynth.Dsl.Tests/EspeakNgReferenceTests.cs
+  espeak_ng_gradient_descent_tests: tests/AquaSynth.Dsl.Tests/EspeakNgGradientDescentTests.cs
   zyn_reference_reader: src/AquaSynth.Core/ZynInstrument.cs
   zyn_coverage_survey: src/AquaSynth.Core/ZynInstrument.cs
   ipa_vocal_tract_roadmap: docs/ipa-vocal-tract-roadmap.md
@@ -72,6 +73,7 @@ boundaries:
     - packed-buffer native backprop/Adam as the shared AquaSynth gradient-descent primitive
     - learned utterance embedding encoder from speech text embeddings, prosody/emphasis hints, and Ghostlight/Epiphany-shaped character state vectors
     - learned phonetic-plus-utterance-embedding synth driver with packed-buffer native backprop/Adam for tract, AM/FM, LFO, filter, and mel spectral-envelope controls
+    - optional eSpeak NG generated ground-truth fixture for supervised utterance-embedding and synth-driver gradient descent
   dev_only:
     - public-domain DX7 SysEx fixtures
     - pinned GPL ZynAddSubFX source for parity tests

@@ -474,6 +474,22 @@ per fixture and a compact log-mel distance matrix across the workout. This is
 the first external speech judge for the vocal tract lane. It should pressure
 AquaSynth's future IPA/gesture/render path, not replace it.
 
+The optional test `EspeakNgGroundTruthTrainsUtteranceEmbeddingAndSynthDriverWhenInstalled`
+turns the same idea into a gradient-descent fixture. When eSpeak is present it
+renders the tiny syllable set, extracts normalized log-mel means, trains
+`UtteranceEmbeddingNeuralEncoder` toward compressed eSpeak evidence, then trains
+`VocalTractNeuralMapper` toward tract/mod/filter/mel controls seeded by that
+evidence. It writes WAVs plus a training report under:
+
+```text
+artifacts/parity/espeak-ng-gradient-descent/<timestamp>-tiny/
+  *.wav
+  training-report.md
+```
+
+This is supervised pressure from generated speech evidence. It is not yet
+waveform-loss backprop through an AquaSynth renderer.
+
 ## First Work Packets
 
 1. Add `docs/ipa-vocal-tract-roadmap.md` and preserve the boundary doctrine.
@@ -481,9 +497,8 @@ AquaSynth's future IPA/gesture/render path, not replace it.
 3. Add a human baseline vowel planner that emits tract-area targets, not audio.
 4. Add a tiny tract renderer prototype in AquaSynth.Faust or a test-only lab
    lane, then decide the package boundary once the prototype proves itself.
-5. Train the learned controller against eSpeak/log-mel, hand-authored tract
-   targets, and PAD-style spectral-table targets once the renderer can produce
-   comparable buffers.
+5. Connect the eSpeak/log-mel gradient fixture to the first audible AquaSynth
+   vowel/tract renderer once the renderer can produce comparable buffers.
 6. Render five vowels and three CVC syllables through fixtures.
 7. Add the first Weksa phonology profile with explicit unsupported-feature
    diagnostics.
