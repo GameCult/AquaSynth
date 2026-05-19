@@ -2,6 +2,24 @@
 
 Current slice:
 
+- Added the first distributed speech-training contract:
+  `SpeechRenderRequest`, `SpeechRenderResult`, and
+  `SpeechTrainingCheckpoint` are typed CultCache documents in
+  `src/AquaSynth.Core/SpeechDistributedTraining.cs`.
+- `SpeechDistributedTrainingCoordinator` now creates render requests from the
+  current pipeline, accepts worker-produced score gradients, and applies those
+  gradients through `SpeechBackpropagationPipeline.TrainSingleFromSynthOutputGradient`.
+  The current worker proof scores control-vector MSE locally; the ownership
+  shape is the same as remote compiled-Faust scoring.
+- `SpeechDistributedTrainingCultCacheStore` reads and writes request, result,
+  and checkpoint `.cc` stores through CultLib. No JSON queue, no bespoke
+  serializer, no trainer pretending to own the renderer.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "SpeechDistributedTrainingTests" -v minimal`:
+  2 passed.
+
+Previous slice:
+
 - Added a typed CultCache sound-claim document for CultMesh distribution:
   `patches/aquasynth-patch-cultcache.cc`.
 - Cut the JSON artifact and the local hand-written MessagePack codec. AquaSynth

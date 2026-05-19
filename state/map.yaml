@@ -35,6 +35,7 @@ modules:
   packed_neural_network: src/AquaSynth.Core/PackedNeuralNetwork.cs
   utterance_embedding_learning: src/AquaSynth.Core/UtteranceEmbeddingLearning.cs
   speech_backpropagation_pipeline: src/AquaSynth.Core/SpeechBackpropagationPipeline.cs
+  speech_distributed_training: src/AquaSynth.Core/SpeechDistributedTraining.cs
   vocal_tract_learning: src/AquaSynth.Core/VocalTractLearning.cs
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
@@ -52,6 +53,7 @@ modules:
   vocal_tract_model_tests: tests/AquaSynth.Dsl.Tests/VocalTractModelTests.cs
   utterance_embedding_learning_tests: tests/AquaSynth.Dsl.Tests/UtteranceEmbeddingLearningTests.cs
   speech_backpropagation_pipeline_tests: tests/AquaSynth.Dsl.Tests/SpeechBackpropagationPipelineTests.cs
+  speech_distributed_training_tests: tests/AquaSynth.Dsl.Tests/SpeechDistributedTrainingTests.cs
   vocal_tract_learning_tests: tests/AquaSynth.Dsl.Tests/VocalTractLearningTests.cs
   sfxr: src/AquaSynth.Core/SfxrParams.cs
   analysis: src/AquaSynth.Core/AudioAnalysis.cs
@@ -80,6 +82,7 @@ boundaries:
     - learned phonetic-plus-utterance-embedding synth driver with packed-buffer native backprop/Adam for tract, AM/FM, LFO, filter, and mel spectral-envelope controls
     - chained utterance-embedding-to-synth-driver backpropagation that returns synth input gradients and updates the utterance encoder from downstream speech loss
     - external-gradient speech backpropagation entry point for rendered loss surfaces
+    - distributed speech render request/result/checkpoint CultCache contracts for multi-machine Faust rendering and local backpropagation
     - optional eSpeak NG generated ground-truth fixture for supervised utterance-embedding and synth-driver gradient descent
     - Faust-rendered speech loss surface in AquaSynth.Faust, using rendered audio analysis and finite-difference controller-output gradients
     - compiled native Faust speech-loss surface with exported /speech/output/N controls for batch candidate rendering without recompiling DSP

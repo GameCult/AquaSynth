@@ -1,3 +1,5 @@
+using MessagePack;
+
 namespace AquaSynth.Dsl;
 
 public enum PhoneticManner
@@ -68,22 +70,38 @@ public enum VowelBackness
     Back
 }
 
+[MessagePackObject]
 public sealed record PhoneticFeatures(
+    [property: Key(0)]
     PhoneticManner Manner,
+    [property: Key(1)]
     PhoneticPlace Place = PhoneticPlace.None,
+    [property: Key(2)]
     Phonation Phonation = Phonation.Voiced,
+    [property: Key(3)]
     AirstreamMechanism Airstream = AirstreamMechanism.PulmonicEgressive,
+    [property: Key(4)]
     VowelHeight Height = VowelHeight.None,
+    [property: Key(5)]
     VowelBackness Backness = VowelBackness.None,
+    [property: Key(6)]
     bool Rounded = false,
+    [property: Key(7)]
     bool Long = false,
+    [property: Key(8)]
     bool Nasalized = false,
+    [property: Key(9)]
     bool Lateral = false);
 
+[MessagePackObject]
 public sealed record PhoneticProsody(
+    [property: Key(0)]
     float Stress = 0,
+    [property: Key(1)]
     float PitchTarget = 0,
+    [property: Key(2)]
     float Intensity = 1,
+    [property: Key(3)]
     string Register = "");
 
 public sealed record PhoneticEvent(
