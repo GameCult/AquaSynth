@@ -40,7 +40,7 @@ modules:
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs
   faust_rendered_speech_loss: src/AquaSynth.Faust/FaustRenderedSpeechLossSurface.cs
-  cultcache_sound_claim_document: patches/aquasynth-patch-cultcache.json
+  cultcache_sound_claim_document: patches/aquasynth-patch-cultcache.cc
   cultcache_sound_claim_types: src/AquaSynth.Core/CultCachePatchDocument.cs
   dx7_reference_render_tests: tests/AquaSynth.Dsl.Tests/Dx7ReferenceParityTests.cs
   espeak_ng_reference_tests: tests/AquaSynth.Dsl.Tests/EspeakNgReferenceTests.cs
@@ -83,7 +83,7 @@ boundaries:
     - optional eSpeak NG generated ground-truth fixture for supervised utterance-embedding and synth-driver gradient descent
     - Faust-rendered speech loss surface in AquaSynth.Faust, using rendered audio analysis and finite-difference controller-output gradients
     - compiled native Faust speech-loss surface with exported /speech/output/N controls for batch candidate rendering without recompiling DSP
-    - typed CultCache sound-claim document that bundles the patch database with fixture-backed patch claim cards and speech-lane claim cards
+    - typed CultCache sound-claim document distributed as a real .cc MessagePack-backed CultCache store via CultLib, bundling the patch database with fixture-backed patch claim cards and speech-lane claim cards
   dev_only:
     - public-domain DX7 SysEx fixtures
     - pinned GPL ZynAddSubFX source for parity tests

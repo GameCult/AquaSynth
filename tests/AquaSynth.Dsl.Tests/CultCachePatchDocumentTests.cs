@@ -1,4 +1,3 @@
-using System.Text.Json;
 using AquaSynth.Dsl;
 
 namespace AquaSynth.Dsl.Tests;
@@ -6,19 +5,16 @@ namespace AquaSynth.Dsl.Tests;
 public sealed class CultCachePatchDocumentTests
 {
     [Fact]
-    public void CultCachePatchDocumentLoadsAsTypedSoundClaimBundle()
+    public async Task CultCachePatchDocumentLoadsAsTypedSoundClaimBundle()
     {
         var root = RepositoryRoot();
-        var documentPath = Path.Combine(root, "patches", "aquasynth-patch-cultcache.json");
-        var document = JsonSerializer.Deserialize<CultCachePatchDocument>(
-            File.ReadAllText(documentPath),
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var documentPath = Path.Combine(root, "patches", "aquasynth-patch-cultcache.cc");
+        var document = await CultCachePatchDocumentStore.ReadAsync(documentPath);
 
-        Assert.NotNull(document);
-        Assert.Equal("cultcache.document.aquasynth.sound_claims", document!.Type);
-        Assert.Equal("cultcache/aquasynth/sound-claims.v1", document.Schema);
+        Assert.Equal(CultCachePatchDocumentCatalog.Type, document.Type);
+        Assert.Equal(CultCachePatchDocumentCatalog.Schema, document.Schema);
         Assert.Equal(1, document.Version);
-        Assert.Equal(LibraryEntryCount(root), document.PatchDatabase.Entries.Count);
+        Assert.Equal(LibraryEntryCount(root), document.PatchDatabase.Entries.Length);
         Assert.Contains(document.PatchClaims, claim => claim.Id == "dx7/public-domain-mc-mm-5-3/aquasynth" && claim.Tier == "parity");
         Assert.Contains(document.PatchClaims, claim => claim.Id == "zyn/project-pad-texture/aquasynth" && claim.Reference.SynthOrSource.Contains("ZynAddSubFX", StringComparison.Ordinal));
         Assert.Contains(document.SpeechClaims, claim => claim.Id == "speech/espeak-ng-tiny-workout" && claim.Target.AnatomyOrProfile.Contains("human", StringComparison.OrdinalIgnoreCase));
@@ -26,11 +22,10 @@ public sealed class CultCachePatchDocumentTests
     }
 
     [Fact]
-    public void EverySeriousClaimNamesAReferenceAndReceiptSurface()
+    public async Task EverySeriousClaimNamesAReferenceAndReceiptSurface()
     {
-        var document = JsonSerializer.Deserialize<CultCachePatchDocument>(
-            File.ReadAllText(Path.Combine(RepositoryRoot(), "patches", "aquasynth-patch-cultcache.json")),
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var document = await CultCachePatchDocumentStore.ReadAsync(
+            Path.Combine(RepositoryRoot(), "patches", "aquasynth-patch-cultcache.cc"));
 
         foreach (var claim in document.PatchClaims)
         {
@@ -54,17 +49,28 @@ public sealed class CultCachePatchDocumentTests
     }
 
     [Fact]
-    public void CultCachePatchClaimsCoverReferenceRebuildCatalog()
+    public async Task CultCachePatchClaimsCoverReferenceRebuildCatalog()
     {
-        var document = JsonSerializer.Deserialize<CultCachePatchDocument>(
-            File.ReadAllText(Path.Combine(RepositoryRoot(), "patches", "aquasynth-patch-cultcache.json")),
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var document = await CultCachePatchDocumentStore.ReadAsync(
+            Path.Combine(RepositoryRoot(), "patches", "aquasynth-patch-cultcache.cc"));
         var claimIds = document.PatchClaims.Select(claim => claim.Id).ToHashSet(StringComparer.Ordinal);
 
         foreach (var rebuild in ReferenceRebuildCatalog.All())
         {
             Assert.Contains(rebuild.Id, claimIds);
         }
+    }
+
+    [Fact]
+    public async Task CheckedInCultCacheFileMatchesTypedCatalog()
+    {
+        var fromFile = await CultCachePatchDocumentStore.ReadAsync(
+            Path.Combine(RepositoryRoot(), "patches", "aquasynth-patch-cultcache.cc"));
+        var fromCatalog = CultCachePatchDocumentCatalog.CreateDefault();
+
+        Assert.Equal(fromCatalog.PatchDatabase.Entries, fromFile.PatchDatabase.Entries);
+        Assert.Equal(fromCatalog.PatchClaims.Select(claim => claim.Id), fromFile.PatchClaims.Select(claim => claim.Id));
+        Assert.Equal(fromCatalog.SpeechClaims.Select(claim => claim.Id), fromFile.SpeechClaims.Select(claim => claim.Id));
     }
 
     private static int LibraryEntryCount(string root) =>

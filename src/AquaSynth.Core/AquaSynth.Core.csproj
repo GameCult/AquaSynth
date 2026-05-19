@@ -21,4 +21,8 @@
     <None Include="..\..\icon-package.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\CultLib\src\GameCult.Caching.MessagePack\GameCult.Caching.MessagePack.csproj" />
+  </ItemGroup>
+
 </Project>

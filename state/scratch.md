@@ -3,10 +3,14 @@
 Current slice:
 
 - Added a typed CultCache sound-claim document for CultMesh distribution:
-  `patches/aquasynth-patch-cultcache.json`.
-- Added `CultCachePatchDocument` record types in Core. The document bundles
-  the full `patches/library.yaml` patch database with patch claim cards and
-  speech claim cards.
+  `patches/aquasynth-patch-cultcache.cc`.
+- Cut the JSON artifact and the local hand-written MessagePack codec. AquaSynth
+  owns the typed `CultCachePatchDocument` catalog; CultLib owns cache
+  serialization through `GameCult.Caching.MessagePack`.
+- Added `CultCachePatchDocument` record types in Core. The document bundles the
+  full `patches/library.yaml` patch database with patch claim cards and speech
+  claim cards, and `CultCachePatchDocumentStore` reads/writes it through real
+  CultCache APIs.
 - Patch claim cards now cover every `ReferenceRebuildCatalog.All()` fixture
   patch: the three project-authored Zyn rebuilds and the three DX7 reference
   rebuilds. The PRC SYNTH1 calibrated patch also has a claim card because it is
@@ -21,7 +25,7 @@ Current slice:
   surfaces.
 - Verification:
   `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "CultCachePatchDocumentTests" -v minimal`:
-  3 passed.
+  4 passed.
 
 Previous slice:
 
