@@ -36,6 +36,7 @@ modules:
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs
   dx7_reference_render_tests: tests/AquaSynth.Dsl.Tests/Dx7ReferenceParityTests.cs
+  espeak_ng_reference_tests: tests/AquaSynth.Dsl.Tests/EspeakNgReferenceTests.cs
   zyn_reference_reader: src/AquaSynth.Core/ZynInstrument.cs
   zyn_coverage_survey: src/AquaSynth.Core/ZynInstrument.cs
   ipa_vocal_tract_roadmap: docs/ipa-vocal-tract-roadmap.md
@@ -76,5 +77,6 @@ checks:
   faust_validation: automatic in tests when Faust is installed
   dexed_py_reference: optional in tests when AQUASYNTH_DX7_PYTHON or a Python with dexed-py is available
   zyn_reference_source: pinned submodule used only for parity tests; never package content
+  espeak_ng_reference: optional command-line development reference, found through ESPEAK_NG or PATH; never package content
   zyn_upstream_instrument_bank: nested GPL submodule used only for test/development pressure surveys and oracle renders; never package content
 

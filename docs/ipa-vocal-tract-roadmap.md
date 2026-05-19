@@ -431,6 +431,34 @@ Metrics:
 - intelligibility/listening notes for complete syllables;
 - script/IPA terseness only after audio is credible.
 
+## Optional eSpeak NG Workout
+
+The first IPA-adjacent parity lane uses eSpeak NG as a development reference.
+It is not an anatomy oracle. eSpeak NG is a compact formant-synthesis TTS system
+that can render speech to WAV and emit IPA transcriptions from text. That makes
+it useful for early intelligibility, phoneme timing, and broad coverage pressure
+while AquaSynth grows its own tract model.
+
+The optional test `EspeakNgReferenceRendererWritesTinyIpaWorkoutWhenInstalled`
+looks for `ESPEAK_NG` or `espeak-ng`/`espeak` on `PATH`. When present, it renders
+a tiny workout under ignored artifacts:
+
+```text
+artifacts/parity/espeak-ng-ipa-workout/<timestamp>-tiny/
+  open-vowel.wav
+  bilabial-open.wav
+  alveolar-open.wav
+  velar-open.wav
+  sibilant-open.wav
+  nasal-open.wav
+  report.md
+```
+
+The report records the source text, eSpeak IPA transcription, sample counts, and
+basic audio features. This is the first external speech judge for the vocal
+tract lane. It should pressure AquaSynth's future IPA/gesture/render path, not
+replace it.
+
 ## First Work Packets
 
 1. Add `docs/ipa-vocal-tract-roadmap.md` and preserve the boundary doctrine.

@@ -73,6 +73,9 @@ First deliverable:
 - Human baseline vowel tract-area planner.
 - A small render proof that can say a few vowels before the supported IPA table
   expands.
+- Optional eSpeak NG workout fixtures that render tiny text/IPA-adjacent speech
+  references when `ESPEAK_NG` or an `espeak-ng` binary is available. These are
+  intelligibility/timing references, not tract-anatomy truth.
 
 ### Tier 1: DX7/Dexed
 
