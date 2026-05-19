@@ -183,6 +183,17 @@ features become overlapping constriction tasks and source events. It should not
 linearly interpolate phone presets unless a test proves that shortcut works for
 the current stage.
 
+The first learned controller lives below the handoff and above rendering:
+`VocalTractNeuralMapper` takes phonetic features plus a semantic embedding vector
+and predicts tract controls. The default shape is deliberately small but real:
+three hidden dense layers with tanh activations, sigmoid output controls, and
+plain SGD/backprop training. Its output includes core tract parameters plus
+expressive synthesis lanes: AM depth, FM depth, LFO rate/depth, filter cutoff,
+filter resonance, and a full mel-frequency spectral envelope vector for
+PAD-style wavetable/formant coloration. Those lanes are not license to bypass
+tract anatomy; they are renderable expression controls the later synth can
+choose to honor.
+
 ### 4. Morphology Model
 
 Owns anatomy.
@@ -467,10 +478,13 @@ AquaSynth's future IPA/gesture/render path, not replace it.
 3. Add a human baseline vowel planner that emits tract-area targets, not audio.
 4. Add a tiny tract renderer prototype in AquaSynth.Faust or a test-only lab
    lane, then decide the package boundary once the prototype proves itself.
-5. Render five vowels and three CVC syllables through fixtures.
-6. Add the first Weksa phonology profile with explicit unsupported-feature
+5. Train the learned controller against eSpeak/log-mel, hand-authored tract
+   targets, and PAD-style spectral-table targets once the renderer can produce
+   comparable buffers.
+6. Render five vowels and three CVC syllables through fixtures.
+7. Add the first Weksa phonology profile with explicit unsupported-feature
    diagnostics.
-7. Only then add Stage 2 consonant synthesis to the shipping path.
+8. Only then add Stage 2 consonant synthesis to the shipping path.
 
 ## Non-Goals
 

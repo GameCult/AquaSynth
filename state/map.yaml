@@ -32,6 +32,7 @@ modules:
   model: src/AquaSynth.Core/Model.cs
   parser: src/AquaSynth.Core/PatchScript.cs
   vocal_tract_model: src/AquaSynth.Core/VocalTractModel.cs
+  vocal_tract_learning: src/AquaSynth.Core/VocalTractLearning.cs
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs
@@ -42,6 +43,7 @@ modules:
   ipa_vocal_tract_roadmap: docs/ipa-vocal-tract-roadmap.md
   package_boundary_tests: tests/AquaSynth.Dsl.Tests/PackageBoundaryTests.cs
   vocal_tract_model_tests: tests/AquaSynth.Dsl.Tests/VocalTractModelTests.cs
+  vocal_tract_learning_tests: tests/AquaSynth.Dsl.Tests/VocalTractLearningTests.cs
   sfxr: src/AquaSynth.Core/SfxrParams.cs
   analysis: src/AquaSynth.Core/AudioAnalysis.cs
   scoring: src/AquaSynth.Core/ScriptMetrics.cs
@@ -64,6 +66,7 @@ boundaries:
     - live patch compilation, native Faust factory lifetime, and offline sample-buffer render proof in AquaSynth.Faust
     - IPA-to-phonetic-feature planning, articulatory gesture planning, and human/alien vocal-tract roadmap design
     - phonetic intent, articulatory plan, morphology capability, and constraint-report contracts for vocal tract synthesis
+    - learned phonetic-plus-semantic embedding controller with gradient descent/backprop for tract, AM/FM, LFO, filter, and mel spectral-envelope controls
   dev_only:
     - public-domain DX7 SysEx fixtures
     - pinned GPL ZynAddSubFX source for parity tests
