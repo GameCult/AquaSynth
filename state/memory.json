@@ -79,9 +79,15 @@
       "ZynAddSubFX instruments for additive, subtractive, PAD, formant, and layered patches",
       "Faust examples/libraries for general DSP graph topology",
       "Surge XT for modern hybrid synth modulation",
-      "Cardinal/VCV-style patches for modular cable/rate semantics"
+      "Cardinal/VCV-style patches for modular cable/rate semantics",
+      "IPA/Weksa vocal tract synthesis for phonetic gesture planning, human and alien tract morphologies, and conlang speech rendering"
     ],
     "rule": "Add DSL abstractions only when reference rebuilds prove the missing invariant. Do not consume references that cannot be backed by parity tests; parsing alone is inventory, not evidence of expressivity."
+  },
+  "ipa_vocal_tract_path": {
+    "status": "Roadmap drafted for an IPA-to-vocal-tract lane. IPA is an authoring input only: tokenization and feature mapping lower into language phonology profiles, timed articulatory gestures, morphology-specific tract/excitation curves, and Faust DSP. The staged support plan starts with tokenization and vowels, then core pulmonic consonants, expanded human IPA, airstream/phonation, and Weksa/alien morphologies.",
+    "lesson": "Do not build a complete IPA parser before the tract can say basic syllables. The durable machine is tokenizer -> feature mapper -> phonology profile -> gesture planner -> morphology -> tract plan -> Faust renderer, with dependency-injected seams and mocks at each boundary. Weksa should use IPA-like phonetic input without letting human IPA semantics own alien anatomy.",
+    "next": "Implement Stage 0/1 fixtures: IPA token spans, vowel feature bundles, human baseline vowel tract-area targets, and a tiny render proof before expanding consonants."
   },
   "dx7_reference_path": {
     "status": "DX7 SysEx parser extracts voice edit buffers, packed voices, packed 32-voice banks, six operators, envelopes, algorithm, feedback, oscillator sync, LFO, transpose, voice name, checksum validation, ReferencePatch features, algorithm topology from the reverse-engineered OPS algorithm ROM table, envelope-to-ADSR approximations, measured carrier output amplitude, isolated two-op modulation route scale, summed/cascaded route scale, calibrated feedback amount table, ratio detune lowering, voice transpose lowering, fixed-frequency operator lowering, ROM COM output compensation cut, operator key/rate scaling at the effective played note, topology-aware route lowering, staged operator envelopes with per-segment curves, raw and block-interpolated DX7 envelope tracing, applied-envelope curved lowering with optional sustain floor, two AquaSynth DSL rebuild attempts, first-class OperatorGraph support with graph-level vibrato, public-domain SysEx fixture coverage, dexed-py reference rendering, project-authored Dexed patch rendering, AquaSynth candidate rendering through Faust-generated C#, one thresholded rendered parity test for analog1.syx voice 13, a hard PRC SYNTH1 parity probe with listening WAV artifacts and log-mel <= 0.145, project-authored algorithm-8 summed-stack/cascade/summed-pair parity, rendered community parity for Mooger, Piano Bass, RES SYNTH1, and ANLGSYN 1 with a sustained high-band gate, a MELLOWSOLO pressure artifact test, and renderable delayed operator feedback.",

@@ -1,0 +1,426 @@
+# IPA Vocal Tract Roadmap
+
+AquaSynth can get close to a Pink Trombone-class tract model, then move past it
+by treating IPA as an authoring input rather than the synth itself. The machine
+we want is not a giant table from symbol to sound. It is a pipeline:
+
+```text
+IPA text
+  -> phonetic tokens
+  -> language phonology profile
+  -> timed articulatory gesture plan
+  -> morphology-specific tract and excitation curves
+  -> Faust DSP
+  -> rendered speech, song, chant, and nonhuman vocalization
+```
+
+The target user feeds Weksa text as IPA or IPA-like phonetic strings. AquaSynth
+keeps the real authority below that surface: phonetic features, gestures,
+anatomy, excitation, and acoustic simulation.
+
+## Objective
+
+Build a research-grounded vocal-tract instrument for human and alien speech:
+
+- parse IPA into structured phonetic intent;
+- lower phonetic intent through a language profile into articulatory gestures;
+- render those gestures through human and nonhuman tract morphologies;
+- keep coarticulation continuous rather than stepping between phoneme presets;
+- make every layer testable with mocks, fixtures, and deterministic outputs;
+- grow supported IPA exponentially as the tract model earns new physics.
+
+The Weksa goal is conlang speech rendering for Zyphos worldbuilding. IPA gives
+authors a familiar entry point. The tract model gives us the power to make Weksa
+sound like Weksa instead of like English wearing ceremonial markup.
+
+## Research Spine
+
+The first implementation should stand on old, durable work:
+
+- Kelly-Lochbaum / digital waveguide vocal tract models simulate 1D wave
+  propagation through connected tube sections using reflection coefficients.
+  This is the practical spine behind Pink Trombone-like realtime tract synthesis.
+- Pink Trombone demonstrates that a simplified tract, glottis, turbulence, oral
+  cavity, and nasal coupling can produce interactive intelligible speech-like
+  sound in realtime.
+- Liljencrants-Fant-style glottal source models give a better voiced excitation
+  than a naive sawtooth or pulse train, and can parameterize voice quality.
+- Articulatory phonology and task dynamics provide the right control model:
+  phonetic units become overlapping gestures, not isolated frames.
+- Vocal-tract area-function work is the middle layer between anatomy and DSP:
+  vowels and constrictions can be expressed as cross-sectional area over tract
+  distance before being lowered to reflection coefficients.
+- IPA feature databases and phoneme-table implementations are reference
+  material for metadata, not authorities over the sound. They help keep the
+  parser and feature mapper honest while the gesture and morphology layers own
+  synthesis.
+- Source-filter speech theory still matters, but this lane should not collapse
+  back into static formant filters. Formants are useful diagnostics; tract shape
+  is the synthesis authority.
+
+Useful starting sources:
+
+- Pink Trombone / Neil Thapen interactive tract model:
+  <https://dood.al/pinktrombone/>
+- Pink Trombone overview at IMAGINARY:
+  <https://www.imaginary.org/program/pink-trombone>
+- Recent Pink Trombone optimization paper describing PT as a realtime
+  Kelly-Lochbaum tract model:
+  <https://link.springer.com/article/10.1186/s13636-025-00414-5>
+- Story 2005 vocal-tract area-function model:
+  <https://bpb-us-e2.wpmucdn.com/sites.arizona.edu/dist/f/80/files/2023/10/story_jasa2005-1.pdf>
+- Kelly-Lochbaum / time-domain articulatory synthesis summary:
+  <https://www.isca-archive.org/eurospeech_1989/owens89b_eurospeech.html>
+- Waveguide vocal tract acoustics:
+  <https://eprints.whiterose.ac.uk/id/eprint/3713/>
+- Voice source model comparison including LF:
+  <https://pmc.ncbi.nlm.nih.gov/articles/PMC4491021/>
+- LF model fitting for speech synthesis:
+  <https://www.cs.cmu.edu/~awb/papers/is2013/is2013_lfmodel.pdf>
+- Haskins TADA gestural planning model:
+  <https://www.haskinslaboratories.org/tada>
+- PanPhon IPA feature vectors:
+  <https://pypi.org/project/panphon/>
+- PHOIBLE phoneme inventories and distinctive features:
+  <https://phoible.org/>
+- eSpeak NG phoneme-table implementation reference:
+  <https://deepwiki.com/espeak-ng/espeak-ng/4.2-phoneme-model>
+
+## Architecture
+
+### 1. IPA Parser
+
+Owns Unicode IPA tokenization and notation, not sound.
+
+Inputs:
+
+- IPA string;
+- optional language tag;
+- optional inline stress, length, tone, syllable, and boundary marks.
+
+Outputs:
+
+- ordered `PhoneticToken` records;
+- diacritic attachments;
+- suprasegmental marks;
+- source spans for diagnostics.
+
+The parser should be table-driven and deterministic. It should reject unknown
+clusters with useful diagnostics instead of guessing heroically and making a new
+little bureaucracy out of Unicode.
+
+### 2. Phonetic Feature Mapper
+
+Owns IPA-to-feature interpretation.
+
+Examples:
+
+- `/p/` -> voiceless bilabial stop;
+- `/ɬ/` -> voiceless alveolar lateral fricative;
+- `/qʼ/` -> uvular ejective stop;
+- `/aː/` -> long open vowel, front/central depending on profile defaults.
+
+Outputs:
+
+- `PhoneticSegment` with manner, place, voicing, airstream, length, stress,
+  vowel height/backness/rounding, and diacritics.
+
+This layer should support language profiles. IPA has broad and narrow uses, and
+Weksa may assign phonemic categories to articulatory targets that are only
+human-adjacent. PanPhon, PHOIBLE, and eSpeak NG are useful references for feature
+schemas and inventory sanity checks, but AquaSynth should own its feature record
+instead of importing a third-party schema as the permanent internal model.
+
+### 3. Gesture Planner
+
+Owns time and coarticulation.
+
+Inputs:
+
+- phonetic segments;
+- language timing profile;
+- prosody vector;
+- speaking style;
+- morphology capability map.
+
+Outputs:
+
+- overlapping gestures for tract constriction, tongue body, tongue tip, lips,
+  velum, glottis, pressure, turbulence, burst release, and auxiliary organs.
+
+This is where consonants and vowels smear into each other. Stops close before
+their release. Vowels pull neighboring consonants. Fricatives hold a narrow
+constriction and noise source. Nasals open a branch. Ejectives and clicks become
+pressure/airstream events rather than cute punctuation.
+
+The gesture planner should resemble a small task-dynamics compiler: phone
+features become overlapping constriction tasks and source events. It should not
+linearly interpolate phone presets unless a test proves that shortcut works for
+the current stage.
+
+### 4. Morphology Model
+
+Owns anatomy.
+
+Human baseline:
+
+- tract length;
+- section count;
+- palate/tongue mapping;
+- lip opening/protrusion;
+- velum and nasal branch;
+- one glottal source;
+- oral tract radiation.
+
+Alien/Weksa extensions:
+
+- longer or shorter tract families;
+- asymmetric or split oral branches;
+- additional resonant sacs;
+- secondary glottal or membrane exciters;
+- nonhuman nasal/side-channel coupling;
+- constrained articulator ranges by species or caste;
+- morphology-specific mappings from human IPA-like features to physical organs.
+
+IPA does not get to own alien anatomy. IPA names intent; morphology realizes it.
+
+### 5. Tract DSP
+
+Owns sound.
+
+First spine:
+
+- 1D Kelly-Lochbaum-style tube sections;
+- reflection coefficients from section area;
+- glottal excitation at the source;
+- lip radiation;
+- nasal branch switch/coupling;
+- turbulence injection at constriction points;
+- closure and burst primitives for stops.
+
+Use area functions as the stable middle representation: a morphology and gesture
+plan produce tract-area curves over time; the DSP compiler turns those curves
+into reflection coefficients, source injection points, and coupling events.
+
+Later spine:
+
+- losses and dispersion;
+- lip/larynx impedance refinements;
+- side branches and sacs;
+- multiple sources;
+- differentiable or search-assisted parameter fitting for vowel targets;
+- morphologies that are not merely scaled human throats.
+
+Generated Faust should remain boring enough to inspect. If tract DSP becomes
+large, generate a specialized Faust module from a typed tract plan instead of
+stuffing a hundred magic controls into ordinary `voice`.
+
+## Supported IPA Roadmap
+
+Do not support all IPA first. That is the trap where the parser looks mighty and
+the synth says five ugly vowels. Expand by doubling the useful surface each time
+the physical model earns another category.
+
+### Stage 0: Token Spine
+
+Goal: lossless-enough IPA tokenization and diagnostics.
+
+Support:
+
+- whitespace and word boundaries;
+- `/.../` and `[...]` wrappers;
+- primary and secondary stress;
+- length marks `ː` and `ˑ`;
+- common tie mark for affricates;
+- combining diacritic storage without full interpretation.
+
+Tests:
+
+- round-trip token spans;
+- unknown-symbol diagnostics;
+- diacritic attachment fixtures.
+
+### Stage 1: Vowels And Simple Voice
+
+Goal: intelligible sustained vowel targets through a human tract.
+
+Support:
+
+- monophthong vowels: `i y ɨ ʉ ɯ u ɪ ʏ ʊ e ø ɘ ɵ ɤ o ə ɛ œ ɜ ɞ ʌ ɔ æ ɐ a ɶ ɑ ɒ`;
+- length and stress as duration/prosody modifiers;
+- modal voiced glottal source;
+- simple pitch, intensity, and breathiness controls.
+
+Machine growth:
+
+- vowel feature space;
+- tract area targets informed by area-function references;
+- glottal source model;
+- vowel fixture renderer.
+
+Validation:
+
+- check approximate formant regions for `/i e a o u ə/`;
+- compare tract-area curves against known vowel-shape expectations;
+- keep listening fixtures because a formant table can still lie with confidence.
+
+### Stage 2: Core Pulmonic Consonants
+
+Goal: CV, VC, and CVC syllables with recognizably different places and manners.
+
+Support:
+
+- stops: `p b t d k g ʔ`;
+- nasals: `m n ŋ`;
+- fricatives: `f v s z ʃ ʒ h`;
+- approximants: `w j l ɹ`;
+- basic aspiration `ʰ`;
+- syllable and word timing.
+
+Machine growth:
+
+- closure/release events;
+- plosive burst noise;
+- fricative turbulence source;
+- nasal branch;
+- simple coarticulation curves.
+
+Validation:
+
+- verify voice onset timing for stops;
+- verify burst timing and broad noise bands;
+- verify nasal/oral contrast;
+- reject fricative support that is only a filtered noise preset with no
+  constriction/source location.
+
+### Stage 3: Expanded Human IPA
+
+Goal: useful conlang coverage without pretending to be a universal phonetician.
+
+Support:
+
+- places: dental, alveolar, postalveolar, retroflex, palatal, velar, uvular,
+  pharyngeal, glottal;
+- manners: trills, taps/flaps, lateral fricatives, lateral approximants,
+  affricates;
+- symbols: `θ ð ɕ ʑ ç ʝ x ɣ χ ʁ ħ ʕ ɸ β ʂ ʐ ɲ ɳ ɴ ɾ r ʀ ɭ ʎ ʟ ɰ`;
+- affricate tie sequences such as `t͡s`, `d͡ʒ`, `t͡ɬ`;
+- voiceless/voiced and dentalized/palatalized/labialized/velarized diacritics
+  where they map to real gestures.
+
+Machine growth:
+
+- tongue tip/body split;
+- lateral constriction;
+- trill/tap event generators;
+- profile-specific place maps.
+
+This is the point where a language profile starts earning its keep. The same IPA
+symbol may need different timing, place bias, or allophonic behavior by language;
+that belongs in the profile, not in the global token parser.
+
+### Stage 4: Airstream And Phonation
+
+Goal: Weksa can use sounds that feel physically intentional instead of being
+ornamental apostrophes.
+
+Support:
+
+- ejectives: `ʼ`;
+- implosives: `ɓ ɗ ʄ ɠ ʛ`;
+- clicks: `ʘ ǀ ǃ ǂ ǁ`;
+- breathy, creaky, slack/stiff voice diacritics;
+- voiceless vowels and sonorants;
+- tone marks if Weksa needs lexical or prosodic tone.
+
+Machine growth:
+
+- pressure reservoirs;
+- glottal closure timing;
+- ingressive/egressive event modeling;
+- richer glottal source parameterization;
+- non-pulmonic test fixtures.
+
+### Stage 5: Weksa And Alien Morphologies
+
+Goal: IPA can drive nonhuman vocal anatomy without reducing aliens to exotic
+human accents.
+
+Support:
+
+- morphology profiles with declared organ inventory;
+- feature remapping per morphology;
+- unsupported-feature diagnostics that explain the missing organ or gesture;
+- dual-source phonation;
+- resonant sacs and side branches;
+- nonhuman lateral or split-tract continuants;
+- authored Weksa phoneme inventories and allophones.
+
+Machine growth:
+
+- morphology capability negotiation;
+- tract graph beyond a single tube plus nasal branch;
+- multi-source DSP;
+- Weksa fixture corpus;
+- Zyphos scene hooks for speaker, body, place, and emotional pressure.
+
+## Testing And Mocking
+
+The implementation should be built as a set of injectable services:
+
+- `IIpaTokenizer`
+- `IPhoneticFeatureMapper`
+- `IPhonologyProfile`
+- `IGesturePlanner`
+- `ITractMorphology`
+- `ITractPlanCompiler`
+- `ITractFaustEmitter`
+- `IAudioRenderer`
+- `IReferenceFixtureStore`
+
+Mock seams are not ceremony here. They protect the machine:
+
+- tokenizer tests do not need DSP;
+- feature tests do not need coarticulation;
+- gesture tests can snapshot control curves;
+- morphology tests can assert capabilities and remaps;
+- Faust emitter tests can verify generated structure without rendering;
+- renderer tests can compare short deterministic buffers;
+- Weksa profile tests can prove unsupported IPA fails clearly.
+
+Golden fixtures:
+
+- IPA tokenization fixtures;
+- feature bundle fixtures;
+- gesture-plan JSON fixtures;
+- tract-area curve fixtures;
+- rendered vowel and CVC WAV artifacts;
+- Weksa phrase fixtures once the language profile exists.
+
+Metrics:
+
+- formant target distance for vowels;
+- envelope and burst timing for stops;
+- noise-band distance for fricatives;
+- nasal/oral spectral contrast;
+- intelligibility/listening notes for complete syllables;
+- script/IPA terseness only after audio is credible.
+
+## First Work Packets
+
+1. Add `docs/ipa-vocal-tract-roadmap.md` and preserve the boundary doctrine.
+2. Add an IPA tokenizer and feature model with Stage 0/1 fixture tests.
+3. Add a human baseline vowel planner that emits tract-area targets, not audio.
+4. Add a tiny tract renderer prototype in AquaSynth.Faust or a test-only lab
+   lane, then decide the package boundary once the prototype proves itself.
+5. Render five vowels and three CVC syllables through fixtures.
+6. Add the first Weksa phonology profile with explicit unsupported-feature
+   diagnostics.
+7. Only then add Stage 2 consonant synthesis to the shipping path.
+
+## Non-Goals
+
+- Full CFD, finite-element airflow, or anatomical medical simulation.
+- A black-box neural TTS voice that hides anatomy and cannot explain itself.
+- A complete IPA parser before the tract can render basic syllables.
+- Alien sounds as random effects. Nonhuman output needs morphology, not glitter.

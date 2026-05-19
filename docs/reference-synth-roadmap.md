@@ -51,6 +51,29 @@ missing graph feature instead of smuggling it through unrelated parameters.
 
 ## Target Families
 
+### New Lane: IPA Vocal Tract / Weksa
+
+This is not merely another reference synth. It is a new authoring and rendering
+lane: IPA text lowers into phonetic features, timed articulatory gestures,
+morphology-specific tract/excitation curves, and Faust DSP. The roadmap lives in
+[`docs/ipa-vocal-tract-roadmap.md`](ipa-vocal-tract-roadmap.md).
+
+Pressure on AquaSynth DSL:
+
+- IPA as an input surface, not an internal patch model.
+- Phonology profiles separated from tract morphology.
+- Gesture planning and coarticulation before audio rendering.
+- Human and alien vocal anatomies driven by the same structured phonetic intent.
+- Mockable tokenizer, feature mapper, gesture planner, morphology, emitter, and
+  renderer seams.
+
+First deliverable:
+
+- Stage 0/1 IPA tokenization and vowel feature fixtures.
+- Human baseline vowel tract-area planner.
+- A small render proof that can say a few vowels before the supported IPA table
+  expands.
+
 ### Tier 1: DX7/Dexed
 
 Use this first. DX7 SysEx is compact, structured, and musically meaningful:
