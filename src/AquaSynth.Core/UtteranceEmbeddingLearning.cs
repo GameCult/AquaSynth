@@ -80,6 +80,15 @@ public sealed class UtteranceEmbeddingNeuralEncoder
         return new UtteranceEmbedding(network.Predict(features.Values));
     }
 
+    public PackedNeuralBackpropagation TrainSingleFromOutputGradient(
+        UtteranceEmbeddingFeatureVector features,
+        IReadOnlyList<float> outputGradient,
+        float learningRate)
+    {
+        ValidateSize(features.Values, InputSize, nameof(features));
+        return network.TrainSingleFromOutputGradient(features.Values, outputGradient, learningRate);
+    }
+
     public UtteranceEmbeddingTrainingResult Train(
         IReadOnlyList<UtteranceEmbeddingTrainingExample> examples,
         PackedNeuralTrainingOptions? options = null)

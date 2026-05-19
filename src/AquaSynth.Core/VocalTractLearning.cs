@@ -99,8 +99,21 @@ public sealed class VocalTractNeuralMapper
 
     public VocalTractControlTarget Predict(PhoneticEvent phoneticEvent, VocalTractSemanticEmbedding semanticEmbedding)
     {
-        return TargetFromVector(network.Predict(EncodeInput(phoneticEvent, semanticEmbedding)));
+        return TargetFromVector(PredictVector(phoneticEvent, semanticEmbedding));
     }
+
+    public float[] PredictVector(PhoneticEvent phoneticEvent, VocalTractSemanticEmbedding semanticEmbedding) =>
+        network.Predict(EncodeInput(phoneticEvent, semanticEmbedding));
+
+    public PackedNeuralBackpropagation TrainSingle(
+        PhoneticEvent phoneticEvent,
+        VocalTractSemanticEmbedding semanticEmbedding,
+        VocalTractControlTarget target,
+        float learningRate) =>
+        network.TrainSingle(
+            EncodeInput(phoneticEvent, semanticEmbedding),
+            target.ToVector(MelBandCount, NeutralMelBand),
+            learningRate);
 
     public VocalTractTrainingResult Train(
         IReadOnlyList<VocalTractTrainingExample> examples,

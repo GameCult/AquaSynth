@@ -30,7 +30,7 @@ public sealed class EspeakNgGradientDescentTests
             var samples = ReadMonoPcm16Wav(wavPath);
             var analysis = AudioAnalyzer.AnalyzeAudio(samples);
             var logMelMean = MeanBands(analysis.LogMelSpectrogram);
-            groundTruth.Add(new GroundTruthFixture(fixture, logMelMean, Downsample(logMelMean, 16)));
+            groundTruth.Add(new GroundTruthFixture(fixture, logMelMean));
         }
 
         var utteranceEncoder = UtteranceEmbeddingNeuralEncoder.Create(
@@ -38,42 +38,34 @@ public sealed class EspeakNgGradientDescentTests
             embeddingSize: 16,
             hiddenLayerSizes: [64, 48, 32],
             seed: 101);
-        var utteranceExamples = groundTruth
-            .Select(item => new UtteranceEmbeddingTrainingExample(
-                item.Fixture.UtteranceInput.ToFeatureVector(),
-                new UtteranceEmbedding(item.TargetEmbedding)))
-            .ToArray();
-
-        var utteranceBefore = AverageUtteranceLoss(utteranceEncoder, utteranceExamples);
-        var utteranceResult = utteranceEncoder.Train(utteranceExamples, new PackedNeuralTrainingOptions(Epochs: 420, LearningRate: 0.03f, Seed: 101, BatchSize: 3));
-        var utteranceAfter = AverageUtteranceLoss(utteranceEncoder, utteranceExamples);
-
         var vocalMapper = VocalTractNeuralMapper.Create(semanticEmbeddingSize: 16, melBandCount: 32, hiddenLayerSizes: [80, 56, 40], seed: 103);
-        var vocalExamples = groundTruth
-            .Select(item => new VocalTractTrainingExample(
+        var pipeline = new SpeechBackpropagationPipeline(utteranceEncoder, vocalMapper);
+        var examples = groundTruth
+            .Select(item => new SpeechBackpropagationTrainingExample(
+                item.Fixture.UtteranceInput,
                 item.Fixture.Event,
-                utteranceEncoder.Encode(item.Fixture.UtteranceInput).ToSemanticEmbedding(),
                 TargetFromGroundTruth(item.Fixture.Event, item.LogMelMean)))
             .ToArray();
 
-        var vocalBefore = AverageVocalLoss(vocalMapper, vocalExamples);
-        var vocalResult = vocalMapper.Train(vocalExamples, new VocalTractTrainingOptions(Epochs: 520, LearningRate: 0.035f, Seed: 103, BatchSize: 3));
-        var vocalAfter = AverageVocalLoss(vocalMapper, vocalExamples);
+        var pipelineBefore = AveragePipelineLoss(pipeline, examples);
+        var pipelineResult = pipeline.Train(examples, new SpeechBackpropagationTrainingOptions(
+            Epochs: 640,
+            UtteranceLearningRate: 0.04f,
+            SynthDriverLearningRate: 0.04f,
+            Seed: 107));
+        var pipelineAfter = AveragePipelineLoss(pipeline, examples);
 
-        Assert.True(utteranceAfter < utteranceBefore * 0.45f, $"utterance embedding loss did not drop enough; before={utteranceBefore}, after={utteranceAfter}");
-        Assert.True(vocalAfter < vocalBefore * 0.45f, $"vocal driver loss did not drop enough; before={vocalBefore}, after={vocalAfter}");
+        Assert.True(pipelineAfter < pipelineBefore * 0.55f, $"end-to-end speech pipeline loss did not drop enough; before={pipelineBefore}, after={pipelineAfter}");
+        Assert.True(pipelineResult.Steps[^1].Loss < pipelineResult.Steps[0].Loss, "end-to-end pipeline loss should decrease across epochs");
 
         var report = new List<string>
         {
             "eSpeak NG gradient descent fixture",
             $"renderer: {renderer.CommandPath}",
-            "role: generated supervised ground truth for AquaSynth utterance embedding and synth-driver training",
-            $"utterance_loss_before: {utteranceBefore:0.######}",
-            $"utterance_loss_after: {utteranceAfter:0.######}",
-            $"utterance_epochs: {utteranceResult.Steps.Count}",
-            $"vocal_loss_before: {vocalBefore:0.######}",
-            $"vocal_loss_after: {vocalAfter:0.######}",
-            $"vocal_epochs: {vocalResult.Steps.Count}",
+            "role: generated supervised ground truth for end-to-end AquaSynth utterance embedding -> synth-driver backpropagation",
+            $"pipeline_loss_before: {pipelineBefore:0.######}",
+            $"pipeline_loss_after: {pipelineAfter:0.######}",
+            $"pipeline_epochs: {pipelineResult.Steps.Count}",
             "fixtures:"
         };
         foreach (var item in groundTruth)
@@ -127,25 +119,13 @@ public sealed class EspeakNgGradientDescentTests
             MelSpectralEnvelope: logMelMean);
     }
 
-    private static float AverageUtteranceLoss(UtteranceEmbeddingNeuralEncoder encoder, IReadOnlyList<UtteranceEmbeddingTrainingExample> examples)
+    private static float AveragePipelineLoss(SpeechBackpropagationPipeline pipeline, IReadOnlyList<SpeechBackpropagationTrainingExample> examples)
     {
         var loss = 0f;
         foreach (var example in examples)
         {
-            var prediction = encoder.Encode(example.Features);
-            loss += MeanSquaredError(prediction.Values, example.Target.Values);
-        }
-
-        return loss / examples.Count;
-    }
-
-    private static float AverageVocalLoss(VocalTractNeuralMapper mapper, IReadOnlyList<VocalTractTrainingExample> examples)
-    {
-        var loss = 0f;
-        foreach (var example in examples)
-        {
-            var prediction = mapper.Predict(example.Event, example.SemanticEmbedding);
-            loss += MeanSquaredError(prediction.ToVector(mapper.MelBandCount), example.Target.ToVector(mapper.MelBandCount));
+            var prediction = pipeline.Predict(example);
+            loss += MeanSquaredError(prediction.ToVector(pipeline.SynthDriver.MelBandCount), example.Target.ToVector(pipeline.SynthDriver.MelBandCount));
         }
 
         return loss / examples.Count;
@@ -162,18 +142,6 @@ public sealed class EspeakNgGradientDescentTests
         }
 
         return loss / Math.Max(1, count);
-    }
-
-    private static float[] Downsample(IReadOnlyList<float> values, int count)
-    {
-        var output = new float[count];
-        for (var index = 0; index < count; index++)
-        {
-            var source = (int)MathF.Round(index * (values.Count - 1) / Math.Max(1f, count - 1f));
-            output[index] = values[source];
-        }
-
-        return output;
     }
 
     private static float[] MeanBands(Spectrogram spectrogram)
@@ -283,8 +251,7 @@ public sealed class EspeakNgGradientDescentTests
 
     private sealed record GroundTruthFixture(
         TrainingFixture Fixture,
-        float[] LogMelMean,
-        float[] TargetEmbedding);
+        float[] LogMelMean);
 
     private sealed class EspeakNgReferenceRenderer(string commandPath)
     {

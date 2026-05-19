@@ -34,6 +34,7 @@ modules:
   vocal_tract_model: src/AquaSynth.Core/VocalTractModel.cs
   packed_neural_network: src/AquaSynth.Core/PackedNeuralNetwork.cs
   utterance_embedding_learning: src/AquaSynth.Core/UtteranceEmbeddingLearning.cs
+  speech_backpropagation_pipeline: src/AquaSynth.Core/SpeechBackpropagationPipeline.cs
   vocal_tract_learning: src/AquaSynth.Core/VocalTractLearning.cs
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
@@ -47,6 +48,7 @@ modules:
   package_boundary_tests: tests/AquaSynth.Dsl.Tests/PackageBoundaryTests.cs
   vocal_tract_model_tests: tests/AquaSynth.Dsl.Tests/VocalTractModelTests.cs
   utterance_embedding_learning_tests: tests/AquaSynth.Dsl.Tests/UtteranceEmbeddingLearningTests.cs
+  speech_backpropagation_pipeline_tests: tests/AquaSynth.Dsl.Tests/SpeechBackpropagationPipelineTests.cs
   vocal_tract_learning_tests: tests/AquaSynth.Dsl.Tests/VocalTractLearningTests.cs
   sfxr: src/AquaSynth.Core/SfxrParams.cs
   analysis: src/AquaSynth.Core/AudioAnalysis.cs
@@ -73,6 +75,7 @@ boundaries:
     - packed-buffer native backprop/Adam as the shared AquaSynth gradient-descent primitive
     - learned utterance embedding encoder from speech text embeddings, prosody/emphasis hints, and Ghostlight/Epiphany-shaped character state vectors
     - learned phonetic-plus-utterance-embedding synth driver with packed-buffer native backprop/Adam for tract, AM/FM, LFO, filter, and mel spectral-envelope controls
+    - chained utterance-embedding-to-synth-driver backpropagation that returns synth input gradients and updates the utterance encoder from downstream speech loss
     - optional eSpeak NG generated ground-truth fixture for supervised utterance-embedding and synth-driver gradient descent
   dev_only:
     - public-domain DX7 SysEx fixtures

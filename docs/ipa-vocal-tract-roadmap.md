@@ -190,12 +190,16 @@ the gradient descent. `UtteranceEmbeddingNeuralEncoder` trains a tiny model to
 compress those ingredients into one utterance embedding. `VocalTractNeuralMapper`
 then takes phonetic features plus that embedding and predicts tract controls.
 Both controllers use the same native C# packed-network path: row-major buffers,
-unsafe hot loops, batched gradients, and Adam or SGD updates. The synth-driver
-output includes core tract parameters plus expressive synthesis lanes: AM depth,
-FM depth, LFO rate/depth, filter cutoff, filter resonance, and a full
-mel-frequency spectral envelope vector for PAD-style wavetable/formant
-coloration. Those lanes are not license to bypass tract anatomy; they are
-renderable expression controls the later synth can choose to honor.
+unsafe hot loops, batched gradients, and Adam or SGD updates. For chained speech
+training, `SpeechBackpropagationPipeline` runs the synth-driver loss backward
+through the utterance embedding, slices out the embedding gradient from the
+synth-driver input gradient, and updates the utterance encoder from that upstream
+loss. The synth-driver output includes core tract parameters plus expressive
+synthesis lanes: AM depth, FM depth, LFO rate/depth, filter cutoff, filter
+resonance, and a full mel-frequency spectral envelope vector for PAD-style
+wavetable/formant coloration. Those lanes are not license to bypass tract
+anatomy; they are renderable expression controls the later synth can choose to
+honor.
 
 ### 4. Morphology Model
 
@@ -476,10 +480,11 @@ AquaSynth's future IPA/gesture/render path, not replace it.
 
 The optional test `EspeakNgGroundTruthTrainsUtteranceEmbeddingAndSynthDriverWhenInstalled`
 turns the same idea into a gradient-descent fixture. When eSpeak is present it
-renders the tiny syllable set, extracts normalized log-mel means, trains
-`UtteranceEmbeddingNeuralEncoder` toward compressed eSpeak evidence, then trains
-`VocalTractNeuralMapper` toward tract/mod/filter/mel controls seeded by that
-evidence. It writes WAVs plus a training report under:
+renders the tiny syllable set, extracts normalized log-mel means, and runs
+`SpeechBackpropagationPipeline`: the eSpeak-seeded synth-driver target loss
+updates `VocalTractNeuralMapper` and backpropagates through the utterance
+embedding into `UtteranceEmbeddingNeuralEncoder`. It writes WAVs plus a training
+report under:
 
 ```text
 artifacts/parity/espeak-ng-gradient-descent/<timestamp>-tiny/

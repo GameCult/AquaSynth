@@ -27,6 +27,11 @@ public sealed record PackedNeuralTrainingResult(
     PackedNeuralNetwork Network,
     IReadOnlyList<PackedNeuralTrainingStep> Steps);
 
+public sealed record PackedNeuralBackpropagation(
+    float Loss,
+    float[] Output,
+    float[] InputGradient);
+
 public sealed class PackedNeuralNetwork
 {
     private readonly Layer[] layers;
@@ -148,6 +153,42 @@ public sealed class PackedNeuralNetwork
         return new PackedNeuralTrainingResult(this, steps);
     }
 
+    public PackedNeuralBackpropagation TrainSingle(
+        IReadOnlyList<float> input,
+        IReadOnlyList<float> target,
+        float learningRate)
+    {
+        if (learningRate <= 0) throw new ArgumentOutOfRangeException(nameof(learningRate), "learning rate must be positive");
+        if (target.Count != OutputSize) throw new ArgumentException($"target must have {OutputSize} values", nameof(target));
+
+        var outputGradient = new float[OutputSize];
+        var scratch = TrainingScratch.Create(layers, InputSize, OutputSize);
+        CopyChecked(input, scratch.Activations[0], "input");
+        Copy(target, scratch.Target);
+        Forward(scratch);
+        var loss = MeanSquaredError(scratch.Output, scratch.Target);
+        for (var index = 0; index < outputGradient.Length; index++)
+        {
+            outputGradient[index] = 2f * (scratch.Output[index] - scratch.Target[index]) / Math.Max(1, OutputSize);
+        }
+
+        return TrainSingleFromOutputGradient(scratch, outputGradient, learningRate, loss);
+    }
+
+    public PackedNeuralBackpropagation TrainSingleFromOutputGradient(
+        IReadOnlyList<float> input,
+        IReadOnlyList<float> outputGradient,
+        float learningRate)
+    {
+        if (learningRate <= 0) throw new ArgumentOutOfRangeException(nameof(learningRate), "learning rate must be positive");
+        if (outputGradient.Count != OutputSize) throw new ArgumentException($"output gradient must have {OutputSize} values", nameof(outputGradient));
+
+        var scratch = TrainingScratch.Create(layers, InputSize, OutputSize);
+        CopyChecked(input, scratch.Activations[0], "input");
+        Forward(scratch);
+        return TrainSingleFromOutputGradient(scratch, outputGradient, learningRate, 0);
+    }
+
     private static void Validate(PackedNeuralTrainingOptions options)
     {
         if (options.Epochs <= 0) throw new ArgumentOutOfRangeException(nameof(options), "epoch count must be positive");
@@ -163,7 +204,31 @@ public sealed class PackedNeuralNetwork
         }
     }
 
+    private PackedNeuralBackpropagation TrainSingleFromOutputGradient(
+        TrainingScratch scratch,
+        IReadOnlyList<float> outputGradient,
+        float learningRate,
+        float loss)
+    {
+        var gradients = LayerBuffers.Create(layers);
+        AccumulateGradientsFromOutputGradient(scratch, outputGradient, gradients);
+        var inputGradient = InputGradient(scratch);
+        ApplySgd(gradients, 1f, learningRate);
+        return new PackedNeuralBackpropagation(loss, scratch.Output.ToArray(), inputGradient);
+    }
+
     private void AccumulateGradients(TrainingScratch scratch, LayerBuffers gradients)
+    {
+        var outputGradient = new float[OutputSize];
+        for (var index = 0; index < outputGradient.Length; index++)
+        {
+            outputGradient[index] = 2f * (scratch.Output[index] - scratch.Target[index]);
+        }
+
+        AccumulateGradientsFromOutputGradient(scratch, outputGradient, gradients);
+    }
+
+    private void AccumulateGradientsFromOutputGradient(TrainingScratch scratch, IReadOnlyList<float> outputGradient, LayerBuffers gradients)
     {
         var lastLayerIndex = layers.Length - 1;
         var outputDelta = scratch.Deltas[lastLayerIndex];
@@ -171,7 +236,7 @@ public sealed class PackedNeuralNetwork
         for (var index = 0; index < outputDelta.Length; index++)
         {
             var actual = output[index];
-            outputDelta[index] = 2f * (actual - scratch.Target[index]) * layers[lastLayerIndex].Derivative(actual);
+            outputDelta[index] = outputGradient[index] * layers[lastLayerIndex].Derivative(actual);
         }
 
         for (var layerIndex = lastLayerIndex - 1; layerIndex >= 0; layerIndex--)
@@ -183,6 +248,13 @@ public sealed class PackedNeuralNetwork
         {
             gradients.Accumulate(layerIndex, scratch.Activations[layerIndex], scratch.Deltas[layerIndex]);
         }
+    }
+
+    private float[] InputGradient(TrainingScratch scratch)
+    {
+        var inputGradient = new float[InputSize];
+        layers[0].BackpropagateInputGradient(scratch.Deltas[0], inputGradient);
+        return inputGradient;
     }
 
     private void ApplySgd(LayerBuffers gradients, float scale, float learningRate)
@@ -402,6 +474,28 @@ public sealed class PackedNeuralNetwork
                         }
 
                         deltaBase[output] = sum * Derivative(activationBase[output]);
+                    }
+                }
+            }
+        }
+
+        public void BackpropagateInputGradient(float[] nextDelta, float[] inputGradient)
+        {
+            unsafe
+            {
+                fixed (float* nextDeltaBase = nextDelta)
+                fixed (float* inputGradientBase = inputGradient)
+                fixed (float* weightBase = Weights)
+                {
+                    for (var input = 0; input < InputSize; input++)
+                    {
+                        var sum = 0f;
+                        for (var output = 0; output < OutputSize; output++)
+                        {
+                            sum += weightBase[output * InputSize + input] * nextDeltaBase[output];
+                        }
+
+                        inputGradientBase[input] = sum;
                     }
                 }
             }
