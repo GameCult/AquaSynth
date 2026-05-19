@@ -42,22 +42,36 @@ public sealed class AquaSynthCompiledPatch : IDisposable
     private readonly IntPtr factory;
     private bool disposed;
 
-    internal AquaSynthCompiledPatch(FaustNativeToolchain toolchain, IntPtr factory, AquaSynthNativeManifest manifest)
+    internal AquaSynthCompiledPatch(
+        FaustNativeToolchain toolchain,
+        IntPtr factory,
+        AquaSynthNativeManifest manifest,
+        IReadOnlyList<string> controlPaths)
     {
         this.toolchain = toolchain;
         this.factory = factory;
         Manifest = manifest;
+        ControlPaths = controlPaths;
     }
 
     public AquaSynthNativeManifest Manifest { get; }
 
-    public float[] Render(float gain = 1.0f)
+    public IReadOnlyList<string> ControlPaths { get; }
+
+    public float[] Render(float gain = 1.0f) => Render(null, gain);
+
+    public float[] Render(IReadOnlyDictionary<string, float>? controls, float gain = 1.0f)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         var dsp = toolchain.CreateInstance(factory);
         try
         {
             toolchain.InitInstance(dsp, Manifest.SampleRate);
+            if (controls is not null)
+            {
+                toolchain.SetControls(dsp, controls);
+            }
+
             var outputs = new float[Manifest.OutputCount][];
             var outputPointers = new IntPtr[Manifest.OutputCount];
             var handles = new GCHandle[Manifest.OutputCount];
@@ -153,6 +167,37 @@ public sealed class AquaSynthPatchCompiler : IDisposable
         try
         {
             patch = compiler!.CompileScript(identity);
+            error = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    public bool TryCompileSource(
+        AquaSynthCompileIdentity identity,
+        string source,
+        float durationSeconds,
+        out AquaSynthCompiledPatch? patch,
+        out string? error)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        patch = null;
+        if (!EnsureCompiler(out error))
+        {
+            return false;
+        }
+
+        try
+        {
+            patch = compiler!.CompileSource(
+                identity,
+                AquaSynthNativeCompiler.SafeFaustName(identity.FaustName),
+                source,
+                durationSeconds);
             error = null;
             return true;
         }
@@ -311,6 +356,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
             {
                 var outputs = Math.Max(toolchain.GetNumOutputs(probe), 1);
                 var frames = Math.Max(1, (int)MathF.Ceiling(durationSeconds * options.SampleRate));
+                var controlPaths = toolchain.ControlPaths(probe);
                 stopwatch.Stop();
                 var manifest = new AquaSynthNativeManifest(
                     identity.Id,
@@ -325,7 +371,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
                     toolchain.Version,
                     toolchain.Home,
                     dspSourcePath);
-                return new AquaSynthCompiledPatch(toolchain, factory, manifest);
+                return new AquaSynthCompiledPatch(toolchain, factory, manifest, controlPaths);
             }
             finally
             {
@@ -435,6 +481,7 @@ internal sealed class FaustNativeToolchain : IDisposable
     private readonly InitInstanceFn initInstance;
     private readonly ComputeInstanceFn computeInstance;
     private readonly GetNumOutputsFn getNumOutputs;
+    private readonly BuildUserInterfaceFn buildUserInterface;
     private readonly StartFactoriesFn startFactories;
     private readonly StopFactoriesFn stopFactories;
     private bool disposed;
@@ -452,6 +499,7 @@ internal sealed class FaustNativeToolchain : IDisposable
         initInstance = Export<InitInstanceFn>("initCDSPInstance");
         computeInstance = Export<ComputeInstanceFn>("computeCDSPInstance");
         getNumOutputs = Export<GetNumOutputsFn>("getNumOutputsCDSPInstance");
+        buildUserInterface = Export<BuildUserInterfaceFn>("buildUserInterfaceCDSPInstance");
         startFactories = Export<StartFactoriesFn>("startMTDSPFactories");
         stopFactories = Export<StopFactoriesFn>("stopMTDSPFactories");
         _ = startFactories();
@@ -524,6 +572,24 @@ internal sealed class FaustNativeToolchain : IDisposable
 
     public int GetNumOutputs(IntPtr dsp) => getNumOutputs(dsp);
 
+    public IReadOnlyList<string> ControlPaths(IntPtr dsp) =>
+        BuildControlMap(dsp).Keys.Order(StringComparer.Ordinal).ToArray();
+
+    public void SetControls(IntPtr dsp, IReadOnlyDictionary<string, float> controls)
+    {
+        var map = BuildControlMap(dsp);
+        foreach (var (path, value) in controls)
+        {
+            if (!map.TryGetValue(path, out var zone) &&
+                !map.TryGetValue(path.TrimStart('/'), out zone))
+            {
+                throw new ArgumentException($"Faust control `{path}` was not exported by the compiled patch.", nameof(controls));
+            }
+
+            Marshal.Copy([value], 0, zone, 1);
+        }
+    }
+
     public void Dispose()
     {
         if (disposed)
@@ -540,6 +606,22 @@ internal sealed class FaustNativeToolchain : IDisposable
         where T : Delegate
     {
         return Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(library, name));
+    }
+
+    private Dictionary<string, IntPtr> BuildControlMap(IntPtr dsp)
+    {
+        var collector = new FaustControlCollector();
+        var handle = GCHandle.Alloc(collector);
+        try
+        {
+            var glue = FaustUiGlue.Create(GCHandle.ToIntPtr(handle));
+            buildUserInterface(dsp, ref glue);
+            return collector.Zones;
+        }
+        finally
+        {
+            handle.Free();
+        }
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -567,10 +649,97 @@ internal sealed class FaustNativeToolchain : IDisposable
     private delegate int GetNumOutputsFn(IntPtr dsp);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void BuildUserInterfaceFn(IntPtr dsp, ref FaustUiGlue glue);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate bool StartFactoriesFn();
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void StopFactoriesFn();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void OpenBoxFn(IntPtr ui, IntPtr label);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void CloseBoxFn(IntPtr ui);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void AddButtonFn(IntPtr ui, IntPtr label, IntPtr zone);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void AddSliderFn(IntPtr ui, IntPtr label, IntPtr zone, float init, float min, float max, float step);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void AddBargraphFn(IntPtr ui, IntPtr label, IntPtr zone, float min, float max);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void AddSoundfileFn(IntPtr ui, IntPtr label, IntPtr url, IntPtr sfZone);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate void DeclareFn(IntPtr ui, IntPtr zone, IntPtr key, IntPtr value);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct FaustUiGlue
+    {
+        public IntPtr UiInterface;
+        public OpenBoxFn OpenTabBox;
+        public OpenBoxFn OpenHorizontalBox;
+        public OpenBoxFn OpenVerticalBox;
+        public CloseBoxFn CloseBox;
+        public AddButtonFn AddButton;
+        public AddButtonFn AddCheckButton;
+        public AddSliderFn AddVerticalSlider;
+        public AddSliderFn AddHorizontalSlider;
+        public AddSliderFn AddNumEntry;
+        public AddBargraphFn AddHorizontalBargraph;
+        public AddBargraphFn AddVerticalBargraph;
+        public AddSoundfileFn AddSoundfile;
+        public DeclareFn Declare;
+
+        public static FaustUiGlue Create(IntPtr ui) =>
+            new()
+            {
+                UiInterface = ui,
+                OpenTabBox = NoOpenBox,
+                OpenHorizontalBox = NoOpenBox,
+                OpenVerticalBox = NoOpenBox,
+                CloseBox = NoCloseBox,
+                AddButton = AddControl,
+                AddCheckButton = AddControl,
+                AddVerticalSlider = AddControl,
+                AddHorizontalSlider = AddControl,
+                AddNumEntry = AddControl,
+                AddHorizontalBargraph = NoBargraph,
+                AddVerticalBargraph = NoBargraph,
+                AddSoundfile = NoSoundfile,
+                Declare = NoDeclare
+            };
+    }
+
+    private sealed class FaustControlCollector
+    {
+        public Dictionary<string, IntPtr> Zones { get; } = new(StringComparer.Ordinal);
+
+        public void Add(IntPtr label, IntPtr zone)
+        {
+            var path = Marshal.PtrToStringUTF8(label);
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                Zones[path] = zone;
+            }
+        }
+    }
+
+    private static FaustControlCollector Collector(IntPtr ui) =>
+        (FaustControlCollector)GCHandle.FromIntPtr(ui).Target!;
+
+    private static void NoOpenBox(IntPtr ui, IntPtr label) { }
+    private static void NoCloseBox(IntPtr ui) { }
+    private static void AddControl(IntPtr ui, IntPtr label, IntPtr zone) => Collector(ui).Add(label, zone);
+    private static void AddControl(IntPtr ui, IntPtr label, IntPtr zone, float init, float min, float max, float step) => Collector(ui).Add(label, zone);
+    private static void NoBargraph(IntPtr ui, IntPtr label, IntPtr zone, float min, float max) { }
+    private static void NoSoundfile(IntPtr ui, IntPtr label, IntPtr url, IntPtr sfZone) { }
+    private static void NoDeclare(IntPtr ui, IntPtr zone, IntPtr key, IntPtr value) { }
 }
 
 internal sealed class NativeUtf8String : IDisposable

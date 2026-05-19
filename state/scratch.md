@@ -2,6 +2,31 @@
 
 Current slice:
 
+- Reworked the Faust-rendered speech-loss path toward the actual curriculum
+  machine: `CompiledFaustRenderedSpeechLossSurface` compiles one native Faust
+  patch with exported `speech/output/N` hslider controls for every neural
+  mapper output, then renders reference/candidate batches by setting controls
+  on new DSP instances from the same compiled factory.
+- `AquaSynthCompiledPatch` now exposes `ControlPaths` and supports
+  `Render(IReadOnlyDictionary<string,float>)`. `FaustNativeToolchain` builds a
+  C UI glue map from Faust control labels to native zones and writes parameter
+  values before `compute`.
+- The compiled speech probe keeps every mapper output as an exported knob even
+  when a current simple synth rung does not use the value strongly. The tiny
+  keepalive term exists for that invariant: topology and control surface stay
+  stable across curriculum rungs.
+- Rendered proof found a real loss-surface hazard: dynamic low-pass cutoff can
+  exceed Nyquist at lower training sample rates and produce NaNs. The compiled
+  probe clamps cutoff to `ma.SR * 0.45`.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "FaustRenderedSpeechLossSurfaceTests|NativeFaustRuntimeTests|SpeechBackpropagationPipelineTests" -v minimal`:
+  6 passed.
+- Opt-in native batch proof:
+  `AQUASYNTH_RUN_FAUST_SPEECH_LOSS=1 dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "CompiledFaustRenderedSpeechLossSurfaceReusesOnePatch" -v minimal`:
+  1 passed.
+
+Previous slice:
+
 - Added the first Faust-rendered speech loss surface. `AquaSynth.Faust`
   now owns `FaustRenderedSpeechLossSurface`, which turns a
   `VocalTractControlTarget` into an inspectable AquaSynth script, renders it
