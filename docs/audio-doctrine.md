@@ -150,6 +150,8 @@ The boundary must stay split into three inspectable records:
 - `ArticulatoryPlan`: AquaSynth-owned gestures and tract/source targets.
 - `ArticulatoryConstraintReport`: host-visible diagnostics when morphology
   cannot produce the requested articulation.
+- `VocalTractPlanResult`: the host reaction surface that either carries an
+  accepted plan or a rejection with diagnostic codes.
 
 Anatomy has veto power. If a beaked morphology cannot form a bilabial closure,
 the planner must report the missing capability instead of silently substituting

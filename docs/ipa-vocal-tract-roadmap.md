@@ -32,6 +32,13 @@ Three handoffs must stay visible in code, docs, tests, and host reports:
    morphology cannot form a requested articulation, the report names the phone,
    source event, missing capability, and severity.
 
+The first proof artifact is `VocalTractPlanResult`: it packages the intent,
+morphology, constraint report, optional articulatory plan, and
+`VocalTractHostReaction`. A host can reject `/pa/` for a beaked morphology by
+reading `missing_bilabial_capability`, or it can accept `/a/` for a human
+baseline and inspect the emitted glottal-source and vowel-area gestures. This is
+not audio yet. It is the first visible branch where the machine refuses to lie.
+
 Those records are the first defense against liar-slurry: no parser, planner,
 renderer, or host should need to infer whether IPA intent, physical anatomy, or
 DSP output owns a decision.

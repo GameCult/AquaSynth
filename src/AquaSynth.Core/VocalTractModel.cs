@@ -186,6 +186,148 @@ public sealed record ArticulatoryPlan(
     IReadOnlyList<ArticulatoryGesture> Gestures,
     ArticulatoryConstraintReport Report);
 
+public enum VocalTractPlanStatus
+{
+    Accepted,
+    Rejected
+}
+
+public enum VocalTractHostReactionKind
+{
+    RenderPlan,
+    RejectIntent
+}
+
+public sealed record VocalTractHostReaction(
+    VocalTractHostReactionKind Kind,
+    string Summary,
+    IReadOnlyList<string> DiagnosticCodes);
+
+public sealed record VocalTractPlanResult(
+    VocalTractPlanStatus Status,
+    PhoneticIntent Intent,
+    VocalTractMorphology Morphology,
+    ArticulatoryConstraintReport Report,
+    VocalTractHostReaction HostReaction,
+    ArticulatoryPlan? Plan = null)
+{
+    public bool Accepted => Status == VocalTractPlanStatus.Accepted;
+}
+
+public static class VocalTractPlanner
+{
+    public static VocalTractPlanResult Plan(PhoneticIntent intent, VocalTractMorphology morphology)
+    {
+        var report = VocalTractConstraintEvaluator.Evaluate(intent, morphology);
+        if (!report.Accepted)
+        {
+            var codes = report.Diagnostics.Select(diagnostic => diagnostic.Code).Distinct(StringComparer.Ordinal).ToArray();
+            var firstError = report.Diagnostics.First(diagnostic => diagnostic.Severity == ArticulatoryDiagnosticSeverity.Error);
+            var reaction = new VocalTractHostReaction(
+                VocalTractHostReactionKind.RejectIntent,
+                $"Rejected `{intent.Id}` for morphology `{morphology.Id}`: {firstError.Code} on `{firstError.Ipa}`.",
+                codes);
+            return new VocalTractPlanResult(VocalTractPlanStatus.Rejected, intent, morphology, report, reaction);
+        }
+
+        var gestures = BuildGestures(intent);
+        var plan = new ArticulatoryPlan($"{intent.Id}:{morphology.Id}:plan", intent, morphology, gestures, report);
+        var acceptedReaction = new VocalTractHostReaction(
+            VocalTractHostReactionKind.RenderPlan,
+            $"Accepted `{intent.Id}` for morphology `{morphology.Id}` with {gestures.Count} articulatory gesture(s).",
+            []);
+        return new VocalTractPlanResult(VocalTractPlanStatus.Accepted, intent, morphology, report, acceptedReaction, plan);
+    }
+
+    private static IReadOnlyList<ArticulatoryGesture> BuildGestures(PhoneticIntent intent)
+    {
+        var gestures = new List<ArticulatoryGesture>();
+        foreach (var phoneticEvent in intent.Events)
+        {
+            if (phoneticEvent.Features.Phonation != Phonation.Voiceless)
+            {
+                gestures.Add(new ArticulatoryGesture(
+                    $"{phoneticEvent.Id}:glottal",
+                    phoneticEvent.Id,
+                    ArticulatoryGestureKind.GlottalSource,
+                    phoneticEvent.StartSeconds,
+                    phoneticEvent.DurationSeconds,
+                    "glottis",
+                    phoneticEvent.Prosody.Intensity));
+            }
+
+            switch (phoneticEvent.Features.Manner)
+            {
+                case PhoneticManner.Vowel:
+                    gestures.Add(new ArticulatoryGesture(
+                        $"{phoneticEvent.Id}:vowel-area",
+                        phoneticEvent.Id,
+                        ArticulatoryGestureKind.TractAreaTarget,
+                        phoneticEvent.StartSeconds,
+                        phoneticEvent.DurationSeconds,
+                        VowelTarget(phoneticEvent.Features),
+                        1));
+                    break;
+                case PhoneticManner.Stop:
+                    gestures.Add(new ArticulatoryGesture(
+                        $"{phoneticEvent.Id}:closure",
+                        phoneticEvent.Id,
+                        ArticulatoryGestureKind.Closure,
+                        phoneticEvent.StartSeconds,
+                        phoneticEvent.DurationSeconds * 0.7,
+                        phoneticEvent.Features.Place.ToString(),
+                        1));
+                    gestures.Add(new ArticulatoryGesture(
+                        $"{phoneticEvent.Id}:release",
+                        phoneticEvent.Id,
+                        ArticulatoryGestureKind.Release,
+                        phoneticEvent.StartSeconds + phoneticEvent.DurationSeconds * 0.7,
+                        phoneticEvent.DurationSeconds * 0.3,
+                        phoneticEvent.Features.Place.ToString(),
+                        1));
+                    break;
+                case PhoneticManner.Fricative:
+                case PhoneticManner.LateralFricative:
+                    gestures.Add(new ArticulatoryGesture(
+                        $"{phoneticEvent.Id}:constriction",
+                        phoneticEvent.Id,
+                        ArticulatoryGestureKind.Constriction,
+                        phoneticEvent.StartSeconds,
+                        phoneticEvent.DurationSeconds,
+                        phoneticEvent.Features.Place.ToString(),
+                        0.85f));
+                    gestures.Add(new ArticulatoryGesture(
+                        $"{phoneticEvent.Id}:turbulence",
+                        phoneticEvent.Id,
+                        ArticulatoryGestureKind.Turbulence,
+                        phoneticEvent.StartSeconds,
+                        phoneticEvent.DurationSeconds,
+                        phoneticEvent.Features.Place.ToString(),
+                        phoneticEvent.Prosody.Intensity));
+                    break;
+                case PhoneticManner.Nasal:
+                    gestures.Add(new ArticulatoryGesture(
+                        $"{phoneticEvent.Id}:nasal",
+                        phoneticEvent.Id,
+                        ArticulatoryGestureKind.NasalCoupling,
+                        phoneticEvent.StartSeconds,
+                        phoneticEvent.DurationSeconds,
+                        "velum",
+                        1));
+                    break;
+            }
+        }
+
+        return gestures;
+    }
+
+    private static string VowelTarget(PhoneticFeatures features)
+    {
+        var rounded = features.Rounded ? "rounded" : "unrounded";
+        return $"vowel:{features.Height.ToString().ToLowerInvariant()}:{features.Backness.ToString().ToLowerInvariant()}:{rounded}";
+    }
+}
+
 public static class VocalTractConstraintEvaluator
 {
     public static ArticulatoryConstraintReport Evaluate(PhoneticIntent intent, VocalTractMorphology morphology)

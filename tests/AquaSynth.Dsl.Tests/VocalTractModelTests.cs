@@ -108,4 +108,96 @@ public sealed class VocalTractModelTests
         Assert.True(report.Accepted);
         Assert.Empty(report.Diagnostics);
     }
+
+    [Fact]
+    public void BeakBilabialPlanResultIsHostActionable()
+    {
+        var result = VocalTractPlanner.Plan(
+            new PhoneticIntent(
+                "beak-pa",
+                "weksa",
+                "/pa/",
+                [
+                    new PhoneticEvent(
+                        "phone-p",
+                        "p",
+                        new PhoneticFeatures(
+                            PhoneticManner.Stop,
+                            PhoneticPlace.Bilabial,
+                            Phonation.Voiceless),
+                        DurationSeconds: 0.06),
+                    new PhoneticEvent(
+                        "phone-a",
+                        "a",
+                        new PhoneticFeatures(
+                            PhoneticManner.Vowel,
+                            Height: VowelHeight.Open,
+                            Backness: VowelBackness.Front),
+                        StartSeconds: 0.06,
+                        DurationSeconds: 0.14)
+                ]),
+            new VocalTractMorphology(
+                "beak",
+                "Beaked speaker",
+                22.0f,
+                44,
+                [
+                    ArticulatoryCapability.OralTract,
+                    ArticulatoryCapability.PulmonicPressure,
+                    ArticulatoryCapability.Voicing,
+                    ArticulatoryCapability.AlveolarConstriction,
+                    ArticulatoryCapability.VelarConstriction
+                ]));
+
+        Assert.False(result.Accepted);
+        Assert.Null(result.Plan);
+        Assert.Equal(VocalTractHostReactionKind.RejectIntent, result.HostReaction.Kind);
+        Assert.Contains("missing_bilabial_capability", result.HostReaction.DiagnosticCodes);
+        Assert.Contains("phone-p", result.Report.Diagnostics.Select(diagnostic => diagnostic.EventId));
+        Assert.Contains("`p`", result.HostReaction.Summary);
+    }
+
+    [Fact]
+    public void AcceptedVowelPlanEmitsInspectableGestures()
+    {
+        var result = VocalTractPlanner.Plan(
+            new PhoneticIntent(
+                "human-a",
+                "ipa",
+                "/a/",
+                [
+                    new PhoneticEvent(
+                        "phone-a",
+                        "a",
+                        new PhoneticFeatures(
+                            PhoneticManner.Vowel,
+                            Height: VowelHeight.Open,
+                            Backness: VowelBackness.Front),
+                        DurationSeconds: 0.2,
+                        Prosody: new PhoneticProsody(Intensity: 0.75f))
+                ]),
+            new VocalTractMorphology(
+                "human",
+                "Human baseline",
+                17.0f,
+                44,
+                [
+                    ArticulatoryCapability.OralTract,
+                    ArticulatoryCapability.PulmonicPressure,
+                    ArticulatoryCapability.Voicing
+                ]));
+
+        Assert.True(result.Accepted);
+        Assert.Equal(VocalTractHostReactionKind.RenderPlan, result.HostReaction.Kind);
+        var plan = Assert.IsType<ArticulatoryPlan>(result.Plan);
+        Assert.Empty(plan.Report.Diagnostics);
+        Assert.Contains(plan.Gestures, gesture =>
+            gesture.Kind == ArticulatoryGestureKind.GlottalSource &&
+            gesture.SourceEventId == "phone-a" &&
+            gesture.Amount == 0.75f);
+        Assert.Contains(plan.Gestures, gesture =>
+            gesture.Kind == ArticulatoryGestureKind.TractAreaTarget &&
+            gesture.SourceEventId == "phone-a" &&
+            gesture.Target == "vowel:open:front:unrounded");
+    }
 }
