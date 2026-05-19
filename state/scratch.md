@@ -2,6 +2,29 @@
 
 Current slice:
 
+- Added a typed CultCache sound-claim document for CultMesh distribution:
+  `patches/aquasynth-patch-cultcache.json`.
+- Added `CultCachePatchDocument` record types in Core. The document bundles
+  the full `patches/library.yaml` patch database with patch claim cards and
+  speech claim cards.
+- Patch claim cards now cover every `ReferenceRebuildCatalog.All()` fixture
+  patch: the three project-authored Zyn rebuilds and the three DX7 reference
+  rebuilds. The PRC SYNTH1 calibrated patch also has a claim card because it is
+  in the patch database as a hard public-domain DX7 pressure target.
+- Speech claim cards cover the eSpeak NG tiny workout and the compiled Faust
+  speech loss surface. Both explicitly name utterance/phoneme source, target
+  anatomy/profile, intent, tier, proof artifact, listening receipt surface, and
+  known lies.
+- Stock patch database entries are included as database entries, not promoted
+  to serious claims without references. That preserves the law: sketches may
+  exist, but parity/pressure/proof claims need named reference and receipt
+  surfaces.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "CultCachePatchDocumentTests" -v minimal`:
+  3 passed.
+
+Previous slice:
+
 - Reworked the Faust-rendered speech-loss path toward the actual curriculum
   machine: `CompiledFaustRenderedSpeechLossSurface` compiles one native Faust
   patch with exported `speech/output/N` hslider controls for every neural
