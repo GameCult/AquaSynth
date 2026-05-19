@@ -137,6 +137,24 @@ authorities.
   rebuild work, but that is not exact DX7 envelope execution. Keep exactness
   pressure visible in reference features instead of smuggling it into ADSR.
 
+## Phonetic Tract Boundary
+
+IPA is an authoring surface, not a synth model. Weksa or another language layer
+owns text, phonology, allophones, and phonetic intent. AquaSynth owns the
+articulatory realization: gesture planning, morphology constraints, tract-area
+targets, excitation events, and Faust lowering.
+
+The boundary must stay split into three inspectable records:
+
+- `PhoneticIntent`: language-owned phones, features, timing, and prosody.
+- `ArticulatoryPlan`: AquaSynth-owned gestures and tract/source targets.
+- `ArticulatoryConstraintReport`: host-visible diagnostics when morphology
+  cannot produce the requested articulation.
+
+Anatomy has veto power. If a beaked morphology cannot form a bilabial closure,
+the planner must report the missing capability instead of silently substituting
+a fake sound and calling it expressive.
+
 ## Metrics
 
 Analysis exists to catch regressions and support search, not to crown winners.

@@ -18,6 +18,24 @@ The target user feeds Weksa text as IPA or IPA-like phonetic strings. AquaSynth
 keeps the real authority below that surface: phonetic features, gestures,
 anatomy, excitation, and acoustic simulation.
 
+## Boundary Bones
+
+Three handoffs must stay visible in code, docs, tests, and host reports:
+
+1. `PhoneticIntent` is the inspectable Weksa-to-AquaSynth contract. It carries
+   IPA tokens, feature bundles, timing, and prosody. It does not know tract
+   section areas or Faust.
+2. `ArticulatoryPlan` is the AquaSynth-owned realization layer. It carries
+   gestures and tract targets after morphology constraints have had a chance to
+   bite. It does not pretend an impossible phone was rendered honestly.
+3. `ArticulatoryConstraintReport` is the host-visible failure surface. If a
+   morphology cannot form a requested articulation, the report names the phone,
+   source event, missing capability, and severity.
+
+Those records are the first defense against liar-slurry: no parser, planner,
+renderer, or host should need to infer whether IPA intent, physical anatomy, or
+DSP output owns a decision.
+
 ## Objective
 
 Build a research-grounded vocal-tract instrument for human and alien speech:
