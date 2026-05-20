@@ -1,15 +1,20 @@
 project: AquaSynth
 spine_version: 1
-updated: 2026-05-15T14:15:00+01:00
+updated: 2026-05-20T22:00:00+01:00
 
 prime_directive: >
   Build coherent synth machinery. References exist to reveal missing structure,
   not to justify piling parameters onto the current patch DSL.
 
 current_objective: >
-  Turn AquaSynth into a reference-driven patch authoring and Faust
-  generation library. Use external synths and DSP corpora as pressure tests so
-  AquaSynth's DSL grows only when a real target proves the abstraction belongs.
+  Build the utterance parity curriculum for AquaSynth speech: structured
+  utterance metadata lowers into a learned utterance embedding, then into a
+  learned synth-driver automation vector for the vocal tract, envelopes, LFOs,
+  filters, and spectral lanes. The immediate proof is a fast harness that
+  renders simple utterances against a compact speech synthesizer reference,
+  scores synth output versus ground truth, and exposes a useful loss landscape
+  for backpropagation. External synth digestion is background pressure until it
+  directly helps this speech harness.
 
 current_mechanism:
   parser: src/AquaSynth.Core/PatchScript.cs
@@ -36,6 +41,7 @@ current_mechanism:
   dx7_calibration_plan: docs/dx7-calibration-plan.md
   zyn_pressure_survey: docs/zynaddsubfx-pressure-survey.md
   roadmap: docs/reference-synth-roadmap.md
+  utterance_parity_research: docs/utterance-parity-research.md
   parameter_contracts: src/AquaSynth.Core/Model.cs
 
 live_invariants:
@@ -101,8 +107,23 @@ live_invariants:
   - Audio metrics are evidence, not final judgment.
   - Do not add a generic graph escape hatch until specific references force it.
   - Do not hide missing graph structure behind unrelated voice fields.
+  - The speech lane is the active center: IPA parity, utterance embeddings, synth-driver automation, rendered loss, and compiled Faust control sweeps take priority over new DX7/Zyn digestion.
+  - Every learned speech arrow must stay inspectable: utterance metadata -> embedding, embedding plus phonetic features -> automation, automation -> rendered audio, rendered audio -> loss/gradient.
+  - eSpeak NG is an early parity reference for timing, IPA coverage, and log-mel pressure, not an anatomy oracle or final target.
+  - Do not expand into prosody, emotional context, personality, or broad Weksa expressivity until the tiny IPA utterance harness can show useful loss movement.
 
 reference_targets:
+  ipa_vocal_tract_weksa:
+    priority: 0
+    purpose: "Current speech-learning lane: utterance metadata to embedding to synth automation to tract/rendered loss."
+    sources:
+      - "docs/ipa-vocal-tract-roadmap.md"
+      - "docs/utterance-parity-research.md"
+    status: "Boundary contracts, packed neural networks, utterance encoder, synth-driver mapper, chained backprop, optional eSpeak rendered fixtures, Faust finite-difference loss surface, compiled Faust speech-loss controls, distributed render request/result/checkpoint contracts, and sound-claim cards exist. The active need is a fast parity harness that can test many controller weights as rendered speech output against simple ground truth."
+    first_slice:
+      - "Keep the utterance schema small and testable: segments, spans, duration/stress/boundary hints, speaker/morphology identity, pitch/loudness/rate/breath controls, and named context vectors."
+      - "Use eSpeak NG fixtures for generated ground truth while remembering that formant parity is not anatomy parity."
+      - "Connect Stage 0/1 IPA and vowel tract-area fixtures to the compiled Faust loss surface before expanding consonants."
   dx7_dexed:
     priority: 1
     purpose: "Structured FM/operator graph pressure test."
@@ -146,33 +167,24 @@ reference_targets:
 
 next_agent_start_here:
   recommended_first_task: >
-    Continue the ZynAddSubFX phase. The first parser/classifier slice exists in
-    `src/AquaSynth.Core/ZynInstrument.cs` with project-authored fixtures
-    under `tests/AquaSynth.Dsl.Tests/Fixtures/ZynAddSubFX/ProjectAuthored`.
-    Named `layer` declarations own source identity, additive `harmonics` banks
-    attach to those layers, PAD `spectrum` banks attach to those layers as
-    PADsynth-style FFT wavetable sources, and staged `env=rl` envelopes now
-    work on normal voices/layer defaults. The pinned Zyn source now builds
-    through `tools/zyn-reference/build-zyn-reference.ps1` using an ignored
-    patched artifact copy and builds `ZynPadReference`, which emits PAD table
-    samples or note audio from Zyn. The first optional project-authored PAD
-    comparison writes WAV/report artifacts under `artifacts/parity/zyn-pad-reference`.
-    User listening called the reference wineglass-pure and AquaSynth angry bees.
-    The current de-bee/pitch pass cuts unearned noise/drive/soft-clip,
-    interpolates spectral wavetable reads, uses 131072-frame PAD tables, splits
-    table `root` from playback `freq`, removes gratuitous spread/vibrato,
-    collapses same-note PAD voices into one coherent table, trims gain, and now
-    reports log-mel 0.35669, envelope 0.347572, RMS ratio 1.001704, centroid
-    ratio 1.004072, score 0.6211. A PAD fixture survey now writes Zyn note/table
-    WAVs for `pad-pure`, `pad-texture`, and `pad-harmonic`; `pad-pure` and
-    `pad-texture` are identical in the oracle, while `pad-harmonic` is real
-    new pressure. Next pressure is source-table/profile and envelope semantics,
-    not more decorative layers.
+    Continue the utterance parity harness. Start from
+    `docs/ipa-vocal-tract-roadmap.md`,
+    `docs/utterance-parity-research.md`,
+    `src/AquaSynth.Core/SpeechBackpropagationPipeline.cs`,
+    `src/AquaSynth.Core/UtteranceEmbeddingLearning.cs`,
+    `src/AquaSynth.Core/VocalTractLearning.cs`,
+    `src/AquaSynth.Faust/FaustRenderedSpeechLossSurface.cs`, and the optional
+    eSpeak tests. The goal is fast rendered speech parity for tiny IPA-adjacent
+    utterances: generate ground truth, sweep controller outputs through compiled
+    Faust controls, score log-mel/timing/envelope loss, and backpropagate into
+    the utterance encoder plus synth driver. Do not resume broad Zyn/DX7 work
+    unless it directly improves this harness.
   must_read:
     - AGENTS.md
     - docs/audio-doctrine.md
-    - docs/dx7-calibration-plan.md
     - docs/reference-synth-roadmap.md
+    - docs/ipa-vocal-tract-roadmap.md
+    - docs/utterance-parity-research.md
     - state/spine.yaml
     - state/memory.json
     - state/evidence.jsonl

@@ -144,6 +144,12 @@ owns text, phonology, allophones, and phonetic intent. AquaSynth owns the
 articulatory realization: gesture planning, morphology constraints, tract-area
 targets, excitation events, and Faust lowering.
 
+The current speech-learning lane adds a trainable surface above that boundary:
+structured utterance metadata lowers into an utterance embedding, then into a
+synth-driver automation vector for tract controls, envelopes, LFOs, filters, and
+spectral lanes. Those learned models are controllers. They do not get to erase
+the tract boundary or make morphology optional.
+
 The boundary must stay split into three inspectable records:
 
 - `PhoneticIntent`: language-owned phones, features, timing, and prosody.
@@ -156,6 +162,11 @@ The boundary must stay split into three inspectable records:
 Anatomy has veto power. If a beaked morphology cannot form a bilabial closure,
 the planner must report the missing capability instead of silently substituting
 a fake sound and calling it expressive.
+
+The first parity reference is eSpeak NG because it is compact, deterministic,
+and cheap to render. It is timing and intelligibility pressure, not anatomy
+authority. Use it to populate loss surfaces and train controller weights; do not
+mistake matching its formant shortcuts for building a vocal tract.
 
 ## Metrics
 
@@ -170,6 +181,7 @@ Useful metrics:
 
 - envelope distance for shape and timing
 - log-mel spectrogram distance for perceptual-ish spectral shape
+- speech-parity loss over tiny utterance fixtures before broader IPA claims
 - peak/RMS ratios for loudness sanity
 - zero-crossing and centroid ratios for noise/brightness drift
 - script readability and terseness scores for DSL golf work

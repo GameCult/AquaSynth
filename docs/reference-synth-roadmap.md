@@ -1,5 +1,19 @@
 # Reference Synth Roadmap
 
+## Current Focus
+
+The active AquaSynth work has moved to the utterance parity curriculum:
+structured utterance metadata lowers through a learned utterance embedding and a
+learned synth-driver automation layer into vocal-tract controls, envelopes,
+LFOs, filters, and spectral lanes. The immediate proof is a fast parity harness
+against a simple speech synthesizer reference, so many controller weights can be
+tested as rendered synth output versus generated ground truth.
+
+DX7, ZynAddSubFX, Faust examples, Surge, and Cardinal remain reference pressure.
+They are on the backburner while the speech lane earns IPA parity. Do not start
+new synth-digestion work unless it directly improves the vocal-tract harness,
+the Faust render path, or the loss/automation surfaces.
+
 AquaSynth needs external synthesis references for the same reason the
 SFXR path was useful: a real target prevents the DSL from becoming a pile of
 locally plausible knobs. The goal is not to clone every synth's internals. The
@@ -53,10 +67,14 @@ missing graph feature instead of smuggling it through unrelated parameters.
 
 ### New Lane: IPA Vocal Tract / Weksa
 
-This is not merely another reference synth. It is a new authoring and rendering
-lane: IPA text lowers into phonetic features, timed articulatory gestures,
-morphology-specific tract/excitation curves, and Faust DSP. The roadmap lives in
-[`docs/ipa-vocal-tract-roadmap.md`](ipa-vocal-tract-roadmap.md).
+This is the current main lane, not merely another reference synth. Structured
+utterance metadata lowers into a learned utterance embedding, then into learned
+synth automation for the vocal tract and associated envelopes, LFOs, filters,
+and spectral controls. IPA text is the first curriculum surface for phonetic
+coverage. The roadmap lives in
+[`docs/ipa-vocal-tract-roadmap.md`](ipa-vocal-tract-roadmap.md), and the
+research pass lives in
+[`docs/utterance-parity-research.md`](utterance-parity-research.md).
 
 Pressure on AquaSynth DSL:
 
@@ -69,13 +87,14 @@ Pressure on AquaSynth DSL:
 
 First deliverable:
 
-- Stage 0/1 IPA tokenization and vowel feature fixtures.
-- Human baseline vowel tract-area planner.
-- A small render proof that can say a few vowels before the supported IPA table
-  expands.
-- Optional eSpeak NG workout fixtures that render tiny text/IPA-adjacent speech
-  references when `ESPEAK_NG` or an `espeak-ng` binary is available. These are
-  intelligibility/timing references, not tract-anatomy truth.
+- A parity harness that renders tiny eSpeak NG utterances, extracts log-mel and
+  timing evidence, and trains the chained utterance encoder plus synth driver.
+- A compiled Faust speech-loss surface that can vary `/speech/output/N` controls
+  across many candidates without recompiling topology.
+- Stage 0/1 IPA tokenization and vowel feature fixtures tied to the harness.
+- Human baseline vowel tract-area planner and audible vowel proof.
+- CV/CVC fixtures only after the vowel/control harness produces useful loss
+  evidence. These are intelligibility/timing references, not tract-anatomy truth.
 
 ### Tier 1: DX7/Dexed
 

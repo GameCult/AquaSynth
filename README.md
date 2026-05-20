@@ -122,14 +122,25 @@ See [`docs/faust-toolchain-boundary.md`](docs/faust-toolchain-boundary.md).
 
 ## Status
 
-The current slice covers the modular graph surface needed by the reference
-scripts, SFXR atoms, script scoring, audio comparison, presets, Faust emission,
-native Faust compilation/rendering, and installed Faust validation. Migration
-coverage is tracked in
+The current center of gravity is the speech-learning lane: structured utterance
+metadata -> utterance embedding -> synth automation -> vocal-tract/rendered-loss
+parity. The first proof path uses tiny eSpeak NG fixtures, log-mel evidence,
+packed C# backprop, and compiled Faust speech controls so many candidate weights
+can be tested against generated speech references without recompiling topology.
+
+The modular graph surface, SFXR atoms, DX7/Zyn reference work, script scoring,
+audio comparison, presets, Faust emission, native Faust compilation/rendering,
+and installed Faust validation remain active foundations. The broader
+reference-synth digestion project is paused unless it directly improves the
+speech harness or render-loss machinery. Migration coverage is tracked in
 [`docs/migration-checklist.md`](docs/migration-checklist.md), because leaving
 important things behind in the old repo would be a very efficient way to become
 our own haunted house.
 
 Reference-driven DSL growth is tracked in
-[`docs/reference-synth-roadmap.md`](docs/reference-synth-roadmap.md). Agent
+[`docs/reference-synth-roadmap.md`](docs/reference-synth-roadmap.md). The vocal
+tract curriculum is tracked in
+[`docs/ipa-vocal-tract-roadmap.md`](docs/ipa-vocal-tract-roadmap.md), with
+prior-work notes in
+[`docs/utterance-parity-research.md`](docs/utterance-parity-research.md). Agent
 handoff state lives in [`state/spine.yaml`](state/spine.yaml).

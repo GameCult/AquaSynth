@@ -17,6 +17,7 @@ surfaces:
   tests: tests/AquaSynth.Dsl.Tests
   reference_roadmap: docs/reference-synth-roadmap.md
   ipa_vocal_tract_roadmap: docs/ipa-vocal-tract-roadmap.md
+  utterance_parity_research: docs/utterance-parity-research.md
   faust_toolchain_boundary: docs/faust-toolchain-boundary.md
   dx7_public_domain_fixtures: tests/AquaSynth.Dsl.Tests/Fixtures/Dx7/PublicDomain
   zyn_reference_source: external/zynaddsubfx
@@ -49,6 +50,7 @@ modules:
   zyn_reference_reader: src/AquaSynth.Core/ZynInstrument.cs
   zyn_coverage_survey: src/AquaSynth.Core/ZynInstrument.cs
   ipa_vocal_tract_roadmap: docs/ipa-vocal-tract-roadmap.md
+  utterance_parity_research: docs/utterance-parity-research.md
   package_boundary_tests: tests/AquaSynth.Dsl.Tests/PackageBoundaryTests.cs
   vocal_tract_model_tests: tests/AquaSynth.Dsl.Tests/VocalTractModelTests.cs
   utterance_embedding_learning_tests: tests/AquaSynth.Dsl.Tests/UtteranceEmbeddingLearningTests.cs
@@ -86,6 +88,7 @@ boundaries:
     - optional eSpeak NG generated ground-truth fixture for supervised utterance-embedding and synth-driver gradient descent
     - Faust-rendered speech loss surface in AquaSynth.Faust, using rendered audio analysis and finite-difference controller-output gradients
     - compiled native Faust speech-loss surface with exported /speech/output/N controls for batch candidate rendering without recompiling DSP
+    - utterance parity curriculum research and docs for structured metadata -> utterance embedding -> synth automation -> rendered speech loss
     - typed CultCache sound-claim document distributed as a real .cc MessagePack-backed CultCache store via CultLib, bundling the patch database with fixture-backed patch claim cards and speech-lane claim cards
   dev_only:
     - public-domain DX7 SysEx fixtures

@@ -1,5 +1,34 @@
 # IPA Vocal Tract Roadmap
 
+## Current Objective
+
+AquaSynth is currently focused on a speech-learning parity harness. The active
+machine is:
+
+```text
+structured utterance metadata
+  -> learned utterance embedding
+  -> learned synth automation
+  -> vocal tract simulation plus envelopes, LFOs, filters, and spectral controls
+  -> rendered audio
+  -> loss against a simple speech synthesizer reference
+```
+
+Every arrow in that chain is a trainable artifact. The immediate job is to make
+small utterances cheap to render, score, and backpropagate through, so hundreds
+of controller weights can be tested against generated ground truth. The older
+project of eating DX7, ZynAddSubFX, and other synthesizers remains useful
+reference pressure, but it is not the current center of gravity.
+
+The curriculum is deliberate:
+
+1. master basic IPA-level speech parity against a simple reference;
+2. grow from vowels into CV/CVC contrasts and core pulmonic consonants;
+3. only then add intonation, prosody, emphasis, emotional context, and
+   personality;
+4. finally let Weksa and nonhuman morphologies stress the machine without
+   letting IPA pretend it owns alien anatomy.
+
 AquaSynth can get close to a Pink Trombone-class tract model, then move past it
 by treating IPA as an authoring input rather than the synth itself. The machine
 we want is not a giant table from symbol to sound. It is a pipeline:
@@ -110,6 +139,8 @@ Useful starting sources:
   <https://phoible.org/>
 - eSpeak NG phoneme-table implementation reference:
   <https://deepwiki.com/espeak-ng/espeak-ng/4.2-phoneme-model>
+- Utterance parity research notes:
+  <utterance-parity-research.md>
 
 ## Architecture
 
@@ -448,6 +479,23 @@ Metrics:
 - nasal/oral spectral contrast;
 - intelligibility/listening notes for complete syllables;
 - script/IPA terseness only after audio is credible.
+
+## Speech Parity Harness
+
+The first harness must stay humble and fast:
+
+- render a tiny utterance set from eSpeak NG or another compact reference;
+- extract normalized log-mel, timing, and envelope evidence;
+- train `SpeechBackpropagationPipeline` through the utterance encoder and synth
+  driver;
+- drive a compiled Faust candidate by changing `/speech/output/N` controls, not
+  by recompiling the patch for every weight probe;
+- write reports under ignored `artifacts/parity/...` so metrics and listening
+  receipts stay visible.
+
+Ground truth means "reference pressure," not "the truth about throats." eSpeak
+can teach early intelligibility, timing, and rough spectral targets. It cannot
+decide AquaSynth's anatomy, coarticulation, or Weksa morphology.
 
 ## Optional eSpeak NG Workout
 
