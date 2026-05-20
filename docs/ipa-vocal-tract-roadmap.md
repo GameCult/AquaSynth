@@ -244,12 +244,16 @@ AquaSynth should treat it as the training input contract:
 - 64-float projected Ghostlight/Epiphany-shaped character-state vector;
 - 64-float AquaSynth-owned learned utterance embedding output.
 
-Training on serious speech fixtures is blocked until Weksa packets use that
-fixed contract or a deliberately versioned successor. Toy vectors are allowed
-for plumbing tests only. Do not feed IPA strings into the semantic text
-embedding channel and pretend that it means speech shape; English semantics and
-PanPhon sequence evidence are separate inputs. AquaSynth owns the learned
-compression from PanPhon sequence to 256D phonetic realization embedding.
+The first Weksa v0.1 training artifact now exists at
+`E:\Projects\weksa\examples\speech-training\tiny-panphon-v0.1\batch.json`.
+It covers the crawl-stage IPA set `a`, `pa`, `ta`, `ka`, `sa`, and `ma` with
+fixed vector widths, zeroed semantic text embeddings, inline PanPhon-style
+sequence evidence, deterministic prosody hints, and an Epiphany-compatible
+neutral character-state vector. Toy vectors are allowed for plumbing tests only.
+Do not feed IPA strings into the semantic text embedding channel and pretend
+that it means speech shape; English semantics and PanPhon sequence evidence are
+separate inputs. AquaSynth owns the learned compression from PanPhon sequence to
+256D phonetic realization embedding.
 
 ### 4. Morphology Model
 
