@@ -89,8 +89,19 @@ public sealed class EspeakNgGradientDescentTests
     private static TrainingFixture Fixture(string id, string text, PhoneticFeatures features, IReadOnlyList<float> textEmbedding)
     {
         var prosody = new[] { 0.75f, text.Length / 4f, features.Manner == PhoneticManner.Fricative ? 0.95f : 0.35f, features.Manner == PhoneticManner.Nasal ? 0.80f : 0.25f };
+        var phoneticRealization = new[]
+        {
+            features.Manner == PhoneticManner.Vowel ? 1f : 0f,
+            features.Manner == PhoneticManner.Stop ? 1f : 0f,
+            features.Manner == PhoneticManner.Fricative ? 1f : 0f,
+            features.Manner == PhoneticManner.Nasal ? 1f : 0f,
+            features.Place == PhoneticPlace.Bilabial ? 1f : 0f,
+            features.Place == PhoneticPlace.Alveolar ? 1f : 0f,
+            features.Place == PhoneticPlace.Velar ? 1f : 0f,
+            features.Phonation == Phonation.Voiced ? 1f : 0f
+        };
         var characterState = new[] { 0.65f, 0.35f, 0.55f, features.Place == PhoneticPlace.Bilabial ? 0.72f : 0.28f };
-        var input = new UtteranceEmbeddingInput(textEmbedding, prosody, characterState);
+        var input = new UtteranceEmbeddingInput(textEmbedding, phoneticRealization, prosody, characterState);
         var phoneticEvent = new PhoneticEvent(id, text, features, DurationSeconds: 0.20, Prosody: new PhoneticProsody(Stress: 0.75f, Intensity: 0.8f));
         return new TrainingFixture(id, text, "en", phoneticEvent, input);
     }

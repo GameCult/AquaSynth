@@ -5,16 +5,33 @@ namespace AquaSynth.Dsl.Tests;
 public sealed class UtteranceEmbeddingLearningTests
 {
     [Fact]
-    public void UtteranceEmbeddingInputPacksTextProsodyAndCharacterState()
+    public void UtteranceEmbeddingInputPacksTextPhoneticsProsodyAndCharacterState()
     {
         var input = new UtteranceEmbeddingInput(
             SpeechTextEmbedding: [0.1f, 0.2f, 0.3f],
+            PhoneticRealizationVector: [0.9f, 0.6f],
             ProsodyAndEmphasisHints: [0.7f, 0.8f],
             CharacterStateVector: [0.4f, 0.5f, 0.6f]);
 
         var features = input.ToFeatureVector();
 
-        Assert.Equal([0.1f, 0.2f, 0.3f, 0.7f, 0.8f, 0.4f, 0.5f, 0.6f], features.Values);
+        Assert.Equal([0.1f, 0.2f, 0.3f, 0.9f, 0.6f, 0.7f, 0.8f, 0.4f, 0.5f, 0.6f], features.Values);
+    }
+
+    [Fact]
+    public void WeksaV01ContractRequiresSeparatePanphonRealizationChannel()
+    {
+        var input = new UtteranceEmbeddingInput(
+            SpeechTextEmbedding: Zeros(WeksaUtteranceEmbeddingHandoff.SpeechTextEmbeddingSize),
+            PhoneticRealizationVector: Zeros(WeksaUtteranceEmbeddingHandoff.PhoneticRealizationVectorSize),
+            ProsodyAndEmphasisHints: Zeros(WeksaUtteranceEmbeddingHandoff.ProsodyAndEmphasisHintSize),
+            CharacterStateVector: Zeros(WeksaUtteranceEmbeddingHandoff.CharacterStateVectorSize));
+
+        WeksaUtteranceEmbeddingHandoff.Validate(input);
+
+        Assert.Equal("weksa.utterance_embedding_handoff.v0.1", WeksaUtteranceEmbeddingHandoff.SchemaVersion);
+        Assert.Equal("weksa.panphon_realization.v0.1", WeksaUtteranceEmbeddingHandoff.PhoneticRealizationModelId);
+        Assert.Equal(1376, input.ToFeatureVector().Values.Count);
     }
 
     [Fact]
@@ -103,4 +120,6 @@ public sealed class UtteranceEmbeddingLearningTests
 
     private static float Lerp(float left, float right, float amount) =>
         left + (right - left) * amount;
+
+    private static float[] Zeros(int count) => new float[count];
 }

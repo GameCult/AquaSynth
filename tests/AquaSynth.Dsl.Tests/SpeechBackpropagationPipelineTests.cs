@@ -8,7 +8,7 @@ public sealed class SpeechBackpropagationPipelineTests
     public void SpeechPipelineBackpropagatesSynthDriverLossIntoUtteranceEncoder()
     {
         var utteranceEncoder = UtteranceEmbeddingNeuralEncoder.Create(
-            inputSize: 10,
+            inputSize: 13,
             embeddingSize: 16,
             hiddenLayerSizes: [48, 32, 24],
             seed: 211);
@@ -37,7 +37,7 @@ public sealed class SpeechBackpropagationPipelineTests
     public void SpeechPipelineAcceptsExternalRenderedLossGradient()
     {
         var utteranceEncoder = UtteranceEmbeddingNeuralEncoder.Create(
-            inputSize: 10,
+            inputSize: 13,
             embeddingSize: 8,
             hiddenLayerSizes: [24, 16],
             seed: 301);
@@ -50,7 +50,7 @@ public sealed class SpeechBackpropagationPipelineTests
         var example = Example(
             "a",
             new PhoneticFeatures(PhoneticManner.Vowel, Height: VowelHeight.Open, Backness: VowelBackness.Front),
-            new UtteranceEmbeddingInput([0.9f, 0.1f, 0.2f, 0.7f], [0.8f, 0.3f, 0.2f], [0.6f, 0.2f, 0.4f]),
+            new UtteranceEmbeddingInput([0.9f, 0.1f, 0.2f, 0.7f], [0.9f, 0.2f, 0.1f], [0.8f, 0.3f, 0.2f], [0.6f, 0.2f, 0.4f]),
             SmallTarget([0.9f, 0.7f, 0.3f, 0.1f]));
         var before = pipeline.Predict(example).ToVector(pipeline.SynthDriver.MelBandCount);
         var gradient = new float[pipeline.SynthDriver.OutputSize];
@@ -77,17 +77,17 @@ public sealed class SpeechBackpropagationPipelineTests
         Example(
             "a",
             new PhoneticFeatures(PhoneticManner.Vowel, Height: VowelHeight.Open, Backness: VowelBackness.Front),
-            new UtteranceEmbeddingInput([0.92f, 0.20f, 0.35f, 0.70f], [0.88f, 0.32f, 0.20f], [0.65f, 0.20f, 0.44f]),
+            new UtteranceEmbeddingInput([0.92f, 0.20f, 0.35f, 0.70f], [0.90f, 0.18f, 0.10f], [0.88f, 0.32f, 0.20f], [0.65f, 0.20f, 0.44f]),
             Target([0.82f, 0.74f, 0.66f, 0.58f, 0.50f, 0.42f, 0.34f, 0.28f, 0.22f, 0.18f, 0.16f, 0.14f])),
         Example(
             "sa",
             new PhoneticFeatures(PhoneticManner.Fricative, PhoneticPlace.Alveolar, Phonation.Voiceless),
-            new UtteranceEmbeddingInput([0.35f, 0.42f, 0.90f, 0.44f], [0.70f, 0.92f, 0.75f], [0.28f, 0.60f, 0.82f]),
+            new UtteranceEmbeddingInput([0.35f, 0.42f, 0.90f, 0.44f], [0.22f, 0.86f, 0.76f], [0.70f, 0.92f, 0.75f], [0.28f, 0.60f, 0.82f]),
             Target([0.12f, 0.16f, 0.22f, 0.34f, 0.48f, 0.62f, 0.76f, 0.88f, 0.94f, 0.90f, 0.82f, 0.72f])),
         Example(
             "ma",
             new PhoneticFeatures(PhoneticManner.Nasal, PhoneticPlace.Bilabial, Phonation.Voiced, Nasalized: true),
-            new UtteranceEmbeddingInput([0.72f, 0.52f, 0.24f, 0.64f], [0.62f, 0.40f, 0.32f], [0.74f, 0.80f, 0.36f]),
+            new UtteranceEmbeddingInput([0.72f, 0.52f, 0.24f, 0.64f], [0.70f, 0.60f, 0.82f], [0.62f, 0.40f, 0.32f], [0.74f, 0.80f, 0.36f]),
             Target([0.68f, 0.72f, 0.70f, 0.62f, 0.54f, 0.46f, 0.40f, 0.36f, 0.32f, 0.30f, 0.28f, 0.26f]))
     ];
 

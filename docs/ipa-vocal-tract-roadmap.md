@@ -236,8 +236,8 @@ The first Weksa handoff target is `weksa.utterance_embedding_handoff.v0.1`.
 AquaSynth should treat it as the training input contract:
 
 - 1024-float `bge-m3:latest` speech text embedding for semantic text evidence;
-- 256-float phonetic realization vector for IPA, phones, pronunciation, and
-  alien speech-shape evidence;
+- 256-float PanPhon-based phonetic realization vector for IPA, phones,
+  pronunciation, and alien speech-shape evidence;
 - 32-float deterministic prosody/emphasis hint vector;
 - 64-float projected Ghostlight/Epiphany-shaped character-state vector;
 - 64-float AquaSynth-owned learned utterance embedding output.
