@@ -2,6 +2,22 @@
 
 Current slice:
 
+- Tightened CultCache claim receipts into an explicit hazard-light witness
+  shape. `CultCacheProofTruth.LatestListeningReceipt` is no longer a loose
+  string; it is now `CultCacheListeningReceipt` with `Subject`,
+  `TouchedSurface`, `RemainingContamination`, and `WitnessSentence`.
+- The default patch/speech claim catalog now carries those fields directly, so
+  a card names what patch/reference was touched, what surface got exercised,
+  what still contaminates the claim, and one human/domain witness sentence
+  about whether the sound bites, blooms, or lies.
+- Regenerated `patches/aquasynth-patch-cultcache.cc` from the typed catalog so
+  the checked-in CultCache artifact matches the new receipt schema.
+- Focused tests now assert receipt structure explicitly instead of only checking
+  that some non-empty string exists.
+
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "CultCachePatchDocumentTests" -v minimal`
+
 - Added the first distributed speech-training contract:
   `SpeechRenderRequest`, `SpeechRenderResult`, and
   `SpeechTrainingCheckpoint` are typed CultCache documents in

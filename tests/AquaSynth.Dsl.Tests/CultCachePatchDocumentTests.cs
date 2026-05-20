@@ -24,8 +24,7 @@ public sealed class CultCachePatchDocumentTests
     [Fact]
     public async Task EverySeriousClaimNamesAReferenceAndReceiptSurface()
     {
-        var document = await CultCachePatchDocumentStore.ReadAsync(
-            Path.Combine(RepositoryRoot(), "patches", "aquasynth-patch-cultcache.cc"));
+        var document = CultCachePatchDocumentCatalog.CreateDefault();
 
         foreach (var claim in document.PatchClaims)
         {
@@ -33,7 +32,7 @@ public sealed class CultCachePatchDocumentTests
             Assert.False(string.IsNullOrWhiteSpace(claim.Reference.FixtureOrArtifact), claim.Id);
             Assert.False(string.IsNullOrWhiteSpace(claim.Intent.PerceptualClaim), claim.Id);
             Assert.False(string.IsNullOrWhiteSpace(claim.Proof.LatestRenderArtifact), claim.Id);
-            Assert.False(string.IsNullOrWhiteSpace(claim.Proof.LatestListeningReceipt), claim.Id);
+            AssertListeningReceipt(claim.Id, claim.Proof.LatestListeningReceipt);
             Assert.NotEmpty(claim.Proof.KnownLies);
         }
 
@@ -43,8 +42,24 @@ public sealed class CultCachePatchDocumentTests
             Assert.False(string.IsNullOrWhiteSpace(claim.UtteranceSource.ReferenceRenderer), claim.Id);
             Assert.False(string.IsNullOrWhiteSpace(claim.Target.AnatomyOrProfile), claim.Id);
             Assert.False(string.IsNullOrWhiteSpace(claim.Proof.LatestRenderArtifact), claim.Id);
-            Assert.False(string.IsNullOrWhiteSpace(claim.Proof.LatestListeningReceipt), claim.Id);
+            AssertListeningReceipt(claim.Id, claim.Proof.LatestListeningReceipt);
             Assert.NotEmpty(claim.Proof.KnownLies);
+        }
+    }
+
+    [Fact]
+    public void ListeningReceiptsCarryHazardLightWitnessFields()
+    {
+        var document = CultCachePatchDocumentCatalog.CreateDefault();
+
+        foreach (var claim in document.PatchClaims)
+        {
+            AssertListeningReceipt(claim.Id, claim.Proof.LatestListeningReceipt);
+        }
+
+        foreach (var claim in document.SpeechClaims)
+        {
+            AssertListeningReceipt(claim.Id, claim.Proof.LatestListeningReceipt);
         }
     }
 
@@ -76,6 +91,14 @@ public sealed class CultCachePatchDocumentTests
     private static int LibraryEntryCount(string root) =>
         File.ReadLines(Path.Combine(root, "patches", "library.yaml"))
             .Count(line => line.TrimStart().StartsWith("- path:", StringComparison.Ordinal));
+
+    private static void AssertListeningReceipt(string claimId, CultCacheListeningReceipt receipt)
+    {
+        Assert.False(string.IsNullOrWhiteSpace(receipt.Subject), $"{claimId} subject");
+        Assert.False(string.IsNullOrWhiteSpace(receipt.TouchedSurface), $"{claimId} touched");
+        Assert.False(string.IsNullOrWhiteSpace(receipt.RemainingContamination), $"{claimId} contamination");
+        Assert.False(string.IsNullOrWhiteSpace(receipt.WitnessSentence), $"{claimId} witness");
+    }
 
     private static string RepositoryRoot()
     {
