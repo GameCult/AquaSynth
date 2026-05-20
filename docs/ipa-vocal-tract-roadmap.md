@@ -232,6 +232,18 @@ wavetable/formant coloration. Those lanes are not license to bypass tract
 anatomy; they are renderable expression controls the later synth can choose to
 honor.
 
+The first Weksa handoff target is `weksa.utterance_embedding_handoff.v0.1`.
+AquaSynth should treat it as the training input contract:
+
+- 1024-float `bge-m3:latest` speech text embedding;
+- 32-float deterministic prosody/emphasis hint vector;
+- 64-float projected Ghostlight/Epiphany-shaped character-state vector;
+- 64-float AquaSynth-owned learned utterance embedding output.
+
+Training on serious speech fixtures is blocked until Weksa packets use that
+fixed contract or a deliberately versioned successor. Toy vectors are allowed
+for plumbing tests only.
+
 ### 4. Morphology Model
 
 Owns anatomy.

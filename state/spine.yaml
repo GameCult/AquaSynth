@@ -112,6 +112,7 @@ live_invariants:
   - eSpeak NG is an early parity reference for timing, IPA coverage, and log-mel pressure, not an anatomy oracle or final target.
   - Do not expand into prosody, emotional context, personality, or broad Weksa expressivity until the tiny IPA utterance harness can show useful loss movement.
   - Speech training receipts must keep time as a witness: every request, render result, and checkpoint should record stage decision time, latency spent, latency budget, confidence, and artifact/model identifiers.
+  - Serious speech gradient descent is blocked until Weksa packets use `weksa.utterance_embedding_handoff.v0.1` or a deliberate successor: 1024 speech-text floats, 32 prosody/emphasis floats, 64 projected character-state floats, and a 64-float AquaSynth utterance embedding output.
 
 reference_targets:
   ipa_vocal_tract_weksa:
@@ -123,6 +124,7 @@ reference_targets:
     status: "Boundary contracts, packed neural networks, utterance encoder, synth-driver mapper, chained backprop, optional eSpeak rendered fixtures, Faust finite-difference loss surface, compiled Faust speech-loss controls, distributed render request/result/checkpoint contracts, timing/confidence receipts, and sound-claim cards exist. The active need is a fast parity harness that can test many controller weights as rendered speech output against simple ground truth."
     first_slice:
       - "Keep the utterance schema small and testable: segments, spans, duration/stress/boundary hints, speaker/morphology identity, pitch/loudness/rate/breath controls, and named context vectors."
+      - "Mirror Weksa v0.1 in AquaSynth constants/tests before any serious gradient descent run."
       - "Use eSpeak NG fixtures for generated ground truth while remembering that formant parity is not anatomy parity."
       - "Connect Stage 0/1 IPA and vowel tract-area fixtures to the compiled Faust loss surface before expanding consonants."
   dx7_dexed:

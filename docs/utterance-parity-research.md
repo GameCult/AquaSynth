@@ -118,6 +118,13 @@ Time is not bookkeeping garnish here. If the mapping is correct only after an
 unbounded wait, cache accident, or hidden retry, the system has learned a
 beautiful falsehood.
 
+Do not start serious gradient descent from toy embedding packets. The first
+training contract coordinated with Weksa is
+`weksa.utterance_embedding_handoff.v0.1`: 1024 speech-text floats from
+`bge-m3:latest`, 32 deterministic prosody/emphasis floats, 64 projected
+character-state floats, and a 64-float AquaSynth-owned utterance embedding
+output. Anything smaller is a plumbing fixture, not a training corpus.
+
 The universal utterance schema should stay boring at first:
 
 - segment inventory and source spans;
