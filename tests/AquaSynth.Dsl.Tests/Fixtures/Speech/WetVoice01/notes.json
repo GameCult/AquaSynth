@@ -1,0 +1,30 @@
+{
+  "witnessId": "wet-voice-01",
+  "topicId": "topic_040d9807-2efa-4f89-acce-ca05300bfc2a",
+  "requestId": "req_11d2c7f2-85c6-44ea-9e89-ec7fe0ab5db9",
+  "timing": {
+    "utteranceDecisionTimeUtc": "2026-05-20T00:00:00Z",
+    "targetLatencyBudgetMs": 40,
+    "observedLatencyMs": null
+  },
+  "confidence": {
+    "utteranceSemanticConfidence": 0.82,
+    "automationLoweringConfidence": null,
+    "renderConfidence": null
+  },
+  "provenance": {
+    "semanticOwner": "Weksa",
+    "automationOwner": "AquaSynth",
+    "renderOwner": "AquaSynth",
+    "referenceRenderer": "Not pinned yet",
+    "notes": [
+      "This witness is a repo-local scaffold for inspectable parity work.",
+      "Future automation traces and audio renders should update this file rather than hiding timing or confidence in ad hoc logs."
+    ]
+  },
+  "currentLimitations": [
+    "The structured utterance is pinned, but no production importer consumes this exact JSON yet.",
+    "The automation trace is a scaffold receipt, not a generated output from the learning lane.",
+    "The render slot is instructions only until AquaSynth owns a stable committed witness audio policy."
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "witnessId": "wet-voice-01",
+  "language": "weksa-prototype",
+  "gloss": "The water is awake.",
+  "speakerProfile": {
+    "id": "weksa-default-observer",
+    "morphology": "human-ish single-tract provisional profile",
+    "style": {
+      "breathiness": 0.32,
+      "speakingRate": 0.9,
+      "intensity": 0.58
+    }
+  },
+  "segments": [
+    {
+      "id": "seg-1",
+      "surface": "wa",
+      "ipa": "wa",
+      "startMs": 0,
+      "durationMs": 180,
+      "stress": 0.68
+    },
+    {
+      "id": "seg-2",
+      "surface": "ta",
+      "ipa": "ta",
+      "startMs": 180,
+      "durationMs": 170,
+      "stress": 0.54
+    },
+    {
+      "id": "seg-3",
+      "surface": "sha",
+      "ipa": "Sa",
+      "startMs": 350,
+      "durationMs": 220,
+      "stress": 0.74
+    }
+  ],
+  "timingHints": {
+    "targetDurationMs": 570,
+    "latencyBudgetMs": 40,
+    "phraseBoundaryAfterMs": 570
+  },
+  "provenance": {
+    "semanticOwner": "Weksa",
+    "transportTopicId": "topic_040d9807-2efa-4f89-acce-ca05300bfc2a",
+    "notes": "Structured utterance is the inspectable handoff into AquaSynth. Meanings, gloss, and segment identity stay here rather than in a learned embedding artifact."
+  }
+}

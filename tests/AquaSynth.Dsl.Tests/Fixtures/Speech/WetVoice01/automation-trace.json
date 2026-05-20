@@ -1,0 +1,80 @@
+{
+  "witnessId": "wet-voice-01",
+  "status": "scaffold",
+  "ownedBy": "AquaSynth",
+  "inputArtifact": "structured-utterance.json",
+  "targetProfile": "human-ish single-tract provisional profile",
+  "automationStages": [
+    {
+      "stageId": "utterance-to-gestural-plan",
+      "description": "Interpret segment timing and stress as tract gestures.",
+      "inspectableOutputs": [
+        "gesture windows",
+        "coarticulation overlap",
+        "control-rate targets"
+      ]
+    },
+    {
+      "stageId": "gestural-plan-to-synth-controls",
+      "description": "Lower gestures into tract, source, and filter automation lanes.",
+      "inspectableOutputs": [
+        "tongue body curve",
+        "tongue tip curve",
+        "lip aperture curve",
+        "velum curve",
+        "glottal tenseness curve",
+        "turbulence curve",
+        "pressure curve",
+        "filter cutoff curve"
+      ]
+    }
+  ],
+  "events": [
+    {
+      "segmentId": "seg-1",
+      "label": "wa",
+      "startMs": 0,
+      "durationMs": 180,
+      "targets": {
+        "tongueBody": 0.42,
+        "lipAperture": 0.72,
+        "lipRounding": 0.64,
+        "glottalTenseness": 0.48,
+        "pressure": 0.3
+      }
+    },
+    {
+      "segmentId": "seg-2",
+      "label": "ta",
+      "startMs": 180,
+      "durationMs": 170,
+      "targets": {
+        "tongueTip": 0.88,
+        "lipAperture": 0.28,
+        "glottalTenseness": 0.24,
+        "pressure": 0.84,
+        "turbulence": 0.18
+      }
+    },
+    {
+      "segmentId": "seg-3",
+      "label": "sha",
+      "startMs": 350,
+      "durationMs": 220,
+      "targets": {
+        "tongueBody": 0.5,
+        "tongueTip": 0.7,
+        "lipAperture": 0.56,
+        "glottalTenseness": 0.38,
+        "pressure": 0.66,
+        "turbulence": 0.91,
+        "filterCutoff": 0.81
+      }
+    }
+  ],
+  "gaps": [
+    "No committed generated automation from production code yet; this file is the pinned shape and starter witness receipt.",
+    "No coarticulation solver receipt yet.",
+    "No compiled render artifact receipt yet."
+  ]
+}

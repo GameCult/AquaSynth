@@ -18,6 +18,7 @@ surfaces:
   reference_roadmap: docs/reference-synth-roadmap.md
   ipa_vocal_tract_roadmap: docs/ipa-vocal-tract-roadmap.md
   utterance_parity_research: docs/utterance-parity-research.md
+  wet_voice_witness_fixture: tests/AquaSynth.Dsl.Tests/Fixtures/Speech/WetVoice01
   faust_toolchain_boundary: docs/faust-toolchain-boundary.md
   dx7_public_domain_fixtures: tests/AquaSynth.Dsl.Tests/Fixtures/Dx7/PublicDomain
   zyn_reference_source: external/zynaddsubfx

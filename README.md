@@ -127,6 +127,10 @@ metadata -> utterance embedding -> synth automation -> vocal-tract/rendered-loss
 parity. The first proof path uses tiny eSpeak NG fixtures, log-mel evidence,
 packed C# backprop, and compiled Faust speech controls so many candidate weights
 can be tested against generated speech references without recompiling topology.
+The named audible witness for that lane lives at
+`tests/AquaSynth.Dsl.Tests/Fixtures/Speech/WetVoice01/`: Weksa-owned structured
+utterance in, AquaSynth-owned automation/render receipts out, all inspectable
+enough to diff when the machine mutates.
 
 The modular graph surface, SFXR atoms, DX7/Zyn reference work, script scoring,
 audio comparison, presets, Faust emission, native Faust compilation/rendering,

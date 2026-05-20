@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aquasynth.local/fixtures/speech/wet-voice-01/structured-utterance.schema.json",
+  "title": "AquaSynth Structured Utterance Witness",
+  "type": "object",
+  "required": [
+    "witnessId",
+    "language",
+    "gloss",
+    "speakerProfile",
+    "segments",
+    "timingHints",
+    "provenance"
+  ],
+  "properties": {
+    "witnessId": {
+      "const": "wet-voice-01"
+    },
+    "language": {
+      "type": "string",
+      "minLength": 1
+    },
+    "gloss": {
+      "type": "string",
+      "minLength": 1
+    },
+    "speakerProfile": {
+      "type": "object",
+      "required": [
+        "id",
+        "morphology"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "morphology": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "surface",
+          "ipa",
+          "startMs",
+          "durationMs"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "surface": {
+            "type": "string",
+            "minLength": 1
+          },
+          "ipa": {
+            "type": "string",
+            "minLength": 1
+          },
+          "startMs": {
+            "type": "number",
+            "minimum": 0
+          },
+          "durationMs": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "timingHints": {
+      "type": "object",
+      "required": [
+        "targetDurationMs",
+        "latencyBudgetMs"
+      ],
+      "properties": {
+        "targetDurationMs": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "latencyBudgetMs": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "provenance": {
+      "type": "object",
+      "required": [
+        "semanticOwner",
+        "transportTopicId"
+      ],
+      "properties": {
+        "semanticOwner": {
+          "const": "Weksa"
+        },
+        "transportTopicId": {
+          "const": "topic_040d9807-2efa-4f89-acce-ca05300bfc2a"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
