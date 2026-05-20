@@ -112,8 +112,8 @@ live_invariants:
   - eSpeak NG is an early parity reference for timing, IPA coverage, and log-mel pressure, not an anatomy oracle or final target.
   - Do not expand into prosody, emotional context, personality, or broad Weksa expressivity until the tiny IPA utterance harness can show useful loss movement.
   - Speech training receipts must keep time as a witness: every request, render result, and checkpoint should record stage decision time, latency spent, latency budget, confidence, and artifact/model identifiers.
-  - Serious speech gradient descent is blocked until Weksa packets use `weksa.utterance_embedding_handoff.v0.1` or a deliberate successor: 1024 semantic speech-text floats, 256 PanPhon-based phonetic-realization floats, 32 prosody/emphasis floats, 64 projected character-state floats, and a 64-float AquaSynth utterance embedding output.
-  - Do not use semantic text embeddings as a proxy for IPA or alien phonetic strings. Phonetic/IPA realization is a separate input channel.
+  - Serious speech gradient descent is blocked until Weksa packets use `weksa.utterance_embedding_handoff.v0.1` or a deliberate successor: 1024 semantic speech-text floats, variable-length PanPhon sequence evidence, 256 AquaSynth-owned phonetic realization embedding floats, 32 prosody/emphasis floats, 64 projected character-state floats, and a 64-float AquaSynth utterance embedding output.
+  - Do not use semantic text embeddings as a proxy for IPA or alien phonetic strings. Phonetic/IPA realization starts as PanPhon sequence evidence and is compressed by AquaSynth's phonetic sequence encoder.
 
 reference_targets:
   ipa_vocal_tract_weksa:

@@ -71,14 +71,14 @@ public sealed record SpeechTimingReceipt(
 [MessagePackObject]
 public sealed record SpeechUtteranceEmbeddingInputSnapshot(
     [property: Key(0)] float[] TextEmbedding,
-    [property: Key(1)] float[] PhoneticRealization,
+    [property: Key(1)] float[] PhoneticRealizationEmbedding,
     [property: Key(2)] float[] Prosody,
     [property: Key(3)] float[] CharacterState)
 {
-    public UtteranceEmbeddingInput ToInput() => new(TextEmbedding, PhoneticRealization, Prosody, CharacterState);
+    public UtteranceEmbeddingInput ToInput() => new(TextEmbedding, PhoneticRealizationEmbedding, Prosody, CharacterState);
 
     public static SpeechUtteranceEmbeddingInputSnapshot From(UtteranceEmbeddingInput input) =>
-        new([.. input.SpeechTextEmbedding], [.. input.PhoneticRealizationVector], [.. input.ProsodyAndEmphasisHints], [.. input.CharacterStateVector]);
+        new([.. input.SpeechTextEmbedding], [.. input.PhoneticRealizationEmbedding], [.. input.ProsodyAndEmphasisHints], [.. input.CharacterStateVector]);
 }
 
 [MessagePackObject]

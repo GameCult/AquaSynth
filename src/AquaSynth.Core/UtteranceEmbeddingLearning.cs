@@ -2,15 +2,15 @@ namespace AquaSynth.Dsl;
 
 public sealed record UtteranceEmbeddingInput(
     IReadOnlyList<float> SpeechTextEmbedding,
-    IReadOnlyList<float> PhoneticRealizationVector,
+    IReadOnlyList<float> PhoneticRealizationEmbedding,
     IReadOnlyList<float> ProsodyAndEmphasisHints,
     IReadOnlyList<float> CharacterStateVector)
 {
     public UtteranceEmbeddingFeatureVector ToFeatureVector()
     {
-        var values = new float[SpeechTextEmbedding.Count + PhoneticRealizationVector.Count + ProsodyAndEmphasisHints.Count + CharacterStateVector.Count];
+        var values = new float[SpeechTextEmbedding.Count + PhoneticRealizationEmbedding.Count + ProsodyAndEmphasisHints.Count + CharacterStateVector.Count];
         var offset = Copy(SpeechTextEmbedding, values, 0);
-        offset = Copy(PhoneticRealizationVector, values, offset);
+        offset = Copy(PhoneticRealizationEmbedding, values, offset);
         offset = Copy(ProsodyAndEmphasisHints, values, offset);
         Copy(CharacterStateVector, values, offset);
         return new UtteranceEmbeddingFeatureVector(values);
@@ -31,18 +31,18 @@ public static class WeksaUtteranceEmbeddingHandoff
 {
     public const string SchemaVersion = "weksa.utterance_embedding_handoff.v0.1";
     public const string SpeechTextEmbeddingModelId = "bge-m3:latest";
-    public const string PhoneticRealizationModelId = "weksa.panphon_realization.v0.1";
+    public const string PhoneticRealizationModelId = "aquasynth.panphon_sequence_encoder.v0.1";
     public const int SpeechTextEmbeddingSize = 1024;
-    public const int PhoneticRealizationVectorSize = 256;
+    public const int PhoneticRealizationEmbeddingSize = 256;
     public const int ProsodyAndEmphasisHintSize = 32;
     public const int CharacterStateVectorSize = 64;
     public const int UtteranceEmbeddingSize = 64;
-    public const int InputSize = SpeechTextEmbeddingSize + PhoneticRealizationVectorSize + ProsodyAndEmphasisHintSize + CharacterStateVectorSize;
+    public const int InputSize = SpeechTextEmbeddingSize + PhoneticRealizationEmbeddingSize + ProsodyAndEmphasisHintSize + CharacterStateVectorSize;
 
     public static void Validate(UtteranceEmbeddingInput input)
     {
         ValidateSize(input.SpeechTextEmbedding, SpeechTextEmbeddingSize, nameof(input.SpeechTextEmbedding));
-        ValidateSize(input.PhoneticRealizationVector, PhoneticRealizationVectorSize, nameof(input.PhoneticRealizationVector));
+        ValidateSize(input.PhoneticRealizationEmbedding, PhoneticRealizationEmbeddingSize, nameof(input.PhoneticRealizationEmbedding));
         ValidateSize(input.ProsodyAndEmphasisHints, ProsodyAndEmphasisHintSize, nameof(input.ProsodyAndEmphasisHints));
         ValidateSize(input.CharacterStateVector, CharacterStateVectorSize, nameof(input.CharacterStateVector));
     }

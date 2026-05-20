@@ -9,7 +9,7 @@ public sealed class UtteranceEmbeddingLearningTests
     {
         var input = new UtteranceEmbeddingInput(
             SpeechTextEmbedding: [0.1f, 0.2f, 0.3f],
-            PhoneticRealizationVector: [0.9f, 0.6f],
+            PhoneticRealizationEmbedding: [0.9f, 0.6f],
             ProsodyAndEmphasisHints: [0.7f, 0.8f],
             CharacterStateVector: [0.4f, 0.5f, 0.6f]);
 
@@ -23,14 +23,14 @@ public sealed class UtteranceEmbeddingLearningTests
     {
         var input = new UtteranceEmbeddingInput(
             SpeechTextEmbedding: Zeros(WeksaUtteranceEmbeddingHandoff.SpeechTextEmbeddingSize),
-            PhoneticRealizationVector: Zeros(WeksaUtteranceEmbeddingHandoff.PhoneticRealizationVectorSize),
+            PhoneticRealizationEmbedding: Zeros(WeksaUtteranceEmbeddingHandoff.PhoneticRealizationEmbeddingSize),
             ProsodyAndEmphasisHints: Zeros(WeksaUtteranceEmbeddingHandoff.ProsodyAndEmphasisHintSize),
             CharacterStateVector: Zeros(WeksaUtteranceEmbeddingHandoff.CharacterStateVectorSize));
 
         WeksaUtteranceEmbeddingHandoff.Validate(input);
 
         Assert.Equal("weksa.utterance_embedding_handoff.v0.1", WeksaUtteranceEmbeddingHandoff.SchemaVersion);
-        Assert.Equal("weksa.panphon_realization.v0.1", WeksaUtteranceEmbeddingHandoff.PhoneticRealizationModelId);
+        Assert.Equal("aquasynth.panphon_sequence_encoder.v0.1", WeksaUtteranceEmbeddingHandoff.PhoneticRealizationModelId);
         Assert.Equal(1376, input.ToFeatureVector().Values.Count);
     }
 

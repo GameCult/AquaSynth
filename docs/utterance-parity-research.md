@@ -121,14 +121,17 @@ beautiful falsehood.
 Do not start serious gradient descent from toy embedding packets. The first
 training contract coordinated with Weksa is
 `weksa.utterance_embedding_handoff.v0.1`: 1024 speech-text floats from
-`bge-m3:latest`, 256 PanPhon-based phonetic-realization floats for
-IPA/phones/alien speech shape, 32 deterministic prosody/emphasis floats, 64
-projected character-state floats, and a 64-float AquaSynth-owned utterance
-embedding output. Anything smaller is a plumbing fixture, not a training corpus.
+`bge-m3:latest`, variable-length PanPhon sequence evidence, a 256-float
+AquaSynth-owned phonetic realization embedding from
+`aquasynth.panphon_sequence_encoder.v0.1`, 32 deterministic prosody/emphasis
+floats, 64 projected character-state floats, and a 64-float AquaSynth-owned
+utterance embedding output. Anything smaller is a plumbing fixture, not a
+training corpus.
 
 Keep semantic text and phonetic realization separate. English text embeddings
 may help preserve meaning and phrasing, but an IPA string is not English prose
-with a spicy alphabet. Alien phones belong in the phonetic channel.
+with a spicy alphabet. Alien phones belong in PanPhon sequence evidence and the
+AquaSynth-trained phonetic sequence encoder.
 
 The universal utterance schema should stay boring at first:
 
