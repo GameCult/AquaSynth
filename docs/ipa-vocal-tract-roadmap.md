@@ -497,6 +497,12 @@ Ground truth means "reference pressure," not "the truth about throats." eSpeak
 can teach early intelligibility, timing, and rough spectral targets. It cannot
 decide AquaSynth's anatomy, coarticulation, or Weksa morphology.
 
+Training receipts must keep time as a witness. Every request, result, and
+checkpoint should record when each stage made its decision, how much latency it
+spent, what latency budget it was meant to respect, and how confident the
+mapping was. A tiny audible witness that sounds right but arrives from a
+clockless swamp is already teaching the model to lie with a lovely voice.
+
 ## Optional eSpeak NG Workout
 
 The first IPA-adjacent parity lane uses eSpeak NG as a development reference.

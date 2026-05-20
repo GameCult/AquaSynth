@@ -26,6 +26,9 @@ public sealed class SpeechDistributedTrainingTests
             Assert.Equal(examples.Count, loadedResults.Count);
             Assert.All(loadedResults, result => Assert.Equal(SpeechRenderStatus.Succeeded, result.Status));
             Assert.All(loadedResults, result => Assert.Equal(pipeline.SynthDriver.OutputSize, result.OutputGradient.Length));
+            Assert.All(loadedRequests, request => Assert.Contains(request.TimingReceipts, receipt => receipt.StageId == "utterance-to-candidate-controls"));
+            Assert.All(loadedResults, result => Assert.Contains(result.TimingReceipts, receipt => receipt.StageId == "score-render-result"));
+            Assert.All(loadedResults, result => Assert.All(result.TimingReceipts, receipt => Assert.InRange(receipt.Confidence, 0, 1)));
             Assert.Contains(loadedRequests, request => request.RendererProfileId == "compiled-faust-worker");
         }
         finally
@@ -73,6 +76,8 @@ public sealed class SpeechDistributedTrainingTests
             Assert.Equal(examples.Count, applied.Checkpoint.AppliedResultCount);
             Assert.Single(checkpoints);
             Assert.Equal("checkpoint-0001", checkpoints[0].CheckpointId);
+            Assert.Contains(checkpoints[0].TimingReceipts, receipt => receipt.StageId == "apply-render-gradients");
+            Assert.All(checkpoints[0].TimingReceipts, receipt => Assert.InRange(receipt.Confidence, 0, 1));
             Assert.All(applied.Backpropagations, backprop => Assert.True(backprop.InputGradient.Length > 0));
         }
         finally

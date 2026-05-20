@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using GameCult.Caching;
 using GameCult.Caching.MessagePack;
 using MessagePack;
@@ -20,7 +21,8 @@ public sealed record SpeechRenderRequest(
     [property: Key(8)] SpeechUtteranceEmbeddingInputSnapshot UtteranceInput,
     [property: Key(9)] SpeechPhoneticEventSnapshot PhoneticEvent,
     [property: Key(10)] float[] CandidateControlVector,
-    [property: Key(11)] float[] ReferenceControlVector);
+    [property: Key(11)] float[] ReferenceControlVector,
+    [property: Key(12)] SpeechTimingReceipt[] TimingReceipts);
 
 [CultDocument("aquasynth.speech_render_result", "aquasynth.speech_render_result.v1")]
 [MessagePackObject]
@@ -39,8 +41,9 @@ public sealed record SpeechRenderResult(
     [property: Key(7)] float[] OutputGradient,
     [property: Key(8)] SpeechScoreMetric[] Metrics,
     [property: Key(9)] SpeechRenderArtifact[] Artifacts,
-    [property: Key(10)] string FailureCode = "",
-    [property: Key(11)] string FailureMessage = "");
+    [property: Key(10)] SpeechTimingReceipt[] TimingReceipts,
+    [property: Key(11)] string FailureCode = "",
+    [property: Key(12)] string FailureMessage = "");
 
 [CultDocument("aquasynth.speech_training_checkpoint", "aquasynth.speech_training_checkpoint.v1")]
 [MessagePackObject]
@@ -53,7 +56,17 @@ public sealed record SpeechTrainingCheckpoint(
     [property: Key(3)] int AppliedResultCount,
     [property: Key(4)] float MeanAppliedLoss,
     [property: Key(5)] string[] AppliedResultIds,
-    [property: Key(6)] string Notes);
+    [property: Key(6)] string Notes,
+    [property: Key(7)] SpeechTimingReceipt[] TimingReceipts);
+
+[MessagePackObject]
+public sealed record SpeechTimingReceipt(
+    [property: Key(0)] string StageId,
+    [property: Key(1)] string DecidedAtUtc,
+    [property: Key(2)] double LatencyMilliseconds,
+    [property: Key(3)] double BudgetMilliseconds,
+    [property: Key(4)] float Confidence,
+    [property: Key(5)] string Notes);
 
 [MessagePackObject]
 public sealed record SpeechUtteranceEmbeddingInputSnapshot(
@@ -182,15 +195,17 @@ public static class SpeechDistributedTrainingCoordinator
         SpeechDistributedTrainingOptions? options = null)
     {
         options ??= new SpeechDistributedTrainingOptions();
-        var createdAt = DateTimeOffset.UtcNow.ToString("O");
+        var createdAt = DateTimeOffset.UtcNow;
+        var createdAtText = createdAt.ToString("O");
         var requests = new SpeechRenderRequest[examples.Count];
         for (var index = 0; index < examples.Count; index++)
         {
             var example = examples[index];
+            var candidate = pipeline.Predict(example).ToVector(pipeline.SynthDriver.MelBandCount);
             requests[index] = new SpeechRenderRequest(
                 $"{batchId}:{index:0000}",
                 batchId,
-                createdAt,
+                createdAtText,
                 options.CurriculumTier,
                 options.TargetReferenceId,
                 options.MorphologyId,
@@ -198,8 +213,17 @@ public static class SpeechDistributedTrainingCoordinator
                 options.ScoringRecipeId,
                 SpeechUtteranceEmbeddingInputSnapshot.From(example.UtteranceInput),
                 SpeechPhoneticEventSnapshot.From(example.Event),
-                pipeline.Predict(example).ToVector(pipeline.SynthDriver.MelBandCount),
-                example.Target.ToVector(pipeline.SynthDriver.MelBandCount));
+                candidate,
+                example.Target.ToVector(pipeline.SynthDriver.MelBandCount),
+                [
+                    new SpeechTimingReceipt(
+                        "utterance-to-candidate-controls",
+                        createdAtText,
+                        0,
+                        0,
+                        CandidateConfidence(candidate),
+                        "Local request creation captured the current utterance encoder and synth-driver decision.")
+                ]);
         }
 
         return requests;
@@ -214,9 +238,12 @@ public static class SpeechDistributedTrainingCoordinator
         var results = new SpeechRenderResult[requests.Count];
         for (var index = 0; index < requests.Count; index++)
         {
+            var startedAt = DateTimeOffset.UtcNow;
+            var startedStamp = Stopwatch.GetTimestamp();
             var request = requests[index];
             if (request.CandidateControlVector.Length != request.ReferenceControlVector.Length)
             {
+                var latency = Stopwatch.GetElapsedTime(startedStamp).TotalMilliseconds;
                 results[index] = new SpeechRenderResult(
                     $"{request.RequestId}:failed",
                     request.RequestId,
@@ -228,6 +255,15 @@ public static class SpeechDistributedTrainingCoordinator
                     [],
                     [],
                     [],
+                    [
+                        new SpeechTimingReceipt(
+                            "score-render-result",
+                            startedAt.ToString("O"),
+                            latency,
+                            0,
+                            0,
+                            "Rejected before scoring because the candidate/reference control vector sizes differ.")
+                    ],
                     "control_vector_size_mismatch",
                     "Candidate and reference control vectors must have the same length.");
                 continue;
@@ -243,6 +279,7 @@ public static class SpeechDistributedTrainingCoordinator
             }
 
             loss /= gradient.Length;
+            var scoreLatency = Stopwatch.GetElapsedTime(startedStamp).TotalMilliseconds;
             results[index] = new SpeechRenderResult(
                 $"{request.RequestId}:score",
                 request.RequestId,
@@ -253,7 +290,16 @@ public static class SpeechDistributedTrainingCoordinator
                 loss,
                 gradient,
                 [new SpeechScoreMetric("control_mse", loss, 1)],
-                [new SpeechRenderArtifact("score-report", $"cultcache://speech-render-result/{request.RequestId}", "")]);
+                [new SpeechRenderArtifact("score-report", $"cultcache://speech-render-result/{request.RequestId}", "")],
+                [
+                    new SpeechTimingReceipt(
+                        "score-render-result",
+                        startedAt.ToString("O"),
+                        scoreLatency,
+                        0,
+                        LossConfidence(loss),
+                        "Local control-vector proof scored candidate output against reference output.")
+                ]);
         }
 
         return results;
@@ -295,14 +341,50 @@ public static class SpeechDistributedTrainingCoordinator
             throw new InvalidOperationException("no successful speech render results matched the request batch");
         }
 
+        var checkpointCreatedAt = DateTimeOffset.UtcNow.ToString("O");
         var checkpoint = new SpeechTrainingCheckpoint(
             checkpointId,
             requests.FirstOrDefault()?.BatchId ?? "",
-            DateTimeOffset.UtcNow.ToString("O"),
+            checkpointCreatedAt,
             applied.Count,
             loss / applied.Count,
             [.. appliedIds],
-            "Applied remote-render score gradients to the utterance encoder and synth driver.");
+            "Applied remote-render score gradients to the utterance encoder and synth driver.",
+            [
+                new SpeechTimingReceipt(
+                    "apply-render-gradients",
+                    checkpointCreatedAt,
+                    0,
+                    0,
+                    LossConfidence(loss / applied.Count),
+                    "Checkpoint records the training step that consumed successful render results.")
+            ]);
         return new SpeechDistributedTrainingApplyResult(checkpoint, applied);
+    }
+
+    private static float CandidateConfidence(IReadOnlyList<float> candidate)
+    {
+        if (candidate.Count == 0)
+        {
+            return 0;
+        }
+
+        var sum = 0f;
+        for (var index = 0; index < candidate.Count; index++)
+        {
+            sum += Math.Abs(candidate[index] - 0.5f) * 2f;
+        }
+
+        return Math.Clamp(sum / candidate.Count, 0f, 1f);
+    }
+
+    private static float LossConfidence(float loss)
+    {
+        if (!float.IsFinite(loss))
+        {
+            return 0;
+        }
+
+        return Math.Clamp(1f / (1f + loss), 0f, 1f);
     }
 }

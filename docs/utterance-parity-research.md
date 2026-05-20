@@ -105,6 +105,19 @@ Keep the curriculum brutally small:
 5. Only move to intonation, prosody, emotional context, and personality after
    the harness can show phoneme-level loss improvements without handwaving.
 
+Keep training receipts as first-class evidence:
+
+- when each stage decided;
+- how much latency it spent;
+- what latency budget it was trying to fit;
+- how confident the mapping was;
+- which request, result, checkpoint, artifact, and model version produced the
+  evidence.
+
+Time is not bookkeeping garnish here. If the mapping is correct only after an
+unbounded wait, cache accident, or hidden retry, the system has learned a
+beautiful falsehood.
+
 The universal utterance schema should stay boring at first:
 
 - segment inventory and source spans;

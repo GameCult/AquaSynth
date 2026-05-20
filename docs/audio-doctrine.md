@@ -168,6 +168,12 @@ and cheap to render. It is timing and intelligibility pressure, not anatomy
 authority. Use it to populate loss surfaces and train controller weights; do not
 mistake matching its formant shortcuts for building a vocal tract.
 
+Speech training receipts must carry timing and confidence, not just loss. For
+each metadata-to-embedding, embedding-to-automation, render, score, and
+backpropagation step, record the decision time, observed latency, intended
+latency budget, confidence estimate, and artifact/model identifiers. A correct
+sound from an unbounded or unobservable path is not a reliable witness.
+
 ## Metrics
 
 Analysis exists to catch regressions and support search, not to crown winners.
