@@ -247,7 +247,7 @@ AquaSynth should treat it as the training input contract:
 The first Weksa v0.1 training artifact now exists at
 `E:\Projects\weksa\examples\speech-training\tiny-panphon-v0.1\batch.json`.
 It covers the crawl-stage IPA set `a`, `pa`, `ta`, `ka`, `sa`, and `ma` with
-fixed vector widths, zeroed semantic text embeddings, inline PanPhon-style
+fixed vector widths, zeroed semantic text embeddings, inline PanPhon 22-feature
 sequence evidence, deterministic prosody hints, and an Epiphany-compatible
 neutral character-state vector. Toy vectors are allowed for plumbing tests only.
 Do not feed IPA strings into the semantic text embedding channel and pretend
