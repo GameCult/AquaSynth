@@ -526,6 +526,33 @@ spent, what latency budget it was meant to respect, and how confident the
 mapping was. A tiny audible witness that sounds right but arrives from a
 clockless swamp is already teaching the model to lie with a lovely voice.
 
+## CultMesh Render/Scoring Work
+
+CultMesh is the transport, admission, and worker-orchestration layer for speech
+render/scoring work. It is not a magical distributed trainer where every
+compatible device mutates model weights directly. The authority trainer owns
+the active `SpeechTrainingCheckpoint`; workers may produce gradients and witness
+receipts, but they do not apply optimizer steps or commit new checkpoints.
+
+The clean path is:
+
+1. AquaSynth emits typed `SpeechRenderRequest` documents.
+2. CultMesh transfers the required worker payloads: compiled Faust renderer,
+   scoring code, small model or encoder assembly, batch/artifact references.
+3. Compatible runtimes admit the payload locally under a worker lease.
+4. Workers render and score examples, then return `SpeechRenderResult`
+   documents with loss, gradients, artifacts, and timing receipts.
+5. The authority trainer aggregates/applies gradients through
+   `SpeechBackpropagationPipeline`.
+6. New checkpoints are committed through normal CultCache/CultMesh shard
+   authority.
+
+The missing layer is therefore payload transport, runtime admission, worker
+leases, and result collection. The first target is to distribute compiled Faust
+render/scoring jobs, collect gradients/results, and apply them centrally or by
+one shard-primary trainer. Federated averaging can be explored later only after
+the simple authority path is boring.
+
 ## Optional eSpeak NG Workout
 
 The first IPA-adjacent parity lane uses eSpeak NG as a development reference.

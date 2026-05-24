@@ -41,6 +41,13 @@ Current slice:
 - `SpeechDistributedTrainingCultCacheStore` reads and writes request, result,
   and checkpoint `.cc` stores through CultLib. No JSON queue, no bespoke
   serializer, no trainer pretending to own the renderer.
+- New durable CultMesh training constraint:
+  CultMesh should distribute compiled Faust render/scoring payloads and collect
+  worker `SpeechRenderResult` gradients, artifacts, timing receipts, and losses.
+  Workers may witness and compute; they must not mutate model checkpoints. The
+  authority trainer or one shard-primary trainer applies gradients through
+  `SpeechBackpropagationPipeline` and commits `SpeechTrainingCheckpoint`
+  documents through normal CultCache/CultMesh shard authority.
 - Verification:
   `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "SpeechDistributedTrainingTests" -v minimal`:
   2 passed.
