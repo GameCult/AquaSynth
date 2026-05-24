@@ -52,6 +52,25 @@ Current slice:
   `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "SpeechDistributedTrainingTests" -v minimal`:
   2 passed.
 
+- Implemented the first CultMesh-distributed speech training step:
+  Core now references `GameCult.Mesh`, defines `SpeechWorkerPayloadManifest`,
+  `SpeechWorkerPayloadArtifact`, `SpeechWorkerAdmissionReceipt`,
+  `SpeechCultMeshWorkerAssignment`, `SpeechCultMeshTrainingStepResult`, and
+  `SpeechCultMeshRoles.RenderWorker`, and persists payload/admission documents
+  through `SpeechDistributedTrainingCultCacheStore`.
+- `SpeechDistributedTrainingCoordinator.RunCultMeshTrainingStep` now creates
+  requests, creates a worker payload manifest, admits only peers with valid
+  CultMesh worker leases, records rejected peers, runs score-only worker
+  assignments, collects `SpeechRenderResult` gradients, and applies them
+  centrally through `ApplyResults`.
+- This is distributed training via CultMesh lease/admission and typed CultCache
+  documents. It is not yet real remote process supervision or artifact chunk
+  transfer; those remain CultMesh infrastructure surfaces. No worker API owns
+  checkpoint mutation.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "SpeechDistributedTrainingTests" -v minimal`:
+  3 passed.
+
 Previous slice:
 
 - Added a typed CultCache sound-claim document for CultMesh distribution:

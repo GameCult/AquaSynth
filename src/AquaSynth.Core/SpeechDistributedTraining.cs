@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using GameCult.Caching;
 using GameCult.Caching.MessagePack;
+using GameCult.Mesh;
 using MessagePack;
 
 namespace AquaSynth.Dsl;
@@ -120,12 +121,76 @@ public enum SpeechRenderStatus
     Failed
 }
 
+[CultDocument("aquasynth.speech_worker_payload_manifest", "aquasynth.speech_worker_payload_manifest.v1")]
+[MessagePackObject]
+public sealed record SpeechWorkerPayloadManifest(
+    [property: Key(0)]
+    [property: CultName]
+    string PayloadId,
+    [property: Key(1)] string BatchId,
+    [property: Key(2)] string CreatedAtUtc,
+    [property: Key(3)] string RendererProfileId,
+    [property: Key(4)] string ScoringRecipeId,
+    [property: Key(5)] string RequiredRuntimeKind,
+    [property: Key(6)] string WorkerRole,
+    [property: Key(7)] SpeechWorkerPayloadArtifact[] Artifacts,
+    [property: Key(8)] string Notes);
+
+[MessagePackObject]
+public sealed record SpeechWorkerPayloadArtifact(
+    [property: Key(0)] string Kind,
+    [property: Key(1)] string Uri,
+    [property: Key(2)] string ContentHash,
+    [property: Key(3)] string MediaType);
+
+[CultDocument("aquasynth.speech_worker_admission_receipt", "aquasynth.speech_worker_admission_receipt.v1")]
+[MessagePackObject]
+public sealed record SpeechWorkerAdmissionReceipt(
+    [property: Key(0)]
+    [property: CultName]
+    string ReceiptId,
+    [property: Key(1)]
+    [property: CultIndex("payload")]
+    string PayloadId,
+    [property: Key(2)] string PeerId,
+    [property: Key(3)] string LeaseId,
+    [property: Key(4)] string DecidedAtUtc,
+    [property: Key(5)] SpeechWorkerAdmissionStatus Status,
+    [property: Key(6)] string[] AssignedRequestIds,
+    [property: Key(7)] string Reason,
+    [property: Key(8)] SpeechTimingReceipt[] TimingReceipts);
+
+public enum SpeechWorkerAdmissionStatus
+{
+    Admitted,
+    Rejected
+}
+
+public sealed record SpeechCultMeshWorkerAssignment(
+    CultMeshPeerCard Peer,
+    CultMeshAuthorityLease Lease,
+    SpeechWorkerAdmissionReceipt Receipt,
+    IReadOnlyList<SpeechRenderRequest> Requests);
+
+public sealed record SpeechCultMeshTrainingStepResult(
+    SpeechWorkerPayloadManifest PayloadManifest,
+    IReadOnlyList<SpeechWorkerAdmissionReceipt> AdmissionReceipts,
+    IReadOnlyList<SpeechRenderResult> WorkerResults,
+    SpeechDistributedTrainingApplyResult Applied);
+
+public static class SpeechCultMeshRoles
+{
+    public const string RenderWorker = "speech-render-worker";
+}
+
 public sealed record SpeechDistributedTrainingOptions(
     string CurriculumTier = "tiny-local-proof",
     string TargetReferenceId = "local/reference-control-vector",
     string MorphologyId = "neutral-human-ish",
     string RendererProfileId = "compiled-faust-worker",
     string ScoringRecipeId = "control-vector-mse-proof",
+    string RequiredRuntimeKind = "dotnet-csharp",
+    string WorkerRole = SpeechCultMeshRoles.RenderWorker,
     float UtteranceLearningRate = 0.04f,
     float SynthDriverLearningRate = 0.04f);
 
@@ -144,6 +209,12 @@ public static class SpeechDistributedTrainingCultCacheStore
     public static Task UpsertCheckpointsAsync(string filePath, IEnumerable<SpeechTrainingCheckpoint> checkpoints) =>
         UpsertAsync(filePath, checkpoints, checkpoint => $"speech-training-checkpoint:{checkpoint.CheckpointId}");
 
+    public static Task UpsertPayloadManifestsAsync(string filePath, IEnumerable<SpeechWorkerPayloadManifest> payloads) =>
+        UpsertAsync(filePath, payloads, payload => $"speech-worker-payload:{payload.PayloadId}");
+
+    public static Task UpsertAdmissionReceiptsAsync(string filePath, IEnumerable<SpeechWorkerAdmissionReceipt> receipts) =>
+        UpsertAsync(filePath, receipts, receipt => $"speech-worker-admission:{receipt.ReceiptId}");
+
     public static Task<IReadOnlyList<SpeechRenderRequest>> ReadRequestsAsync(string filePath) =>
         ReadAllAsync<SpeechRenderRequest>(filePath, request => request.RequestId);
 
@@ -152,6 +223,12 @@ public static class SpeechDistributedTrainingCultCacheStore
 
     public static Task<IReadOnlyList<SpeechTrainingCheckpoint>> ReadCheckpointsAsync(string filePath) =>
         ReadAllAsync<SpeechTrainingCheckpoint>(filePath, checkpoint => checkpoint.CheckpointId);
+
+    public static Task<IReadOnlyList<SpeechWorkerPayloadManifest>> ReadPayloadManifestsAsync(string filePath) =>
+        ReadAllAsync<SpeechWorkerPayloadManifest>(filePath, payload => payload.PayloadId);
+
+    public static Task<IReadOnlyList<SpeechWorkerAdmissionReceipt>> ReadAdmissionReceiptsAsync(string filePath) =>
+        ReadAllAsync<SpeechWorkerAdmissionReceipt>(filePath, receipt => receipt.ReceiptId);
 
     private static async Task UpsertAsync<T>(
         string filePath,
@@ -306,6 +383,202 @@ public static class SpeechDistributedTrainingCoordinator
         return results;
     }
 
+    public static SpeechWorkerPayloadManifest CreateCultMeshPayloadManifest(
+        string payloadId,
+        IReadOnlyList<SpeechRenderRequest> requests,
+        IReadOnlyList<SpeechWorkerPayloadArtifact>? artifacts = null,
+        SpeechDistributedTrainingOptions? options = null)
+    {
+        if (requests.Count == 0)
+        {
+            throw new ArgumentException("A CultMesh speech payload needs at least one render request.", nameof(requests));
+        }
+
+        options ??= new SpeechDistributedTrainingOptions();
+        return new SpeechWorkerPayloadManifest(
+            payloadId,
+            requests[0].BatchId,
+            DateTimeOffset.UtcNow.ToString("O"),
+            options.RendererProfileId,
+            options.ScoringRecipeId,
+            options.RequiredRuntimeKind,
+            options.WorkerRole,
+            [.. artifacts ?? DefaultPayloadArtifacts(options)],
+            "Payload manifest authorizes transport/admission only; workers return gradients and receipts, not checkpoints.");
+    }
+
+    public static IReadOnlyList<SpeechCultMeshWorkerAssignment> AdmitCultMeshWorkers(
+        SpeechWorkerPayloadManifest payload,
+        IReadOnlyList<SpeechRenderRequest> requests,
+        IReadOnlyList<CultMeshPeerCard> peers,
+        CultMeshAuthorityLeaseCatalog leases,
+        string? shardId = null,
+        DateTimeOffset? at = null)
+    {
+        if (requests.Count == 0)
+        {
+            return [];
+        }
+
+        var admittedPeers = new List<(CultMeshPeerCard Peer, CultMeshAuthorityLease Lease)>();
+        foreach (var peer in peers.OrderBy(peer => peer.PeerId, StringComparer.Ordinal))
+        {
+            if (!peer.HasRole(payload.WorkerRole))
+            {
+                continue;
+            }
+
+            var leaseId = peer.AuthorityLeaseId;
+            if (string.IsNullOrWhiteSpace(leaseId))
+            {
+                continue;
+            }
+
+            var lease = leases.Get(leaseId);
+            if (lease is null || !leases.IsAuthorized(peer, payload.WorkerRole, shardId, at))
+            {
+                continue;
+            }
+
+            admittedPeers.Add((peer, lease));
+        }
+
+        if (admittedPeers.Count == 0)
+        {
+            throw new InvalidOperationException("no CultMesh speech render workers were admitted for the payload");
+        }
+
+        var requestBuckets = admittedPeers
+            .Select(_ => new List<SpeechRenderRequest>())
+            .ToArray();
+        for (var index = 0; index < requests.Count; index++)
+        {
+            requestBuckets[index % requestBuckets.Length].Add(requests[index]);
+        }
+
+        var decidedAt = DateTimeOffset.UtcNow.ToString("O");
+        var assignments = new List<SpeechCultMeshWorkerAssignment>();
+        for (var index = 0; index < admittedPeers.Count; index++)
+        {
+            var bucket = requestBuckets[index];
+            if (bucket.Count == 0)
+            {
+                continue;
+            }
+
+            var (peer, lease) = admittedPeers[index];
+            var requestIds = bucket.Select(request => request.RequestId).ToArray();
+            var receipt = new SpeechWorkerAdmissionReceipt(
+                $"{payload.PayloadId}:{peer.PeerId}:admitted",
+                payload.PayloadId,
+                peer.PeerId,
+                lease.LeaseId,
+                decidedAt,
+                SpeechWorkerAdmissionStatus.Admitted,
+                requestIds,
+                "Peer advertised the speech render role and held a valid CultMesh worker lease.",
+                [
+                    new SpeechTimingReceipt(
+                        "cultmesh-worker-admission",
+                        decidedAt,
+                        0,
+                        0,
+                        1,
+                        $"Admitted {requestIds.Length} request(s) for score-only worker execution.")
+                ]);
+            assignments.Add(new SpeechCultMeshWorkerAssignment(peer, lease, receipt, bucket));
+        }
+
+        return assignments;
+    }
+
+    public static IReadOnlyList<SpeechWorkerAdmissionReceipt> RejectCultMeshWorkers(
+        SpeechWorkerPayloadManifest payload,
+        IReadOnlyList<CultMeshPeerCard> peers,
+        CultMeshAuthorityLeaseCatalog leases,
+        string? shardId = null,
+        DateTimeOffset? at = null)
+    {
+        var decidedAt = DateTimeOffset.UtcNow.ToString("O");
+        var rejected = new List<SpeechWorkerAdmissionReceipt>();
+        foreach (var peer in peers.OrderBy(peer => peer.PeerId, StringComparer.Ordinal))
+        {
+            var reason = RejectionReason(payload, peer, leases, shardId, at);
+            if (reason.Length == 0)
+            {
+                continue;
+            }
+
+            rejected.Add(new SpeechWorkerAdmissionReceipt(
+                $"{payload.PayloadId}:{peer.PeerId}:rejected",
+                payload.PayloadId,
+                peer.PeerId,
+                peer.AuthorityLeaseId ?? "",
+                decidedAt,
+                SpeechWorkerAdmissionStatus.Rejected,
+                [],
+                reason,
+                [
+                    new SpeechTimingReceipt(
+                        "cultmesh-worker-admission",
+                        decidedAt,
+                        0,
+                        0,
+                        0,
+                        reason)
+                ]));
+        }
+
+        return rejected;
+    }
+
+    public static IReadOnlyList<SpeechRenderResult> RunCultMeshRenderWorkers(
+        IReadOnlyList<SpeechCultMeshWorkerAssignment> assignments,
+        SpeechWorkerPayloadManifest payload)
+    {
+        var results = new List<SpeechRenderResult>();
+        foreach (var assignment in assignments)
+        {
+            if (assignment.Receipt.Status != SpeechWorkerAdmissionStatus.Admitted)
+            {
+                continue;
+            }
+
+            results.AddRange(ScoreControlVectorRequests(
+                assignment.Requests,
+                assignment.Peer.PeerId,
+                $"{payload.RendererProfileId}+{payload.ScoringRecipeId}+cultmesh-lease:{assignment.Lease.LeaseId}"));
+        }
+
+        return results;
+    }
+
+    public static SpeechCultMeshTrainingStepResult RunCultMeshTrainingStep(
+        string batchId,
+        string payloadId,
+        string checkpointId,
+        SpeechBackpropagationPipeline pipeline,
+        IReadOnlyList<SpeechBackpropagationTrainingExample> examples,
+        IReadOnlyList<CultMeshPeerCard> peers,
+        CultMeshAuthorityLeaseCatalog leases,
+        SpeechDistributedTrainingOptions? options = null,
+        string? shardId = null,
+        DateTimeOffset? at = null)
+    {
+        options ??= new SpeechDistributedTrainingOptions();
+        var requests = CreateRenderRequests(batchId, pipeline, examples, options);
+        var payload = CreateCultMeshPayloadManifest(payloadId, requests, options: options);
+        var assignments = AdmitCultMeshWorkers(payload, requests, peers, leases, shardId, at);
+        var rejected = RejectCultMeshWorkers(payload, peers, leases, shardId, at);
+        var results = RunCultMeshRenderWorkers(assignments, payload);
+        var applied = ApplyResults(pipeline, requests, results, checkpointId, options);
+        return new SpeechCultMeshTrainingStepResult(
+            payload,
+            [.. assignments.Select(assignment => assignment.Receipt), .. rejected],
+            results,
+            applied);
+    }
+
     public static SpeechDistributedTrainingApplyResult ApplyResults(
         SpeechBackpropagationPipeline pipeline,
         IReadOnlyList<SpeechRenderRequest> requests,
@@ -387,5 +660,43 @@ public static class SpeechDistributedTrainingCoordinator
         }
 
         return Math.Clamp(1f / (1f + loss), 0f, 1f);
+    }
+
+    private static IReadOnlyList<SpeechWorkerPayloadArtifact> DefaultPayloadArtifacts(SpeechDistributedTrainingOptions options) =>
+    [
+        new("compiled-faust-renderer", $"cultcache://speech-renderer/{options.RendererProfileId}", "", "application/wasm-or-native-faust"),
+        new("scoring-code", $"cultcache://speech-scoring/{options.ScoringRecipeId}", "", "application/dotnet-assembly"),
+        new("model-encoder-assembly", "cultcache://speech-model/aquasynth-core", "", "application/dotnet-assembly")
+    ];
+
+    private static string RejectionReason(
+        SpeechWorkerPayloadManifest payload,
+        CultMeshPeerCard peer,
+        CultMeshAuthorityLeaseCatalog leases,
+        string? shardId,
+        DateTimeOffset? at)
+    {
+        if (!peer.HasRole(payload.WorkerRole))
+        {
+            return $"Peer does not advertise required worker role `{payload.WorkerRole}`.";
+        }
+
+        if (string.IsNullOrWhiteSpace(peer.AuthorityLeaseId))
+        {
+            return "Peer has no CultMesh authority lease id for worker admission.";
+        }
+
+        var lease = leases.Get(peer.AuthorityLeaseId!);
+        if (lease is null)
+        {
+            return "Peer references a worker lease that is not present in the local lease catalog.";
+        }
+
+        if (!leases.IsAuthorized(peer, payload.WorkerRole, shardId, at))
+        {
+            return "Peer worker lease does not authorize the requested role, shard, or time window.";
+        }
+
+        return "";
     }
 }

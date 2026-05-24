@@ -1,4 +1,5 @@
 using AquaSynth.Dsl;
+using GameCult.Mesh;
 
 namespace AquaSynth.Dsl.Tests;
 
@@ -79,6 +80,119 @@ public sealed class SpeechDistributedTrainingTests
             Assert.Contains(checkpoints[0].TimingReceipts, receipt => receipt.StageId == "apply-render-gradients");
             Assert.All(checkpoints[0].TimingReceipts, receipt => Assert.InRange(receipt.Confidence, 0, 1));
             Assert.All(applied.Backpropagations, backprop => Assert.True(backprop.InputGradient.Length > 0));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task CultMeshLeasedWorkersScoreButAuthorityTrainerAppliesCheckpoint()
+    {
+        var directory = TempDirectory();
+        try
+        {
+            var payloadStore = Path.Combine(directory, "speech-payloads.cc");
+            var admissionStore = Path.Combine(directory, "speech-admissions.cc");
+            var resultStore = Path.Combine(directory, "speech-results.cc");
+            var checkpointStore = Path.Combine(directory, "speech-checkpoints.cc");
+            var pipeline = Pipeline();
+            var examples = TrainingSet();
+            var before = AverageLoss(pipeline, examples);
+            var now = DateTimeOffset.Parse("2026-05-24T12:00:00.0000000Z");
+            var leases = CultMesh.CreateAuthorityLeaseCatalog();
+            leases.Upsert(new CultMeshAuthorityLease(
+                "lease:worker-a",
+                "aquasynth-speech",
+                "worker-a",
+                [SpeechCultMeshRoles.RenderWorker],
+                ["speech-train"],
+                "trainer-primary",
+                now.AddMinutes(-1),
+                now.AddMinutes(10)));
+            leases.Upsert(new CultMeshAuthorityLease(
+                "lease:worker-b",
+                "aquasynth-speech",
+                "worker-b",
+                [SpeechCultMeshRoles.RenderWorker],
+                ["speech-train"],
+                "trainer-primary",
+                now.AddMinutes(-1),
+                now.AddMinutes(10)));
+
+            var peers = new[]
+            {
+                new CultMeshPeerCard(
+                    "worker-a",
+                    "aquasynth-speech",
+                    ["cultmesh://worker-a"],
+                    roles: [SpeechCultMeshRoles.RenderWorker],
+                    shardIds: ["speech-train"],
+                    authorityLeaseId: "lease:worker-a"),
+                new CultMeshPeerCard(
+                    "worker-b",
+                    "aquasynth-speech",
+                    ["cultmesh://worker-b"],
+                    roles: [SpeechCultMeshRoles.RenderWorker],
+                    shardIds: ["speech-train"],
+                    authorityLeaseId: "lease:worker-b"),
+                new CultMeshPeerCard(
+                    "unleased-worker",
+                    "aquasynth-speech",
+                    ["cultmesh://unleased"],
+                    roles: [SpeechCultMeshRoles.RenderWorker],
+                    shardIds: ["speech-train"]),
+                new CultMeshPeerCard(
+                    "read-replica",
+                    "aquasynth-speech",
+                    ["cultmesh://read-replica"],
+                    roles: [CultMeshPeerRoles.ReadReplica],
+                    shardIds: ["speech-train"])
+            };
+
+            var run = SpeechDistributedTrainingCoordinator.RunCultMeshTrainingStep(
+                "batch-cultmesh",
+                "payload-cultmesh-0001",
+                "checkpoint-cultmesh-0001",
+                pipeline,
+                examples,
+                peers,
+                leases,
+                new SpeechDistributedTrainingOptions(
+                    CurriculumTier: "tiny-cultmesh-proof",
+                    UtteranceLearningRate: 0.18f,
+                    SynthDriverLearningRate: 0.18f),
+                "speech-train",
+                now);
+
+            await SpeechDistributedTrainingCultCacheStore.UpsertPayloadManifestsAsync(payloadStore, [run.PayloadManifest]);
+            await SpeechDistributedTrainingCultCacheStore.UpsertAdmissionReceiptsAsync(admissionStore, run.AdmissionReceipts);
+            await SpeechDistributedTrainingCultCacheStore.UpsertResultsAsync(resultStore, run.WorkerResults);
+            await SpeechDistributedTrainingCultCacheStore.UpsertCheckpointsAsync(checkpointStore, [run.Applied.Checkpoint]);
+
+            var payloads = await SpeechDistributedTrainingCultCacheStore.ReadPayloadManifestsAsync(payloadStore);
+            var admissions = await SpeechDistributedTrainingCultCacheStore.ReadAdmissionReceiptsAsync(admissionStore);
+            var results = await SpeechDistributedTrainingCultCacheStore.ReadResultsAsync(resultStore);
+            var checkpoints = await SpeechDistributedTrainingCultCacheStore.ReadCheckpointsAsync(checkpointStore);
+            var after = AverageLoss(pipeline, examples);
+
+            Assert.True(after < before, $"expected CultMesh worker gradients to reduce loss; before={before}, after={after}");
+            Assert.Single(payloads);
+            Assert.Equal(SpeechCultMeshRoles.RenderWorker, payloads[0].WorkerRole);
+            Assert.Equal(2, admissions.Count(receipt => receipt.Status == SpeechWorkerAdmissionStatus.Admitted));
+            Assert.Equal(2, admissions.Count(receipt => receipt.Status == SpeechWorkerAdmissionStatus.Rejected));
+            Assert.All(admissions.Where(receipt => receipt.Status == SpeechWorkerAdmissionStatus.Admitted), receipt => Assert.NotEmpty(receipt.AssignedRequestIds));
+            Assert.All(results, result => Assert.Equal(SpeechRenderStatus.Succeeded, result.Status));
+            Assert.Equal(examples.Count, results.Count);
+            Assert.Equal(examples.Count, run.Applied.Checkpoint.AppliedResultCount);
+            Assert.Single(checkpoints);
+            Assert.Equal("checkpoint-cultmesh-0001", checkpoints[0].CheckpointId);
+            Assert.DoesNotContain(checkpoints[0].AppliedResultIds, id => id.Contains("unleased-worker", StringComparison.Ordinal));
+            Assert.Contains(results, result => result.WorkerId == "worker-a");
+            Assert.Contains(results, result => result.WorkerId == "worker-b");
+            Assert.DoesNotContain(results, result => result.WorkerId == "unleased-worker");
+            Assert.Contains(checkpoints[0].TimingReceipts, receipt => receipt.StageId == "apply-render-gradients");
         }
         finally
         {

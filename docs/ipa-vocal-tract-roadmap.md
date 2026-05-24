@@ -547,11 +547,15 @@ The clean path is:
 6. New checkpoints are committed through normal CultCache/CultMesh shard
    authority.
 
-The missing layer is therefore payload transport, runtime admission, worker
-leases, and result collection. The first target is to distribute compiled Faust
-render/scoring jobs, collect gradients/results, and apply them centrally or by
-one shard-primary trainer. Federated averaging can be explored later only after
-the simple authority path is boring.
+The first implemented layer in AquaSynth now covers payload manifests, CultMesh
+peer/lease admission, worker assignment, result collection, and central
+application through `SpeechBackpropagationPipeline`. This is enough to run a
+distributed training step against leased CultMesh workers that return
+`SpeechRenderResult` gradients. Real network artifact chunk transfer and remote
+process supervision still belong to CultMesh infrastructure; AquaSynth's
+authority boundary is ready for that transport instead of inventing its own.
+Federated averaging can be explored later only after the simple authority path
+is boring.
 
 ## Optional eSpeak NG Workout
 
