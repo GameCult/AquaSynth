@@ -2,6 +2,17 @@
 
 Current slice:
 
+- Added `MelCepstralWarpEffect` as a real AquaSynth offline/block audio effect:
+  STFT -> log-mel -> DCT cepstra -> Simplex domain warp -> separable 5-tap
+  Gaussian blur -> inverse cepstra/log-mel -> original-phase overlap-add
+  resynthesis. This came from the Mimir bioacoustic decoder work, but the
+  reusable audio-effect owner is AquaSynth.
+- Added focused tests proving the effect preserves length/finite samples and
+  that warp/blur parameters audibly change output.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --filter "MelCepstralWarpEffectTests" -v minimal`:
+  2 passed.
+
 - Tightened CultCache claim receipts into an explicit hazard-light witness
   shape. `CultCacheProofTruth.LatestListeningReceipt` is no longer a loose
   string; it is now `CultCacheListeningReceipt` with `Subject`,

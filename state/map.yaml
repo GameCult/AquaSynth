@@ -60,6 +60,7 @@ modules:
   vocal_tract_learning_tests: tests/AquaSynth.Dsl.Tests/VocalTractLearningTests.cs
   sfxr: src/AquaSynth.Core/SfxrParams.cs
   analysis: src/AquaSynth.Core/AudioAnalysis.cs
+  mel_cepstral_warp_effect: src/AquaSynth.Core/MelCepstralWarpEffect.cs
   scoring: src/AquaSynth.Core/ScriptMetrics.cs
   presets: src/AquaSynth.Core/Presets.cs
   built_in_scripts: src/AquaSynth.Core/BuiltInScripts.cs
