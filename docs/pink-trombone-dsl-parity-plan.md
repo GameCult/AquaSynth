@@ -70,7 +70,13 @@ named failure against Pink Trombone, but it does not own the anatomy:
      consume `tract_shape` reflection coefficients and boundary reflections.
      True substep execution remains missing.
 
-6. PT parity harness.
+6. `tract_motion`: control-rate slew and obstruction history.
+   - Owns diameter/constriction/velum slew rates and obstruction threshold.
+   - Feeds smoothed target controls and release-transient detection.
+   - Implemented as `tract_motion`; waveguide lowering uses it for control
+     slew and stateful obstruction-opening burst pressure.
+
+7. PT parity harness.
    - Renders fixed PT references for vowels, nasals, fricatives, closures, and
      moving tongue/constriction gestures.
    - Renders Aqua DSL reconstructions.
@@ -79,7 +85,7 @@ named failure against Pink Trombone, but it does not own the anatomy:
 ## First Cut
 
 Implemented owners: `tract_shape`, `glottis`, `tract_injection`,
-`nasal_branch`, and first-pass `propagation=waveguide`.
+`nasal_branch`, `tract_motion`, and first-pass `propagation=waveguide`.
 `tract_shape` owns section diameter/area fields and reflection derivation.
 `glottis` owns excitation quality. `tract_injection` owns positioned
 frication/burst pressure. The current Faust proxy consumes these primitives
@@ -88,10 +94,10 @@ pressure instead of silently inventing all of them inside one helper. The
 waveguide lowering consumes the derived oral reflection field as right/left
 section state equations.
 
-The next cut is cell-local events and timing: the oral/nasal tube now consumes
-the full reflection coefficient fields and distributes frication into section
-updates, but PT's two tract steps per output sample, target diameter slew, and
-obstruction-state transients still need low-level owners.
+The next cut is timing and proof: the oral/nasal tube now consumes the full
+reflection coefficient fields, distributes frication into section updates, and
+derives release bursts from obstruction history. PT's two tract steps per
+output sample and rendered parity fixtures still need low-level owners.
 
 ## Cut Line
 

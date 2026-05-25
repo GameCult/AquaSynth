@@ -654,11 +654,20 @@ public static class BuiltInScripts
             loss=0.999
             diameters=0.01,0.35,0.5,0.65,0.8,0.95,1.1,1.25,1.4,1.55,1.7,1.8,1.9,1.9,1.85,1.75,1.65,1.55,1.45,1.35,1.25,1.15,1.05,0.95,0.85,0.75,0.65,0.55
 
+        tract_motion
+            name=pt_motion
+            diameter_slew=18
+            shape_return=8
+            constriction_slew=24
+            velum_slew=16
+            obstruction_threshold=0.05
+
         tract
             shape=pt_human
             glottis=pt_glottis
             injection=pt_constriction
             nasal_branch=pt_nose
+            motion=pt_motion
             propagation=waveguide
             waveguide_loss=0.999
             substeps=2

@@ -44,6 +44,8 @@ public static class PatchScript
         private readonly Dictionary<string, TractInjection> _tractInjectionsByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<NasalBranch> _nasalBranches = [];
         private readonly Dictionary<string, NasalBranch> _nasalBranchesByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<TractMotion> _tractMotions = [];
+        private readonly Dictionary<string, TractMotion> _tractMotionsByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _defaults = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Dictionary<string, string>> _layerDefaults = new(StringComparer.OrdinalIgnoreCase);
         private PendingOperatorGraph? _pendingOperatorGraph;
@@ -69,6 +71,7 @@ public static class PatchScript
                 GlottalSources = _glottalSources,
                 TractInjections = _tractInjections,
                 NasalBranches = _nasalBranches,
+                TractMotions = _tractMotions,
                 OperatorGraphs = _operatorGraphs,
                 Controls = _controls,
                 Parameters = _parameters,
@@ -135,6 +138,10 @@ public static class PatchScript
                 case "nasal_branch":
                     FlushPendingOperatorGraph();
                     AddNasalBranch(fields, line);
+                    break;
+                case "tract_motion":
+                    FlushPendingOperatorGraph();
+                    AddTractMotion(fields, line);
                     break;
                 case "voice":
                     FlushPendingOperatorGraph();
@@ -362,6 +369,25 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.999f, $"/nasal_branches/{_nasalBranches.Count}/loss", "loss"));
             _nasalBranches.Add(branch);
             _nasalBranchesByName[name] = branch;
+        }
+
+        private void AddTractMotion(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_tractMotionsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate tract motion `{name}`");
+            }
+
+            var motion = new TractMotion(
+                name,
+                GetBoundFloat(fields, line, 18, $"/tract_motions/{_tractMotions.Count}/diameter_slew", "diameter_slew", "slew"),
+                GetBoundFloat(fields, line, 8, $"/tract_motions/{_tractMotions.Count}/shape_return", "shape_return", "return_slew"),
+                GetBoundFloat(fields, line, 24, $"/tract_motions/{_tractMotions.Count}/constriction_slew", "constriction_slew", "constriction"),
+                GetBoundFloat(fields, line, 16, $"/tract_motions/{_tractMotions.Count}/velum_slew", "velum_slew", "velum"),
+                GetBoundFloat(fields, line, 0.05f, $"/tract_motions/{_tractMotions.Count}/obstruction_threshold", "obstruction_threshold", "closure"));
+            _tractMotions.Add(motion);
+            _tractMotionsByName[name] = motion;
         }
 
         private Dictionary<string, string> ExpandVoiceFields(Dictionary<string, string> fields, int line)
@@ -608,6 +634,7 @@ public static class PatchScript
             var glottis = ParseGlottalSourceReference(fields, ownerPath, line);
             var injection = ParseTractInjectionReference(fields, ownerPath, line);
             var nasal = ParseNasalBranchReference(fields, ownerPath, line);
+            var motion = ParseTractMotionReference(fields, ownerPath, line);
             var sections = GetBoundInt(fields, line, areaFunction?.Sections ?? 44, OwnerField(ownerPath, "tract/sections"), "sections", "cells");
             if (sections < 4)
             {
@@ -643,6 +670,7 @@ public static class PatchScript
                     glottis,
                     injection,
                     nasal,
+                    motion,
                     ParseTractPropagationMode(GetAny(fields, ["propagation", "model"], "resonator"), line),
                     GetBoundFloat(fields, line, 0.999f, OwnerField(ownerPath, "tract/waveguide_loss"), "waveguide_loss", "loss"),
                     GetBoundInt(fields, line, 1, OwnerField(ownerPath, "tract/substeps"), "substeps", "steps"))
@@ -1136,6 +1164,30 @@ public static class PatchScript
                 GetBoundFloat(fields, line, fallback.Loss, OwnerField(ownerPath, "tract/nasal/loss"), "nose_loss"));
         }
 
+        private TractMotion? ParseTractMotionReference(IReadOnlyDictionary<string, string> fields, string ownerPath, int line)
+        {
+            var hasInlineMotion = HasAny(fields, "diameter_slew", "shape_return", "constriction_slew", "velum_slew", "obstruction_threshold");
+            var hasNamedMotion = TryGetAny(fields, ["motion", "tract_motion"], out var motionName);
+            if (!hasNamedMotion && !hasInlineMotion)
+            {
+                return null;
+            }
+            TractMotion? namedMotion = null;
+            if (hasNamedMotion && !_tractMotionsByName.TryGetValue(motionName, out namedMotion))
+            {
+                throw new PatchScriptException(line, $"unknown tract motion `{motionName}`");
+            }
+
+            var fallback = hasNamedMotion ? namedMotion! : new TractMotion();
+            return new TractMotion(
+                hasNamedMotion ? motionName : "",
+                GetBoundFloat(fields, line, fallback.DiameterSlewPerSecond, OwnerField(ownerPath, "tract/motion/diameter_slew"), "diameter_slew", "slew"),
+                GetBoundFloat(fields, line, fallback.ShapeReturnPerSecond, OwnerField(ownerPath, "tract/motion/shape_return"), "shape_return", "return_slew"),
+                GetBoundFloat(fields, line, fallback.ConstrictionSlewPerSecond, OwnerField(ownerPath, "tract/motion/constriction_slew"), "constriction_slew"),
+                GetBoundFloat(fields, line, fallback.VelumSlewPerSecond, OwnerField(ownerPath, "tract/motion/velum_slew"), "velum_slew"),
+                GetBoundFloat(fields, line, fallback.ObstructionThreshold, OwnerField(ownerPath, "tract/motion/obstruction_threshold"), "obstruction_threshold", "closure"));
+        }
+
         private static TractAreaFunction ParseTractAreaFunction(IReadOnlyDictionary<string, string> fields, int line)
         {
             var hasDiameters = TryGetAny(fields, ["diameters", "diameter"], out var diametersText);
@@ -1576,6 +1628,7 @@ public static class PatchScript
         "glottis" or "glottal" or "excitation" => "glottis",
         "tract_injection" or "injection" or "frication" or "burst" => "tract_injection",
         "nasal_branch" or "nose_branch" or "nasal" => "nasal_branch",
+        "tract_motion" or "shape_motion" or "slew" => "tract_motion",
         "v" or "voice" => "voice",
         "tract" or "vt" or "tractvoice" or "tract_voice" => "tract",
         "opgraph" or "ops" or "operators" => "opgraph",

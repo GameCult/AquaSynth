@@ -57,6 +57,7 @@ Current AquaSynth can express:
 - reusable `tract_injection` declarations for positioned frication/burst
   pressure;
 - reusable `nasal_branch` declarations with velum-controlled junctions;
+- reusable `tract_motion` declarations for slew and obstruction thresholds;
 - a `tract` voice command owned by `Voice.Tract`;
 - Pink Trombone-shaped controls for intensity, tenseness, tongue body,
   constriction, velum/nasal opening, turbulence, lip opening, and end
@@ -74,9 +75,8 @@ Current AquaSynth can express:
 
 Current AquaSynth cannot exactly express:
 
-- per-section diameter targets as synthesis authority;
+- per-section dynamic diameter target arrays;
 - a subgraph that steps twice per output sample;
-- obstruction-state release transients derived from prior closure state;
 - exact Pink Trombone LF glottal coefficient updates.
 
 ## Current Parity Rung
@@ -101,6 +101,8 @@ Trombone anatomy:
   oral/nasal scattering junction when used by a waveguide tract.
 - `tract_injection` pressure is distributed into waveguide section updates by
   position and width when waveguide propagation is active.
+- `tract_motion` smooths tract controls and lets the waveguide derive burst
+  pressure from obstruction history.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast

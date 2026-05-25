@@ -90,7 +90,8 @@ public sealed class PatchScriptTests
             glottis name=modal intensity=.72 tenseness=@/pink/tenseness aspiration=.14 reflection=.72 skew=.5
             tract_injection name=sibilant position=6 diameter=.45 turbulence=.8 burst=.3 width=.8
             nasal_branch name=nose junction=3 velum=.2 diameters=.01,.6,1.2,1.4
-            tract shape=human glottis=modal injection=sibilant nasal_branch=nose propagation=waveguide waveguide_loss=.998 substeps=2 freq=140 tongue_index=4 tongue_diameter=1.4 velum=.2
+            tract_motion name=quick diameter_slew=20 constriction_slew=30 velum_slew=12 obstruction_threshold=.08
+            tract shape=human glottis=modal injection=sibilant nasal_branch=nose motion=quick propagation=waveguide waveguide_loss=.998 substeps=2 freq=140 tongue_index=4 tongue_diameter=1.4 velum=.2
             """);
 
         var shape = Assert.Single(patch.TractShapes);
@@ -107,6 +108,9 @@ public sealed class PatchScriptTests
         var nasal = Assert.Single(patch.NasalBranches);
         Assert.Equal("nose", nasal.Name);
         Assert.Equal(4, nasal.AreaFunction?.Sections);
+        var motion = Assert.Single(patch.TractMotions);
+        Assert.Equal("quick", motion.Name);
+        Assert.Equal(.08f, motion.ObstructionThreshold, 5);
 
         var voice = Assert.Single(patch.Voices);
         Assert.NotNull(voice.Tract);
@@ -118,6 +122,7 @@ public sealed class PatchScriptTests
         Assert.Equal(glottis, voice.Tract.Glottis);
         Assert.Equal(injection, voice.Tract.Injection);
         Assert.Equal(nasal, voice.Tract.Nasal);
+        Assert.Equal(motion, voice.Tract.Motion);
         Assert.Equal(TractPropagationMode.Waveguide, voice.Tract.Propagation);
         Assert.Equal(.998f, voice.Tract.WaveguideLoss, 5);
         Assert.Equal(2, voice.Tract.Substeps);
@@ -132,6 +137,9 @@ public sealed class PatchScriptTests
         Assert.Contains("tract_injection_close", faust);
         Assert.Contains("wg_injection_cell", faust);
         Assert.Contains("wg_inject_6", faust);
+        Assert.Contains("tract_release_memory", faust);
+        Assert.Contains("tract_obstructed", faust);
+        Assert.Contains("slew(", faust);
         Assert.Contains("wg_scatter_1", faust);
         Assert.Contains("nose_reflect_nose", faust);
         Assert.Contains("tract_nose_waveguide", faust);
@@ -370,10 +378,13 @@ public sealed class PatchScriptTests
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "nose_waveguide_cells");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "nose_junction");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "positioned_turbulence_applied_to_waveguide_cells");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "tract_shape_motion");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "closure_transients");
         Assert.NotEmpty(patch.TractShapes);
         Assert.NotEmpty(patch.GlottalSources);
         Assert.NotEmpty(patch.TractInjections);
         Assert.NotEmpty(patch.NasalBranches);
+        Assert.NotEmpty(patch.TractMotions);
         Assert.NotEmpty(patch.Parameters);
         Assert.Contains("process =", export.Source);
     }

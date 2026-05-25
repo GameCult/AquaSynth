@@ -213,6 +213,14 @@ public sealed record NasalBranch(
     float Reflection = -0.85f,
     float Loss = 0.999f);
 
+public sealed record TractMotion(
+    string Name = "",
+    float DiameterSlewPerSecond = 18,
+    float ShapeReturnPerSecond = 8,
+    float ConstrictionSlewPerSecond = 24,
+    float VelumSlewPerSecond = 16,
+    float ObstructionThreshold = 0.05f);
+
 public sealed record Modulator(
     ModTarget Target,
     ModWaveform Waveform = ModWaveform.Sine,
@@ -271,6 +279,7 @@ public sealed record VocalTract(
     GlottalSource? Glottis = null,
     TractInjection? Injection = null,
     NasalBranch? Nasal = null,
+    TractMotion? Motion = null,
     TractPropagationMode Propagation = TractPropagationMode.Resonator,
     float WaveguideLoss = 0.999f,
     int Substeps = 1);
@@ -450,6 +459,7 @@ public sealed record SynthPatch
     public IReadOnlyList<GlottalSource> GlottalSources { get; init; } = Array.Empty<GlottalSource>();
     public IReadOnlyList<TractInjection> TractInjections { get; init; } = Array.Empty<TractInjection>();
     public IReadOnlyList<NasalBranch> NasalBranches { get; init; } = Array.Empty<NasalBranch>();
+    public IReadOnlyList<TractMotion> TractMotions { get; init; } = Array.Empty<TractMotion>();
     public IReadOnlyList<OperatorGraph> OperatorGraphs { get; init; } = Array.Empty<OperatorGraph>();
     public IReadOnlyList<ControlLane> Controls { get; init; } = Array.Empty<ControlLane>();
     public IReadOnlyList<PatchParameter> Parameters { get; init; } = Array.Empty<PatchParameter>();
