@@ -71,12 +71,18 @@ public sealed class FaustRenderedSpeechLossSurface(FaustRenderedSpeechLossOption
     public string SourceFor(VocalTractControlTarget target)
     {
         var mel = target.MelSpectralEnvelope ?? [];
+        var tract = TractResonances(target);
         var source = new StringBuilder();
         source.AppendLine("patch gain=0.85");
-        source.AppendLine(VoiceLine("saw", F(120 + target.GlottalTenseness * 110), F(0.08f + target.Pressure * 0.22f), target, target.Turbulence * 0.22f));
+        source.AppendLine(VoiceLine("saw", F(120 + target.GlottalTenseness * 110), F(0.08f + target.Pressure * 0.22f), target, target.Turbulence * 0.22f, tract));
         if (target.Turbulence > 0.02f)
         {
-            source.AppendLine(VoiceLine("noise", F(900 + target.Turbulence * 2600), F(target.Turbulence * 0.16f), target, 1));
+            source.AppendLine(VoiceLine("noise", F(900 + target.Turbulence * 2600 + target.TongueTip * 1200), F(target.Turbulence * 0.16f), target, 1, tract));
+        }
+
+        if (target.Velum > 0.02f)
+        {
+            source.AppendLine(VoiceLine("sine", F(240 + target.Velum * 520), F(target.Velum * target.Pressure * 0.07f), target, 0, tract));
         }
 
         for (var band = 0; band < options.MelBandCount; band++)
@@ -84,7 +90,7 @@ public sealed class FaustRenderedSpeechLossSurface(FaustRenderedSpeechLossOption
             var value = band < mel.Count ? Math.Clamp(mel[band], 0, 1) : 0.5f;
             var hz = MelBandCenterHz(band);
             var gain = value * value * 0.08f;
-            source.AppendLine(VoiceLine("sine", F(hz), F(gain), target, 0));
+            source.AppendLine(VoiceLine("sine", F(hz), F(gain), target, 0, tract));
         }
 
         return FaustEmitter.EmitScript(source.ToString(), new FaustExportOptions("aquasynth_speech_loss")).Source;
@@ -171,8 +177,19 @@ public sealed class FaustRenderedSpeechLossSurface(FaustRenderedSpeechLossOption
             mel);
     }
 
-    private static string VoiceLine(string wave, string freq, string gain, VocalTractControlTarget target, float noise) =>
-        string.Create(CultureInfo.InvariantCulture, $"voice wave={wave} freq={freq} gain={gain} attack=0.004 sustain=0.16 decay=0.055 lpf={Math.Clamp(target.FilterCutoff, 0.04f, 1):0.######} lpf_q={Math.Clamp(0.2f + target.FilterResonance * 8, 0.2f, 12):0.######} noise={Math.Clamp(noise, 0, 1):0.######} fm=2.0 fm_index={Math.Clamp(target.FmDepth, 0, 1):0.######} tremolo={Math.Clamp(target.AmDepth, 0, 1):0.######} tremolo_hz={Math.Clamp(2 + target.LfoRate * 11, 0.1f, 20):0.######}");
+    private static TractResonanceSet TractResonances(VocalTractControlTarget target)
+    {
+        var lipDamping = 1.0f - Math.Clamp(target.LipRounding, 0, 1) * 0.32f;
+        return new(
+            Math.Clamp((280 + target.LipAperture * 760 - target.TongueBody * 360 - target.LipRounding * 160) * lipDamping, 90, 1400),
+            Math.Clamp(760 + target.TongueTip * 1700 + target.TongueBody * 520 - target.LipRounding * 300, 180, 3600),
+            Math.Clamp(1900 + target.TongueTip * 2300 + target.FilterCutoff * 2200 - target.LipRounding * 700, 500, 7200));
+    }
+
+    private static string VoiceLine(string wave, string freq, string gain, VocalTractControlTarget target, float noise, TractResonanceSet tract) =>
+        string.Create(CultureInfo.InvariantCulture, $"voice wave={wave} freq={freq} gain={gain} attack=0.004 sustain=0.16 decay=0.055 lpf={Math.Clamp(0.08f + target.FilterCutoff * 0.86f, 0.04f, 1):0.######} lpf_q={Math.Clamp(0.2f + target.FilterResonance * 8, 0.2f, 12):0.######} noise={Math.Clamp(noise, 0, 1):0.######} fm=2.0 fm_index={Math.Clamp(target.FmDepth, 0, 1):0.######} tremolo={Math.Clamp(target.AmDepth * (0.25f + target.LfoDepth * 0.75f), 0, 1):0.######} tremolo_hz={Math.Clamp(2 + target.LfoRate * 11, 0.1f, 20):0.######} formant_mix={Math.Clamp(0.2f + target.Pressure * 0.18f + target.Velum * 0.18f, 0, 0.7f):0.######} formants={tract.LowHz:0.######}:80:0.75,{tract.MidHz:0.######}:170:1,{tract.HighHz:0.######}:360:0.55");
+
+    private readonly record struct TractResonanceSet(float LowHz, float MidHz, float HighHz);
 
     private static string F(float value) => value.ToString("0.######", CultureInfo.InvariantCulture);
     private static float HzToMel(float hz) => 2595 * MathF.Log10(1 + hz / 700);
@@ -293,9 +310,17 @@ public sealed class CompiledFaustRenderedSpeechLossSurface : IDisposable
             source.AppendLine($"o{index} = hslider(\"{OutputPath(index)}\", 0.5, 0.0, 1.0, 0.0001) : si.smoo;");
         }
 
-        source.AppendLine("fm = sine((120.0 + o5 * 110.0) * 2.0) * o9 * 0.18;");
-        source.AppendLine("glottis = sine((120.0 + o5 * 110.0) * (1.0 + fm)) * (0.08 + o7 * 0.22);");
-        source.AppendLine("breath = no.noise * o6 * 0.18;");
+        source.AppendLine("pitchHz = 120.0 + o5 * 110.0;");
+        source.AppendLine("fm = sine(pitchHz * (1.0 + o10 * 7.0)) * o9 * 0.18;");
+        source.AppendLine("glottis = sine(pitchHz * (1.0 + fm)) * (0.08 + o7 * 0.22);");
+        source.AppendLine("breath = no.noise * o6 * o7 * (0.08 + o1 * 0.14);");
+        source.AppendLine("lipDamping = 1.0 - o3 * 0.32;");
+        source.AppendLine("apertureGain = 0.35 + o2 * 0.95;");
+        source.AppendLine("tractLowHz = max(90.0, (280.0 + o2 * 760.0 - o0 * 360.0 - o3 * 160.0) * lipDamping);");
+        source.AppendLine("tractMidHz = max(180.0, 760.0 + o1 * 1700.0 + o0 * 520.0 - o3 * 300.0);");
+        source.AppendLine("tractHighHz = max(500.0, 1900.0 + o1 * 2300.0 + o12 * 2200.0 - o3 * 700.0);");
+        source.AppendLine("tractQ = 1.0 + o13 * 10.0;");
+        source.AppendLine("nasal = sine(240.0 + o4 * 520.0) * o4 * o7 * 0.08;");
         for (var band = 0; band < options.MelBandCount; band++)
         {
             source.AppendLine($"mel{band} = sine({F(MelBandCenterHz(options, band))}) * o{14 + band} * o{14 + band} * 0.08;");
@@ -304,9 +329,10 @@ public sealed class CompiledFaustRenderedSpeechLossSurface : IDisposable
         var melMix = options.MelBandCount == 0
             ? "0.0"
             : string.Join(" + ", Enumerable.Range(0, options.MelBandCount).Select(index => $"mel{index}"));
-        source.AppendLine($"raw = glottis + breath + {melMix};");
-        source.AppendLine("trem = 1.0 - o8 * (0.5 + 0.5 * sine(2.0 + o10 * 11.0));");
-        source.AppendLine("filtered = raw * trem : fi.lowpass(2, min(ma.SR * 0.45, max(20.0, o12 * 18000.0)));");
+        source.AppendLine($"raw = (glottis * apertureGain) + breath + nasal + {melMix};");
+        source.AppendLine("tract = raw * 0.35 + (raw : fi.resonbp(tractLowHz, tractQ, 1.0)) * (0.65 - o0 + o2) + (raw : fi.resonbp(tractMidHz, tractQ, 1.0)) * (o0 + o1) + (raw : fi.resonbp(tractHighHz, tractQ, 1.0)) * (o1 + o12);");
+        source.AppendLine("trem = 1.0 - o8 * (0.25 + o11 * 0.75) * (0.5 + 0.5 * sine(2.0 + o10 * 11.0));");
+        source.AppendLine("filtered = tract * trem : fi.lowpass(2, min(ma.SR * 0.45, max(80.0, 800.0 + o12 * 15000.0)));");
         var keepControls = string.Join(" + ", Enumerable.Range(0, 14 + options.MelBandCount).Select(index => $"o{index}"));
         source.AppendLine($"process = filtered * 0.85 + 0.000000001 * ({keepControls});");
         return source.ToString();

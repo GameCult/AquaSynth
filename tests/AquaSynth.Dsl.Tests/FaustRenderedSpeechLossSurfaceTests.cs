@@ -6,6 +6,34 @@ namespace AquaSynth.Dsl.Tests;
 public sealed class FaustRenderedSpeechLossSurfaceTests
 {
     [Fact]
+    public void CompiledSpeechLossSourceRoutesEveryBaseControlIntoAudibleDsp()
+    {
+        var source = CompiledFaustRenderedSpeechLossSurface.ControllableSource(new FaustRenderedSpeechLossOptions(MelBandCount: 4));
+
+        Assert.Contains("tractLowHz", source);
+        Assert.Contains("tractMidHz", source);
+        Assert.Contains("tractHighHz", source);
+        Assert.Contains("nasal =", source);
+        Assert.Contains("apertureGain", source);
+        Assert.Contains("o11 * 0.75", source);
+        for (var index = 0; index < 14; index++)
+        {
+            Assert.True(MeaningfulControlReferenceCount(source, $"o{index}") > 1, $"/speech/output/{index} is only declared/kept alive, not routed into audible DSP.");
+        }
+    }
+
+    [Fact]
+    public void ScriptSpeechLossSourceRoutesTractControlsIntoFormantProxy()
+    {
+        var surface = new FaustRenderedSpeechLossSurface(new FaustRenderedSpeechLossOptions(MelBandCount: 4));
+        var source = surface.SourceFor(Target([0.5f, 0.5f, 0.5f, 0.5f], turbulence: 0.20f, cutoff: 0.60f));
+
+        Assert.Contains("fi.resonbp", source);
+        Assert.Contains("_formant_", source);
+        Assert.Contains("lfo_sin", source);
+    }
+
+    [Fact]
     public async Task FaustRenderedSpeechLossSurfaceReturnsFiniteDifferenceGradientWhenToolchainIsAvailable()
     {
         if (FaustCompiler.FindFaust() is null ||
@@ -92,4 +120,31 @@ public sealed class FaustRenderedSpeechLossSurfaceTests
             FilterCutoff: cutoff,
             FilterResonance: 0.20f,
             MelSpectralEnvelope: mel);
+
+    private static int MeaningfulControlReferenceCount(string source, string controlName)
+    {
+        var processIndex = source.IndexOf("process =", StringComparison.Ordinal);
+        var audibleSource = processIndex < 0 ? source : source[..processIndex];
+        var count = 0;
+        var index = 0;
+        while ((index = audibleSource.IndexOf(controlName, index, StringComparison.Ordinal)) >= 0)
+        {
+            if (IsControlToken(audibleSource, index, controlName.Length))
+            {
+                count++;
+            }
+
+            index += controlName.Length;
+        }
+
+        return count;
+    }
+
+    private static bool IsControlToken(string source, int index, int length)
+    {
+        var before = index == 0 ? '\0' : source[index - 1];
+        var afterIndex = index + length;
+        var after = afterIndex >= source.Length ? '\0' : source[afterIndex];
+        return !char.IsLetterOrDigit(before) && !char.IsLetterOrDigit(after) && before != '_' && after != '_';
+    }
 }
