@@ -71,7 +71,8 @@ named failure against Pink Trombone, but it does not own the anatomy:
    - Waveguide lowering now derives live per-section diameter targets, areas,
      and reflection coefficients from the tract shape plus tongue, constriction,
      and lip controls before scattering.
-     True substep execution remains missing.
+     Substep clock intent is represented and lowering consumes it for drive/loss
+     scaling, but exact intra-sample recursive state updates remain missing.
 
 6. `tract_motion`: control-rate slew and obstruction history.
    - Owns diameter/constriction/velum slew rates and obstruction threshold.
@@ -97,11 +98,11 @@ pressure instead of silently inventing all of them inside one helper. The
 waveguide lowering consumes the derived oral reflection field as right/left
 section state equations.
 
-The next cut is timing and proof: the oral/nasal tube now derives moving
+The next cut is timing exactness and proof: the oral/nasal tube now derives moving
 per-section diameter/area/reflection fields, distributes frication into section
-updates, and derives release bursts from obstruction history. PT's two tract
-steps per output sample and rendered parity fixtures still need low-level
-owners.
+updates, derives release bursts from obstruction history, and carries substep
+clock intent. Exact two recursive tract state updates per output sample and
+rendered parity fixtures still need proof.
 
 ## Cut Line
 

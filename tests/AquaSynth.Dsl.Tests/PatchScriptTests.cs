@@ -139,6 +139,8 @@ public sealed class PatchScriptTests
         Assert.Contains("wg_inject_6", faust);
         Assert.Contains("wg_diameter_target_3", faust);
         Assert.Contains("wg_area_3", faust);
+        Assert.Contains("wg_substep_drive", faust);
+        Assert.Contains("wg_substep_loss", faust);
         Assert.Contains("tract_release_memory", faust);
         Assert.Contains("tract_obstructed", faust);
         Assert.Contains("slew(", faust);
@@ -383,6 +385,8 @@ public sealed class PatchScriptTests
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "tract_shape_motion");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "diameter_authority");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "closure_transients");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "tract_sample_rate");
+        Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "exact_twice_rate_state_update");
         Assert.NotEmpty(patch.TractShapes);
         Assert.NotEmpty(patch.GlottalSources);
         Assert.NotEmpty(patch.TractInjections);

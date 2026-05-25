@@ -75,7 +75,7 @@ Current AquaSynth can express:
 
 Current AquaSynth cannot exactly express:
 
-- a subgraph that steps twice per output sample;
+- exact two recursive tract state updates inside one output sample;
 - exact Pink Trombone LF glottal coefficient updates.
 
 ## Current Parity Rung
@@ -104,6 +104,9 @@ Trombone anatomy:
   pressure from obstruction history.
 - waveguide lowering derives live per-section diameter targets, areas, and
   reflection coefficients from shape and gesture controls.
+- `substeps` expresses waveguide clock intent; current Faust lowering consumes
+  it through drive/loss scaling but does not yet prove exact intra-sample state
+  updates.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
