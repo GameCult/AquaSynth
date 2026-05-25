@@ -38,6 +38,12 @@ public static class PatchScript
         private readonly List<SpectralBank> _spectralBanks = [];
         private readonly List<TractShape> _tractShapes = [];
         private readonly Dictionary<string, TractShape> _tractShapesByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<GlottalSource> _glottalSources = [];
+        private readonly Dictionary<string, GlottalSource> _glottalSourcesByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<TractInjection> _tractInjections = [];
+        private readonly Dictionary<string, TractInjection> _tractInjectionsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<NasalBranch> _nasalBranches = [];
+        private readonly Dictionary<string, NasalBranch> _nasalBranchesByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _defaults = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Dictionary<string, string>> _layerDefaults = new(StringComparer.OrdinalIgnoreCase);
         private PendingOperatorGraph? _pendingOperatorGraph;
@@ -60,6 +66,9 @@ public static class PatchScript
                 HarmonicBanks = _harmonicBanks,
                 SpectralBanks = _spectralBanks,
                 TractShapes = _tractShapes,
+                GlottalSources = _glottalSources,
+                TractInjections = _tractInjections,
+                NasalBranches = _nasalBranches,
                 OperatorGraphs = _operatorGraphs,
                 Controls = _controls,
                 Parameters = _parameters,
@@ -114,6 +123,18 @@ public static class PatchScript
                 case "tract_shape":
                     FlushPendingOperatorGraph();
                     AddTractShape(fields, line);
+                    break;
+                case "glottis":
+                    FlushPendingOperatorGraph();
+                    AddGlottalSource(fields, line);
+                    break;
+                case "tract_injection":
+                    FlushPendingOperatorGraph();
+                    AddTractInjection(fields, line);
+                    break;
+                case "nasal_branch":
+                    FlushPendingOperatorGraph();
+                    AddNasalBranch(fields, line);
                     break;
                 case "voice":
                     FlushPendingOperatorGraph();
@@ -284,6 +305,63 @@ public static class PatchScript
             var shape = new TractShape(name, areaFunction);
             _tractShapes.Add(shape);
             _tractShapesByName[name] = shape;
+        }
+
+        private void AddGlottalSource(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_glottalSourcesByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate glottis `{name}`");
+            }
+
+            var glottis = new GlottalSource(
+                name,
+                GetBoundFloat(fields, line, 0.72f, $"/glottis/{_glottalSources.Count}/intensity", "intensity", "pressure"),
+                GetBoundFloat(fields, line, 0.6f, $"/glottis/{_glottalSources.Count}/tenseness", "tenseness", "tense"),
+                GetBoundFloat(fields, line, 0.08f, $"/glottis/{_glottalSources.Count}/aspiration", "aspiration", "breath"),
+                GetBoundFloat(fields, line, 0.75f, $"/glottis/{_glottalSources.Count}/reflection", "reflection", "glottal_reflection", "gr"),
+                GetBoundFloat(fields, line, 0.42f, $"/glottis/{_glottalSources.Count}/skew", "skew", "open_phase"));
+            _glottalSources.Add(glottis);
+            _glottalSourcesByName[name] = glottis;
+        }
+
+        private void AddTractInjection(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_tractInjectionsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate tract injection `{name}`");
+            }
+
+            var injection = new TractInjection(
+                name,
+                GetBoundFloat(fields, line, 32, $"/tract_injections/{_tractInjections.Count}/position", "position", "index", "constriction_index", "ci"),
+                GetBoundFloat(fields, line, 1, $"/tract_injections/{_tractInjections.Count}/diameter", "diameter", "opening", "constriction_diameter", "cd"),
+                GetBoundFloat(fields, line, 0, $"/tract_injections/{_tractInjections.Count}/turbulence", "turbulence", "frication"),
+                GetBoundFloat(fields, line, 0, $"/tract_injections/{_tractInjections.Count}/burst", "burst", "transient"),
+                GetBoundFloat(fields, line, 1, $"/tract_injections/{_tractInjections.Count}/width", "width"));
+            _tractInjections.Add(injection);
+            _tractInjectionsByName[name] = injection;
+        }
+
+        private void AddNasalBranch(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_nasalBranchesByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate nasal branch `{name}`");
+            }
+
+            var branch = new NasalBranch(
+                name,
+                ParseTractAreaFunction(fields, line),
+                GetBoundInt(fields, line, 17, $"/nasal_branches/{_nasalBranches.Count}/junction", "junction", "junction_index", "at"),
+                GetBoundFloat(fields, line, 0.01f, $"/nasal_branches/{_nasalBranches.Count}/velum", "velum", "opening"),
+                GetBoundFloat(fields, line, -0.85f, $"/nasal_branches/{_nasalBranches.Count}/reflection", "reflection", "lip_reflection"),
+                GetBoundFloat(fields, line, 0.999f, $"/nasal_branches/{_nasalBranches.Count}/loss", "loss"));
+            _nasalBranches.Add(branch);
+            _nasalBranchesByName[name] = branch;
         }
 
         private Dictionary<string, string> ExpandVoiceFields(Dictionary<string, string> fields, int line)
@@ -527,6 +605,9 @@ public static class PatchScript
 
             var voice = ParseVoice(voiceFields, ownerPath, line);
             var areaFunction = ParseTractAreaFunctionReference(fields, line);
+            var glottis = ParseGlottalSourceReference(fields, ownerPath, line);
+            var injection = ParseTractInjectionReference(fields, ownerPath, line);
+            var nasal = ParseNasalBranchReference(fields, ownerPath, line);
             var sections = GetBoundInt(fields, line, areaFunction?.Sections ?? 44, OwnerField(ownerPath, "tract/sections"), "sections", "cells");
             if (sections < 4)
             {
@@ -536,7 +617,7 @@ public static class PatchScript
             {
                 throw new PatchScriptException(line, "tract shape section count must match tract sections");
             }
-            var noseSections = GetBoundInt(fields, line, 28, OwnerField(ownerPath, "tract/nose_sections"), "nose_sections", "nose_cells");
+            var noseSections = GetBoundInt(fields, line, nasal?.AreaFunction?.Sections ?? 28, OwnerField(ownerPath, "tract/nose_sections"), "nose_sections", "nose_cells");
             if (noseSections < 0)
             {
                 throw new PatchScriptException(line, "tract nose_sections must be non-negative");
@@ -547,18 +628,24 @@ public static class PatchScript
                 Tract = new VocalTract(
                     sections,
                     noseSections,
-                    GetBoundFloat(fields, line, 0.72f, OwnerField(ownerPath, "tract/intensity"), "intensity", "pressure"),
-                    GetBoundFloat(fields, line, 0.6f, OwnerField(ownerPath, "tract/tenseness"), "tenseness", "tense"),
+                    GetBoundFloat(fields, line, glottis?.Intensity ?? 0.72f, OwnerField(ownerPath, "tract/intensity"), "intensity", "pressure"),
+                    GetBoundFloat(fields, line, glottis?.Tenseness ?? 0.6f, OwnerField(ownerPath, "tract/tenseness"), "tenseness", "tense"),
                     GetBoundFloat(fields, line, 12.9f, OwnerField(ownerPath, "tract/tongue_index"), "tongue_index", "tongue", "ti"),
                     GetBoundFloat(fields, line, 2.43f, OwnerField(ownerPath, "tract/tongue_diameter"), "tongue_diameter", "td"),
                     GetBoundFloat(fields, line, 0.01f, OwnerField(ownerPath, "tract/velum"), "velum", "nose", "nasal"),
-                    GetBoundFloat(fields, line, 32, OwnerField(ownerPath, "tract/constriction_index"), "constriction_index", "ci"),
-                    GetBoundFloat(fields, line, 1, OwnerField(ownerPath, "tract/constriction_diameter"), "constriction_diameter", "cd"),
-                    GetBoundFloat(fields, line, 0, OwnerField(ownerPath, "tract/turbulence"), "turbulence", "frication"),
+                    GetBoundFloat(fields, line, injection?.Position ?? 32, OwnerField(ownerPath, "tract/constriction_index"), "constriction_index", "ci"),
+                    GetBoundFloat(fields, line, injection?.Diameter ?? 1, OwnerField(ownerPath, "tract/constriction_diameter"), "constriction_diameter", "cd"),
+                    GetBoundFloat(fields, line, injection?.Turbulence ?? 0, OwnerField(ownerPath, "tract/turbulence"), "turbulence", "frication"),
                     GetBoundFloat(fields, line, 1.5f, OwnerField(ownerPath, "tract/lip_opening"), "lip", "lip_opening", "mouth"),
-                    GetBoundFloat(fields, line, 0.75f, OwnerField(ownerPath, "tract/glottal_reflection"), "glottal_reflection", "gr"),
+                    GetBoundFloat(fields, line, glottis?.Reflection ?? 0.75f, OwnerField(ownerPath, "tract/glottal_reflection"), "glottal_reflection", "gr"),
                     GetBoundFloat(fields, line, -0.85f, OwnerField(ownerPath, "tract/lip_reflection"), "lip_reflection", "lr"),
-                    areaFunction)
+                    areaFunction,
+                    glottis,
+                    injection,
+                    nasal,
+                    ParseTractPropagationMode(GetAny(fields, ["propagation", "model"], "resonator"), line),
+                    GetBoundFloat(fields, line, 0.999f, OwnerField(ownerPath, "tract/waveguide_loss"), "waveguide_loss", "loss"),
+                    GetBoundInt(fields, line, 1, OwnerField(ownerPath, "tract/substeps"), "substeps", "steps"))
             };
         }
 
@@ -965,6 +1052,88 @@ public static class PatchScript
             }
 
             return shape.AreaFunction;
+        }
+
+        private GlottalSource? ParseGlottalSourceReference(IReadOnlyDictionary<string, string> fields, string ownerPath, int line)
+        {
+            var hasInlineGlottis = HasAny(fields, "aspiration", "breath", "skew", "open_phase");
+            var hasNamedGlottis = TryGetAny(fields, ["glottis", "source"], out var glottisName);
+            if (!hasNamedGlottis && !hasInlineGlottis)
+            {
+                return null;
+            }
+            GlottalSource? namedGlottis = null;
+            if (hasNamedGlottis && !_glottalSourcesByName.TryGetValue(glottisName, out namedGlottis))
+            {
+                throw new PatchScriptException(line, $"unknown glottis `{glottisName}`");
+            }
+
+            var fallback = hasNamedGlottis ? namedGlottis! : new GlottalSource();
+            return new GlottalSource(
+                hasNamedGlottis ? glottisName : "",
+                GetBoundFloat(fields, line, fallback.Intensity, OwnerField(ownerPath, "tract/glottis/intensity"), "intensity", "pressure"),
+                GetBoundFloat(fields, line, fallback.Tenseness, OwnerField(ownerPath, "tract/glottis/tenseness"), "tenseness", "tense"),
+                GetBoundFloat(fields, line, fallback.Aspiration, OwnerField(ownerPath, "tract/glottis/aspiration"), "aspiration", "breath"),
+                GetBoundFloat(fields, line, fallback.Reflection, OwnerField(ownerPath, "tract/glottis/reflection"), "glottal_reflection", "gr"),
+                GetBoundFloat(fields, line, fallback.Skew, OwnerField(ownerPath, "tract/glottis/skew"), "skew", "open_phase"));
+        }
+
+        private TractInjection? ParseTractInjectionReference(IReadOnlyDictionary<string, string> fields, string ownerPath, int line)
+        {
+            var hasInlineInjection = HasAny(fields, "burst", "transient", "width");
+            var hasNamedInjection = TryGetAny(fields, ["injection", "tract_injection"], out var injectionName);
+            if (!hasNamedInjection && !hasInlineInjection)
+            {
+                return null;
+            }
+            TractInjection? namedInjection = null;
+            if (hasNamedInjection && !_tractInjectionsByName.TryGetValue(injectionName, out namedInjection))
+            {
+                throw new PatchScriptException(line, $"unknown tract injection `{injectionName}`");
+            }
+
+            var fallback = hasNamedInjection ? namedInjection! : new TractInjection();
+            return new TractInjection(
+                hasNamedInjection ? injectionName : "",
+                GetBoundFloat(fields, line, fallback.Position, OwnerField(ownerPath, "tract/injection/position"), "position", "constriction_index", "ci"),
+                GetBoundFloat(fields, line, fallback.Diameter, OwnerField(ownerPath, "tract/injection/diameter"), "diameter", "constriction_diameter", "cd"),
+                GetBoundFloat(fields, line, fallback.Turbulence, OwnerField(ownerPath, "tract/injection/turbulence"), "turbulence", "frication"),
+                GetBoundFloat(fields, line, fallback.Burst, OwnerField(ownerPath, "tract/injection/burst"), "burst", "transient"),
+                GetBoundFloat(fields, line, fallback.Width, OwnerField(ownerPath, "tract/injection/width"), "width"));
+        }
+
+        private NasalBranch? ParseNasalBranchReference(IReadOnlyDictionary<string, string> fields, string ownerPath, int line)
+        {
+            var hasInlineNasal = HasAny(fields, "nose_diameters", "nose_areas", "nose_junction");
+            var hasNamedNasal = TryGetAny(fields, ["nasal_branch", "nasal_shape"], out var nasalName);
+            if (!hasNamedNasal && !hasInlineNasal)
+            {
+                return null;
+            }
+            NasalBranch? namedNasal = null;
+            if (hasNamedNasal && !_nasalBranchesByName.TryGetValue(nasalName, out namedNasal))
+            {
+                throw new PatchScriptException(line, $"unknown nasal branch `{nasalName}`");
+            }
+
+            var fallback = hasNamedNasal ? namedNasal! : new NasalBranch(AreaFunction: new TractAreaFunction([0.01f, 0.6f, 1.2f, 1.6f]));
+            var areaFunction = fallback.AreaFunction;
+            if (TryGetAny(fields, ["nose_diameters"], out var diameters))
+            {
+                areaFunction = new TractAreaFunction(ParseFloatList(diameters, line, "nose_diameters").ToArray());
+            }
+            if (TryGetAny(fields, ["nose_areas"], out var areas))
+            {
+                areaFunction = TractAreaFunction.FromAreas(ParseFloatList(areas, line, "nose_areas").ToArray());
+            }
+
+            return new NasalBranch(
+                hasNamedNasal ? nasalName : "",
+                areaFunction,
+                GetBoundInt(fields, line, fallback.JunctionIndex, OwnerField(ownerPath, "tract/nasal/junction"), "nose_junction", "junction", "junction_index"),
+                GetBoundFloat(fields, line, fallback.Velum, OwnerField(ownerPath, "tract/nasal/velum"), "velum", "nose", "nasal"),
+                GetBoundFloat(fields, line, fallback.Reflection, OwnerField(ownerPath, "tract/nasal/reflection"), "nose_reflection"),
+                GetBoundFloat(fields, line, fallback.Loss, OwnerField(ownerPath, "tract/nasal/loss"), "nose_loss"));
         }
 
         private static TractAreaFunction ParseTractAreaFunction(IReadOnlyDictionary<string, string> fields, int line)
@@ -1404,6 +1573,9 @@ public static class PatchScript
         "harmonics" or "partials" or "drawbars" => "harmonics",
         "spectrum" or "spectral" or "padsource" or "pad_source" => "spectrum",
         "tractshape" or "tract_shape" or "area_function" or "tract_area" => "tract_shape",
+        "glottis" or "glottal" or "excitation" => "glottis",
+        "tract_injection" or "injection" or "frication" or "burst" => "tract_injection",
+        "nasal_branch" or "nose_branch" or "nasal" => "nasal_branch",
         "v" or "voice" => "voice",
         "tract" or "vt" or "tractvoice" or "tract_voice" => "tract",
         "opgraph" or "ops" or "operators" => "opgraph",
@@ -1493,6 +1665,13 @@ public static class PatchScript
         ModTarget.FormantMix => "formant_mix",
         ModTarget.FmIndex => "fm_index",
         _ => target.ToString().ToLowerInvariant()
+    };
+
+    private static TractPropagationMode ParseTractPropagationMode(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "resonator" or "proxy" or "formant" => TractPropagationMode.Resonator,
+        "waveguide" or "kl" or "kelly-lochbaum" or "kelly_lochbaum" or "tube" => TractPropagationMode.Waveguide,
+        _ => throw new PatchScriptException(line, $"unknown tract propagation mode `{value}`")
     };
 
     private static string Required(IReadOnlyDictionary<string, string> fields, string key, int line) =>

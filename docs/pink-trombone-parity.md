@@ -53,12 +53,18 @@ Current AquaSynth can express:
 - runtime parameters with stable paths;
 - reusable `tract_shape` declarations with authored diameter or area samples;
 - derived tract areas and adjacent-section reflection coefficients;
+- reusable `glottis` declarations for tract excitation quality;
+- reusable `tract_injection` declarations for positioned frication/burst
+  pressure;
+- reusable `nasal_branch` declarations with velum-controlled junctions;
 - a `tract` voice command owned by `Voice.Tract`;
 - Pink Trombone-shaped controls for intensity, tenseness, tongue body,
   constriction, velum/nasal opening, turbulence, lip opening, and end
   reflections;
 - a Faust-lowered tract voice proxy with LF-style excitation, aspiration,
   frication, oral resonators, and a velum-controlled nasal lane;
+- generated oral bidirectional waveguide equations over a `tract_shape` section
+  field when `propagation=waveguide`;
 - oscillator/noise sources;
 - ADSR and staged rate/level envelopes;
 - low/high/band/notch filters;
@@ -68,16 +74,10 @@ Current AquaSynth can express:
 
 Current AquaSynth cannot exactly express:
 
-- a 44-cell bidirectional tract waveguide;
-- independent right/left traveling-wave state arrays;
-- a 28-cell nasal waveguide branch;
-- a three-way velum/nose junction;
 - per-section diameter targets as synthesis authority;
-- application of diameter-squared reflection coefficients to bidirectional
-  waveguide propagation;
 - a subgraph that steps twice per output sample;
-- turbulence injected at a tract position into neighboring cells;
-- obstruction-state release transients;
+- turbulence applied to bidirectional waveguide cells;
+- obstruction-state release transients derived from prior closure state;
 - exact Pink Trombone LF glottal coefficient updates.
 
 ## Current Parity Rung
@@ -94,6 +94,12 @@ Trombone anatomy:
 - `tract_shape` owns reusable section diameter/area functions. The current
   proxy consumes its shape summaries and derived reflection energy; future
   waveguide lowering should consume the full coefficients.
+- `glottis` and `tract_injection` own excitation and positioned noise/burst
+  controls consumed by tract voices.
+- `propagation=waveguide` emits an oral right/left tube from the derived
+  reflection field. It is the first low-level propagation path, not full PT.
+- `nasal_branch` adds a second diameter/area tube and generated three-way
+  oral/nasal scattering junction when used by a waveguide tract.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast

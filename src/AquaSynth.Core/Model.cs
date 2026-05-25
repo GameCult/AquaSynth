@@ -183,6 +183,36 @@ public sealed record TractAreaFunction(IReadOnlyList<float> Diameters)
 
 public sealed record TractShape(string Name, TractAreaFunction AreaFunction);
 
+public sealed record GlottalSource(
+    string Name = "",
+    float Intensity = 0.72f,
+    float Tenseness = 0.6f,
+    float Aspiration = 0.08f,
+    float Reflection = 0.75f,
+    float Skew = 0.42f);
+
+public sealed record TractInjection(
+    string Name = "",
+    float Position = 32,
+    float Diameter = 1,
+    float Turbulence = 0,
+    float Burst = 0,
+    float Width = 1);
+
+public enum TractPropagationMode
+{
+    Resonator,
+    Waveguide
+}
+
+public sealed record NasalBranch(
+    string Name = "",
+    TractAreaFunction? AreaFunction = null,
+    int JunctionIndex = 17,
+    float Velum = 0.01f,
+    float Reflection = -0.85f,
+    float Loss = 0.999f);
+
 public sealed record Modulator(
     ModTarget Target,
     ModWaveform Waveform = ModWaveform.Sine,
@@ -237,7 +267,13 @@ public sealed record VocalTract(
     float LipOpening = 1.5f,
     float GlottalReflection = 0.75f,
     float LipReflection = -0.85f,
-    TractAreaFunction? AreaFunction = null);
+    TractAreaFunction? AreaFunction = null,
+    GlottalSource? Glottis = null,
+    TractInjection? Injection = null,
+    NasalBranch? Nasal = null,
+    TractPropagationMode Propagation = TractPropagationMode.Resonator,
+    float WaveguideLoss = 0.999f,
+    int Substeps = 1);
 
 public sealed record PatchParameter(
     string Path,
@@ -411,6 +447,9 @@ public sealed record SynthPatch
     public IReadOnlyList<HarmonicBank> HarmonicBanks { get; init; } = Array.Empty<HarmonicBank>();
     public IReadOnlyList<SpectralBank> SpectralBanks { get; init; } = Array.Empty<SpectralBank>();
     public IReadOnlyList<TractShape> TractShapes { get; init; } = Array.Empty<TractShape>();
+    public IReadOnlyList<GlottalSource> GlottalSources { get; init; } = Array.Empty<GlottalSource>();
+    public IReadOnlyList<TractInjection> TractInjections { get; init; } = Array.Empty<TractInjection>();
+    public IReadOnlyList<NasalBranch> NasalBranches { get; init; } = Array.Empty<NasalBranch>();
     public IReadOnlyList<OperatorGraph> OperatorGraphs { get; init; } = Array.Empty<OperatorGraph>();
     public IReadOnlyList<ControlLane> Controls { get; init; } = Array.Empty<ControlLane>();
     public IReadOnlyList<PatchParameter> Parameters { get; init; } = Array.Empty<PatchParameter>();

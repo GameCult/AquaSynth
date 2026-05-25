@@ -45,6 +45,7 @@ modules:
   vocal_tract_learning: src/AquaSynth.Core/VocalTractLearning.cs
   tract_voice_model: src/AquaSynth.Core/Model.cs
   tract_shape_model: src/AquaSynth.Core/Model.cs
+  tract_waveguide_lowering: src/AquaSynth.Core/FaustExport.cs
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs

@@ -630,8 +630,38 @@ public static class BuiltInScripts
             name=pt_human
             diameters=0.6,0.6,0.6,0.6,0.6,0.7,0.8,1.0,1.1,1.1,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.4,1.3,1.2,1.15,1.5
 
+        glottis
+            name=pt_glottis
+            intensity=@/pink/intensity
+            tenseness=@/pink/tenseness
+            aspiration=0.12
+            reflection=@/pink/glottal/reflection
+            skew=0.42
+
+        tract_injection
+            name=pt_constriction
+            position=@/pink/constriction/index
+            diameter=@/pink/constriction/diameter
+            turbulence=@/pink/turbulence
+            burst=0.28
+            width=1
+
+        nasal_branch
+            name=pt_nose
+            junction=17
+            velum=@/pink/velum
+            reflection=@/pink/lip/reflection
+            loss=0.999
+            diameters=0.01,0.35,0.5,0.65,0.8,0.95,1.1,1.25,1.4,1.55,1.7,1.8,1.9,1.9,1.85,1.75,1.65,1.55,1.45,1.35,1.25,1.15,1.05,0.95,0.85,0.75,0.65,0.55
+
         tract
             shape=pt_human
+            glottis=pt_glottis
+            injection=pt_constriction
+            nasal_branch=pt_nose
+            propagation=waveguide
+            waveguide_loss=0.999
+            substeps=2
             freq=@/pink/frequency
             gain=0.7
             attack=0.004

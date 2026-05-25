@@ -18,7 +18,7 @@ named failure against Pink Trombone, but it does not own the anatomy:
 - no derived area/reflection coefficient primitive;
 - no traveling-wave state owner;
 - no nasal junction primitive;
-- no positioned excitation/injection events;
+- no waveguide-applied positioned excitation/injection events;
 - no substep/rate semantics;
 - no parity renderer/score loop against PT output.
 
@@ -47,20 +47,28 @@ named failure against Pink Trombone, but it does not own the anatomy:
 2. `glottis`: reusable excitation primitive.
    - Owns frequency, intensity, tenseness, aspiration, and reflection intent.
    - Can feed tract voices or other voice treatments.
+   - Implemented as a named source primitive consumed by `tract` voices.
 
 3. `tract_injection`: positioned noise/burst excitation.
    - Owns constriction position, diameter/opening, turbulence, and release
      transient behavior.
    - Can be driven by envelopes, LFOs, learned speech controls, or consonant
      gestures.
+   - Implemented as a named injection primitive consumed by `tract` voices; it
+     is not yet injected into waveguide cell state.
 
 4. `nasal_junction`: velum-controlled branch primitive.
    - Owns nasal opening and branch shape.
    - Derives the three-way junction coefficients from local areas.
+   - Implemented as `nasal_branch` plus generated three-way junction equations
+     when a waveguide tract references the branch.
 
 5. `waveguide_tract`: propagation primitive.
    - Owns right/left traveling-wave state, substep rate, loss, and radiation.
    - Consumes area/reflection fields and source/injection events.
+   - First oral-tube lowering exists: generated right/left section equations
+     consume `tract_shape` reflection coefficients and boundary reflections.
+     True substep execution and cell-local injection remain missing.
 
 6. PT parity harness.
    - Renders fixed PT references for vowels, nasals, fricatives, closures, and
@@ -70,12 +78,20 @@ named failure against Pink Trombone, but it does not own the anatomy:
 
 ## First Cut
 
-First owner implemented: `tract_shape`. It is the smallest useful owner:
-reflection, waveguide, constriction, nasal junction, and morphology all depend
-on a section diameter/area field. The current Faust proxy now consumes this
-primitive through shape summaries and derived reflection energy instead of
-silently inventing one universal tube. The next cut is to make a propagation
-primitive consume the full reflection coefficient field.
+Implemented owners: `tract_shape`, `glottis`, `tract_injection`,
+`nasal_branch`, and first-pass `propagation=waveguide`.
+`tract_shape` owns section diameter/area fields and reflection derivation.
+`glottis` owns excitation quality. `tract_injection` owns positioned
+frication/burst pressure. The current Faust proxy consumes these primitives
+through shape summaries, reflection energy, glottal shaping, and injection
+pressure instead of silently inventing all of them inside one helper. The
+waveguide lowering consumes the derived oral reflection field as right/left
+section state equations.
+
+The next cut is cell-local events and timing: the oral/nasal tube now consumes
+the full reflection coefficient fields, but PT's two tract steps per output
+sample, cell-positioned turbulence injection, and obstruction-state transients
+still need low-level owners.
 
 ## Cut Line
 
