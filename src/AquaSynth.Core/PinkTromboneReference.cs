@@ -71,6 +71,7 @@ public static class PinkTromboneReference
                 new("nose_junction", "generated three-way junction", "Waveguide lowering can emit a velum-controlled oral/nasal junction from local areas."),
                 new("positioned_turbulence_applied_to_waveguide_cells", "position-weighted waveguide injection", "Frication pressure can be distributed into oral waveguide section updates by injection position and width."),
                 new("tract_shape_motion", "tract_motion slew semantics", "AquaSynth can author tract control slew and obstruction thresholds for moving diameter targets."),
+                new("diameter_authority", "dynamic waveguide section diameters", "Waveguide lowering derives live per-section diameter targets before recalculating section areas and reflection coefficients."),
                 new("closure_transients", "obstruction-history burst", "Waveguide lowering derives burst pressure from prior obstruction state and current opening."),
                 new("runtime_controls", "/pink/frequency,/pink/intensity,/pink/tenseness,/pink/tongue/index,/pink/tongue/diameter,/pink/velum,/pink/turbulence", "AquaSynth can expose stable runtime parameter paths."),
                 new("glottal_pitch_pressure_proxy", "tract LF-style source", "AquaSynth can drive pitch/loudness-like controls without recompiling."),
@@ -79,7 +80,7 @@ public static class PinkTromboneReference
             ],
             [
                 new("twice_rate_tract_stepping", "two tract steps per audio sample", "AquaSynth voice graphs do not express a subgraph with its own stepping rate."),
-                new("lf_glottal_exactness", "Pink Trombone LF-style coefficients", "The proxy uses ordinary oscillators/noise, not the LF coefficient path from tenseness.")
+                new("lf_glottal_exactness", "Pink Trombone LF-style coefficients", "The proxy uses an LF-like glottal source but does not yet match Pink Trombone coefficient updates exactly.")
             ],
             "This is a deliberately non-passing rebuild: it keeps the current source-filter proxy parseable while naming the tract-DSP authority AquaSynth lacks.");
 }

@@ -68,6 +68,9 @@ named failure against Pink Trombone, but it does not own the anatomy:
    - Consumes area/reflection fields and source/injection events.
    - First oral-tube lowering exists: generated right/left section equations
      consume `tract_shape` reflection coefficients and boundary reflections.
+   - Waveguide lowering now derives live per-section diameter targets, areas,
+     and reflection coefficients from the tract shape plus tongue, constriction,
+     and lip controls before scattering.
      True substep execution remains missing.
 
 6. `tract_motion`: control-rate slew and obstruction history.
@@ -94,10 +97,11 @@ pressure instead of silently inventing all of them inside one helper. The
 waveguide lowering consumes the derived oral reflection field as right/left
 section state equations.
 
-The next cut is timing and proof: the oral/nasal tube now consumes the full
-reflection coefficient fields, distributes frication into section updates, and
-derives release bursts from obstruction history. PT's two tract steps per
-output sample and rendered parity fixtures still need low-level owners.
+The next cut is timing and proof: the oral/nasal tube now derives moving
+per-section diameter/area/reflection fields, distributes frication into section
+updates, and derives release bursts from obstruction history. PT's two tract
+steps per output sample and rendered parity fixtures still need low-level
+owners.
 
 ## Cut Line
 

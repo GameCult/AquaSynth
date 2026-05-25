@@ -137,6 +137,8 @@ public sealed class PatchScriptTests
         Assert.Contains("tract_injection_close", faust);
         Assert.Contains("wg_injection_cell", faust);
         Assert.Contains("wg_inject_6", faust);
+        Assert.Contains("wg_diameter_target_3", faust);
+        Assert.Contains("wg_area_3", faust);
         Assert.Contains("tract_release_memory", faust);
         Assert.Contains("tract_obstructed", faust);
         Assert.Contains("slew(", faust);
@@ -379,6 +381,7 @@ public sealed class PatchScriptTests
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "nose_junction");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "positioned_turbulence_applied_to_waveguide_cells");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "tract_shape_motion");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "diameter_authority");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "closure_transients");
         Assert.NotEmpty(patch.TractShapes);
         Assert.NotEmpty(patch.GlottalSources);

@@ -75,7 +75,6 @@ Current AquaSynth can express:
 
 Current AquaSynth cannot exactly express:
 
-- per-section dynamic diameter target arrays;
 - a subgraph that steps twice per output sample;
 - exact Pink Trombone LF glottal coefficient updates.
 
@@ -103,6 +102,8 @@ Trombone anatomy:
   position and width when waveguide propagation is active.
 - `tract_motion` smooths tract controls and lets the waveguide derive burst
   pressure from obstruction history.
+- waveguide lowering derives live per-section diameter targets, areas, and
+  reflection coefficients from shape and gesture controls.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
