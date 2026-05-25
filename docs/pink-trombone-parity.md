@@ -76,7 +76,6 @@ Current AquaSynth cannot exactly express:
 
 - per-section diameter targets as synthesis authority;
 - a subgraph that steps twice per output sample;
-- turbulence applied to bidirectional waveguide cells;
 - obstruction-state release transients derived from prior closure state;
 - exact Pink Trombone LF glottal coefficient updates.
 
@@ -100,6 +99,8 @@ Trombone anatomy:
   reflection field. It is the first low-level propagation path, not full PT.
 - `nasal_branch` adds a second diameter/area tube and generated three-way
   oral/nasal scattering junction when used by a waveguide tract.
+- `tract_injection` pressure is distributed into waveguide section updates by
+  position and width when waveguide propagation is active.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast

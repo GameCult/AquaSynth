@@ -69,6 +69,7 @@ public static class PinkTromboneReference
                 new("reflection_coefficients_applied_to_waveguide", "generated scattering junctions", "Derived reflection coefficients feed generated right/left wave scattering equations."),
                 new("nose_waveguide_cells", "nasal_branch", "AquaSynth can author a nasal branch as its own diameter/area tube."),
                 new("nose_junction", "generated three-way junction", "Waveguide lowering can emit a velum-controlled oral/nasal junction from local areas."),
+                new("positioned_turbulence_applied_to_waveguide_cells", "position-weighted waveguide injection", "Frication pressure can be distributed into oral waveguide section updates by injection position and width."),
                 new("runtime_controls", "/pink/frequency,/pink/intensity,/pink/tenseness,/pink/tongue/index,/pink/tongue/diameter,/pink/velum,/pink/turbulence", "AquaSynth can expose stable runtime parameter paths."),
                 new("glottal_pitch_pressure_proxy", "tract LF-style source", "AquaSynth can drive pitch/loudness-like controls without recompiling."),
                 new("turbulence_proxy", "position-aware frication controls", "The tract voice has constriction index/diameter and turbulence controls."),
@@ -76,7 +77,6 @@ public static class PinkTromboneReference
             ],
             [
                 new("twice_rate_tract_stepping", "two tract steps per audio sample", "AquaSynth voice graphs do not express a subgraph with its own stepping rate."),
-                new("positioned_turbulence_applied_to_waveguide_cells", "noise injected into neighboring cells", "AquaSynth can author positioned injection controls, but the current Faust proxy does not inject into bidirectional waveguide cell state."),
                 new("stateful_closure_release_transients", "obstruction release impulse", "AquaSynth can author burst pressure, but it does not yet observe prior obstruction state and emit PT-style release transients."),
                 new("lf_glottal_exactness", "Pink Trombone LF-style coefficients", "The proxy uses ordinary oscillators/noise, not the LF coefficient path from tenseness.")
             ],

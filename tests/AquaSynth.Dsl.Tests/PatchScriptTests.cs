@@ -130,6 +130,8 @@ public sealed class PatchScriptTests
         Assert.Contains("tract_reflection_energy", faust);
         Assert.Contains("tract_lf_open", faust);
         Assert.Contains("tract_injection_close", faust);
+        Assert.Contains("wg_injection_cell", faust);
+        Assert.Contains("wg_inject_6", faust);
         Assert.Contains("wg_scatter_1", faust);
         Assert.Contains("nose_reflect_nose", faust);
         Assert.Contains("tract_nose_waveguide", faust);
@@ -367,7 +369,7 @@ public sealed class PatchScriptTests
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "reflection_coefficients_applied_to_waveguide");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "nose_waveguide_cells");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "nose_junction");
-        Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "positioned_turbulence_applied_to_waveguide_cells");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "positioned_turbulence_applied_to_waveguide_cells");
         Assert.NotEmpty(patch.TractShapes);
         Assert.NotEmpty(patch.GlottalSources);
         Assert.NotEmpty(patch.TractInjections);

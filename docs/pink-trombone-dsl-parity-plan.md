@@ -54,8 +54,8 @@ named failure against Pink Trombone, but it does not own the anatomy:
      transient behavior.
    - Can be driven by envelopes, LFOs, learned speech controls, or consonant
      gestures.
-   - Implemented as a named injection primitive consumed by `tract` voices; it
-     is not yet injected into waveguide cell state.
+   - Implemented as a named injection primitive consumed by `tract` voices and
+     distributed into waveguide section updates by position and width.
 
 4. `nasal_junction`: velum-controlled branch primitive.
    - Owns nasal opening and branch shape.
@@ -68,7 +68,7 @@ named failure against Pink Trombone, but it does not own the anatomy:
    - Consumes area/reflection fields and source/injection events.
    - First oral-tube lowering exists: generated right/left section equations
      consume `tract_shape` reflection coefficients and boundary reflections.
-     True substep execution and cell-local injection remain missing.
+     True substep execution remains missing.
 
 6. PT parity harness.
    - Renders fixed PT references for vowels, nasals, fricatives, closures, and
@@ -89,9 +89,9 @@ waveguide lowering consumes the derived oral reflection field as right/left
 section state equations.
 
 The next cut is cell-local events and timing: the oral/nasal tube now consumes
-the full reflection coefficient fields, but PT's two tract steps per output
-sample, cell-positioned turbulence injection, and obstruction-state transients
-still need low-level owners.
+the full reflection coefficient fields and distributes frication into section
+updates, but PT's two tract steps per output sample, target diameter slew, and
+obstruction-state transients still need low-level owners.
 
 ## Cut Line
 

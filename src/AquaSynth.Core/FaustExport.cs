@@ -442,10 +442,12 @@ public static class FaustEmitter
         source.AppendLine($"{name}_tract_aspiration = no.noise * {intensity} * {aspiration} * (1.0 - sqrt(max(0.0, {tenseness}))) * (0.08 + 0.22 * {name}_tract_constriction_close);");
         source.AppendLine($"{name}_tract_frication = no.noise * max({turbulence} * {name}_tract_constriction_close, {injectionTurbulence} * {name}_tract_injection_close) * {intensity} * (0.25 + 0.75 * {name}_tract_injection_pos) * (0.2 + 0.8 * {tenseness});");
         source.AppendLine($"{name}_tract_burst = no.noise * max({name}_tract_constriction_close * 0.18, {name}_tract_injection_close * {injectionBurst}) * exp(-age * (45.0 + max({name}_tract_constriction_close, {name}_tract_injection_close) * 120.0));");
-        source.AppendLine($"{name}_tract_raw = ({name}_tract_lf + {name}_tract_aspiration + {name}_tract_frication + {name}_tract_burst) * (0.55 + 0.45 * abs({glottalReflection}));");
+        source.AppendLine($"{name}_tract_excitation = ({name}_tract_lf + {name}_tract_aspiration + {name}_tract_burst) * (0.55 + 0.45 * abs({glottalReflection}));");
+        source.AppendLine($"{name}_tract_injection_pressure = {name}_tract_frication * (0.55 + 0.45 * abs({glottalReflection}));");
+        source.AppendLine($"{name}_tract_raw = {name}_tract_excitation + {name}_tract_injection_pressure;");
         if (tract.Propagation == TractPropagationMode.Waveguide && areaFunction is not null)
         {
-            return TractWaveguideExpression(source, tract, areaFunction, name, glottalReflection, lipReflection, velum);
+            return TractWaveguideExpression(source, tract, areaFunction, name, glottalReflection, lipReflection, velum, injectionWidth);
         }
 
         source.AppendLine($"{name}_tract_oral = {name}_tract_raw * 0.18 + ({name}_tract_raw : fi.resonbp({name}_tract_f1, {name}_tract_q, 1.0)) * (0.75 + {name}_tract_lip * 0.65) + ({name}_tract_raw : fi.resonbp({name}_tract_f2, {name}_tract_q, 1.0)) * (0.85 + {name}_tract_tongue_close) + ({name}_tract_raw : fi.resonbp({name}_tract_f3, {name}_tract_q, 1.0)) * (0.35 + {name}_tract_constriction_close);");
@@ -468,21 +470,27 @@ public static class FaustEmitter
         string name,
         string glottalReflection,
         string lipReflection,
-        string velum)
+        string velum,
+        string injectionWidth)
     {
         var sections = areaFunction.Sections;
         var reflections = areaFunction.ReflectionCoefficients;
         var loss = F(Math.Clamp(tract.WaveguideLoss, 0, 1));
         source.AppendLine($"{name}_wg_loss = {loss};");
         source.AppendLine($"{name}_wg_substeps = {Math.Max(1, tract.Substeps)};");
+        source.AppendLine($"{name}_wg_injection_cell = {name}_tract_injection_pos * {F(sections)};");
         for (var i = 0; i < reflections.Count; i++)
         {
             source.AppendLine($"{name}_wg_k_{i + 1} = {F(reflections[i])};");
         }
+        for (var i = 0; i < sections; i++)
+        {
+            source.AppendLine($"{name}_wg_inject_{i} = {name}_tract_injection_pressure * clip01(1.0 - abs({name}_wg_injection_cell - {F(i)}) / {injectionWidth});");
+        }
 
         var nasal = tract.Nasal is { AreaFunction: { } nasalShape } ? tract.Nasal : null;
         var junction = nasal is null ? -1 : Math.Clamp(nasal.JunctionIndex, 1, sections - 2);
-        source.AppendLine($"{name}_wg_r_0 = ({name}_tract_raw + {name}_wg_l_0 * {glottalReflection}) : mem;");
+        source.AppendLine($"{name}_wg_r_0 = ({name}_tract_excitation + {name}_wg_inject_0 * 0.5 + {name}_wg_l_0 * {glottalReflection}) : mem;");
         source.AppendLine($"{name}_wg_l_{sections - 1} = ({name}_wg_r_{sections - 1} * {lipReflection}) : mem;");
         for (var i = 1; i < sections; i++)
         {
@@ -491,8 +499,8 @@ public static class FaustEmitter
                 continue;
             }
             source.AppendLine($"{name}_wg_scatter_{i} = {name}_wg_k_{i} * ({name}_wg_r_{i - 1} + {name}_wg_l_{i});");
-            source.AppendLine($"{name}_wg_r_{i} = (({name}_wg_r_{i - 1} - {name}_wg_scatter_{i}) * {name}_wg_loss) : mem;");
-            source.AppendLine($"{name}_wg_l_{i - 1} = (({name}_wg_l_{i} + {name}_wg_scatter_{i}) * {name}_wg_loss) : mem;");
+            source.AppendLine($"{name}_wg_r_{i} = (({name}_wg_r_{i - 1} - {name}_wg_scatter_{i} + {name}_wg_inject_{i} * 0.5) * {name}_wg_loss) : mem;");
+            source.AppendLine($"{name}_wg_l_{i - 1} = (({name}_wg_l_{i} + {name}_wg_scatter_{i} + {name}_wg_inject_{i - 1} * 0.5) * {name}_wg_loss) : mem;");
         }
 
         var noseOutput = "0.0";
@@ -514,8 +522,8 @@ public static class FaustEmitter
             source.AppendLine($"{name}_nose_reflect_left = (2.0 * {leftArea} - {name}_nose_sum) / {name}_nose_sum;");
             source.AppendLine($"{name}_nose_reflect_right = (2.0 * {rightArea} - {name}_nose_sum) / {name}_nose_sum;");
             source.AppendLine($"{name}_nose_reflect_nose = (2.0 * {name}_nose_area - {name}_nose_sum) / {name}_nose_sum;");
-            source.AppendLine($"{name}_wg_l_{junction - 1} = (({name}_nose_reflect_left * {name}_wg_r_{junction - 1}) + (1.0 + {name}_nose_reflect_left) * ({name}_wg_l_{junction} + {name}_nose_l_0)) * {name}_wg_loss : mem;");
-            source.AppendLine($"{name}_wg_r_{junction} = (({name}_nose_reflect_right * {name}_wg_l_{junction}) + (1.0 + {name}_nose_reflect_right) * ({name}_wg_r_{junction - 1} + {name}_nose_l_0)) * {name}_wg_loss : mem;");
+            source.AppendLine($"{name}_wg_l_{junction - 1} = ((({name}_nose_reflect_left * {name}_wg_r_{junction - 1}) + (1.0 + {name}_nose_reflect_left) * ({name}_wg_l_{junction} + {name}_nose_l_0) + {name}_wg_inject_{junction - 1} * 0.5) * {name}_wg_loss) : mem;");
+            source.AppendLine($"{name}_wg_r_{junction} = ((({name}_nose_reflect_right * {name}_wg_l_{junction}) + (1.0 + {name}_nose_reflect_right) * ({name}_wg_r_{junction - 1} + {name}_nose_l_0) + {name}_wg_inject_{junction} * 0.5) * {name}_wg_loss) : mem;");
             source.AppendLine($"{name}_nose_r_0 = (({name}_nose_reflect_nose * {name}_nose_l_0) + (1.0 + {name}_nose_reflect_nose) * ({name}_wg_l_{junction} + {name}_wg_r_{junction - 1})) * {name}_nose_loss : mem;");
             source.AppendLine($"{name}_nose_l_{noseSections - 1} = ({name}_nose_r_{noseSections - 1} * {noseReflection}) : mem;");
             for (var i = 1; i < noseSections; i++)
