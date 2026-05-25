@@ -4,8 +4,9 @@ Current slice:
 
 - Added `tools/vocal-tract-playground`, a static WebAudio playground for the
   current AquaSynth `VocalTractControlTarget` surface. It exposes the 14 base
-  speech controls plus six mel-envelope bands, draws a tract-ish canvas, and
-  includes vowel/noise/nasal presets.
+  voice-patch target controls plus six mel-envelope bands: these are the knobs
+  the learned speech driver will predict from phonetic and utterance input.
+  The page draws a tract-ish canvas and includes vowel/noise/nasal presets.
 - This is intentionally a touchable control playground, not a claim of
   Pink Trombone-class tract physics. The canvas and audio are tied to the real
   AquaSynth control names so future renderer work has an inspectable handle.

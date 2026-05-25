@@ -387,10 +387,10 @@ function drawSpectralBars(width, height) {
 function drawReadout(width, height) {
   ctx.fillStyle = "#f0f4ed";
   ctx.font = "700 22px system-ui, sans-serif";
-  ctx.fillText(`vector[20] pressure=${state.pressure.toFixed(2)} noise=${state.turbulence.toFixed(2)} velum=${state.velum.toFixed(2)}`, 28, 42);
+  ctx.fillText(`voice patch target vector[20] pressure=${state.pressure.toFixed(2)} noise=${state.turbulence.toFixed(2)} velum=${state.velum.toFixed(2)}`, 28, 42);
   ctx.fillStyle = "#a8b3a3";
   ctx.font = "15px system-ui, sans-serif";
-  ctx.fillText("AquaSynth control target, not a claimed full tract simulation", 28, height - 24);
+  ctx.fillText("These are the knobs the learned speech driver will predict", 28, height - 24);
 }
 
 document.querySelectorAll("[data-preset]").forEach(button => {
