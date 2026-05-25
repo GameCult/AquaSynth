@@ -85,8 +85,11 @@ named failure against Pink Trombone, but it does not own the anatomy:
      moving tongue/constriction gestures.
    - Renders Aqua DSL reconstructions.
    - Scores log-mel cosine similarity plus targeted feature probes.
-   - First fixture catalog exists in `PinkTromboneParityFixtures`; reference
-     rendering/audio thresholds remain the next pass.
+   - First fixture catalog exists in `PinkTromboneParityFixtures`.
+   - `PinkTromboneReferenceRenderer` now renders deterministic test-only
+     traveling-wave references for the fixture controls.
+   - `PinkTromboneLogMelParityTests` writes reference/candidate WAVs and report
+     artifacts under `artifacts/parity/pink-trombone-logmel/`.
 
 ## First Cut
 
@@ -100,11 +103,20 @@ pressure instead of silently inventing all of them inside one helper. The
 waveguide lowering consumes the derived oral reflection field as right/left
 section state equations.
 
-The next cut is timing exactness and proof: the oral/nasal tube now derives moving
-per-section diameter/area/reflection fields, distributes frication into section
-updates, derives release bursts from obstruction history, and carries substep
-clock intent. Exact two recursive tract state updates per output sample and
-reference-rendered parity thresholds still need proof.
+The first log-mel rung is now real but not flattering. The compileable Aqua
+tract proxy baseline against the deterministic PT-style renderer currently
+lands around cosine 0.51 open vowel, 0.54 front vowel, 0.39 nasal, 0.12
+sibilant, and -0.18 closure-release. Those are pressure readings, not parity.
+
+The attempted Faust waveguide backend exposed a harder boundary: named
+mutually recursive right/left state equations are not accepted by Faust in the
+obvious generated form, and even simplified large waveguide expressions can
+make the Faust compiler churn. The current automated parity harness therefore
+uses the compileable resonator/proxy lowering for numeric baselines while the
+waveguide-Faust backend remains explicit debt. Exact two recursive tract state
+updates per output sample still need a coherent backend strategy, likely a
+proper vector feedback component or native DSP renderer rather than more named
+equation sprawl.
 
 ## Cut Line
 

@@ -38,6 +38,7 @@ modules:
   parser: src/AquaSynth.Core/PatchScript.cs
   vocal_tract_model: src/AquaSynth.Core/VocalTractModel.cs
   pink_trombone_reference: src/AquaSynth.Core/PinkTromboneReference.cs
+  pink_trombone_reference_renderer: src/AquaSynth.Core/PinkTromboneReferenceRenderer.cs
   packed_neural_network: src/AquaSynth.Core/PackedNeuralNetwork.cs
   utterance_embedding_learning: src/AquaSynth.Core/UtteranceEmbeddingLearning.cs
   speech_backpropagation_pipeline: src/AquaSynth.Core/SpeechBackpropagationPipeline.cs
@@ -47,6 +48,7 @@ modules:
   tract_shape_model: src/AquaSynth.Core/Model.cs
   tract_waveguide_lowering: src/AquaSynth.Core/FaustExport.cs
   pink_trombone_parity_fixtures: src/AquaSynth.Core/PinkTromboneParityFixtures.cs
+  pink_trombone_logmel_parity_tests: tests/AquaSynth.Dsl.Tests/PinkTromboneLogMelParityTests.cs
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs

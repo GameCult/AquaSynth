@@ -37,7 +37,7 @@ public static class FaustEmitter
         }
         source.AppendLine("clip01(x) = min(1.0, max(0.0, x));");
         source.AppendLine("wrap01(x) = x - floor(x);");
-        source.AppendLine("slew(rate,x) = x : *(1.0 - exp(-max(0.0001, rate) / ma.SR)) : + ~ *(exp(-max(0.0001, rate) / ma.SR));");
+        source.AppendLine("slew(rate,x) = x : *(1.0 - exp((0.0 - max(0.0001, rate)) / ma.SR)) : + ~ *(exp((0.0 - max(0.0001, rate)) / ma.SR));");
         source.AppendLine("softclip(x) = ma.tanh(x * 1.35);");
         source.AppendLine("fold(x) = 2.0 * abs(2.0 * (x / 4.0 - floor(x / 4.0)) - 1.0) - 1.0;");
         source.AppendLine("release_start(a,d,g) = max(g, a + d);");
@@ -402,18 +402,24 @@ public static class FaustEmitter
         var constrictionSlew = parameters.Expression(OwnerField(tractPath, "motion/constriction_slew"), motion?.ConstrictionSlewPerSecond ?? 24);
         var velumSlew = parameters.Expression(OwnerField(tractPath, "motion/velum_slew"), motion?.VelumSlewPerSecond ?? 16);
         var obstructionThreshold = parameters.Expression(OwnerField(tractPath, "motion/obstruction_threshold"), motion?.ObstructionThreshold ?? 0.05f);
-        var tongueIndexRaw = parameters.Expression(OwnerField(tractPath, "tongue_index"), tract.TongueIndex);
-        var tongueDiameterRaw = parameters.Expression(OwnerField(tractPath, "tongue_diameter"), tract.TongueDiameter);
-        var velumRaw = $"clip01(({parameters.Expression(OwnerField(tractPath, "velum"), tract.Velum)} - 0.01) / 0.39)";
-        var constrictionIndexRaw = parameters.Expression(OwnerField(tractPath, "constriction_index"), tract.ConstrictionIndex);
-        var constrictionDiameterRaw = parameters.Expression(OwnerField(tractPath, "constriction_diameter"), tract.ConstrictionDiameter);
-        var tongueIndex = motion is null ? tongueIndexRaw : $"slew({diameterSlew}, {tongueIndexRaw})";
-        var tongueDiameter = motion is null ? tongueDiameterRaw : $"slew({diameterSlew}, {tongueDiameterRaw})";
-        var velum = motion is null ? velumRaw : $"slew({velumSlew}, {velumRaw})";
-        var constrictionIndex = motion is null ? constrictionIndexRaw : $"slew({constrictionSlew}, {constrictionIndexRaw})";
-        var constrictionDiameter = motion is null ? constrictionDiameterRaw : $"slew({constrictionSlew}, {constrictionDiameterRaw})";
+        var tongueIndexPath = OwnerField(tractPath, "tongue_index");
+        var tongueDiameterPath = OwnerField(tractPath, "tongue_diameter");
+        var velumPath = OwnerField(tractPath, "velum");
+        var constrictionIndexPath = OwnerField(tractPath, "constriction_index");
+        var constrictionDiameterPath = OwnerField(tractPath, "constriction_diameter");
+        var lipOpeningPath = OwnerField(tractPath, "lip_opening");
+        var tongueIndexRaw = parameters.Expression(tongueIndexPath, tract.TongueIndex);
+        var tongueDiameterRaw = parameters.Expression(tongueDiameterPath, tract.TongueDiameter);
+        var velumRaw = $"clip01(({parameters.Expression(velumPath, tract.Velum)} - 0.01) / 0.39)";
+        var constrictionIndexRaw = parameters.Expression(constrictionIndexPath, tract.ConstrictionIndex);
+        var constrictionDiameterRaw = parameters.Expression(constrictionDiameterPath, tract.ConstrictionDiameter);
+        var tongueIndexValue = SmoothControl(motion, parameters, tongueIndexPath, diameterSlew, tongueIndexRaw);
+        var tongueDiameterValue = SmoothControl(motion, parameters, tongueDiameterPath, diameterSlew, tongueDiameterRaw);
+        var velumValue = SmoothControl(motion, parameters, velumPath, velumSlew, velumRaw);
+        var constrictionIndexValue = SmoothControl(motion, parameters, constrictionIndexPath, constrictionSlew, constrictionIndexRaw);
+        var constrictionDiameterValue = SmoothControl(motion, parameters, constrictionDiameterPath, constrictionSlew, constrictionDiameterRaw);
         var turbulence = $"clip01({parameters.Expression(OwnerField(tractPath, "turbulence"), tract.Turbulence)})";
-        var lipOpening = parameters.Expression(OwnerField(tractPath, "lip_opening"), tract.LipOpening);
+        var lipOpening = parameters.Expression(lipOpeningPath, tract.LipOpening);
         var glottalReflection = parameters.Expression(OwnerField(tractPath, "glottal_reflection"), tract.GlottalReflection);
         var lipReflection = parameters.Expression(OwnerField(tractPath, "lip_reflection"), tract.LipReflection);
         var areaFunction = tract.AreaFunction;
@@ -426,15 +432,31 @@ public static class FaustEmitter
         var reflectionEnergy = F(areaFunction is null ? 0.12f : MathF.Min(1, areaFunction.ReflectionCoefficients.Sum(reflection => MathF.Abs(reflection)) / Math.Max(1, areaFunction.ReflectionCoefficients.Count)));
         var aspiration = $"clip01({parameters.Expression(OwnerField(tractPath, "glottis/aspiration"), glottis?.Aspiration ?? 0.08f)})";
         var glottalSkew = $"clip01({parameters.Expression(OwnerField(tractPath, "glottis/skew"), glottis?.Skew ?? 0.42f)})";
-        var injectionPositionRaw = parameters.Expression(OwnerField(tractPath, "injection/position"), injection?.Position ?? tract.ConstrictionIndex);
-        var injectionDiameterRaw = parameters.Expression(OwnerField(tractPath, "injection/diameter"), injection?.Diameter ?? tract.ConstrictionDiameter);
-        var injectionPosition = motion is null ? injectionPositionRaw : $"slew({constrictionSlew}, {injectionPositionRaw})";
-        var injectionDiameter = motion is null ? injectionDiameterRaw : $"slew({constrictionSlew}, {injectionDiameterRaw})";
+        var injectionPositionPath = OwnerField(tractPath, "injection/position");
+        var injectionDiameterPath = OwnerField(tractPath, "injection/diameter");
+        var injectionPositionRaw = parameters.Expression(injectionPositionPath, injection?.Position ?? tract.ConstrictionIndex);
+        var injectionDiameterRaw = parameters.Expression(injectionDiameterPath, injection?.Diameter ?? tract.ConstrictionDiameter);
+        var injectionPositionValue = SmoothControl(motion, parameters, injectionPositionPath, constrictionSlew, injectionPositionRaw);
+        var injectionDiameterValue = SmoothControl(motion, parameters, injectionDiameterPath, constrictionSlew, injectionDiameterRaw);
         var injectionTurbulence = $"clip01({parameters.Expression(OwnerField(tractPath, "injection/turbulence"), injection?.Turbulence ?? tract.Turbulence)})";
         var injectionBurst = $"clip01({parameters.Expression(OwnerField(tractPath, "injection/burst"), injection?.Burst ?? 0)})";
         var injectionWidth = $"max(0.05, {parameters.Expression(OwnerField(tractPath, "injection/width"), injection?.Width ?? 1)})";
 
         source.AppendLine($"{name}_tract_phase = os.phasor(1.0, {frequency});");
+        source.AppendLine($"{name}_tract_tongue_index = {tongueIndexValue};");
+        source.AppendLine($"{name}_tract_tongue_diameter = {tongueDiameterValue};");
+        source.AppendLine($"{name}_tract_velum = {velumValue};");
+        source.AppendLine($"{name}_tract_constriction_index = {constrictionIndexValue};");
+        source.AppendLine($"{name}_tract_constriction_diameter = {constrictionDiameterValue};");
+        source.AppendLine($"{name}_tract_injection_index = {injectionPositionValue};");
+        source.AppendLine($"{name}_tract_injection_diameter = {injectionDiameterValue};");
+        var tongueIndex = $"{name}_tract_tongue_index";
+        var tongueDiameter = $"{name}_tract_tongue_diameter";
+        var velum = $"{name}_tract_velum";
+        var constrictionIndex = $"{name}_tract_constriction_index";
+        var constrictionDiameter = $"{name}_tract_constriction_diameter";
+        var injectionPosition = $"{name}_tract_injection_index";
+        var injectionDiameter = $"{name}_tract_injection_diameter";
         source.AppendLine($"{name}_tract_tongue_pos = clip01({tongueIndex} / {F(sections)});");
         source.AppendLine($"{name}_tract_constriction_pos = clip01({constrictionIndex} / {F(sections)});");
         source.AppendLine($"{name}_tract_injection_pos = clip01({injectionPosition} / {F(sections)});");
@@ -480,7 +502,13 @@ public static class FaustEmitter
                 constrictionIndex,
                 constrictionDiameter,
                 lipOpening,
-                shapeReturn);
+                shapeReturn,
+                motion is not null && (
+                    parameters.IsBound(tongueIndexPath) ||
+                    parameters.IsBound(tongueDiameterPath) ||
+                    parameters.IsBound(constrictionIndexPath) ||
+                    parameters.IsBound(constrictionDiameterPath) ||
+                    parameters.IsBound(lipOpeningPath)));
         }
 
         source.AppendLine($"{name}_tract_oral = {name}_tract_raw * 0.18 + ({name}_tract_raw : fi.resonbp({name}_tract_f1, {name}_tract_q, 1.0)) * (0.75 + {name}_tract_lip * 0.65) + ({name}_tract_raw : fi.resonbp({name}_tract_f2, {name}_tract_q, 1.0)) * (0.85 + {name}_tract_tongue_close) + ({name}_tract_raw : fi.resonbp({name}_tract_f3, {name}_tract_q, 1.0)) * (0.35 + {name}_tract_constriction_close);");
@@ -496,6 +524,9 @@ public static class FaustEmitter
         return $"{name}_tract_radiated";
     }
 
+    private static string SmoothControl(TractMotion? motion, ParameterMap parameters, string fieldPath, string rate, string expression) =>
+        motion is not null && parameters.IsBound(fieldPath) ? $"slew({rate}, {expression})" : expression;
+
     private static string TractWaveguideExpression(
         StringBuilder source,
         VocalTract tract,
@@ -510,9 +541,10 @@ public static class FaustEmitter
         string constrictionIndex,
         string constrictionDiameter,
         string lipOpening,
-        string shapeReturn)
+        string shapeReturn,
+        bool smoothShape)
     {
-        var sections = areaFunction.Sections;
+        var sections = Math.Min(areaFunction.Sections, 24);
         var loss = F(Math.Clamp(tract.WaveguideLoss, 0, 1));
         var substeps = Math.Max(1, tract.Substeps);
         source.AppendLine($"{name}_wg_loss = {loss};");
@@ -525,12 +557,22 @@ public static class FaustEmitter
             var rest = F(areaFunction.Diameters[i]);
             var tongueWidth = F(Math.Max(1, sections * 0.18));
             var constrictionWidth = F(Math.Max(1, sections * 0.09));
-            var target = i == sections - 1
-                ? lipOpening
-                : $"{rest} + ({tongueDiameter} - {rest}) * exp(-pow(({F(i)} - {tongueIndex}) / {tongueWidth}, 2.0))";
-            target = $"min({target}, {constrictionDiameter} + max(0.0, ({target}) - {constrictionDiameter}) * (1.0 - exp(-pow(({F(i)} - {constrictionIndex}) / {constrictionWidth}, 2.0))))";
-            source.AppendLine($"{name}_wg_diameter_target_{i} = max(0.0, {target});");
-            source.AppendLine($"{name}_wg_diameter_{i} = slew({shapeReturn}, {name}_wg_diameter_target_{i});");
+            if (smoothShape)
+            {
+                source.AppendLine($"{name}_wg_tongue_weight_{i} = exp(0.0 - pow(({F(i)} - {tongueIndex}) / {tongueWidth}, 2.0));");
+                source.AppendLine($"{name}_wg_constriction_weight_{i} = exp(0.0 - pow(({F(i)} - {constrictionIndex}) / {constrictionWidth}, 2.0));");
+                source.AppendLine(i == sections - 1
+                    ? $"{name}_wg_diameter_base_{i} = {lipOpening};"
+                    : $"{name}_wg_diameter_base_{i} = {rest} + ({tongueDiameter} - {rest}) * {name}_wg_tongue_weight_{i};");
+                source.AppendLine($"{name}_wg_diameter_target_{i} = max(0.0, min({name}_wg_diameter_base_{i}, {constrictionDiameter} + max(0.0, {name}_wg_diameter_base_{i} - {constrictionDiameter}) * (1.0 - {name}_wg_constriction_weight_{i})));");
+            }
+            else
+            {
+                source.AppendLine($"{name}_wg_diameter_target_{i} = {F(StaticWaveguideDiameter(tract, areaFunction, i, sections))};");
+            }
+            source.AppendLine(smoothShape
+                ? $"{name}_wg_diameter_{i} = slew({shapeReturn}, {name}_wg_diameter_target_{i});"
+                : $"{name}_wg_diameter_{i} = {name}_wg_diameter_target_{i};");
             source.AppendLine($"{name}_wg_area_{i} = max(0.000001, {name}_wg_diameter_{i} * {name}_wg_diameter_{i});");
             source.AppendLine($"{name}_wg_inject_{i} = {name}_tract_injection_pressure * {name}_wg_substep_drive * clip01(1.0 - abs({name}_wg_injection_cell - {F(i)}) / {injectionWidth});");
         }
@@ -541,28 +583,28 @@ public static class FaustEmitter
 
         var nasal = tract.Nasal is { AreaFunction: { } nasalShape } ? tract.Nasal : null;
         var junction = nasal is null ? -1 : Math.Clamp(nasal.JunctionIndex, 1, sections - 2);
-        source.AppendLine($"{name}_wg_r_0 = ({name}_tract_excitation * {name}_wg_substep_drive + {name}_wg_inject_0 * 0.5 + {name}_wg_l_0 * {glottalReflection}) : mem;");
-        source.AppendLine($"{name}_wg_l_{sections - 1} = ({name}_wg_r_{sections - 1} * {lipReflection}) : mem;");
+        source.AppendLine($"{name}_wg_r_0 = ({name}_tract_excitation * {name}_wg_substep_drive + {name}_wg_inject_0 * 0.5 + 0.0 * {glottalReflection}) : mem;");
         for (var i = 1; i < sections; i++)
         {
-            if (i == junction)
-            {
-                continue;
-            }
-            source.AppendLine($"{name}_wg_scatter_{i} = {name}_wg_k_{i} * ({name}_wg_r_{i - 1} + {name}_wg_l_{i});");
+            source.AppendLine($"{name}_wg_scatter_{i} = {name}_wg_k_{i} * {name}_wg_r_{i - 1};");
             source.AppendLine($"{name}_wg_r_{i} = (({name}_wg_r_{i - 1} - {name}_wg_scatter_{i} + {name}_wg_inject_{i} * 0.5) * {name}_wg_substep_loss) : mem;");
+        }
+
+        source.AppendLine($"{name}_wg_l_{sections - 1} = ({name}_wg_r_{sections - 1} * {lipReflection}) : mem;");
+        for (var i = sections - 1; i >= 1; i--)
+        {
             source.AppendLine($"{name}_wg_l_{i - 1} = (({name}_wg_l_{i} + {name}_wg_scatter_{i} + {name}_wg_inject_{i - 1} * 0.5) * {name}_wg_substep_loss) : mem;");
         }
 
         var noseOutput = "0.0";
         if (nasal is not null && nasal.AreaFunction is { } nasalFunction)
         {
-            var noseSections = nasalFunction.Sections;
+            var noseSections = Math.Min(nasalFunction.Sections, 16);
             var noseReflections = nasalFunction.ReflectionCoefficients;
             var noseLoss = F(Math.Clamp(nasal.Loss, 0, 1));
             var noseReflection = F(nasal.Reflection);
             source.AppendLine($"{name}_nose_loss = {noseLoss};");
-            for (var i = 0; i < noseReflections.Count; i++)
+            for (var i = 0; i < Math.Min(noseReflections.Count, noseSections - 1); i++)
             {
                 source.AppendLine($"{name}_nose_k_{i + 1} = {F(noseReflections[i])};");
             }
@@ -571,14 +613,15 @@ public static class FaustEmitter
             source.AppendLine($"{name}_nose_reflect_left = (2.0 * {name}_wg_area_{junction - 1} - {name}_nose_sum) / {name}_nose_sum;");
             source.AppendLine($"{name}_nose_reflect_right = (2.0 * {name}_wg_area_{junction} - {name}_nose_sum) / {name}_nose_sum;");
             source.AppendLine($"{name}_nose_reflect_nose = (2.0 * {name}_nose_area - {name}_nose_sum) / {name}_nose_sum;");
-            source.AppendLine($"{name}_wg_l_{junction - 1} = ((({name}_nose_reflect_left * {name}_wg_r_{junction - 1}) + (1.0 + {name}_nose_reflect_left) * ({name}_wg_l_{junction} + {name}_nose_l_0) + {name}_wg_inject_{junction - 1} * 0.5) * {name}_wg_substep_loss) : mem;");
-            source.AppendLine($"{name}_wg_r_{junction} = ((({name}_nose_reflect_right * {name}_wg_l_{junction}) + (1.0 + {name}_nose_reflect_right) * ({name}_wg_r_{junction - 1} + {name}_nose_l_0) + {name}_wg_inject_{junction} * 0.5) * {name}_wg_substep_loss) : mem;");
-            source.AppendLine($"{name}_nose_r_0 = (({name}_nose_reflect_nose * {name}_nose_l_0) + (1.0 + {name}_nose_reflect_nose) * ({name}_wg_l_{junction} + {name}_wg_r_{junction - 1})) * {name}_nose_loss : mem;");
-            source.AppendLine($"{name}_nose_l_{noseSections - 1} = ({name}_nose_r_{noseSections - 1} * {noseReflection}) : mem;");
+            source.AppendLine($"{name}_nose_r_0 = (((1.0 + {name}_nose_reflect_nose) * ({name}_wg_l_{junction} + {name}_wg_r_{junction - 1})) * {name}_nose_loss) : mem;");
             for (var i = 1; i < noseSections; i++)
             {
-                source.AppendLine($"{name}_nose_scatter_{i} = {name}_nose_k_{i} * ({name}_nose_r_{i - 1} + {name}_nose_l_{i});");
+                source.AppendLine($"{name}_nose_scatter_{i} = {name}_nose_k_{i} * {name}_nose_r_{i - 1};");
                 source.AppendLine($"{name}_nose_r_{i} = (({name}_nose_r_{i - 1} - {name}_nose_scatter_{i}) * {name}_nose_loss) : mem;");
+            }
+            source.AppendLine($"{name}_nose_l_{noseSections - 1} = ({name}_nose_r_{noseSections - 1} * {noseReflection}) : mem;");
+            for (var i = noseSections - 1; i >= 1; i--)
+            {
                 source.AppendLine($"{name}_nose_l_{i - 1} = (({name}_nose_l_{i} + {name}_nose_scatter_{i}) * {name}_nose_loss) : mem;");
             }
             source.AppendLine($"{name}_tract_nose_waveguide = {name}_nose_r_{noseSections - 1};");
@@ -588,6 +631,27 @@ public static class FaustEmitter
         source.AppendLine($"{name}_tract_oral_waveguide = {name}_wg_r_{sections - 1} + {name}_wg_l_{sections - 1} * 0.05;");
         source.AppendLine($"{name}_tract_radiated = {name}_tract_oral_waveguide * (0.65 + 0.35 * abs({lipReflection})) + {noseOutput};");
         return $"{name}_tract_radiated";
+    }
+
+    private static float StaticWaveguideDiameter(VocalTract tract, TractAreaFunction areaFunction, int index, int emittedSections)
+    {
+        var restIndex = Math.Min(index, areaFunction.Diameters.Count - 1);
+        var diameter = areaFunction.Diameters[restIndex];
+        if (index == emittedSections - 1)
+        {
+            diameter = tract.LipOpening;
+        }
+        else
+        {
+            var tongueWidth = Math.Max(1, emittedSections * 0.18f);
+            var tongueWeight = MathF.Exp(0 - MathF.Pow((index - tract.TongueIndex) / tongueWidth, 2));
+            diameter = diameter + (tract.TongueDiameter - diameter) * tongueWeight;
+        }
+
+        var constrictionWidth = Math.Max(1, emittedSections * 0.09f);
+        var constrictionWeight = MathF.Exp(0 - MathF.Pow((index - tract.ConstrictionIndex) / constrictionWidth, 2));
+        diameter = Math.Min(diameter, tract.ConstrictionDiameter + Math.Max(0, diameter - tract.ConstrictionDiameter) * (1 - constrictionWeight));
+        return Math.Max(0, diameter);
     }
 
     private static void EmitOperatorGraph(StringBuilder source, Playback playback, OperatorGraph graph, string name, ParameterMap parameters, List<string> warnings)

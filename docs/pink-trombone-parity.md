@@ -109,8 +109,14 @@ Trombone anatomy:
   updates.
 - `PinkTromboneParityFixtures` defines fixed Aqua DSL workouts for open,
   front, nasal, sibilant, and closure cases using the reusable low-level
-  primitives. The reference-rendered PT audio still needs to be captured or
-  generated before thresholds can be honest.
+  primitives.
+- `PinkTromboneReferenceRenderer` renders deterministic test-only traveling-wave
+  references for those fixture controls.
+- `PinkTromboneLogMelParityTests` renders compileable Aqua proxy candidates,
+  writes listening WAV/report artifacts under
+  `artifacts/parity/pink-trombone-logmel/`, and reports the current ugly
+  baseline: open vowel cosine 0.5129, front vowel 0.5405, nasal 0.3882,
+  sibilant 0.1156, closure-release -0.1830.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
@@ -130,8 +136,11 @@ of these:
    DSP model in AquaSynth.Faust/Core: typed tract sections, diameter curves,
    reflection calculation, glottal source, nasal branch, and a Faust emitter for
    that structure.
-2. Add a test-only Pink Trombone oracle renderer and compare AquaSynth's first
-   tract-DSP candidate against fixed vowel/constriction fixtures.
+2. Repair the waveguide backend so the low-level tract primitive can render
+   through either a proper Faust vector feedback component or a native DSP
+   renderer without compiler churn.
+3. Use the log-mel artifact loop to golf fixture-by-fixture once the backend
+   can render the real tract path instead of the proxy baseline.
 
 The new owner should be explainable as:
 
