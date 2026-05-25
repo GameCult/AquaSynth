@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AquaSynth Vocal Tract Playground</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app">
+    <section class="stage">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">AquaSynth lab</p>
+          <h1>Vocal Tract Playground</h1>
+        </div>
+        <div class="transport" role="group" aria-label="Transport">
+          <button id="playButton" type="button" aria-pressed="false" title="Start or stop audio">Play</button>
+          <button id="panicButton" type="button" title="Silence immediately">Panic</button>
+        </div>
+      </header>
+
+      <div class="visual-shell">
+        <canvas id="tractCanvas" width="1100" height="520" aria-label="Vocal tract control visualization"></canvas>
+        <div class="meter-row" aria-label="Output meters">
+          <meter id="pressureMeter" min="0" max="1" value="0"></meter>
+          <meter id="noiseMeter" min="0" max="1" value="0"></meter>
+          <meter id="nasalMeter" min="0" max="1" value="0"></meter>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Controls">
+      <section class="preset-strip" aria-label="Presets">
+        <button type="button" data-preset="open">Open</button>
+        <button type="button" data-preset="ee">Ee</button>
+        <button type="button" data-preset="oo">Oo</button>
+        <button type="button" data-preset="ss">Ss</button>
+        <button type="button" data-preset="ma">Ma</button>
+      </section>
+
+      <section class="knob-grid" id="controls"></section>
+    </aside>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

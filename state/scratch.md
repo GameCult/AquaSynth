@@ -2,6 +2,20 @@
 
 Current slice:
 
+- Added `tools/vocal-tract-playground`, a static WebAudio playground for the
+  current AquaSynth `VocalTractControlTarget` surface. It exposes the 14 base
+  speech controls plus six mel-envelope bands, draws a tract-ish canvas, and
+  includes vowel/noise/nasal presets.
+- This is intentionally a touchable control playground, not a claim of
+  Pink Trombone-class tract physics. The canvas and audio are tied to the real
+  AquaSynth control names so future renderer work has an inspectable handle.
+- Verification:
+  `node --check tools\vocal-tract-playground\app.js`
+  and `node --check tools\vocal-tract-playground\serve.mjs`: passed.
+  Local server `node tools\vocal-tract-playground\serve.mjs` served
+  `http://localhost:5125/`; browser check rendered the UI, Play toggled audio,
+  the `Ee` preset moved sliders/visuals, and console errors were empty.
+
 - Added `MelCepstralWarpEffect` as a real AquaSynth offline/block audio effect:
   STFT -> log-mel -> DCT cepstra -> Simplex domain warp -> separable 5-tap
   Gaussian blur -> inverse cepstra/log-mel -> original-phase overlap-add
