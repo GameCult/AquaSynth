@@ -112,6 +112,10 @@ public static class PatchScript
                     FlushPendingOperatorGraph();
                     Voices.Add(ParseVoice(ExpandVoiceFields(fields, line), VoicePath(Voices.Count), line));
                     break;
+                case "tract":
+                    FlushPendingOperatorGraph();
+                    Voices.Add(ParseTractVoice(ExpandVoiceFields(fields, line), VoicePath(Voices.Count), line));
+                    break;
                 case "opgraph":
                     StartOperatorGraph(fields, line);
                     break;
@@ -477,6 +481,57 @@ public static class PatchScript
                 FormantFrameRateHz = GetBoundFloat(fields, line, 0.5f, OwnerField(ownerPath, "color/vowel_rate"), "vowel_hz", "vowel_rate", "vowels_hz"),
                 Modulators = modulators,
                 Gain = GetBoundFloat(fields, line, 0.2f, OwnerField(ownerPath, "gain"), "gain", "g") * gainScale
+            };
+        }
+
+        private Voice ParseTractVoice(IReadOnlyDictionary<string, string> fields, string ownerPath, int line)
+        {
+            var voiceFields = new Dictionary<string, string>(fields, StringComparer.OrdinalIgnoreCase);
+            if (!HasAny(voiceFields, "wave", "w"))
+            {
+                voiceFields["wave"] = "saw";
+            }
+            if (!HasAny(voiceFields, "gain", "g"))
+            {
+                voiceFields["gain"] = "0.6";
+            }
+            if (!HasAny(voiceFields, "sustain", "s", "gate", "hold", "duration"))
+            {
+                voiceFields["sustain"] = "0.35";
+            }
+            if (!HasAny(voiceFields, "decay", "d", "release", "rel"))
+            {
+                voiceFields["decay"] = "0.12";
+            }
+
+            var voice = ParseVoice(voiceFields, ownerPath, line);
+            var sections = GetBoundInt(fields, line, 44, OwnerField(ownerPath, "tract/sections"), "sections", "cells");
+            if (sections < 4)
+            {
+                throw new PatchScriptException(line, "tract sections must be at least 4");
+            }
+            var noseSections = GetBoundInt(fields, line, 28, OwnerField(ownerPath, "tract/nose_sections"), "nose_sections", "nose_cells");
+            if (noseSections < 0)
+            {
+                throw new PatchScriptException(line, "tract nose_sections must be non-negative");
+            }
+
+            return voice with
+            {
+                Tract = new VocalTract(
+                    sections,
+                    noseSections,
+                    GetBoundFloat(fields, line, 0.72f, OwnerField(ownerPath, "tract/intensity"), "intensity", "pressure"),
+                    GetBoundFloat(fields, line, 0.6f, OwnerField(ownerPath, "tract/tenseness"), "tenseness", "tense"),
+                    GetBoundFloat(fields, line, 12.9f, OwnerField(ownerPath, "tract/tongue_index"), "tongue_index", "tongue", "ti"),
+                    GetBoundFloat(fields, line, 2.43f, OwnerField(ownerPath, "tract/tongue_diameter"), "tongue_diameter", "td"),
+                    GetBoundFloat(fields, line, 0.01f, OwnerField(ownerPath, "tract/velum"), "velum", "nose", "nasal"),
+                    GetBoundFloat(fields, line, 32, OwnerField(ownerPath, "tract/constriction_index"), "constriction_index", "ci"),
+                    GetBoundFloat(fields, line, 1, OwnerField(ownerPath, "tract/constriction_diameter"), "constriction_diameter", "cd"),
+                    GetBoundFloat(fields, line, 0, OwnerField(ownerPath, "tract/turbulence"), "turbulence", "frication"),
+                    GetBoundFloat(fields, line, 1.5f, OwnerField(ownerPath, "tract/lip_opening"), "lip", "lip_opening", "mouth"),
+                    GetBoundFloat(fields, line, 0.75f, OwnerField(ownerPath, "tract/glottal_reflection"), "glottal_reflection", "gr"),
+                    GetBoundFloat(fields, line, -0.85f, OwnerField(ownerPath, "tract/lip_reflection"), "lip_reflection", "lr"))
             };
         }
 
@@ -1274,6 +1329,7 @@ public static class PatchScript
         "harmonics" or "partials" or "drawbars" => "harmonics",
         "spectrum" or "spectral" or "padsource" or "pad_source" => "spectrum",
         "v" or "voice" => "voice",
+        "tract" or "vt" or "tractvoice" or "tract_voice" => "tract",
         "opgraph" or "ops" or "operators" => "opgraph",
         "operator" or "op" => "operator",
         "route" or "edge" => "route",

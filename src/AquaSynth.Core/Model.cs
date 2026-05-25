@@ -178,6 +178,21 @@ public sealed record OperatorGraph(
     public Note Note { get; init; } = Note ?? new();
 }
 
+public sealed record VocalTract(
+    int Sections = 44,
+    int NoseSections = 28,
+    float Intensity = 0.72f,
+    float Tenseness = 0.6f,
+    float TongueIndex = 12.9f,
+    float TongueDiameter = 2.43f,
+    float Velum = 0.01f,
+    float ConstrictionIndex = 32,
+    float ConstrictionDiameter = 1,
+    float Turbulence = 0,
+    float LipOpening = 1.5f,
+    float GlottalReflection = 0.75f,
+    float LipReflection = -0.85f);
+
 public sealed record PatchParameter(
     string Path,
     string Label,
@@ -334,6 +349,7 @@ public sealed record Voice
     public Phaser Phaser { get; init; } = new();
     public Arpeggio? Arpeggio { get; init; }
     public FrequencyModulation Fm { get; init; } = new();
+    public VocalTract? Tract { get; init; }
     public VoiceColor Color { get; init; } = new();
     public IReadOnlyList<Formant> Formants { get; init; } = Array.Empty<Formant>();
     public IReadOnlyList<FormantFrame> FormantFrames { get; init; } = Array.Empty<FormantFrame>();

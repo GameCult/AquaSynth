@@ -82,6 +82,29 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsPinkTromboneStyleTractVoice()
+    {
+        var patch = PatchScript.Parse("""
+            param path=/pink/tenseness default=.6 min=0 max=1 step=.001
+            tract freq=140 intensity=.72 tenseness=@/pink/tenseness tongue_index=18 tongue_diameter=1.4 velum=.2 constriction_index=32 constriction_diameter=.45 turbulence=.8
+            """);
+
+        var voice = Assert.Single(patch.Voices);
+        Assert.NotNull(voice.Tract);
+        Assert.Equal(44, voice.Tract.Sections);
+        Assert.Equal(28, voice.Tract.NoseSections);
+        Assert.Equal(18, voice.Tract.TongueIndex);
+        Assert.Equal(.45f, voice.Tract.ConstrictionDiameter, 5);
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/voices/0/tract/tenseness");
+
+        var faust = FaustEmitter.Emit(patch, new FaustExportOptions("tract_voice")).Source;
+        Assert.Contains("tract_lf", faust);
+        Assert.Contains("tract_frication", faust);
+        Assert.Contains("tract_nose", faust);
+        Assert.Contains("fi.resonbp", faust);
+    }
+
+    [Fact]
     public void ParserPreservesDeclaredPatchParameters()
     {
         var patch = PatchScript.Parse("param name=brightness path=/macro/brightness default=.45 min=0 max=1 step=.001 unit=normalized rate=control;v w=saw f=80");
@@ -303,7 +326,7 @@ public sealed class PatchScriptTests
         Assert.Contains(reference.Features, feature => feature.Name == "reflection_formula");
         Assert.Contains(reference.Parameters, parameter => parameter.Path == "/pink/tongue/index");
         Assert.Contains(reference.Parameters, parameter => parameter.Path == "/pink/constriction/diameter");
-        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "formant_proxy");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "tract_voice_authority");
         Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "main_tract_waveguide_cells");
         Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "diameter_to_reflection_coefficients");
         Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "nose_waveguide_cells");

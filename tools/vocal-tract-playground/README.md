@@ -1,6 +1,6 @@
-# AquaSynth Vocal Tract Playground
+# AquaSynth Tract Voice Playground
 
-Touchable WebAudio playground for the current `VocalTractControlTarget` surface.
+Touchable WebAudio playground for the Aqua DSL `tract` voice surface.
 
 Run it from this directory:
 
@@ -14,9 +14,11 @@ Then open:
 http://localhost:5125/
 ```
 
-This is a voice-patch control witness, not a Pink Trombone-class tract
-simulation. It exposes the knobs the learned speech driver is meant to control:
-phonetic and utterance input go into the model, the model predicts this
-`VocalTractControlTarget` vector, and the voice patch renders sound from those
-values. The WebAudio source/filter proxy only makes that target vector touchable
-while the proper tract renderer continues to mature.
+This is a tract-voice control witness. It exposes the same Pink
+Trombone-shaped controls that Aqua DSL now lowers through `tract`: frequency,
+intensity, tenseness, tongue index/diameter, velum, constriction
+index/diameter, turbulence, lip opening, and radiation reflection controls.
+
+The browser synth runs a small 44-cell/28-cell waveguide-style witness so the
+knobs are touchable while the Faust lowering keeps maturing toward exact Pink
+Trombone parity.

@@ -3,9 +3,10 @@
 ## Objective
 
 Use Pink Trombone as old-school speech parity pressure, not as a vague mascot
-for "more vocal knobs." The current AquaSynth speech-loss surface is a
-source/filter proxy. Pink Trombone is a moving vocal-tract waveguide. Those are
-not the same machine.
+for "more vocal knobs." The current AquaSynth tract voice is a tract-shaped
+voice treatment with Pink Trombone-style controls. Pink Trombone itself is still
+a moving vocal-tract waveguide. Those are related machines, but not the same
+machine.
 
 This packet exists so the mismatch stays inspectable.
 
@@ -50,6 +51,12 @@ and emits a transient when a closure opens.
 Current AquaSynth can express:
 
 - runtime parameters with stable paths;
+- a `tract` voice command owned by `Voice.Tract`;
+- Pink Trombone-shaped controls for intensity, tenseness, tongue body,
+  constriction, velum/nasal opening, turbulence, lip opening, and end
+  reflections;
+- a Faust-lowered tract voice proxy with LF-style excitation, aspiration,
+  frication, oral resonators, and a velum-controlled nasal lane;
 - oscillator/noise sources;
 - ADSR and staged rate/level envelopes;
 - low/high/band/notch filters;
@@ -57,7 +64,7 @@ Current AquaSynth can express:
 - patch-level and voice-local modulation;
 - compiled Faust control sweeps through `/speech/output/N`.
 
-Current AquaSynth cannot express:
+Current AquaSynth cannot exactly express:
 
 - a 44-cell bidirectional tract waveguide;
 - independent right/left traveling-wave state arrays;
@@ -70,30 +77,36 @@ Current AquaSynth cannot express:
 - obstruction-state release transients;
 - exact Pink Trombone LF glottal coefficient updates.
 
-## First Parity Rung
+## Current Parity Rung
 
-The first committed rung is structural, not audio:
+The current committed rung is an expressive tract voice, not exact Pink
+Trombone anatomy:
 
 - `PinkTromboneReference.ToReferencePatch()` records the source, tract features,
   and relevant controls.
 - `ReferenceRebuildCatalog.PinkTromboneRebuilds` contains the current
-  AquaSynth source-filter proxy as a deliberately non-passing rebuild.
-- The proxy script parses and emits Faust, but its missing features explicitly
-  name the waveguide authorities AquaSynth does not own.
+  AquaSynth tract-voice proxy as a deliberately non-passing rebuild.
+- The `tract` DSL command parses into an ordinary `Voice` with `Voice.Tract`,
+  so this remains a voice with a very expressive tract treatment.
+- The proxy script parses and emits Faust with live controls, but its missing
+  features explicitly name the waveguide authorities AquaSynth does not own.
+- `tools/vocal-tract-playground` exposes the same control surface for fast
+  knob-twiddling through a small WebAudio witness.
 - `PinkTromboneReferenceDeclaresMissingWaveguideAuthority` prevents the proxy
   from being mistaken for real tract parity.
 
-That is the correct failure for now. A failed exactness claim is better than a
-successful little lie with sliders.
+That is the correct shape for now. It should be fun to touch, but still honest
+about the parts of Pink Trombone it cannot claim.
 
 ## Next Cut
 
 Do not add another formant workaround. The next coherent implementation is one
 of these:
 
-1. Add a dedicated tract-DSP model to AquaSynth.Faust/Core: typed tract sections,
-   diameter curves, reflection calculation, glottal source, nasal branch, and a
-   Faust emitter for that structure.
+1. Promote `Voice.Tract` from tract-shaped proxy lowering to a dedicated tract
+   DSP model in AquaSynth.Faust/Core: typed tract sections, diameter curves,
+   reflection calculation, glottal source, nasal branch, and a Faust emitter for
+   that structure.
 2. Add a test-only Pink Trombone oracle renderer and compare AquaSynth's first
    tract-DSP candidate against fixed vowel/constriction fixtures.
 

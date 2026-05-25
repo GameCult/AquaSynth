@@ -181,7 +181,10 @@ public static class FaustEmitter
         var frequency = $"(({baseFreq}){vibrato}) * {arpeggio} * pow(2.0, patch_mod_pitch + {pitch})";
         var dutyExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "osc/duty"), voice.Oscillator.Duty)} + {parameters.Expression(OwnerField(ownerPath, "duty/ramp"), voice.Duty.RampPerSecond)} * age + patch_mod_duty + {duty})";
         var fmIndex = $"max(0.0, {parameters.Expression(OwnerField(ownerPath, "fm/index"), voice.Fm.Index)} + patch_mod_fm_index + {fmIndexMod}) * {FmDecay(parameters.Expression(OwnerField(ownerPath, "fm/decay"), voice.Fm.IndexDecaySeconds), voice.Fm.IndexDecaySeconds, parameters.IsBound(OwnerField(ownerPath, "fm/decay")))}";
-        var oscillator = oscillatorOverride ?? OscillatorExpression(patch, voice, ownerPath, frequency, dutyExpression, fmIndex, parameters);
+        var oscillator = oscillatorOverride ??
+                         (voice.Tract is { } tract
+                             ? TractExpression(source, tract, ownerPath, name, frequency, noteGate, parameters)
+                             : OscillatorExpression(patch, voice, ownerPath, frequency, dutyExpression, fmIndex, parameters));
         var envelope = voice.RateLevelEnvelope is not null
             ? RateLevelEnvelopeExpression(voice.RateLevelEnvelope, noteGate)
             : EnvelopeExpression(
@@ -376,6 +379,58 @@ public static class FaustEmitter
             Waveform.Noise => "no.noise",
             _ => throw new ArgumentOutOfRangeException()
         };
+    }
+
+    private static string TractExpression(
+        StringBuilder source,
+        VocalTract tract,
+        string ownerPath,
+        string name,
+        string frequency,
+        string gate,
+        ParameterMap parameters)
+    {
+        var tractPath = OwnerField(ownerPath, "tract");
+        var sections = Math.Max(4, tract.Sections);
+        var hasNose = tract.NoseSections > 0;
+        var intensity = $"clip01({parameters.Expression(OwnerField(tractPath, "intensity"), tract.Intensity)})";
+        var tenseness = $"clip01({parameters.Expression(OwnerField(tractPath, "tenseness"), tract.Tenseness)})";
+        var tongueIndex = parameters.Expression(OwnerField(tractPath, "tongue_index"), tract.TongueIndex);
+        var tongueDiameter = parameters.Expression(OwnerField(tractPath, "tongue_diameter"), tract.TongueDiameter);
+        var velum = $"clip01(({parameters.Expression(OwnerField(tractPath, "velum"), tract.Velum)} - 0.01) / 0.39)";
+        var constrictionIndex = parameters.Expression(OwnerField(tractPath, "constriction_index"), tract.ConstrictionIndex);
+        var constrictionDiameter = parameters.Expression(OwnerField(tractPath, "constriction_diameter"), tract.ConstrictionDiameter);
+        var turbulence = $"clip01({parameters.Expression(OwnerField(tractPath, "turbulence"), tract.Turbulence)})";
+        var lipOpening = parameters.Expression(OwnerField(tractPath, "lip_opening"), tract.LipOpening);
+        var glottalReflection = parameters.Expression(OwnerField(tractPath, "glottal_reflection"), tract.GlottalReflection);
+        var lipReflection = parameters.Expression(OwnerField(tractPath, "lip_reflection"), tract.LipReflection);
+
+        source.AppendLine($"{name}_tract_phase = os.phasor(1.0, {frequency});");
+        source.AppendLine($"{name}_tract_tongue_pos = clip01({tongueIndex} / {F(sections)});");
+        source.AppendLine($"{name}_tract_constriction_pos = clip01({constrictionIndex} / {F(sections)});");
+        source.AppendLine($"{name}_tract_tongue_close = clip01((3.5 - {tongueDiameter}) / 3.5);");
+        source.AppendLine($"{name}_tract_constriction_close = clip01((1.15 - {constrictionDiameter}) / 1.15);");
+        source.AppendLine($"{name}_tract_lip = clip01({lipOpening} / 2.5);");
+        source.AppendLine($"{name}_tract_q = 2.0 + {tenseness} * 10.0 + {name}_tract_constriction_close * 8.0;");
+        source.AppendLine($"{name}_tract_f1 = max(90.0, 260.0 + {name}_tract_lip * 720.0 - {name}_tract_tongue_close * 260.0 + {velum} * 120.0);");
+        source.AppendLine($"{name}_tract_f2 = max(180.0, 820.0 + {name}_tract_tongue_pos * 1850.0 - {name}_tract_tongue_close * 640.0 - (1.0 - {name}_tract_lip) * 260.0);");
+        source.AppendLine($"{name}_tract_f3 = max(500.0, 1900.0 + {name}_tract_constriction_pos * 2600.0 + {name}_tract_tongue_close * 700.0);");
+        source.AppendLine($"{name}_tract_lf = (sin(2.0 * ma.PI * {name}_tract_phase) - (0.15 + {tenseness} * 0.45) * sin(4.0 * ma.PI * {name}_tract_phase)) * {intensity} * (0.45 + 0.55 * pow(max(0.0, {tenseness}), 0.25));");
+        source.AppendLine($"{name}_tract_aspiration = no.noise * {intensity} * (1.0 - sqrt(max(0.0, {tenseness}))) * (0.02 + 0.16 * {name}_tract_constriction_close);");
+        source.AppendLine($"{name}_tract_frication = no.noise * {turbulence} * {name}_tract_constriction_close * {intensity} * (0.2 + 0.8 * {tenseness});");
+        source.AppendLine($"{name}_tract_burst = no.noise * {name}_tract_constriction_close * exp(-age * (45.0 + {name}_tract_constriction_close * 120.0)) * 0.18;");
+        source.AppendLine($"{name}_tract_raw = ({name}_tract_lf + {name}_tract_aspiration + {name}_tract_frication + {name}_tract_burst) * (0.55 + 0.45 * abs({glottalReflection}));");
+        source.AppendLine($"{name}_tract_oral = {name}_tract_raw * 0.18 + ({name}_tract_raw : fi.resonbp({name}_tract_f1, {name}_tract_q, 1.0)) * (0.75 + {name}_tract_lip * 0.65) + ({name}_tract_raw : fi.resonbp({name}_tract_f2, {name}_tract_q, 1.0)) * (0.85 + {name}_tract_tongue_close) + ({name}_tract_raw : fi.resonbp({name}_tract_f3, {name}_tract_q, 1.0)) * (0.35 + {name}_tract_constriction_close);");
+        if (hasNose)
+        {
+            source.AppendLine($"{name}_tract_nose = ({name}_tract_raw : fi.resonbp(260.0 + {velum} * 560.0, 3.0 + {velum} * 9.0, 1.0) : fi.lowpass(2, 2400.0 + {velum} * 1200.0)) * {velum};");
+        }
+        else
+        {
+            source.AppendLine($"{name}_tract_nose = 0.0;");
+        }
+        source.AppendLine($"{name}_tract_radiated = ({name}_tract_oral * (0.65 + 0.35 * abs({lipReflection})) + {name}_tract_nose);");
+        return $"{name}_tract_radiated";
     }
 
     private static void EmitOperatorGraph(StringBuilder source, Playback playback, OperatorGraph graph, string name, ParameterMap parameters, List<string> warnings)

@@ -621,39 +621,28 @@ public static class BuiltInScripts
         param name=velum path=/pink/velum default=0.01 min=0.01 max=0.4 step=0.001 unit=diameter
         param name=constriction_index path=/pink/constriction/index default=32 min=0 max=44 step=0.001 unit=cell
         param name=constriction_diameter path=/pink/constriction/diameter default=1 min=-1 max=4 step=0.001 unit=diameter
+        param name=turbulence path=/pink/turbulence default=0.18 min=0 max=1 step=0.001
+        param name=lip_opening path=/pink/lip/opening default=1.5 min=0.35 max=2.5 step=0.001 unit=diameter
+        param name=glottal_reflection path=/pink/glottal/reflection default=0.75 min=-0.95 max=0.95 step=0.001
+        param name=lip_reflection path=/pink/lip/reflection default=-0.85 min=-0.98 max=0.1 step=0.001
 
-        defaults
-            wave=saw
+        tract
             freq=@/pink/frequency
-            gain=@/pink/intensity
+            gain=0.7
             attack=0.004
-            sustain=0.18
-            decay=0.08
-            lpf=0.64
-            lpf_q=@/pink/tenseness
-            tremolo=0.02
-            tremolo_hz=6
-            formants=520:90:0.8,1250:170:1,2600:320:0.45
-            formant_mix=0.42
-
-        voice
-
-        voice
-            wave=noise
-            freq=2500
-            gain=0.04
-            noise=0.8
-            hpf=0.45
-            lpf=0.7
-            formants=1800:220:0.8,3600:480:0.55
-            formant_mix=0.35
-
-        voice
-            wave=sine
-            freq=360
-            gain=@/pink/velum
-            formants=300:80:1,900:180:0.45
-            formant_mix=0.55
+            sustain=0.35
+            decay=0.12
+            intensity=@/pink/intensity
+            tenseness=@/pink/tenseness
+            tongue_index=@/pink/tongue/index
+            tongue_diameter=@/pink/tongue/diameter
+            velum=@/pink/velum
+            constriction_index=@/pink/constriction/index
+            constriction_diameter=@/pink/constriction/diameter
+            turbulence=@/pink/turbulence
+            lip=@/pink/lip/opening
+            glottal_reflection=@/pink/glottal/reflection
+            lip_reflection=@/pink/lip/reflection
         """;
 
     public const string Dx7StyleAlgorithm32AdditiveOrgan = """
