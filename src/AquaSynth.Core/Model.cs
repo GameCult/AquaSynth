@@ -138,6 +138,51 @@ public sealed record Formant(float FrequencyHz, float BandwidthHz, float Gain);
 
 public sealed record FormantFrame(IReadOnlyList<Formant> Formants);
 
+public sealed record TractAreaFunction(IReadOnlyList<float> Diameters)
+{
+    public int Sections => Diameters.Count;
+
+    public IReadOnlyList<float> Areas => Diameters.Select(diameter => MathF.Max(0, diameter) * MathF.Max(0, diameter)).ToArray();
+
+    public IReadOnlyList<float> ReflectionCoefficients
+    {
+        get
+        {
+            if (Diameters.Count < 2) return Array.Empty<float>();
+            var reflections = new float[Diameters.Count - 1];
+            for (var i = 1; i < Diameters.Count; i++)
+            {
+                var previousArea = MathF.Max(0.000001f, Diameters[i - 1] * Diameters[i - 1]);
+                var area = MathF.Max(0.000001f, Diameters[i] * Diameters[i]);
+                reflections[i - 1] = (previousArea - area) / (previousArea + area);
+            }
+
+            return reflections;
+        }
+    }
+
+    public float AverageDiameter(float startFraction, float endFraction)
+    {
+        if (Diameters.Count == 0) return 0;
+        var start = Math.Clamp((int)MathF.Floor(startFraction * Diameters.Count), 0, Diameters.Count - 1);
+        var end = Math.Clamp((int)MathF.Ceiling(endFraction * Diameters.Count), start + 1, Diameters.Count);
+        var sum = 0f;
+        for (var i = start; i < end; i++)
+        {
+            sum += Diameters[i];
+        }
+
+        return sum / Math.Max(1, end - start);
+    }
+
+    public float MinimumDiameter => Diameters.Count == 0 ? 0 : Diameters.Min();
+
+    public static TractAreaFunction FromAreas(IReadOnlyList<float> areas) =>
+        new(areas.Select(area => MathF.Sqrt(MathF.Max(0, area))).ToArray());
+}
+
+public sealed record TractShape(string Name, TractAreaFunction AreaFunction);
+
 public sealed record Modulator(
     ModTarget Target,
     ModWaveform Waveform = ModWaveform.Sine,
@@ -191,7 +236,8 @@ public sealed record VocalTract(
     float Turbulence = 0,
     float LipOpening = 1.5f,
     float GlottalReflection = 0.75f,
-    float LipReflection = -0.85f);
+    float LipReflection = -0.85f,
+    TractAreaFunction? AreaFunction = null);
 
 public sealed record PatchParameter(
     string Path,
@@ -364,6 +410,7 @@ public sealed record SynthPatch
     public IReadOnlyList<PatchLayer> Layers { get; init; } = Array.Empty<PatchLayer>();
     public IReadOnlyList<HarmonicBank> HarmonicBanks { get; init; } = Array.Empty<HarmonicBank>();
     public IReadOnlyList<SpectralBank> SpectralBanks { get; init; } = Array.Empty<SpectralBank>();
+    public IReadOnlyList<TractShape> TractShapes { get; init; } = Array.Empty<TractShape>();
     public IReadOnlyList<OperatorGraph> OperatorGraphs { get; init; } = Array.Empty<OperatorGraph>();
     public IReadOnlyList<ControlLane> Controls { get; init; } = Array.Empty<ControlLane>();
     public IReadOnlyList<PatchParameter> Parameters { get; init; } = Array.Empty<PatchParameter>();

@@ -86,21 +86,31 @@ public sealed class PatchScriptTests
     {
         var patch = PatchScript.Parse("""
             param path=/pink/tenseness default=.6 min=0 max=1 step=.001
-            tract freq=140 intensity=.72 tenseness=@/pink/tenseness tongue_index=18 tongue_diameter=1.4 velum=.2 constriction_index=32 constriction_diameter=.45 turbulence=.8
+            tract_shape name=human diameters=.6,.7,.9,1.1,1.3,1.5,1.4,1.2
+            tract shape=human freq=140 intensity=.72 tenseness=@/pink/tenseness tongue_index=4 tongue_diameter=1.4 velum=.2 constriction_index=6 constriction_diameter=.45 turbulence=.8
             """);
+
+        var shape = Assert.Single(patch.TractShapes);
+        Assert.Equal("human", shape.Name);
+        Assert.Equal(8, shape.AreaFunction.Sections);
+        Assert.Equal(7, shape.AreaFunction.ReflectionCoefficients.Count);
+        Assert.Contains(shape.AreaFunction.ReflectionCoefficients, coefficient => MathF.Abs(coefficient) > 0.01f);
 
         var voice = Assert.Single(patch.Voices);
         Assert.NotNull(voice.Tract);
-        Assert.Equal(44, voice.Tract.Sections);
+        Assert.Equal(8, voice.Tract.Sections);
         Assert.Equal(28, voice.Tract.NoseSections);
-        Assert.Equal(18, voice.Tract.TongueIndex);
+        Assert.Equal(4, voice.Tract.TongueIndex);
         Assert.Equal(.45f, voice.Tract.ConstrictionDiameter, 5);
+        Assert.Same(shape.AreaFunction, voice.Tract.AreaFunction);
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/voices/0/tract/tenseness");
 
         var faust = FaustEmitter.Emit(patch, new FaustExportOptions("tract_voice")).Source;
         Assert.Contains("tract_lf", faust);
         Assert.Contains("tract_frication", faust);
         Assert.Contains("tract_nose", faust);
+        Assert.Contains("tract_shape_middle", faust);
+        Assert.Contains("tract_reflection_energy", faust);
         Assert.Contains("fi.resonbp", faust);
     }
 
@@ -327,9 +337,12 @@ public sealed class PatchScriptTests
         Assert.Contains(reference.Parameters, parameter => parameter.Path == "/pink/tongue/index");
         Assert.Contains(reference.Parameters, parameter => parameter.Path == "/pink/constriction/diameter");
         Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "tract_voice_authority");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "tract_area_function");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "diameter_to_reflection_coefficients");
         Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "main_tract_waveguide_cells");
-        Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "diameter_to_reflection_coefficients");
+        Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "reflection_coefficients_applied_to_waveguide");
         Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "nose_waveguide_cells");
+        Assert.NotEmpty(patch.TractShapes);
         Assert.NotEmpty(patch.Parameters);
         Assert.Contains("process =", export.Source);
     }

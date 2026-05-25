@@ -19,6 +19,7 @@ surfaces:
   ipa_vocal_tract_roadmap: docs/ipa-vocal-tract-roadmap.md
   utterance_parity_research: docs/utterance-parity-research.md
   pink_trombone_parity: docs/pink-trombone-parity.md
+  pink_trombone_dsl_parity_plan: docs/pink-trombone-dsl-parity-plan.md
   wet_voice_witness_fixture: tests/AquaSynth.Dsl.Tests/Fixtures/Speech/WetVoice01
   faust_toolchain_boundary: docs/faust-toolchain-boundary.md
   dx7_public_domain_fixtures: tests/AquaSynth.Dsl.Tests/Fixtures/Dx7/PublicDomain
@@ -43,6 +44,7 @@ modules:
   speech_distributed_training: src/AquaSynth.Core/SpeechDistributedTraining.cs
   vocal_tract_learning: src/AquaSynth.Core/VocalTractLearning.cs
   tract_voice_model: src/AquaSynth.Core/Model.cs
+  tract_shape_model: src/AquaSynth.Core/Model.cs
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs

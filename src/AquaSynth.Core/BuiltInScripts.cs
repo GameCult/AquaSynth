@@ -626,7 +626,12 @@ public static class BuiltInScripts
         param name=glottal_reflection path=/pink/glottal/reflection default=0.75 min=-0.95 max=0.95 step=0.001
         param name=lip_reflection path=/pink/lip/reflection default=-0.85 min=-0.98 max=0.1 step=0.001
 
+        tract_shape
+            name=pt_human
+            diameters=0.6,0.6,0.6,0.6,0.6,0.7,0.8,1.0,1.1,1.1,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.4,1.3,1.2,1.15,1.5
+
         tract
+            shape=pt_human
             freq=@/pink/frequency
             gain=0.7
             attack=0.004

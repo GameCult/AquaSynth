@@ -51,6 +51,8 @@ and emits a transient when a closure opens.
 Current AquaSynth can express:
 
 - runtime parameters with stable paths;
+- reusable `tract_shape` declarations with authored diameter or area samples;
+- derived tract areas and adjacent-section reflection coefficients;
 - a `tract` voice command owned by `Voice.Tract`;
 - Pink Trombone-shaped controls for intensity, tenseness, tongue body,
   constriction, velum/nasal opening, turbulence, lip opening, and end
@@ -71,7 +73,8 @@ Current AquaSynth cannot exactly express:
 - a 28-cell nasal waveguide branch;
 - a three-way velum/nose junction;
 - per-section diameter targets as synthesis authority;
-- diameter-squared area reflection coefficients;
+- application of diameter-squared reflection coefficients to bidirectional
+  waveguide propagation;
 - a subgraph that steps twice per output sample;
 - turbulence injected at a tract position into neighboring cells;
 - obstruction-state release transients;
@@ -88,6 +91,9 @@ Trombone anatomy:
   AquaSynth tract-voice proxy as a deliberately non-passing rebuild.
 - The `tract` DSL command parses into an ordinary `Voice` with `Voice.Tract`,
   so this remains a voice with a very expressive tract treatment.
+- `tract_shape` owns reusable section diameter/area functions. The current
+  proxy consumes its shape summaries and derived reflection energy; future
+  waveguide lowering should consume the full coefficients.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast

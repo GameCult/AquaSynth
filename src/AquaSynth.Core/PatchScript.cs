@@ -36,6 +36,8 @@ public static class PatchScript
         private readonly List<PatchLayer> _layers = [];
         private readonly List<HarmonicBank> _harmonicBanks = [];
         private readonly List<SpectralBank> _spectralBanks = [];
+        private readonly List<TractShape> _tractShapes = [];
+        private readonly Dictionary<string, TractShape> _tractShapesByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _defaults = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Dictionary<string, string>> _layerDefaults = new(StringComparer.OrdinalIgnoreCase);
         private PendingOperatorGraph? _pendingOperatorGraph;
@@ -57,6 +59,7 @@ public static class PatchScript
                 Layers = _layers,
                 HarmonicBanks = _harmonicBanks,
                 SpectralBanks = _spectralBanks,
+                TractShapes = _tractShapes,
                 OperatorGraphs = _operatorGraphs,
                 Controls = _controls,
                 Parameters = _parameters,
@@ -107,6 +110,10 @@ public static class PatchScript
                 case "spectrum":
                     FlushPendingOperatorGraph();
                     AddSpectralBank(fields, line);
+                    break;
+                case "tract_shape":
+                    FlushPendingOperatorGraph();
+                    AddTractShape(fields, line);
                     break;
                 case "voice":
                     FlushPendingOperatorGraph();
@@ -264,6 +271,20 @@ public static class PatchScript
         }
 
         private static string SpectralPath(int spectralIndex) => $"/spectral/{spectralIndex}";
+
+        private void AddTractShape(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_tractShapesByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate tract shape `{name}`");
+            }
+
+            var areaFunction = ParseTractAreaFunction(fields, line);
+            var shape = new TractShape(name, areaFunction);
+            _tractShapes.Add(shape);
+            _tractShapesByName[name] = shape;
+        }
 
         private Dictionary<string, string> ExpandVoiceFields(Dictionary<string, string> fields, int line)
         {
@@ -505,10 +526,15 @@ public static class PatchScript
             }
 
             var voice = ParseVoice(voiceFields, ownerPath, line);
-            var sections = GetBoundInt(fields, line, 44, OwnerField(ownerPath, "tract/sections"), "sections", "cells");
+            var areaFunction = ParseTractAreaFunctionReference(fields, line);
+            var sections = GetBoundInt(fields, line, areaFunction?.Sections ?? 44, OwnerField(ownerPath, "tract/sections"), "sections", "cells");
             if (sections < 4)
             {
                 throw new PatchScriptException(line, "tract sections must be at least 4");
+            }
+            if (areaFunction is not null && areaFunction.Sections != sections)
+            {
+                throw new PatchScriptException(line, "tract shape section count must match tract sections");
             }
             var noseSections = GetBoundInt(fields, line, 28, OwnerField(ownerPath, "tract/nose_sections"), "nose_sections", "nose_cells");
             if (noseSections < 0)
@@ -531,7 +557,8 @@ public static class PatchScript
                     GetBoundFloat(fields, line, 0, OwnerField(ownerPath, "tract/turbulence"), "turbulence", "frication"),
                     GetBoundFloat(fields, line, 1.5f, OwnerField(ownerPath, "tract/lip_opening"), "lip", "lip_opening", "mouth"),
                     GetBoundFloat(fields, line, 0.75f, OwnerField(ownerPath, "tract/glottal_reflection"), "glottal_reflection", "gr"),
-                    GetBoundFloat(fields, line, -0.85f, OwnerField(ownerPath, "tract/lip_reflection"), "lip_reflection", "lr"))
+                    GetBoundFloat(fields, line, -0.85f, OwnerField(ownerPath, "tract/lip_reflection"), "lip_reflection", "lr"),
+                    areaFunction)
             };
         }
 
@@ -914,6 +941,54 @@ public static class PatchScript
                     return new HarmonicPartial(ratio, gain);
                 })
                 .ToArray();
+        }
+
+        private TractAreaFunction? ParseTractAreaFunctionReference(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var hasInlineShape = HasAny(fields, "diameters", "diameter", "areas", "area");
+            var hasNamedShape = TryGetAny(fields, ["shape", "tract_shape", "area_function"], out var shapeName);
+            if (hasInlineShape && hasNamedShape)
+            {
+                throw new PatchScriptException(line, "tract cannot use both a named shape and inline diameters/areas");
+            }
+            if (hasInlineShape)
+            {
+                return ParseTractAreaFunction(fields, line);
+            }
+            if (!hasNamedShape)
+            {
+                return null;
+            }
+            if (!_tractShapesByName.TryGetValue(shapeName, out var shape))
+            {
+                throw new PatchScriptException(line, $"unknown tract shape `{shapeName}`");
+            }
+
+            return shape.AreaFunction;
+        }
+
+        private static TractAreaFunction ParseTractAreaFunction(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var hasDiameters = TryGetAny(fields, ["diameters", "diameter"], out var diametersText);
+            var hasAreas = TryGetAny(fields, ["areas", "area"], out var areasText);
+            if (hasDiameters == hasAreas)
+            {
+                throw new PatchScriptException(line, "tract shape needs exactly one of diameters or areas");
+            }
+
+            var samples = ParseFloatList(hasDiameters ? diametersText! : areasText!, line, hasDiameters ? "diameters" : "areas");
+            if (samples.Count < 4)
+            {
+                throw new PatchScriptException(line, "tract shape needs at least four samples");
+            }
+            if (samples.Any(sample => sample < 0))
+            {
+                throw new PatchScriptException(line, "tract shape samples must be zero or greater");
+            }
+
+            return hasDiameters
+                ? new TractAreaFunction(samples.ToArray())
+                : TractAreaFunction.FromAreas(samples.ToArray());
         }
 
         private static PadSpectrumProfile ParsePadSpectrumProfile(IReadOnlyDictionary<string, string> fields, int line)
@@ -1328,6 +1403,7 @@ public static class PatchScript
         "layer" or "kit" => "layer",
         "harmonics" or "partials" or "drawbars" => "harmonics",
         "spectrum" or "spectral" or "padsource" or "pad_source" => "spectrum",
+        "tractshape" or "tract_shape" or "area_function" or "tract_area" => "tract_shape",
         "v" or "voice" => "voice",
         "tract" or "vt" or "tractvoice" or "tract_voice" => "tract",
         "opgraph" or "ops" or "operators" => "opgraph",

@@ -51,6 +51,7 @@
       "generated DSP artifact manifests for engine hosting",
       "live patch compilation, native Faust factory lifetime, and offline sample-buffer render proof for engine hosts",
       "phonetic intent, articulatory plan, morphology capability, and constraint-report contracts for vocal tract synthesis",
+      "Pink Trombone expressive-parity path through reusable tract DSL primitives, starting with tract_shape diameter/area functions",
       "utterance parity curriculum research and docs",
       "patch script parser",
       "SFXR atoms and parameter mapping",
@@ -76,6 +77,7 @@
     "docs/reference-synth-roadmap.md",
     "docs/ipa-vocal-tract-roadmap.md",
     "docs/utterance-parity-research.md",
+    "docs/pink-trombone-dsl-parity-plan.md",
     "state/spine.yaml"
   ],
   "reference_strategy": {
@@ -88,7 +90,7 @@
       "Surge XT for modern hybrid synth modulation",
       "Cardinal/VCV-style patches for modular cable/rate semantics"
     ],
-    "rule": "For speech, add schema fields and learned-control lanes only when the parity harness has a loss surface that can exercise them. For reference synths, add DSL abstractions only when rebuilds prove the missing invariant. Parsing alone is inventory, not evidence of expressivity."
+    "rule": "For speech, add schema fields and learned-control lanes only when the parity harness has a loss surface that can exercise them. For reference synths, add DSL abstractions only when rebuilds prove the missing invariant. Parsing alone is inventory, not evidence of expressivity. Pink Trombone should be decomposed into reusable Aqua primitives before audio golf, not copied as a bespoke clone."
   },
   "ipa_vocal_tract_path": {
     "status": "This is now the active project center. Roadmap and research notes align the curriculum around structured utterance metadata -> learned utterance embedding -> learned synth automation -> vocal tract/envelope/LFO/filter/spectral controls -> rendered audio loss. The first Core contracts still defend the boundary: PhoneticIntent is the Weksa/language-owned handoff, ArticulatoryPlan is the AquaSynth realization layer, VocalTractMorphology declares anatomy capabilities, ArticulatoryConstraintReport is the host-visible veto surface, and VocalTractPlanResult is the tiny end-to-end proof artifact for host branching. IPA is an authoring input only: tokenization and feature mapping lower into language phonology profiles, timed articulatory gestures, morphology-specific tract/excitation curves, and Faust DSP. The staged support plan starts with tokenization and vowels, then core pulmonic consonants, expanded human IPA, airstream/phonation, and Weksa/alien morphologies. Optional eSpeak NG tests provide the first generated speech workout when ESPEAK_NG or espeak-ng is installed; eSpeak is intelligibility/timing/log-mel pressure, not anatomy truth. AquaSynth owns the learned utterance embedding encoder and synth driver: speech text embeddings plus prosody/emphasis hints plus Ghostlight/Epiphany-shaped character state vectors compress into utterance embeddings, and phonetic features plus that embedding feed a packed-buffer native C# backprop/Adam mapper that predicts tract, AM/FM, LFO, filter, and mel spectral-envelope controls. SpeechBackpropagationPipeline chains the two models: synth-driver target loss returns gradients with respect to its input, slices the utterance-embedding gradient, and updates the utterance encoder from downstream speech loss. The generated ground-truth training fixture renders eSpeak syllables, extracts log-mel evidence, and trains that chained pipeline toward eSpeak-seeded mel/control targets. CultMesh speech training now has payload manifests, peer/lease admission receipts, worker assignment, result collection, and central checkpoint application; workers do not own model updates. Real remote artifact chunk transfer and process supervision remain CultMesh infrastructure surfaces, not AquaSynth workaround territory.",

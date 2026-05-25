@@ -61,6 +61,8 @@ public static class PinkTromboneReference
             BuiltInScripts.PinkTromboneProxy,
             [
                 new("tract_voice_authority", "voice.Tract", "Pink Trombone pressure now lowers through a tract treatment on an ordinary AquaSynth voice."),
+                new("tract_area_function", "tract_shape diameters", "AquaSynth can now author reusable section diameter/area functions for tract voices."),
+                new("diameter_to_reflection_coefficients", "TractAreaFunction.ReflectionCoefficients", "AquaSynth derives adjacent-section reflection coefficients from squared diameters as a reusable primitive."),
                 new("runtime_controls", "/pink/frequency,/pink/intensity,/pink/tenseness,/pink/tongue/index,/pink/tongue/diameter,/pink/velum,/pink/turbulence", "AquaSynth can expose stable runtime parameter paths."),
                 new("glottal_pitch_pressure_proxy", "tract LF-style source", "AquaSynth can drive pitch/loudness-like controls without recompiling."),
                 new("turbulence_proxy", "position-aware frication controls", "The tract voice has constriction index/diameter and turbulence controls."),
@@ -69,7 +71,7 @@ public static class PinkTromboneReference
             [
                 new("main_tract_waveguide_cells", "44 bidirectional sections", "No AquaSynth DSL authority owns arrays of right/left traveling wave state per tract section."),
                 new("nose_waveguide_cells", "28 bidirectional sections", "The current DSL has no nasal branch delay-line graph or velum-controlled three-way junction."),
-                new("diameter_to_reflection_coefficients", "per-block area reflection update", "Formant filters do not preserve the section-area ownership or reflection math."),
+                new("reflection_coefficients_applied_to_waveguide", "per-block area reflection update", "AquaSynth can derive reflection coefficients, but the current Faust proxy does not apply them to bidirectional waveguide propagation."),
                 new("twice_rate_tract_stepping", "two tract steps per audio sample", "AquaSynth voice graphs do not express a subgraph with its own stepping rate."),
                 new("positioned_turbulence_injection", "noise injected into neighboring cells", "The current noise field is source/color pressure, not a positioned tract injection event."),
                 new("closure_release_transients", "obstruction release impulse", "AquaSynth envelopes can shape amplitude, but they do not observe obstruction state and emit release transients."),

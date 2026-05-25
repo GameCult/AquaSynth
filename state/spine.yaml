@@ -1,6 +1,6 @@
 project: AquaSynth
 spine_version: 1
-updated: 2026-05-25T23:20:00+01:00
+updated: 2026-05-25T23:55:00+01:00
 
 prime_directive: >
   Build coherent synth machinery. References exist to reveal missing structure,
@@ -43,6 +43,7 @@ current_mechanism:
   roadmap: docs/reference-synth-roadmap.md
   utterance_parity_research: docs/utterance-parity-research.md
   pink_trombone_parity: docs/pink-trombone-parity.md
+  pink_trombone_dsl_parity_plan: docs/pink-trombone-dsl-parity-plan.md
   parameter_contracts: src/AquaSynth.Core/Model.cs
 
 live_invariants:
@@ -111,6 +112,7 @@ live_invariants:
   - The speech lane is the active center: IPA parity, utterance embeddings, synth-driver automation, rendered loss, and compiled Faust control sweeps take priority over new DX7/Zyn digestion.
   - Every learned speech arrow must stay inspectable: utterance metadata -> embedding, embedding plus phonetic features -> automation, automation -> rendered audio, rendered audio -> loss/gradient.
   - Pink Trombone parity is structural waveguide pressure, not permission to add more formant proxy knobs. AquaSynth now has a `tract` DSL command that lowers into `Voice.Tract` with PT-shaped runtime controls and a Faust tract-voice proxy; it is still an ordinary voice treatment, not a separate graph owner and not an exact 44-cell/28-cell bidirectional waveguide.
+  - PT expressive parity should decompose into reusable Aqua primitives before audio golf: `tract_shape` owns section diameters/areas and derived reflection coefficients; future glottis, positioned injection, nasal junction, waveguide propagation, and substep primitives should compose with normal voices, parameters, envelopes, LFOs, layers, and learned speech controls.
   - eSpeak NG is an early parity reference for timing, IPA coverage, and log-mel pressure, not an anatomy oracle or final target.
   - Do not expand into prosody, emotional context, personality, or broad Weksa expressivity until the tiny IPA utterance harness can show useful loss movement.
   - Speech training receipts must keep time as a witness: every request, render result, and checkpoint should record stage decision time, latency spent, latency budget, confidence, and artifact/model identifiers.

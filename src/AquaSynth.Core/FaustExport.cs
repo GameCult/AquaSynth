@@ -404,6 +404,12 @@ public static class FaustEmitter
         var lipOpening = parameters.Expression(OwnerField(tractPath, "lip_opening"), tract.LipOpening);
         var glottalReflection = parameters.Expression(OwnerField(tractPath, "glottal_reflection"), tract.GlottalReflection);
         var lipReflection = parameters.Expression(OwnerField(tractPath, "lip_reflection"), tract.LipReflection);
+        var areaFunction = tract.AreaFunction;
+        var shapeBack = F(areaFunction?.AverageDiameter(0.18f, 0.38f) ?? 1.35f);
+        var shapeMiddle = F(areaFunction?.AverageDiameter(0.38f, 0.68f) ?? 1.5f);
+        var shapeFront = F(areaFunction?.AverageDiameter(0.68f, 0.96f) ?? 1.5f);
+        var shapeMinimum = F(areaFunction?.MinimumDiameter ?? 0.6f);
+        var reflectionEnergy = F(areaFunction is null ? 0.12f : MathF.Min(1, areaFunction.ReflectionCoefficients.Sum(reflection => MathF.Abs(reflection)) / Math.Max(1, areaFunction.ReflectionCoefficients.Count)));
 
         source.AppendLine($"{name}_tract_phase = os.phasor(1.0, {frequency});");
         source.AppendLine($"{name}_tract_tongue_pos = clip01({tongueIndex} / {F(sections)});");
@@ -411,10 +417,15 @@ public static class FaustEmitter
         source.AppendLine($"{name}_tract_tongue_close = clip01((3.5 - {tongueDiameter}) / 3.5);");
         source.AppendLine($"{name}_tract_constriction_close = clip01((1.15 - {constrictionDiameter}) / 1.15);");
         source.AppendLine($"{name}_tract_lip = clip01({lipOpening} / 2.5);");
-        source.AppendLine($"{name}_tract_q = 2.0 + {tenseness} * 10.0 + {name}_tract_constriction_close * 8.0;");
-        source.AppendLine($"{name}_tract_f1 = max(90.0, 260.0 + {name}_tract_lip * 720.0 - {name}_tract_tongue_close * 260.0 + {velum} * 120.0);");
-        source.AppendLine($"{name}_tract_f2 = max(180.0, 820.0 + {name}_tract_tongue_pos * 1850.0 - {name}_tract_tongue_close * 640.0 - (1.0 - {name}_tract_lip) * 260.0);");
-        source.AppendLine($"{name}_tract_f3 = max(500.0, 1900.0 + {name}_tract_constriction_pos * 2600.0 + {name}_tract_tongue_close * 700.0);");
+        source.AppendLine($"{name}_tract_shape_back = {shapeBack};");
+        source.AppendLine($"{name}_tract_shape_middle = {shapeMiddle};");
+        source.AppendLine($"{name}_tract_shape_front = {shapeFront};");
+        source.AppendLine($"{name}_tract_shape_min = {shapeMinimum};");
+        source.AppendLine($"{name}_tract_reflection_energy = {reflectionEnergy};");
+        source.AppendLine($"{name}_tract_q = 2.0 + {tenseness} * 10.0 + {name}_tract_constriction_close * 8.0 + {name}_tract_reflection_energy * 4.0;");
+        source.AppendLine($"{name}_tract_f1 = max(90.0, 260.0 + {name}_tract_lip * 720.0 - {name}_tract_tongue_close * 260.0 + ({name}_tract_shape_back - 1.35) * 210.0 - (1.0 - {name}_tract_shape_min) * 120.0 + {velum} * 120.0);");
+        source.AppendLine($"{name}_tract_f2 = max(180.0, 820.0 + {name}_tract_tongue_pos * 1850.0 - {name}_tract_tongue_close * 640.0 + ({name}_tract_shape_middle - 1.5) * 360.0 - (1.0 - {name}_tract_lip) * 260.0);");
+        source.AppendLine($"{name}_tract_f3 = max(500.0, 1900.0 + {name}_tract_constriction_pos * 2600.0 + {name}_tract_tongue_close * 700.0 + ({name}_tract_shape_front - 1.5) * 520.0);");
         source.AppendLine($"{name}_tract_lf = (sin(2.0 * ma.PI * {name}_tract_phase) - (0.15 + {tenseness} * 0.45) * sin(4.0 * ma.PI * {name}_tract_phase)) * {intensity} * (0.45 + 0.55 * pow(max(0.0, {tenseness}), 0.25));");
         source.AppendLine($"{name}_tract_aspiration = no.noise * {intensity} * (1.0 - sqrt(max(0.0, {tenseness}))) * (0.02 + 0.16 * {name}_tract_constriction_close);");
         source.AppendLine($"{name}_tract_frication = no.noise * {turbulence} * {name}_tract_constriction_close * {intensity} * (0.2 + 0.8 * {tenseness});");
