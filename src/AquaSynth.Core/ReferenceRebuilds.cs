@@ -131,8 +131,18 @@ public static class ReferenceRebuildCatalog
             "This is the first thresholded audio parity rung. It proves the render/compare loop on a lawful fixture without pretending the DX7 internals are solved.")
     ];
 
+    public static readonly IReadOnlyList<ReferenceRebuild> PinkTromboneRebuilds =
+    [
+        PinkTromboneReference.CurrentAquaSynthProxy()
+    ];
+
     public static IEnumerable<ReferenceRebuild> All()
     {
+        foreach (var rebuild in PinkTromboneRebuilds)
+        {
+            yield return rebuild;
+        }
+
         foreach (var rebuild in ZynRebuilds)
         {
             yield return rebuild;

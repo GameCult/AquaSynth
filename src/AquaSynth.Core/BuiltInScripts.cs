@@ -608,6 +608,54 @@ public static class BuiltInScripts
 
     public static readonly IReadOnlyList<string> ZynStyleNames = ["additive-lead", "pad-texture", "vocal-layer"];
 
+    public const string PinkTromboneProxy = """
+        patch
+            gain=0.82
+            soft_clip=true
+
+        param name=frequency path=/pink/frequency default=140 min=10 max=600 step=0.01 unit=Hz rate=audio
+        param name=intensity path=/pink/intensity default=0.7 min=0 max=1 step=0.001
+        param name=tenseness path=/pink/tenseness default=0.6 min=0 max=1 step=0.001
+        param name=tongue_index path=/pink/tongue/index default=12.9 min=0 max=44 step=0.001 unit=cell
+        param name=tongue_diameter path=/pink/tongue/diameter default=2.43 min=0 max=4 step=0.001 unit=diameter
+        param name=velum path=/pink/velum default=0.01 min=0.01 max=0.4 step=0.001 unit=diameter
+        param name=constriction_index path=/pink/constriction/index default=32 min=0 max=44 step=0.001 unit=cell
+        param name=constriction_diameter path=/pink/constriction/diameter default=1 min=-1 max=4 step=0.001 unit=diameter
+
+        defaults
+            wave=saw
+            freq=@/pink/frequency
+            gain=@/pink/intensity
+            attack=0.004
+            sustain=0.18
+            decay=0.08
+            lpf=0.64
+            lpf_q=@/pink/tenseness
+            tremolo=0.02
+            tremolo_hz=6
+            formants=520:90:0.8,1250:170:1,2600:320:0.45
+            formant_mix=0.42
+
+        voice
+
+        voice
+            wave=noise
+            freq=2500
+            gain=0.04
+            noise=0.8
+            hpf=0.45
+            lpf=0.7
+            formants=1800:220:0.8,3600:480:0.55
+            formant_mix=0.35
+
+        voice
+            wave=sine
+            freq=360
+            gain=@/pink/velum
+            formants=300:80:1,900:180:0.45
+            formant_mix=0.55
+        """;
+
     public const string Dx7StyleAlgorithm32AdditiveOrgan = """
         patch
             gain=0.58
@@ -1075,6 +1123,7 @@ public static class BuiltInScripts
         foreach (var item in Classic808PrimitiveGolfScripts) yield return ("808", item.Name, item.Script);
         foreach (var item in FmBellPrimitiveGolfScripts) yield return ("fm-bell", item.Name, item.Script);
         foreach (var item in WobbleBassPrimitiveGolfScripts) yield return ("wobble-bass", item.Name, item.Script);
+        yield return ("pink-trombone", "current-aquasynth-proxy", PinkTromboneProxy);
         foreach (var item in ReferenceRebuildCatalog.Dx7Rebuilds) yield return ("dx7", item.Name, item.Script);
         foreach (var item in ReferenceRebuildCatalog.ZynRebuilds) yield return ("zynaddsubfx", item.Name, item.Script);
         foreach (var item in AdvancedReferenceScripts) yield return ("advanced", item.Name, item.Script);

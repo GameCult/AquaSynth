@@ -18,6 +18,7 @@ surfaces:
   reference_roadmap: docs/reference-synth-roadmap.md
   ipa_vocal_tract_roadmap: docs/ipa-vocal-tract-roadmap.md
   utterance_parity_research: docs/utterance-parity-research.md
+  pink_trombone_parity: docs/pink-trombone-parity.md
   wet_voice_witness_fixture: tests/AquaSynth.Dsl.Tests/Fixtures/Speech/WetVoice01
   faust_toolchain_boundary: docs/faust-toolchain-boundary.md
   dx7_public_domain_fixtures: tests/AquaSynth.Dsl.Tests/Fixtures/Dx7/PublicDomain
@@ -35,6 +36,7 @@ modules:
   model: src/AquaSynth.Core/Model.cs
   parser: src/AquaSynth.Core/PatchScript.cs
   vocal_tract_model: src/AquaSynth.Core/VocalTractModel.cs
+  pink_trombone_reference: src/AquaSynth.Core/PinkTromboneReference.cs
   packed_neural_network: src/AquaSynth.Core/PackedNeuralNetwork.cs
   utterance_embedding_learning: src/AquaSynth.Core/UtteranceEmbeddingLearning.cs
   speech_backpropagation_pipeline: src/AquaSynth.Core/SpeechBackpropagationPipeline.cs

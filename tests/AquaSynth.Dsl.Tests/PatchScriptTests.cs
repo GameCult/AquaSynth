@@ -289,6 +289,29 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void PinkTromboneReferenceDeclaresMissingWaveguideAuthority()
+    {
+        var reference = PinkTromboneReference.ToReferencePatch();
+        var rebuild = Assert.Single(ReferenceRebuildCatalog.PinkTromboneRebuilds);
+        var patch = PatchScript.Parse(rebuild.Script);
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions("pink_trombone_proxy"));
+
+        Assert.Equal("pink-trombone", rebuild.Family);
+        Assert.Contains(reference.Features, feature => feature.Name == "main_tract_waveguide_cells" && feature.Value == "44");
+        Assert.Contains(reference.Features, feature => feature.Name == "nose_waveguide_cells" && feature.Value == "28");
+        Assert.Contains(reference.Features, feature => feature.Name == "tract_sample_rate" && feature.Value == "2x-audio-sample-rate");
+        Assert.Contains(reference.Features, feature => feature.Name == "reflection_formula");
+        Assert.Contains(reference.Parameters, parameter => parameter.Path == "/pink/tongue/index");
+        Assert.Contains(reference.Parameters, parameter => parameter.Path == "/pink/constriction/diameter");
+        Assert.Contains(rebuild.MatchedFeatures, feature => feature.Name == "formant_proxy");
+        Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "main_tract_waveguide_cells");
+        Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "diameter_to_reflection_coefficients");
+        Assert.Contains(rebuild.MissingFeatures, feature => feature.Name == "nose_waveguide_cells");
+        Assert.NotEmpty(patch.Parameters);
+        Assert.Contains("process =", export.Source);
+    }
+
+    [Fact]
     public void ZynReferenceRebuildsTrackFixtureFeaturePressure()
     {
         var fixtures = new Dictionary<string, string>
