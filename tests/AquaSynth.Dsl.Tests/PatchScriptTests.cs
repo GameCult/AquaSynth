@@ -397,6 +397,35 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void PinkTromboneParityFixturesUseReusableLowLevelPrimitives()
+    {
+        Assert.True(PinkTromboneParityFixtures.All.Count >= 5);
+        foreach (var fixture in PinkTromboneParityFixtures.All)
+        {
+            var patch = PatchScript.Parse(fixture.AquaScript);
+            var voice = Assert.Single(patch.Voices);
+            var export = FaustEmitter.Emit(patch, new FaustExportOptions($"pt_{fixture.Id.Replace('-', '_')}"));
+
+            Assert.NotNull(voice.Tract);
+            Assert.NotEmpty(patch.TractShapes);
+            Assert.NotEmpty(patch.GlottalSources);
+            Assert.NotEmpty(patch.TractInjections);
+            Assert.NotEmpty(patch.NasalBranches);
+            Assert.NotEmpty(patch.TractMotions);
+            Assert.Equal(TractPropagationMode.Waveguide, voice.Tract.Propagation);
+            Assert.Contains("wg_diameter_target_", export.Source);
+            Assert.Contains("wg_substep_drive", export.Source);
+            Assert.Contains("process =", export.Source);
+            Assert.NotEmpty(fixture.ReferenceFeatures);
+        }
+
+        var identical = AudioAnalyzer.CosineSimilarity([1, 2, 3], [1, 2, 3]);
+        var different = AudioAnalyzer.CosineSimilarity([1, 0, 0], [0, 1, 0]);
+        Assert.True(identical > .999f);
+        Assert.True(different < .001f);
+    }
+
+    [Fact]
     public void ZynReferenceRebuildsTrackFixtureFeaturePressure()
     {
         var fixtures = new Dictionary<string, string>

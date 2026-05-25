@@ -37,6 +37,7 @@ public sealed record AudioComparison(
     float CentroidRatio,
     float EnvelopeDistance,
     float LogMelDistance,
+    float LogMelCosineSimilarity,
     float Score);
 
 public sealed class AudioAnalyzer
@@ -183,9 +184,10 @@ public sealed class AudioAnalyzer
         var centroidRatio = SafeRatio(candidate.Features.SpectralCentroidHz, reference.Features.SpectralCentroidHz);
         var envelopeDistance = NormalizedDistance(reference.RmsEnvelope, candidate.RmsEnvelope);
         var logMelDistance = NormalizedDistance(reference.LogMelSpectrogram.Values, candidate.LogMelSpectrogram.Values);
+        var logMelCosine = CosineSimilarity(reference.LogMelSpectrogram.Values, candidate.LogMelSpectrogram.Values);
         var ratioPenalty = RatioDistance(durationRatio) + RatioDistance(rmsRatio) + RatioDistance(zeroCrossingRatio) * 0.5f + RatioDistance(centroidRatio) * 0.5f;
         var score = 1 / (1 + envelopeDistance * 0.7f + logMelDistance + ratioPenalty);
-        return new AudioComparison(reference, candidate, durationRatio, rmsRatio, zeroCrossingRatio, centroidRatio, envelopeDistance, logMelDistance, score);
+        return new AudioComparison(reference, candidate, durationRatio, rmsRatio, zeroCrossingRatio, centroidRatio, envelopeDistance, logMelDistance, logMelCosine, score);
     }
 
     private static void Fft(Complex[] buffer)
@@ -280,6 +282,24 @@ public sealed class AudioAnalyzer
             scale += a * a + b * b;
         }
         return MathF.Sqrt(error / Math.Max(float.Epsilon, scale));
+    }
+
+    public static float CosineSimilarity(IReadOnlyList<float> reference, IReadOnlyList<float> candidate)
+    {
+        var length = Math.Max(1, Math.Max(reference.Count, candidate.Count));
+        var dot = 0f;
+        var left = 0f;
+        var right = 0f;
+        for (var i = 0; i < length; i++)
+        {
+            var a = ResampledAt(reference, i, length);
+            var b = ResampledAt(candidate, i, length);
+            dot += a * b;
+            left += a * a;
+            right += b * b;
+        }
+
+        return dot / MathF.Max(0.000001f, MathF.Sqrt(left) * MathF.Sqrt(right));
     }
 
     private static float ResampledAt(IReadOnlyList<float> values, int index, int targetLength)

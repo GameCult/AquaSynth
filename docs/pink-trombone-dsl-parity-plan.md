@@ -85,6 +85,8 @@ named failure against Pink Trombone, but it does not own the anatomy:
      moving tongue/constriction gestures.
    - Renders Aqua DSL reconstructions.
    - Scores log-mel cosine similarity plus targeted feature probes.
+   - First fixture catalog exists in `PinkTromboneParityFixtures`; reference
+     rendering/audio thresholds remain the next pass.
 
 ## First Cut
 
@@ -102,7 +104,7 @@ The next cut is timing exactness and proof: the oral/nasal tube now derives movi
 per-section diameter/area/reflection fields, distributes frication into section
 updates, derives release bursts from obstruction history, and carries substep
 clock intent. Exact two recursive tract state updates per output sample and
-rendered parity fixtures still need proof.
+reference-rendered parity thresholds still need proof.
 
 ## Cut Line
 

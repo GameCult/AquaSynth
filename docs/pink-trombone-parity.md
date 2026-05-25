@@ -107,6 +107,10 @@ Trombone anatomy:
 - `substeps` expresses waveguide clock intent; current Faust lowering consumes
   it through drive/loss scaling but does not yet prove exact intra-sample state
   updates.
+- `PinkTromboneParityFixtures` defines fixed Aqua DSL workouts for open,
+  front, nasal, sibilant, and closure cases using the reusable low-level
+  primitives. The reference-rendered PT audio still needs to be captured or
+  generated before thresholds can be honest.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
