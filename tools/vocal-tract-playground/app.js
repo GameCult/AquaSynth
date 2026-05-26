@@ -10,6 +10,7 @@ const controlSpecs = [
   ["Constriction index", "constrictionIndex", "tract", 32, 2, 43, "cell"],
   ["Constriction diameter", "constrictionDiameter", "tract", 1.0, -0.7, 3.4, "diam"],
   ["Turbulence", "turbulence", "source", 0.18, 0, 1, ""],
+  ["Burst", "burst", "source", 0.25, 0, 1, ""],
   ["Lip opening", "lipOpening", "tract", 1.5, 0.35, 2.5, "diam"],
   ["Glottal reflection", "glottalReflection", "spectral", 0.75, -0.95, 0.95, ""],
   ["Lip reflection", "lipReflection", "spectral", -0.85, -0.98, 0.1, ""],
@@ -21,31 +22,31 @@ const presets = {
     frequency: 140, intensity: 0.72, tenseness: 0.58, tongueIndex: 13,
     tongueDiameter: 2.7, velum: 0.01, constrictionIndex: 32,
     constrictionDiameter: 1.4, turbulence: 0.08, lipOpening: 1.7,
-    glottalReflection: 0.75, lipReflection: -0.85, gain: 0.72
+    burst: 0.25, glottalReflection: 0.75, lipReflection: -0.85, gain: 0.72
   },
   ee: {
     frequency: 165, intensity: 0.68, tenseness: 0.72, tongueIndex: 27,
     tongueDiameter: 1.05, velum: 0.01, constrictionIndex: 34,
     constrictionDiameter: 1.2, turbulence: 0.04, lipOpening: 1.1,
-    glottalReflection: 0.75, lipReflection: -0.85, gain: 0.68
+    burst: 0.25, glottalReflection: 0.75, lipReflection: -0.85, gain: 0.68
   },
   oo: {
     frequency: 128, intensity: 0.72, tenseness: 0.55, tongueIndex: 12,
     tongueDiameter: 2.9, velum: 0.01, constrictionIndex: 38,
     constrictionDiameter: 1.5, turbulence: 0.03, lipOpening: 0.55,
-    glottalReflection: 0.75, lipReflection: -0.9, gain: 0.74
+    burst: 0.25, glottalReflection: 0.75, lipReflection: -0.9, gain: 0.74
   },
   ss: {
     frequency: 130, intensity: 0.48, tenseness: 0.22, tongueIndex: 28,
     tongueDiameter: 0.75, velum: 0.01, constrictionIndex: 34,
     constrictionDiameter: 0.35, turbulence: 0.95, lipOpening: 1.2,
-    glottalReflection: 0.65, lipReflection: -0.82, gain: 0.78
+    burst: 0.25, glottalReflection: 0.65, lipReflection: -0.82, gain: 0.78
   },
   ma: {
     frequency: 132, intensity: 0.66, tenseness: 0.52, tongueIndex: 14,
     tongueDiameter: 2.2, velum: 0.33, constrictionIndex: 18,
     constrictionDiameter: 0.8, turbulence: 0.12, lipOpening: 1.35,
-    glottalReflection: 0.78, lipReflection: -0.84, gain: 0.72
+    burst: 0.25, glottalReflection: 0.78, lipReflection: -0.84, gain: 0.72
   }
 };
 
@@ -286,7 +287,8 @@ function createTractSynth(sampleRate) {
     const thinness = Math.max(0, Math.min(1, 8 * (0.7 - s.constrictionDiameter)));
     const openness = Math.max(0, Math.min(1, 30 * (s.constrictionDiameter - 0.3)));
     const frontLift = 0.35 + 0.65 * Math.max(0, Math.min(1, s.constrictionIndex / 44));
-    const amount = rand() * s.turbulence * thinness * openness * s.intensity * frontLift * 1.8;
+    const pressure = Math.max(s.turbulence, s.burst);
+    const amount = rand() * s.turbulence * pressure * thinness * openness * s.intensity * frontLift * 1.8;
     const i = Math.floor(s.constrictionIndex);
     const delta = s.constrictionIndex - i;
     if (i + 1 < sections) {
@@ -345,7 +347,7 @@ function createTractSynth(sampleRate) {
   function updateTransient(s) {
     const opening = s.constrictionDiameter - lastConstrictionDiameter;
     if (opening > 0.18 && lastConstrictionDiameter < 0.28) {
-      transient += opening * s.intensity * (0.18 + s.turbulence * 0.42);
+      transient += opening * s.intensity * (0.18 + s.turbulence * 0.42) * s.burst;
     }
     lastConstrictionDiameter = s.constrictionDiameter;
   }
@@ -524,7 +526,7 @@ function drawWave(cx, cy, length, scale) {
 function drawReadout(width, height) {
   ctx.fillStyle = "#f0f4ed";
   ctx.font = "700 22px system-ui, sans-serif";
-  ctx.fillText(`tract voice sections=44 nose=28 freq=${state.frequency.toFixed(1)}Hz tense=${state.tenseness.toFixed(2)} velum=${state.velum.toFixed(2)}`, 28, 42);
+  ctx.fillText(`tract graph witness freq=${state.frequency.toFixed(1)}Hz tense=${state.tenseness.toFixed(2)} velum=${state.velum.toFixed(2)} burst=${state.burst.toFixed(2)}`, 28, 42);
   ctx.fillStyle = "#a8b3a3";
   ctx.font = "15px system-ui, sans-serif";
   ctx.fillText("Aqua DSL tract voice controls: source, tongue, velum, constriction, turbulence, radiation", 28, height - 24);

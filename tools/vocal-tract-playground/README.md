@@ -17,8 +17,10 @@ http://localhost:5125/
 This is a tract-voice control witness. It exposes the same Pink
 Trombone-shaped controls that Aqua DSL now lowers through `tract`: frequency,
 intensity, tenseness, tongue index/diameter, velum, constriction
-index/diameter, turbulence, lip opening, and radiation reflection controls.
+index/diameter, turbulence, burst, lip opening, and radiation reflection
+controls.
 
-The browser synth runs a small 44-cell/28-cell waveguide-style witness so the
-knobs are touchable while the Faust lowering keeps maturing toward exact Pink
-Trombone parity.
+The browser synth runs a small waveguide-style witness so the knobs are
+touchable while the Faust graph lowering keeps maturing toward Pink Trombone
+parity. It is a control playground, not the canonical DSP owner; the canonical
+audio path is still the Aqua DSL -> Faust graph lowering.
