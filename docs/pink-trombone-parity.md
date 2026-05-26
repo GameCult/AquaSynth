@@ -3,12 +3,13 @@
 ## Objective
 
 Use Pink Trombone as old-school speech parity pressure, not as a vague mascot
-for "more vocal knobs." The current AquaSynth tract voice is a tract-shaped
-voice treatment with Pink Trombone-style controls. Pink Trombone itself is still
-a moving vocal-tract waveguide. Those are related machines, but not the same
-machine.
+for "more vocal knobs." The active Aqua path is the typed acoustic graph:
+continuous paths, source ports, branch terminals, radiation ports, connection
+laws, and wave-clock policy. Pink Trombone's old waveguide discretization is
+source-reference pressure, not an Aqua implementation lane to preserve.
 
-This packet exists so the mismatch stays inspectable.
+This packet exists so the machine stays inspectable while the old one turns
+into commit-history dust.
 
 ## Reference Source
 
@@ -73,10 +74,10 @@ Current AquaSynth can express:
 - Pink Trombone-shaped controls for intensity, tenseness, tongue body,
   constriction, velum/nasal opening, turbulence, lip opening, and end
   reflections;
-- a Faust-lowered tract voice proxy with LF-style excitation, aspiration,
-  frication, oral resonators, and a velum-controlled nasal lane;
-- generated oral bidirectional waveguide equations over a `tract_shape` section
-  field when `propagation=waveguide`;
+- typed acoustic paths, terminals, connections, source ports, branch/radiation
+  ports, and wave-clock policies;
+- graph lowering that splits paths at terminals, injects typed sources, scatters
+  connection groups, and radiates from typed terminal ports;
 - oscillator/noise sources;
 - ADSR and staged rate/level envelopes;
 - low/high/band/notch filters;
@@ -88,6 +89,9 @@ Current AquaSynth cannot exactly express:
 
 - fractional-delay tract propagation whose clock derives from physical length,
   propagation speed, and sample rate;
+- live continuous area modulation along each acoustic path segment. Generated
+  graph paths currently keep the authored rest morphology while live controls
+  own source pressure, branch coupling, and radiation apertures.
 - exact Pink Trombone block timing and source/noise/transient behavior inside
   the Faust-lowered Aqua graph.
 
@@ -118,90 +122,73 @@ teaching a bad artifact rather than useful Pink Trombone capability.
 
 ## Current Parity Rung
 
-The current committed rung is an expressive tract voice, not exact Pink
+The current committed rung is an expressive graph voice, not exact Pink
 Trombone anatomy:
 
 - `PinkTromboneReference.ToReferencePatch()` records the source, tract features,
   and relevant controls.
-- `ReferenceRebuildCatalog.PinkTromboneRebuilds` contains the current
-  AquaSynth tract-voice proxy as a deliberately non-passing rebuild.
 - The `tract` DSL command parses into an ordinary `Voice` with `Voice.Tract`,
-  so this remains a voice with a very expressive tract treatment.
+  and generates the same acoustic graph records used by explicit graph
+  authoring.
 - `tract_shape` owns reusable continuous diameter/area functions. The current
-  proxy consumes its shape summaries and derived reflection energy; waveguide
-  lowering consumes a compiled grid sampled from that continuous owner, so
-  authoring sample count and backend section count can differ.
+  graph uses the authored rest morphology as the compiled path and leaves
+  moving apertures to typed terminals and ports.
 - `glottis` and `tract_injection` own excitation and positioned noise/burst
   controls consumed by tract voices.
-- `propagation=waveguide` emits an oral right/left tube from the derived
-  reflection field. It is the first low-level propagation path, not full PT.
-- `nasal_branch` adds a second diameter/area tube and generated three-way
-  oral/nasal scattering junction when used by a waveguide tract.
-- `tract_injection` pressure is distributed into waveguide section updates by
-  position and width when waveguide propagation is active.
-- `tract_motion` smooths tract controls and lets the waveguide derive burst
-  pressure from obstruction history.
-- waveguide lowering derives live per-section diameter targets, areas, and
-  reflection coefficients from shape and gesture controls.
-- waveguide lowering now defaults to an acoustic unit-delay compiled grid from
-  physical tract length, currently turning a 17 cm oral tract into 22 compiled
-  sections at the 44.1 kHz target instead of treating PT's 44 cells as anatomy.
+- `nasal_branch` adds a second diameter/area tube and generated oral/nasal
+  connection terminals. Velum owns branch coupling and nasal aperture; the first
+  nasal tube sample is not allowed to masquerade as the velum opening.
+- generated graph records mirror live `tract` parameter bindings into acoustic
+  source, terminal, connection, and radiation fields so `/pink/...` controls
+  exercise the actual graph.
 - accepted utterance parity lowers the surviving PT control-point sketches into
   Faust `age` curves over ordinary `/pink/...` parameters and compares the
-  continuous Aqua waveguide render against the source-ported PT renderer.
-- waveguide radiation now adds a small high-passed lip-radiation emphasis after
-  the bidirectional tube output. This is the current answer to the accepted
-  utterance candidate sounding overly padded while already matching gross timing
-  and articulation.
-- `substeps` is now legacy waveguide clock pressure. Current Faust lowering
-  consumes it through drive/loss scaling, but the coherent target is
-  fractional-delay propagation from physical tract length and wave speed.
+  Aqua graph render against the source-ported PT renderer.
 - `PinkTromboneParityFixtures` defines fixed Aqua DSL workouts for open,
   front, nasal, sibilant, and closure cases using the reusable low-level
   primitives.
 - `PinkTromboneReferenceRenderer` renders deterministic test-only traveling-wave
   references for those fixture controls.
-- `PinkTromboneLogMelParityTests` renders Aqua waveguide candidates,
+- `PinkTromboneLogMelParityTests` renders Aqua graph candidates,
   writes listening WAV/report artifacts under
-  `artifacts/parity/pink-trombone-logmel/`, and reports the current waveguide
-  baseline: open vowel cosine 0.6143, front vowel 0.6349, nasal 0.5425,
-  sibilant 0.3744, closure-release -0.0820.
-- Waveguide lowering now uses one Faust feedback component
-  `wg_loop ~ si.bus(...)` for the compiled oral tract and nasal branch. The
-  previous scalar named-recursion form was cut because it was the wrong Faust
-  shape, and the PT 44/28 grid is now reference pressure rather than the
-  default emitted topology.
-- The proxy script parses and emits Faust with live controls, but its missing
-  features explicitly name the waveguide authorities AquaSynth does not own.
+  `artifacts/parity/pink-trombone-logmel/`, and reports only the graph lane.
+- Latest static graph fixture evidence after cutting the old parity lane:
+  open vowel cosine 0.6035, front vowel 0.6932, nasal 0.6814,
+  bilabial-nasal-ma 0.6239, sibilant 0.3428, closure-release 0.4135.
+- Latest graph utterance smoke evidence:
+  `mama` cosine -0.0657 / RMS 1.0484, `papa` 0.8253 / 0.8651,
+  `thrombosis` 0.2533 / 3.2917 under
+  `artifacts/parity/pink-trombone-utterance-logmel/20260526T225509931`.
+  This is not good enough speech parity; it is the honest graph-only baseline.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
   knob-twiddling through a small WebAudio witness.
-- `PinkTromboneReferenceDeclaresMissingWaveguideAuthority` prevents the proxy
-  from being mistaken for real tract parity.
+- `PinkTromboneReferenceDeclaresMissingWaveguideAuthority` prevents graph
+  coverage from being mistaken for exact PT parity.
 
 That is the correct shape for now. It should be fun to touch, but still honest
-about the parts of Pink Trombone it cannot claim.
+about the parts of Pink Trombone it cannot claim. The next target is not to
+revive the old waveguide. The next target is making moving graph morphology
+sound like an actual mouth.
 
 ## Next Cut
 
 Do not add another formant workaround. The next coherent implementation is one
 of these:
 
-1. Promote `Voice.Tract` from tract-shaped proxy lowering to a dedicated tract
-   DSP model in AquaSynth.Faust/Core: typed tract sections, diameter curves,
-   reflection calculation, glottal source, nasal branch, and a Faust emitter for
-   that structure.
-2. Replace `substeps` as a musical surface with fractional-delay waveguide
-   lowering. Physical length, propagation speed, and sample rate decide delay;
-   runtime morphology controls move diameters and junction openings without
-   recompiling unless topology changes.
-3. Use the log-mel artifact loop to golf fixture-by-fixture now that the real
-   tract path renders.
+1. Add live path-area modulation to graph segments so tongue and constriction
+   controls alter scattering along the tract instead of only source/radiation
+   apertures.
+2. Give plosive/closure release a graph-native transient owner instead of
+   smearing burst pressure through the turbulence port.
+3. Use the log-mel artifact loop to golf `mama`, `papa`, and `thrombosis`
+   against the source-ported PT renderer without reintroducing a parallel
+   PT-shaped backend.
 
 The new owner should be explainable as:
 
 ```text
-TractPlan owns section diameters and source/injection events so tract acoustics
-remain true during rendering.
+AcousticGraph owns paths, terminals, sources, connections, radiation, and live
+control bindings so tract acoustics remain true during rendering.
 ```
 
 If that sentence becomes awkward, the design is probably drifting back into

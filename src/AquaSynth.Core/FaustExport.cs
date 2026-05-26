@@ -756,7 +756,8 @@ public static class FaustEmitter
                         : "20.0";
                 var filter = $"fi.highpass(1, {highpass})";
                 var kindGain = radiationPort.Kind == AcousticRadiationKind.Nostril ? "0.75" : "1.55";
-                radiated.Add($"((({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) : {filter}) * {opening} * {loss} * {kindGain})");
+                var pressure = $"({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))})";
+                radiated.Add($"(({pressure} * 0.35 + ({pressure} : {filter}) * 0.65) * {opening} * {loss} * {kindGain})");
             }
         }
 
@@ -1096,7 +1097,7 @@ public static class FaustEmitter
         source.AppendLine("  };");
         source.AppendLine("};");
         source.AppendLine($"{name}_tract_radiated_raw = {name}_wg({name}_tract_excitation);");
-        source.AppendLine($"{name}_tract_radiated = {name}_tract_radiated_raw + ({name}_tract_radiated_raw : fi.highpass(1, 1200.0)) * 0.45;");
+        source.AppendLine($"{name}_tract_radiated = {name}_tract_radiated_raw;");
         return $"{name}_tract_radiated";
 
         static IEnumerable<string> nextStatesPlaceholder(int count) =>

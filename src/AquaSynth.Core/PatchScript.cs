@@ -750,6 +750,22 @@ public static class PatchScript
             _acousticTerminalsByName[terminal.Name] = terminal;
         }
 
+        private void MirrorParameterBinding(string sourceFieldPath, string targetFieldPath)
+        {
+            if (_parameterBindings.Any(binding => binding.FieldPath.Equals(targetFieldPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            var source = _parameterBindings.LastOrDefault(binding => binding.FieldPath.Equals(sourceFieldPath, StringComparison.OrdinalIgnoreCase));
+            if (source is null)
+            {
+                return;
+            }
+
+            _parameterBindings.Add(new ParameterBinding(targetFieldPath, source.ParameterPath));
+        }
+
         private void AddAcousticConnectionRecord(AcousticConnection connection)
         {
             if (_acousticConnectionsByName.ContainsKey(connection.Name)) return;
@@ -1214,11 +1230,10 @@ public static class PatchScript
         private AcousticPortNetwork EnsureTractAcousticNetwork(string ownerPath, VocalTract tract)
         {
             var prefix = ownerPath.Replace("/", "_", StringComparison.Ordinal).Trim('_');
+            var tractPath = OwnerField(ownerPath, "tract");
             var primaryPathName = $"{prefix}_oral";
             var baseOralArea = tract.AreaFunction ?? new TractAreaFunction([0.6f, 0.8f, 1.2f, 1.5f, 1.5f, 1.2f, 0.8f, 0.6f], 17);
-            var oralArea = tract.Propagation == TractPropagationMode.Graph
-                ? TractGraphAreaFunction(tract, baseOralArea)
-                : baseOralArea;
+            var oralArea = baseOralArea;
             AddAcousticPathRecord(new AcousticPath(primaryPathName, oralArea, 343, tract.WaveguideLoss));
 
             var sourceNames = new List<string>();
@@ -1235,7 +1250,10 @@ public static class PatchScript
                 tract.Tenseness,
                 tract.Glottis?.Skew ?? 0.42f,
                 tract.Glottis?.Aspiration ?? 0.08f);
+            var sourceIndex = _acousticSourcePorts.Count;
             AddAcousticSourcePortRecord(source);
+            MirrorParameterBinding(OwnerField(tractPath, "intensity"), $"/acoustic/sources/{sourceIndex}/pressure");
+            MirrorParameterBinding(OwnerField(tractPath, "tenseness"), $"/acoustic/sources/{sourceIndex}/tension");
             AddAcousticTerminalRecord(new AcousticTerminal(
                 source.Name,
                 source.Path,
@@ -1244,6 +1262,7 @@ public static class PatchScript
                 source.Name,
                 1,
                 tract.GlottalReflection));
+            MirrorParameterBinding(OwnerField(tractPath, "glottal_reflection"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/reflection");
             sourceNames.Add(sourceName);
 
             if (tract.Injection is { } injection)
@@ -1258,7 +1277,11 @@ public static class PatchScript
                     0,
                     injection.Diameter,
                     Math.Max(0.001f, injection.Turbulence));
+                var injectionSourceIndex = _acousticSourcePorts.Count;
                 AddAcousticSourcePortRecord(injectionSource);
+                MirrorParameterBinding(OwnerField(tractPath, "turbulence"), $"/acoustic/sources/{injectionSourceIndex}/pressure");
+                MirrorParameterBinding(OwnerField(tractPath, "constriction_diameter"), $"/acoustic/sources/{injectionSourceIndex}/opening");
+                MirrorParameterBinding(OwnerField(tractPath, "turbulence"), $"/acoustic/sources/{injectionSourceIndex}/noise");
                 AddAcousticTerminalRecord(new AcousticTerminal(injectionSource.Name, injectionSource.Path, injectionSource.Position, AcousticTerminalKind.Source, injectionSource.Name));
                 sourceNames.Add(injectionName);
             }
@@ -1291,12 +1314,14 @@ public static class PatchScript
                     branch.ToPosition,
                     AcousticTerminalKind.Junction,
                     branch.Name,
-                    MathF.Pow(Math.Max(0, branch.Opening), 2)));
+                    MathF.Pow(Math.Max(0, branch.Opening), 2) / Math.Max(0.000001f, nasalArea.Diameters[0] * nasalArea.Diameters[0])));
+                var branchConnectionIndex = _acousticConnections.Count;
                 AddAcousticConnectionRecord(new AcousticConnection(
                     BranchConnectionName(branch),
                     [BranchFromTerminalName(branch), BranchToTerminalName(branch)],
                     AcousticConnectionLaw.AreaScattering,
                     branch.Coupling));
+                MirrorParameterBinding(OwnerField(tractPath, "velum"), $"/acoustic/connections/{branchConnectionIndex}/coupling");
                 var nasalRadiation = new AcousticRadiationPort(
                     $"{nasalPathName}_radiation",
                     nasalPathName,
@@ -1305,7 +1330,10 @@ public static class PatchScript
                     1,
                     nasal.Reflection,
                     nasal.Loss);
+                var nasalRadiationIndex = _acousticRadiationPorts.Count;
                 AddAcousticRadiationPortRecord(nasalRadiation);
+                MirrorParameterBinding(OwnerField(tractPath, "velum"), $"/acoustic/radiation/{nasalRadiationIndex}/opening");
+                MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/radiation/{nasalRadiationIndex}/reflection");
                 AddAcousticTerminalRecord(new AcousticTerminal(
                     nasalRadiation.Name,
                     nasalRadiation.Path,
@@ -1314,6 +1342,8 @@ public static class PatchScript
                     nasalRadiation.Name,
                     Math.Max(0, nasalRadiation.Opening),
                     nasalRadiation.Reflection));
+                MirrorParameterBinding(OwnerField(tractPath, "velum"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/area_scale");
+                MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/reflection");
                 branchNames.Add(nasalPathName);
                 radiationNames.Add($"{nasalPathName}_radiation");
             }
@@ -1327,7 +1357,10 @@ public static class PatchScript
                 tract.LipOpening,
                 tract.LipReflection,
                 1);
+            var lipIndex = _acousticRadiationPorts.Count;
             AddAcousticRadiationPortRecord(lip);
+            MirrorParameterBinding(OwnerField(tractPath, "lip_opening"), $"/acoustic/radiation/{lipIndex}/opening");
+            MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/radiation/{lipIndex}/reflection");
             AddAcousticTerminalRecord(new AcousticTerminal(
                 lip.Name,
                 lip.Path,
@@ -1336,6 +1369,8 @@ public static class PatchScript
                 lip.Name,
                 Math.Max(0, lip.Opening),
                 lip.Reflection));
+            MirrorParameterBinding(OwnerField(tractPath, "lip_opening"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/area_scale");
+            MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/reflection");
             radiationNames.Add(lipName);
 
             var clockName = $"{prefix}_clock";
@@ -1361,33 +1396,6 @@ public static class PatchScript
 
         private static float NormalizeTractIndex(float index, int sections) =>
             sections <= 0 ? 0 : Math.Clamp(index / Math.Max(1, sections - 1), 0, 1);
-
-        private static TractAreaFunction TractGraphAreaFunction(VocalTract tract, TractAreaFunction areaFunction)
-        {
-            var sections = areaFunction.Sections;
-            var diameters = new float[sections];
-            for (var i = 0; i < sections; i++)
-            {
-                var diameter = areaFunction.Diameters[i];
-                if (i == sections - 1)
-                {
-                    diameter = tract.LipOpening;
-                }
-                else
-                {
-                    var tongueWidth = Math.Max(1, sections * 0.18f);
-                    var tongueWeight = MathF.Exp(0 - MathF.Pow((i - tract.TongueIndex) / tongueWidth, 2));
-                    diameter += (tract.TongueDiameter - diameter) * tongueWeight;
-                }
-
-                var constrictionWidth = Math.Max(1, sections * 0.09f);
-                var constrictionWeight = MathF.Exp(0 - MathF.Pow((i - tract.ConstrictionIndex) / constrictionWidth, 2));
-                diameter = Math.Min(diameter, tract.ConstrictionDiameter + Math.Max(0, diameter - tract.ConstrictionDiameter) * (1 - constrictionWeight));
-                diameters[i] = Math.Max(0, diameter);
-            }
-
-            return new TractAreaFunction(diameters, areaFunction.LengthCentimeters);
-        }
 
         private void AddModBus(IReadOnlyDictionary<string, string> fields, int line)
         {

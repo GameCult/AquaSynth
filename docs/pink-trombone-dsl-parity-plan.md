@@ -181,10 +181,9 @@ single graph node, so a source can share an anatomical point with a junction or
 boundary without disappearing.
 
 The remaining implementation pressure is now narrower: broaden connection laws
-with sharper physical semantics and run the log-mel parity loop against the
-graph renderer. PT-shaped `tract` authoring can now opt into graph lowering via
-`propagation=graph`; the legacy `propagation=waveguide` lane remains as the
-old parity baseline until the graph renderer wins on evidence.
+with sharper physical semantics and keep the log-mel parity loop on the graph
+renderer. PT-shaped `tract` authoring now uses `propagation=graph` for accepted
+parity. The old waveguide lane is not a baseline, pressure lane, or fallback.
 
 Authority map for the required rebuild:
 
@@ -213,30 +212,24 @@ semantics and a `tract propagation=graph` entry point; the remaining parity
 question is whether graph-authored PT compatibility can beat the current weak
 `Voice.Tract` baseline.
 
-The parity report now renders both lanes. The latest graph evidence is finally
-useful instead of decorative: LF-style glottal shaping plus radiation high-pass
-leakage and aperture-weighted turbulence jets raise graph open/front vowel
-cosine to 0.6393/0.6596, beating the current legacy waveguide lane at
-0.6143/0.6349. Nasal graph cosine is still lower at 0.4607 and its RMS ratio is
-too loud at 1.6914, so nasal branch/radiation gain or junction coupling remains
-active pressure. Sibilant graph cosine is still weak at 0.2320, but
-closure-release graph cosine is now positive at 0.1170 instead of the old
-negative waveguide baseline. Baking static tongue/constriction/lip shape into
-the generated graph path did not materially move the report; the useful levers
-so far are source semantics, radiation impedance, and transient/frication
-injection.
+The parity report now renders the graph lane only. The latest static fixture
+evidence is useful instead of decorative: open/front/nasal/ma/sibilant/closure
+cosine is 0.6035/0.6932/0.6814/0.6239/0.3428/0.4135. The useful levers so far
+are source semantics, radiation impedance, terminal-specific admittance,
+frication injection, and cutting stale first-frame morphology from generated
+graph paths.
 
 The nasal branch pressure exposed the next graph-law issue. The graph now uses
 terminal-specific admittance in connection pressure instead of collapsing every
 co-located terminal into one node area, and branch output uses a floored
 area-ratio pressure normalization so weak side ports no longer receive full
-junction pressure. That moved nasal graph cosine to 0.5159 and RMS ratio to
-1.4815 while keeping open/front graph cosine slightly above the waveguide lane
-at 0.6202/0.6417. Two tempting compensators were cut: raw per-port outgoing
-coupling made supposedly oral fixtures nearly silent, and lip/beak radiation
-gain did not restore oral vowel RMS. The remaining issue is oral energy: the
-side-branch law is less wrong, but the graph still needs better power/flow
-normalization before RMS parity becomes honest.
+junction pressure. The generated tract graph also stopped treating the first
+nasal tube diameter as the velum aperture; velum now owns branch coupling and
+aperture. Two tempting compensators were cut: raw per-port outgoing coupling
+made supposedly oral fixtures nearly silent, and lip/beak radiation gain did
+not restore oral vowel RMS. The remaining issue is moving morphology: static
+graph fixtures are plausible, but utterance `mama` still fails at -0.0657
+cosine even with correct RMS.
 
 Frication also had a low-level ownership bug: generated graph `TurbulenceJet`
 ports were using burst as source pressure, so sustained sibilants were choked

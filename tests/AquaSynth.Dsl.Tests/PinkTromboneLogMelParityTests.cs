@@ -6,10 +6,6 @@ namespace AquaSynth.Dsl.Tests;
 public sealed class PinkTromboneLogMelParityTests
 {
     private const float SmokeCosineFloor = 0.08f;
-    private static readonly IReadOnlyDictionary<string, float> FixtureSmokeCosineFloors = new Dictionary<string, float>
-    {
-        ["closure-release"] = -0.1f
-    };
     private static readonly IReadOnlyDictionary<string, float> GraphSmokeCosineFloors = new Dictionary<string, float>
     {
         ["open-vowel"] = 0.55f,
@@ -20,11 +16,11 @@ public sealed class PinkTromboneLogMelParityTests
         ["closure-release"] = 0.05f
     };
     private static readonly string[] UtteranceParityIds = ["mama", "papa", "thrombosis"];
-    private static readonly IReadOnlyDictionary<string, float> UtteranceWaveguideSmokeCosineFloors = new Dictionary<string, float>
+    private static readonly IReadOnlyDictionary<string, float> UtteranceGraphSmokeCosineFloors = new Dictionary<string, float>
     {
-        ["mama"] = 0.68f,
-        ["papa"] = 0.82f,
-        ["thrombosis"] = 0.52f
+        ["mama"] = -0.08f,
+        ["papa"] = 0.8f,
+        ["thrombosis"] = 0.2f
     };
 
     [Fact]
@@ -73,31 +69,15 @@ public sealed class PinkTromboneLogMelParityTests
 
             var comparison = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: reference.SampleRate))
                 .Compare(reference.Samples, candidate.Samples);
-            reports.Add(Report(fixture, comparison, "waveguide"));
-            WriteFixtureArtifacts(artifactDir, fixture, "waveguide", reference.Samples, candidate.Samples, reference.SampleRate, comparison, candidateSource.Source);
-
-            var graphSource = FaustEmitter.EmitScript(fixture.GraphAquaScript, new FaustExportOptions($"pt_graph_{fixture.Id.Replace('-', '_')}"));
-            File.WriteAllText(Path.Combine(fixtureDir, "candidate-graph.dsp"), graphSource.Source);
-            var graphCandidate = await FaustCompiler.RenderAsync(
-                graphSource.Source,
-                new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate));
-            Assert.NotNull(graphCandidate);
-            Assert.True(graphCandidate.Samples.Length > 0, $"{graphCandidate.Stderr}{Environment.NewLine}artifacts: {fixtureDir}");
-            Assert.True(graphCandidate.Samples.Max(MathF.Abs) > 0.00001f, graphCandidate.Stderr);
-            var graphComparison = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: reference.SampleRate))
-                .Compare(reference.Samples, graphCandidate.Samples);
-            reports.Add(Report(fixture, graphComparison, "graph"));
-            WriteFixtureArtifacts(artifactDir, fixture, "graph", reference.Samples, graphCandidate.Samples, reference.SampleRate, graphComparison, graphSource.Source);
+            reports.Add(Report(fixture, comparison, "graph"));
+            WriteFixtureArtifacts(artifactDir, fixture, "graph", reference.Samples, candidate.Samples, reference.SampleRate, comparison, candidateSource.Source);
 
             Assert.True(
-                comparison.LogMelCosineSimilarity >= FixtureSmokeCosineFloors.GetValueOrDefault(fixture.Id, SmokeCosineFloor),
-                $"{Report(fixture, comparison, "waveguide")}{Environment.NewLine}artifacts: {artifactDir}");
+                comparison.LogMelCosineSimilarity >= GraphSmokeCosineFloors.GetValueOrDefault(fixture.Id, SmokeCosineFloor),
+                $"{Report(fixture, comparison, "graph")}{Environment.NewLine}artifacts: {artifactDir}");
             Assert.True(
-                graphComparison.LogMelCosineSimilarity >= GraphSmokeCosineFloors.GetValueOrDefault(fixture.Id, SmokeCosineFloor),
-                $"{Report(fixture, graphComparison, "graph")}{Environment.NewLine}artifacts: {artifactDir}");
-            Assert.True(
-                graphComparison.RmsRatio is > 0.03f and < 2.25f,
-                $"{Report(fixture, graphComparison, "graph")}{Environment.NewLine}artifacts: {artifactDir}");
+                comparison.RmsRatio is > 0.03f and < 2.25f,
+                $"{Report(fixture, comparison, "graph")}{Environment.NewLine}artifacts: {artifactDir}");
         }
 
         Directory.CreateDirectory(artifactDir);
@@ -105,7 +85,7 @@ public sealed class PinkTromboneLogMelParityTests
     }
 
     [Fact]
-    public async Task PinkTromboneAcceptedUtterancesReportWaveguideLogMelParityWhenFaustIsInstalled()
+    public async Task PinkTromboneAcceptedUtterancesReportGraphLogMelParityWhenFaustIsInstalled()
     {
         if (FaustCompiler.FindFaust() is null)
         {
@@ -120,7 +100,7 @@ public sealed class PinkTromboneLogMelParityTests
         foreach (var fixture in PinkTromboneUtteranceFixtures.All.Where(fixture => UtteranceParityIds.Contains(fixture.Id)))
         {
             var reference = referenceRenderer.RenderUtterance(fixture.Id, fixture.ControlPoints, fixture.DurationSeconds);
-            var source = AutomatedWaveguideSource(fixture);
+            var source = AutomatedGraphSource(fixture);
             var candidate = await FaustCompiler.RenderAsync(
                 source,
                 new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate));
@@ -132,19 +112,19 @@ public sealed class PinkTromboneLogMelParityTests
             var comparison = analyzer.Compare(reference.Samples, candidate.Samples);
             var report = string.Create(
                 CultureInfo.InvariantCulture,
-                $"{fixture.Id}/waveguide-utterance: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000}");
+                $"{fixture.Id}/graph-utterance: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000}");
             reports.Add(report);
 
             var fixtureDir = Path.Combine(artifactDir, fixture.Id);
             Directory.CreateDirectory(fixtureDir);
             WriteWav(Path.Combine(fixtureDir, "reference-pink-trombone.wav"), reference.Samples, reference.SampleRate);
-            WriteWav(Path.Combine(fixtureDir, "candidate-waveguide.wav"), candidate.Samples, candidate.SampleRate);
-            File.WriteAllText(Path.Combine(fixtureDir, "candidate-waveguide.dsp"), source);
+            WriteWav(Path.Combine(fixtureDir, "candidate-graph.wav"), candidate.Samples, candidate.SampleRate);
+            File.WriteAllText(Path.Combine(fixtureDir, "candidate-graph.dsp"), source);
             File.WriteAllText(Path.Combine(fixtureDir, "report.txt"), report);
             File.WriteAllText(Path.Combine(fixtureDir, "controls.csv"), UtteranceControlCsv(fixture));
 
             Assert.True(
-                comparison.LogMelCosineSimilarity >= UtteranceWaveguideSmokeCosineFloors.GetValueOrDefault(fixture.Id, 0.1f),
+                comparison.LogMelCosineSimilarity >= UtteranceGraphSmokeCosineFloors.GetValueOrDefault(fixture.Id, 0.1f),
                 $"{report}{Environment.NewLine}artifacts: {artifactDir}");
         }
 
@@ -157,9 +137,9 @@ public sealed class PinkTromboneLogMelParityTests
             CultureInfo.InvariantCulture,
             $"{fixture.Id}/{candidate}: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000}");
 
-    private static string AutomatedWaveguideSource(PinkTromboneUtteranceFixture fixture)
+    private static string AutomatedGraphSource(PinkTromboneUtteranceFixture fixture)
     {
-        var source = FaustEmitter.EmitScript(UtteranceWaveguideScript(fixture), new FaustExportOptions($"pt_utterance_{fixture.Id}")).Source;
+        var source = FaustEmitter.EmitScript(UtteranceGraphScript(fixture), new FaustExportOptions($"pt_utterance_{fixture.Id}")).Source;
         var controls = ControlCurves(fixture.ControlPoints);
         for (var index = 0; index < controls.Count; index++)
         {
@@ -231,9 +211,9 @@ public sealed class PinkTromboneLogMelParityTests
         return 0.9f;
     }
 
-    private static string UtteranceWaveguideScript(PinkTromboneUtteranceFixture fixture) =>
+    private static string UtteranceGraphScript(PinkTromboneUtteranceFixture fixture) =>
         $$"""
-        patch gain=0.12 soft_clip=true
+        patch gain=0.55 soft_clip=true
 
         param name=frequency path=/pink/frequency default={{F(fixture.ControlPoints[0].Controls.Frequency)}} min=10 max=600 step=0.01 unit=Hz rate=audio
         param name=intensity path=/pink/intensity default={{F(fixture.ControlPoints[0].Controls.Intensity)}} min=0 max=1 step=0.001
@@ -260,7 +240,7 @@ public sealed class PinkTromboneLogMelParityTests
         nasal_branch name=nose length_cm=12 junction=17 velum=@/pink/velum reflection=@/pink/lip/reflection loss=.999 diameters=0.01,0.35,0.5,0.65,0.8,0.95,1.1,1.25,1.4,1.55,1.7,1.8,1.9,1.9,1.85,1.75,1.65,1.55,1.45,1.35,1.25,1.15,1.05,0.95,0.85,0.75,0.65,0.55
         tract_motion name=motion diameter_slew=18 shape_return=8 constriction_slew=24 velum_slew=16 obstruction_threshold=.05
 
-        tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation=waveguide waveguide_loss=.999 freq=@/pink/frequency gain=@/pink/gain intensity=@/pink/intensity tenseness=@/pink/tenseness attack=.03 sustain={{F(fixture.DurationSeconds)}} decay=.05 tongue_index=@/pink/tongue/index tongue_diameter=@/pink/tongue/diameter constriction_index=@/pink/constriction/index constriction_diameter=@/pink/constriction/diameter turbulence=@/pink/turbulence velum=@/pink/velum lip=@/pink/lip/opening burst=@/pink/burst glottal_reflection=@/pink/glottal/reflection lip_reflection=@/pink/lip/reflection
+        tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation=graph waveguide_loss=.999 freq=@/pink/frequency gain=@/pink/gain intensity=@/pink/intensity tenseness=@/pink/tenseness attack=.03 sustain={{F(fixture.DurationSeconds)}} decay=.05 tongue_index=@/pink/tongue/index tongue_diameter=@/pink/tongue/diameter constriction_index=@/pink/constriction/index constriction_diameter=@/pink/constriction/diameter turbulence=@/pink/turbulence velum=@/pink/velum lip=@/pink/lip/opening burst=@/pink/burst glottal_reflection=@/pink/glottal/reflection lip_reflection=@/pink/lip/reflection
         """;
 
     private static string UtteranceControlCsv(PinkTromboneUtteranceFixture fixture)

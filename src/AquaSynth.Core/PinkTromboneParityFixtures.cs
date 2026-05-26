@@ -5,7 +5,6 @@ public sealed record PinkTromboneParityFixture(
     string Description,
     PinkTromboneFixtureControls Controls,
     string AquaScript,
-    string GraphAquaScript,
     IReadOnlyList<string> ReferenceFeatures);
 
 public sealed record PinkTromboneFixtureControls(
@@ -117,14 +116,13 @@ public static class PinkTromboneParityFixtures
         string description,
         PinkTromboneFixtureControls controls,
         IReadOnlyList<string> referenceFeatures) =>
-        new(id, description, controls, Script(controls, "waveguide"), Script(controls, "graph"), referenceFeatures);
+        new(id, description, controls, Script(controls), referenceFeatures);
 
-    private static string Script(PinkTromboneFixtureControls controls, string propagation)
+    private static string Script(PinkTromboneFixtureControls controls)
     {
-        var patchGain = propagation == "graph" ? 0.028f : 0.82f;
         return
         $$"""
-        patch gain={{F(patchGain)}} soft_clip=true
+        patch gain=0.028 soft_clip=true
 
         tract_shape
             name=human
@@ -135,7 +133,7 @@ public static class PinkTromboneParityFixtures
         nasal_branch name=nose junction=17 velum=.01 reflection=-.85 loss=.999 diameters=0.01,0.35,0.5,0.65,0.8,0.95,1.1,1.25,1.4,1.55,1.7,1.8,1.9,1.9,1.85,1.75,1.65,1.55,1.45,1.35,1.25,1.15,1.05,0.95,0.85,0.75,0.65,0.55
         tract_motion name=motion diameter_slew=18 shape_return=8 constriction_slew=24 velum_slew=16 obstruction_threshold=.05
 
-        tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation={{propagation}} waveguide_loss=.999 freq={{F(controls.Frequency)}} gain={{F(controls.Gain)}} intensity={{F(controls.Intensity)}} tenseness={{F(controls.Tenseness)}} sustain=.45 decay=.12 tongue_index={{F(controls.TongueIndex)}} tongue_diameter={{F(controls.TongueDiameter)}} constriction_index={{F(controls.ConstrictionIndex)}} constriction_diameter={{F(controls.ConstrictionDiameter)}} turbulence={{F(controls.Turbulence)}} velum={{F(controls.Velum)}} lip={{F(controls.LipOpening)}} burst={{F(controls.Burst)}} glottal_reflection={{F(controls.GlottalReflection)}} lip_reflection={{F(controls.LipReflection)}}
+        tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation=graph waveguide_loss=.999 freq={{F(controls.Frequency)}} gain={{F(controls.Gain)}} intensity={{F(controls.Intensity)}} tenseness={{F(controls.Tenseness)}} sustain=.45 decay=.12 tongue_index={{F(controls.TongueIndex)}} tongue_diameter={{F(controls.TongueDiameter)}} constriction_index={{F(controls.ConstrictionIndex)}} constriction_diameter={{F(controls.ConstrictionDiameter)}} turbulence={{F(controls.Turbulence)}} velum={{F(controls.Velum)}} lip={{F(controls.LipOpening)}} burst={{F(controls.Burst)}} glottal_reflection={{F(controls.GlottalReflection)}} lip_reflection={{F(controls.LipReflection)}}
         """;
     }
 
