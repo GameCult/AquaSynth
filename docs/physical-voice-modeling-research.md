@@ -3,8 +3,9 @@
 Canonical research packet: `research/physical-voice-modeling/`.
 
 That folder contains downloaded/captured sources where possible, a source
-manifest with hashes, and the distilled implementation summary. This document
-remains the docs-facing copy of the same architectural direction.
+manifest with hashes, talks/transcripts where available, a practical
+researcher map, and the distilled implementation summary. This document remains
+the docs-facing copy of the same architectural direction.
 
 ## Objective
 
@@ -63,6 +64,25 @@ Primary sources consulted:
 - Frontiers DDSP review section on differentiable source-filter and
   differentiable Pink Trombone-style articulatory estimation:
   https://www.frontiersin.org/journals/signal-processing/articles/10.3389/frsip.2023.1284100/full
+- Peter Birkholz / VocalTractLab sources and talk pages:
+  https://www.vocaltractlab.de/ ,
+  https://github.com/TUD-STKS/VocalTractLabBackend-dev ,
+  https://lpp.cnrs.fr/evenement/srpp-de-peter-birkholz/ ,
+  https://brahms.ircam.fr/en/media/xfb9e0a_peter-birkholz-how-physical-models-of-th
+- Brad Story / TubeTalker and resonance tutorial:
+  https://ncvs.org/vocal-tract-resonances-in-vowel-production/ ,
+  https://www.youtube.com/watch?v=q23bAG-b6OA ,
+  https://bpb-us-e2.wpmucdn.com/sites.arizona.edu/dist/f/80/files/2023/10/Story-2011_0-1.pdf
+- Julius Smith CIRMMT physical-modeling talk:
+  https://www.cirmmt.org/en/events/distinguished-lectures/Smith
+- Sidney Fels / John Lloyd ArtiSynth talk:
+  https://www.microsoft.com/en-us/research/video/developing-physically-based-dynamic-vocal-tract-models-using-artisynth/
+
+The expanded packet now includes `PEOPLE.md` and `talks/TALKS.md`. Two public
+YouTube transcripts were downloaded: Julius Smith's physical-modeling lecture
+and Brad Story's NCVS vocal-tract resonance tutorial. Birkholz and Fels/Lloyd
+pages were preserved with transcript-unavailable notes because their public
+pages did not expose transcript text.
 
 ## Authority Map
 

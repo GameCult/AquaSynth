@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="fr-FR" class="no-js">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="profile" href="http://gmpg.org/xfn/11">
+<link href="https://fonts.googleapis.com/css?family=Lora:400,400i|Roboto:300,400,500,700 <https://fonts.googleapis.com/css?family=Lora:400%2c400i%7cRoboto:300%2c400%2c500%2c700> " rel="stylesheet">
+<!-- <link rel='stylesheet' id='style-lmo'  href='https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/css/style-lmo.css' type='text/css' media='all' /> -->
+<link rel="stylesheet" type="text/css" href="//lpp.cnrs.fr/wp-content/cache/wpfc-minified/euouj2q9/suef.css" media="all"/>        
+<script>(function(html){html.className = html.className.replace(/\bno-js\b/,'js')})(document.documentElement);</script>
+<title>SRPP: Recent improvements of the articulatory speech synthesizer VocalTractLab &#8211; Laboratoire de Phonétique et Phonologie</title>
+<meta name='robots' content='max-image-preview:large' />
+<link rel='dns-prefetch' href='//code.jquery.com' />
+<link rel="alternate" type="application/rss+xml" title="Laboratoire de Phonétique et Phonologie &raquo; Flux" href="https://lpp.cnrs.fr/feed/" />
+<link rel="alternate" type="application/rss+xml" title="Laboratoire de Phonétique et Phonologie &raquo; Flux des commentaires" href="https://lpp.cnrs.fr/comments/feed/" />
+<link rel="alternate" title="oEmbed (JSON)" type="application/json+oembed" href="https://lpp.cnrs.fr/wp-json/oembed/1.0/embed?url=https%3A%2F%2Flpp.cnrs.fr%2Fevenement%2Fsrpp-de-peter-birkholz%2F&#038;lang=fr" />
+<link rel="alternate" title="oEmbed (XML)" type="text/xml+oembed" href="https://lpp.cnrs.fr/wp-json/oembed/1.0/embed?url=https%3A%2F%2Flpp.cnrs.fr%2Fevenement%2Fsrpp-de-peter-birkholz%2F&#038;format=xml&#038;lang=fr" />
+<style id='wp-img-auto-sizes-contain-inline-css' type='text/css'>
+img:is([sizes=auto i],[sizes^="auto," i]){contain-intrinsic-size:3000px 1500px}
+/*# sourceURL=wp-img-auto-sizes-contain-inline-css */
+</style>
+<!-- <link rel='stylesheet' id='sdm-styles-css' href='https://lpp.cnrs.fr/wp-content/plugins/simple-download-monitor/css/sdm_wp_styles.css?ver=08d90e3c1d1326b8127ca2bc625361ce' type='text/css' media='all' /> -->
+<link rel="stylesheet" type="text/css" href="//lpp.cnrs.fr/wp-content/cache/wpfc-minified/lbn2cnil/suef.css" media="all"/>
+<style id='wp-emoji-styles-inline-css' type='text/css'>
+img.wp-smiley, img.emoji {
+display: inline !important;
+border: none !important;
+box-shadow: none !important;
+height: 1em !important;
+width: 1em !important;
+margin: 0 0.07em !important;
+vertical-align: -0.1em !important;
+background: none !important;
+padding: 0 !important;
+}
+/*# sourceURL=wp-emoji-styles-inline-css */
+</style>
+<!-- <link rel='stylesheet' id='wp-block-library-css' href='https://lpp.cnrs.fr/wp-includes/css/dist/block-library/common.min.css?ver=08d90e3c1d1326b8127ca2bc625361ce' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='metaslider-blocks-editor-css-css' href='https://lpp.cnrs.fr/wp-content/plugins/ml-slider/admin/assets/dist/css/editor-block.css?ver=3.109.0' type='text/css' media='all' property='stylesheet' /> -->
+<!-- <link rel='stylesheet' id='cookie-law-info-css' href='https://lpp.cnrs.fr/wp-content/plugins/cookie-law-info/legacy/public/css/cookie-law-info-public.css?ver=3.5.0' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='cookie-law-info-gdpr-css' href='https://lpp.cnrs.fr/wp-content/plugins/cookie-law-info/legacy/public/css/cookie-law-info-gdpr.css?ver=3.5.0' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='foobox-free-min-css' href='https://lpp.cnrs.fr/wp-content/plugins/foobox-image-lightbox/free/css/foobox.free.min.css?ver=2.7.43' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='wp-hal-style1-css' href='https://lpp.cnrs.fr/wp-content/plugins/hal/css/style.css?ver=08d90e3c1d1326b8127ca2bc625361ce' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='table-sorter-custom-css-css' href='https://lpp.cnrs.fr/wp-content/plugins/table-sorter/wp-style.css?ver=08d90e3c1d1326b8127ca2bc625361ce' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='genericons-css' href='https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/genericons/genericons.css?ver=3.4.1' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='cnrswebkit-parent-styles-css' href='https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/style.css?ver=08d90e3c1d1326b8127ca2bc625361ce' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='cnrswebkit-child-styles-css' href='https://lpp.cnrs.fr/wp-content/themes/cnrswebkit-child/style.css?ver=08d90e3c1d1326b8127ca2bc625361ce' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='icomoon-css' href='https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/css/icomoon.css?ver=1.0' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='cnrs_dyn-style-css' href='https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/library/css/cnrs_dyn.css?ver=1.0' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='dflip-style-css' href='https://lpp.cnrs.fr/wp-content/plugins/3d-flipbook-dflip-lite/assets/css/dflip.min.css?ver=2.4.27' type='text/css' media='all' /> -->
+<!-- <link rel='stylesheet' id='store-child-theme-style-css' href='https://lpp.cnrs.fr/wp-content/themes/cnrswebkit-child/custom-menus.css' type='text/css' media='all' /> -->
+<link rel="stylesheet" type="text/css" href="//lpp.cnrs.fr/wp-content/cache/wpfc-minified/lz4xb6e1/67nlu.css" media="all"/>
+<script type="text/javascript" src="https://code.jquery.com/jquery-3.1.1.min.js?ver=3.1.1" id="jquery-js"></script>
+<script type="text/javascript" id="cookie-law-info-js-extra">
+/* <![CDATA[ */
+var Cli_Data = {"nn_cookie_ids":[],"cookielist":[],"non_necessary_cookies":[],"ccpaEnabled":"","ccpaRegionBased":"","ccpaBarEnabled":"","strictlyEnabled":["necessary","obligatoire"],"ccpaType":"gdpr","js_blocking":"","custom_integration":"","triggerDomRefresh":"","secure_cookies":""};
+var cli_cookiebar_settings = {"animate_speed_hide":"500","animate_speed_show":"500","background":"#FFF","border":"#b1a6a6c2","border_on":"","button_1_button_colour":"#000","button_1_button_hover":"#000000","button_1_link_colour":"#fff","button_1_as_button":"1","button_1_new_win":"","button_2_button_colour":"#333","button_2_button_hover":"#292929","button_2_link_colour":"#444","button_2_as_button":"","button_2_hidebar":"","button_3_button_colour":"#000","button_3_button_hover":"#000000","button_3_link_colour":"#fff","button_3_as_button":"1","button_3_new_win":"","button_4_button_colour":"#000","button_4_button_hover":"#000000","button_4_link_colour":"#62a329","button_4_as_button":"","button_7_button_colour":"#61a229","button_7_button_hover":"#4e8221","button_7_link_colour":"#ffffff","button_7_as_button":"1","button_7_new_win":"","font_family":"inherit","header_fix":"","notify_animate_hide":"1","notify_animate_show":"","notify_div_id":"#cookie-law-info-bar","notify_position_horizontal":"left","notify_position_vertical":"bottom","scroll_close":"","scroll_close_reload":"","accept_close_reload":"","reject_close_reload":"","showagain_tab":"1","showagain_background":"#fff","showagain_border":"#000","showagain_div_id":"#cookie-law-info-again","showagain_x_position":"100px","text":"#000","show_once_yn":"","show_once":"10000","logging_on":"","as_popup":"","popup_overlay":"1","bar_heading_text":"Information relative aux conditions de la RGPD concernant les cookies","cookie_bar_as":"banner","popup_showagain_position":"bottom-right","widget_position":"left"};
+var log_object = {"ajax_url":"https://lpp.cnrs.fr/wp-admin/admin-ajax.php"};
+//# sourceURL=cookie-law-info-js-extra
+/* ]]> */
+</script>
+<script src='//lpp.cnrs.fr/wp-content/cache/wpfc-minified/drxtspmx/suef.js' type="text/javascript"></script>
+<!-- <script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/plugins/cookie-law-info/legacy/public/js/cookie-law-info-public.js?ver=3.5.0" id="cookie-law-info-js"></script> -->
+<script type="text/javascript" id="sdm-scripts-js-extra">
+/* <![CDATA[ */
+var sdm_ajax_script = {"ajaxurl":"https://lpp.cnrs.fr/wp-admin/admin-ajax.php"};
+//# sourceURL=sdm-scripts-js-extra
+/* ]]> */
+</script>
+<script src='//lpp.cnrs.fr/wp-content/cache/wpfc-minified/f3xkord5/suef.js' type="text/javascript"></script>
+<!-- <script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/plugins/simple-download-monitor/js/sdm_wp_scripts.js?ver=08d90e3c1d1326b8127ca2bc625361ce" id="sdm-scripts-js"></script> -->
+<!-- <script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/plugins/table-sorter/jquery.tablesorter.min.js?ver=08d90e3c1d1326b8127ca2bc625361ce" id="table-sorter-js"></script> -->
+<!-- <script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/plugins/table-sorter/jquery.metadata.js?ver=2.2" id="table-sorter-metadata-js"></script> -->
+<!-- <script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/plugins/table-sorter/wp-script.js?ver=2.2" id="table-sorter-custom-js-js"></script> -->
+<script type="text/javascript" id="foobox-free-min-js-before">
+/* <![CDATA[ */
+/* Run FooBox FREE (v2.7.43) */
+var FOOBOX = window.FOOBOX = {
+ready: true,
+disableOthers: false,
+o: {wordpress: { enabled: true }, countMessage:'image %index of %total', captions: { dataTitle: ["captionTitle","title"], dataDesc: ["captionDesc","description"] }, rel: '', excludes:'.fbx-link,.nofoobox,.nolightbox,a[href*="pinterest.com/pin/create/button/"]', affiliate : { enabled: false }},
+selectors: [
+".foogallery-container.foogallery-lightbox-foobox", ".foogallery-container.foogallery-lightbox-foobox-free", ".gallery", ".wp-block-gallery", ".wp-caption", ".wp-block-image", "a:has(img[class*=wp-image-])", ".foobox"
+],
+pre: function( $ ){
+// Custom JavaScript (Pre)
+},
+post: function( $ ){
+// Custom JavaScript (Post)
+// Custom Captions Code
+},
+custom: function( $ ){
+// Custom Extra JS
+}
+};
+//# sourceURL=foobox-free-min-js-before
+/* ]]> */
+</script>
+<script src='//lpp.cnrs.fr/wp-content/cache/wpfc-minified/2qtpdwys/suef.js' type="text/javascript"></script>
+<!-- <script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/plugins/foobox-image-lightbox/free/js/foobox.free.min.js?ver=2.7.43" id="foobox-free-min-js"></script> -->
+<link rel="https://api.w.org/" href="https://lpp.cnrs.fr/wp-json/" /><link rel="EditURI" type="application/rsd+xml" title="RSD" href="https://lpp.cnrs.fr/xmlrpc.php?rsd" />
+<link rel="canonical" href="https://lpp.cnrs.fr/evenement/srpp-de-peter-birkholz/" />
+<link rel='shortlink' href='https://lpp.cnrs.fr/?p=6656' />
+<style type="text/css" id="cnrswebkit-header-css">
+.site-branding {
+margin: 0 auto 0 0;
+}
+.site-branding .site-title,
+.site-branding .site-description {
+clip: rect(1px, 1px, 1px, 1px);
+position: absolute;
+}
+</style>
+<link rel="icon" href="https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-120x120.png" sizes="32x32" />
+<link rel="icon" href="https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-200x201.png" sizes="192x192" />
+<link rel="apple-touch-icon" href="https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-200x201.png" />
+<meta name="msapplication-TileImage" content="https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-300x300.png" />
+<style type="text/css" id="wp-custom-css">
+#menu-item-2191, ul.sub-menu {
+font-size:13px;
+color: #b7d2e6;
+}
+.sous-sous-menu{
+top: -30px;
+}		</style>
+<!-- BEGIN - Make Tables Responsive -->
+<style type="text/css">
+/* Multi-row tables */
+@media (max-width: 650px) {
+.mtr-table tbody,
+.mtr-table {
+width: 100% !important;
+display: table !important;
+}
+.mtr-table tr,
+.mtr-table .mtr-th-tag,
+.mtr-table .mtr-td-tag {
+display: block !important;
+clear: both !important;
+height: auto !important;
+}
+.mtr-table .mtr-td-tag,
+.mtr-table .mtr-th-tag {
+text-align: right !important;
+width: auto !important;
+box-sizing: border-box !important;
+overflow: auto !important;
+}
+.mtr-table .mtr-cell-content {
+text-align: right !important;
+}
+.mtr-table tbody,
+.mtr-table tr,
+.mtr-table {
+border: none !important;
+padding: 0 !important;
+}
+.mtr-table .mtr-td-tag,
+.mtr-table .mtr-th-tag {
+border: none;
+}
+.mtr-table tr:nth-child(even) .mtr-td-tag,
+.mtr-table tr:nth-child(even) .mtr-th-tag {
+border-bottom: 1px solid #dddddd !important;
+border-left: 1px solid #dddddd !important;
+border-right: 1px solid #dddddd !important;
+border-top: none !important;
+}
+.mtr-table tr:nth-child(odd) .mtr-td-tag,
+.mtr-table tr:nth-child(odd) .mtr-th-tag {
+border-bottom: 1px solid #bbbbbb !important;
+border-left: 1px solid #bbbbbb !important;
+border-right: 1px solid #bbbbbb !important;
+border-top: none !important;
+}
+.mtr-table tr:first-of-type td:first-of-type,
+.mtr-table tr:first-of-type th:first-of-type {
+border-top: 1px solid #bbbbbb !important;
+}
+.mtr-table.mtr-thead-td tr:nth-of-type(2) td:first-child,
+.mtr-table.mtr-thead-td tr:nth-of-type(2) th:first-child,
+.mtr-table.mtr-tr-th tr:nth-of-type(2) td:first-child,
+.mtr-table.mtr-tr-th tr:nth-of-type(2) th:first-child,
+.mtr-table.mtr-tr-td tr:nth-of-type(2) td:first-child,
+.mtr-table.mtr-tr-td tr:nth-of-type(2) th:first-child {
+border-top: 1px solid #dddddd !important;
+}
+.mtr-table tr:nth-child(even),
+.mtr-table tr:nth-child(even) .mtr-td-tag,
+.mtr-table tr:nth-child(even) .mtr-th-tag {
+background: #ffffff !important;
+}
+.mtr-table tr:nth-child(odd),
+.mtr-table tr:nth-child(odd) .mtr-td-tag,
+.mtr-table tr:nth-child(odd) .mtr-th-tag {
+background: #dddddd !important;
+}
+.mtr-table .mtr-td-tag,
+.mtr-table .mtr-td-tag:first-child,
+.mtr-table .mtr-th-tag,
+.mtr-table .mtr-th-tag:first-child {
+padding: 5px 10px !important;
+}
+.mtr-table td[data-mtr-content]:before,
+.mtr-table th[data-mtr-content]:before {
+display: inline-block !important;
+content: attr(data-mtr-content) !important;
+float: left !important;
+text-align: left !important;
+white-space: pre-line !important;
+}
+.mtr-table thead,
+.mtr-table.mtr-tr-th tr:first-of-type,
+.mtr-table.mtr-tr-td tr:first-of-type,
+.mtr-table colgroup {
+display: none !important;
+}
+.mtr-cell-content {
+max-width: 49% !important;
+display: inline-block !important;
+}
+.mtr-table td[data-mtr-content]:before,
+.mtr-table th[data-mtr-content]:before {
+max-width: 49% !important;
+}
+}
+/* Single-row tables */
+@media (max-width: 650px) {
+.mtr-one-row-table .mtr-td-tag,
+.mtr-one-row-table .mtr-th-tag {
+box-sizing: border-box !important;
+}
+.mtr-one-row-table colgroup {
+display: none !important;
+}
+.mtr-one-row-table tbody,
+.mtr-one-row-table tr,
+.mtr-one-row-table {
+border: none !important;
+padding: 0 !important;
+width: 100% !important;
+display: block;
+}
+.mtr-one-row-table .mtr-td-tag,
+.mtr-one-row-table .mtr-th-tag {
+border: none;
+}
+.mtr-one-row-table .mtr-td-tag,
+.mtr-one-row-table .mtr-th-tag {
+display: block !important;
+width: 50% !important;
+}
+.mtr-one-row-table tr {
+display: flex !important;
+flex-wrap: wrap !important;
+}
+.mtr-one-row-table td:nth-child(4n+1),
+.mtr-one-row-table th:nth-child(4n+1),
+.mtr-one-row-table td:nth-child(4n+2),
+.mtr-one-row-table th:nth-child(4n+2) {
+background: #dddddd !important;
+}
+.mtr-one-row-table th:nth-child(2n+1),
+.mtr-one-row-table td:nth-child(2n+1) {
+border-right: 1px solid #bbbbbb !important;
+border-left: 1px solid #bbbbbb !important;
+}
+.mtr-one-row-table td:nth-child(2n+2),
+.mtr-one-row-table th:nth-child(2n+2) {
+border-right: 1px solid #bbbbbb !important;
+}
+/* last two */
+.mtr-one-row-table td:nth-last-child(-n+2),
+.mtr-one-row-table th:nth-last-child(-n+2) {
+border-bottom: 1px solid #bbbbbb !important;
+}
+.mtr-one-row-table .mtr-td-tag,
+.mtr-one-row-table .mtr-th-tag {
+border-top: 1px solid #bbbbbb !important;
+padding: 5px 10px !important;
+}
+}
+</style>
+<!-- END - Make Tables Responsive -->
+<!-- TODO move style to css -->
+<style>
+.headerThumbPart img {
+height:60px;
+}
+@media screen and (max-width: 910px){
+.tutellesContainer {
+display: none;
+}
+}
+.tutellesContainer {
+border-right: 0px;
+vertical-align: bottom;
+height: 135px;
+}
+.rTable { display: table; border: 0px}
+.rTableRow { display: table-row; }
+.rTableBody { display: table-row-group; }
+.rTableCell, .rTableHead { display: table-cell; }
+</style>
+</head>
+<body class="wp-singular evenement-template-default single single-evenement postid-6656 wp-custom-logo wp-theme-cnrswebkit wp-child-theme-cnrswebkit-child locale-fr-fr metaslider-plugin no-sidebar">
+<div id="page" class="site">
+<div class="site-inner">
+<a class="skip-link screen-reader-text" href="#content">Aller au contenu</a>
+<header id="masthead" class="site-header" role="banner">
+<div class="site-header-main">
+<div class="site-branding">
+<div class="rTable">
+<div class="rTableBody">
+<div class="rTableRow">
+<div class="rTableCell"><a href="https://lpp.cnrs.fr/" class="custom-logo-link" rel="home"><img width="715" height="717" src="https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386.png" class="custom-logo" alt="Laboratoire de Phonétique et Phonologie" decoding="async" fetchpriority="high" srcset="https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386.png 715w, https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-150x150.png 150w, https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-200x201.png 200w, https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-120x120.png 120w, https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-300x300.png 300w, https://lpp.cnrs.fr/wp-content/uploads/Global/cropped-logo-lpp-e1720422422386-400x401.png 400w" sizes="(max-width: 709px) 85vw, (max-width: 909px) 67vw, (max-width: 984px) 61vw, (max-width: 1362px) 45vw, 600px" /></a></div>
+<div class="rTableCell tutellesContainer">
+<div class="rTable">
+<div class="rTableBody">
+<div class="rTableRow">
+<div class="rTableCell headerThumbPart"><a href="http://www.univ-paris3.fr/" target="_blank"><img src="/wp-content/uploads/Global/logo-sorbonne-nouvelle-paris3.png"/></a></div>
+</div>
+<div class="rTableRow">
+<div class="rTableCell headerThumbPart"><a href="http://www.cnrs.fr/" target="_blank"><img src="/wp-content/uploads/Global/LOGO_CNRS_BLEU.png"/></a></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div><!-- .site-branding -->
+<button id="menu-toggle" class="menu-toggle">Menu</button>
+<div id="site-header-menu" class="site-header-menu">
+<nav id="site-navigation" class="main-navigation" role="navigation" aria-label="Menu primaire">
+<div class="menu-menu-principal-container"><ul id="menu-menu-principal" class="primary-menu"><li id="menu-item-3543" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-3543"><a href="https://lpp.cnrs.fr/le-laboratoire/">Laboratoire</a>
+<ul class="sub-menu">
+<li id="menu-item-3832" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3832"><a href="https://lpp.cnrs.fr/le-laboratoire/">Présentation</a></li>
+<li id="menu-item-3842" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3842"><a href="https://lpp.cnrs.fr/le-laboratoire/notre-histoire/">Notre histoire</a></li>
+<li id="menu-item-7513" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-7513"><a href="https://lpp.cnrs.fr/le-laboratoire/les-50-ans-du-lpp/">Les 50 ans du LPP</a></li>
+<li id="menu-item-8471" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-8471"><a href="https://lpp.cnrs.fr/le-laboratoire/ethique-et-engagements/">Éthique et engagements</a>
+<ul class="sub-menu">
+<li id="menu-item-8470" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-8470"><a href="https://lpp.cnrs.fr/le-laboratoire/ethique-et-engagements/transition-environnementale/">Transition environnementale</a></li>
+<li id="menu-item-8469" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-8469"><a href="https://lpp.cnrs.fr/le-laboratoire/ethique-et-engagements/inclusivite/">Inclusivité</a></li>
+<li id="menu-item-8468" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-8468"><a href="https://lpp.cnrs.fr/le-laboratoire/ethique-et-engagements/lutte-contre-les-vss/">Lutte contre les VSS</a></li>
+</ul>
+</li>
+<li id="menu-item-3545" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3545"><a href="https://lpp.cnrs.fr/le-laboratoire/acces">Accès</a></li>
+</ul>
+</li>
+<li id="menu-item-3537" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-3537"><a href="https://lpp.cnrs.fr/membres">Membres</a>
+<ul class="sub-menu">
+<li id="menu-item-6671" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6671"><a href="https://lpp.cnrs.fr/membres/organigramme-du-lpp/">Organigramme du LPP</a></li>
+<li id="menu-item-3542" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3542"><a href="https://lpp.cnrs.fr/membres/permanents/">Permanent·es</a></li>
+<li id="menu-item-3541" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3541"><a href="https://lpp.cnrs.fr/membres/non-permanents/">Non Permanent·es</a></li>
+<li id="menu-item-3540" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3540"><a href="https://lpp.cnrs.fr/membres/doctorants/">Doctorant·es</a></li>
+<li id="menu-item-6890" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6890"><a href="https://lpp.cnrs.fr/membres/membres-associes">Membres Associé·es</a></li>
+<li id="menu-item-3539" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3539"><a href="https://lpp.cnrs.fr/membres/anciens-membres/">Anciens Membres</a></li>
+<li id="menu-item-3538" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3538"><a href="https://lpp.cnrs.fr/membres/visiteurs/">Visiteurs</a></li>
+</ul>
+</li>
+<li id="menu-item-4738" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-4738"><a href="https://lpp.cnrs.fr/ressources/">Ressources</a>
+<ul class="sub-menu">
+<li id="menu-item-8314" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8314"><a href="https://lpp.cnrs.fr/ressources/gestion-et-prets-de-materiel/">Prêt de matériel</a></li>
+<li id="menu-item-8315" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8315"><a href="https://lpp.cnrs.fr/ressources/reservation-de-la-chambre-experimentale/">Réservation de la chambre expérimentale</a></li>
+<li id="menu-item-8316" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-8316"><a href="https://lpp.cnrs.fr/ressources/bibliotheque-lpp/">Bibliothèque</a>
+<ul class="sub-menu">
+<li id="menu-item-8317" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-8317"><a href="https://lpp.cnrs.fr/ressources/bibliotheque-lpp/">Bibliothèque du LPP</a></li>
+<li id="menu-item-5745" class="sous-sous-menu menu-item menu-item-type-custom menu-item-object-custom menu-item-5745"><a href="https://biblio.laboratoirephonetiquephonologie.fr/">Bibliothèque en ligne</a></li>
+</ul>
+</li>
+<li id="menu-item-8318" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-8318"><a href="https://lpp.cnrs.fr/ressources/logiciels-et-scripts-du-lpp">Outils, logiciels et corpus</a>
+<ul class="sub-menu">
+<li id="menu-item-8076" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-8076"><a href="https://lpp.cnrs.fr/ressources/logiciels-et-scripts-du-lpp">Logiciels et Scripts</a></li>
+<li id="menu-item-6866" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-6866"><a href="https://lpp.cnrs.fr/ressources/corpus/">Corpus</a></li>
+<li id="menu-item-5322" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-5322"><a href="https://lpp.cnrs.fr/monpage/">MonPaGe</a></li>
+</ul>
+</li>
+<li id="menu-item-6691" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-6691"><a href="https://lpp.cnrs.fr/ressources/guides/">Internes</a>
+<ul class="sub-menu">
+<li id="menu-item-5571" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-5571"><a href="https://lpp.cnrs.fr/ressources/intranet-lpp">Intranet LPP</a></li>
+<li id="menu-item-8319" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-8319"><a href="https://lpp.cnrs.fr/ressources/guides/">Guides</a></li>
+<li id="menu-item-7254" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-7254"><a href="https://lpp.cnrs.fr/ressources/logo-du-lpp/">Charte graphique</a></li>
+<li id="menu-item-5017" class="sous-sous-menu menu-item menu-item-type-post_type menu-item-object-page menu-item-5017"><a href="https://lpp.cnrs.fr/ressources/outils-cnrs-sorbonne-nouvelle/">Outils CNRS et USN</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li id="menu-item-5494" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-5494"><a href="https://lpp.cnrs.fr/les-actualites/">Evénements</a>
+<ul class="sub-menu">
+<li id="menu-item-8320" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8320"><a href="https://lpp.cnrs.fr/les-actualites/">Actualités</a></li>
+<li id="menu-item-5495" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-5495"><a href="https://lpp.cnrs.fr/lagenda/">Agenda</a></li>
+</ul>
+</li>
+</ul></div>                                    </nav><!-- .main-navigation -->
+<nav id="secondary-navigation" class="main-navigation" role="navigation" aria-label="Menu secondaire">
+<div class="menu-menu-secondaire-container"><ul id="menu-menu-secondaire" class="secondary-menu"><li id="menu-item-86" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-86"><a href="https://lpp.cnrs.fr/la-recherche/">Recherche</a>
+<ul class="sub-menu">
+<li id="menu-item-2191" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2191"><a href="https://lpp.cnrs.fr/les-thematiques-de-recherche/">Thématiques</a></li>
+<li id="menu-item-2241" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2241"><a href="https://lpp.cnrs.fr/la-recherche/projets-contrats/">Projets</a></li>
+<li id="menu-item-2816" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2816"><a href="https://lpp.cnrs.fr/la-recherche/plateforme-physiologique/">Instrumentation</a></li>
+<li id="menu-item-8389" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8389"><a href="https://lpp.cnrs.fr/la-recherche/colloques-en-video/">Colloques en Vidéo</a></li>
+<li id="menu-item-3044" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3044"><a href="https://lpp.cnrs.fr/la-recherche/theses-soutenues/">Thèses soutenues</a></li>
+<li id="menu-item-2989" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2989"><a href="https://lpp.cnrs.fr/la-recherche/hdr-soutenues/">HDR Soutenues</a></li>
+</ul>
+</li>
+<li id="menu-item-2610" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-2610"><a href="https://lpp.cnrs.fr/formation/">Formation</a>
+<ul class="sub-menu">
+<li id="menu-item-8390" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8390"><a href="https://lpp.cnrs.fr/seminaires-en-video/">Séminaires en Vidéo</a></li>
+<li id="menu-item-8382" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8382"><a href="https://lpp.cnrs.fr/formation/cours-en-video/">Cours en Vidéo</a></li>
+<li id="menu-item-2703" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2703"><a href="https://lpp.cnrs.fr/formation/srpp/">SRPP</a></li>
+<li id="menu-item-2611" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-2611"><a href="https://lpp.cnrs.fr/formation/enseignement/">Enseignement</a></li>
+</ul>
+</li>
+<li id="menu-item-82" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-82"><a href="https://lpp.cnrs.fr/publications/">Publications</a>
+<ul class="sub-menu">
+<li id="menu-item-3118" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3118"><a href="https://lpp.cnrs.fr/publications/ouvrages/">Ouvrages</a></li>
+<li id="menu-item-8332" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8332"><a href="https://lpp.cnrs.fr/publications/articles/">Articles</a></li>
+<li id="menu-item-8340" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8340"><a href="https://lpp.cnrs.fr/publications/communications">Communications</a></li>
+<li id="menu-item-8329" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8329"><a href="https://lpp.cnrs.fr/publications/posters/">Posters</a></li>
+<li id="menu-item-8339" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8339"><a href="https://lpp.cnrs.fr/publications/proceedings/">Proceedings</a></li>
+<li id="menu-item-8374" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8374"><a href="https://lpp.cnrs.fr/publications/numeros-speciaux/">Numéros Spéciaux</a></li>
+<li id="menu-item-8373" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8373"><a href="https://lpp.cnrs.fr/publications/chapitres-douvrages/">Chapitres d’Ouvrages</a></li>
+<li id="menu-item-8372" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8372"><a href="https://lpp.cnrs.fr/publications/autres-publications/">Autres Publications</a></li>
+<li id="menu-item-8371" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8371"><a href="https://lpp.cnrs.fr/publications/pre-publications/">Pré-Publications</a></li>
+<li id="menu-item-8370" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8370"><a href="https://lpp.cnrs.fr/publications/rapports/">Rapports</a></li>
+<li id="menu-item-8369" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8369"><a href="https://lpp.cnrs.fr/publications/theses/">Thèses</a></li>
+<li id="menu-item-8368" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8368"><a href="https://lpp.cnrs.fr/publications/hdr/">HDR</a></li>
+<li id="menu-item-8367" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8367"><a href="https://lpp.cnrs.fr/publications/lectures/">Cours</a></li>
+<li id="menu-item-8366" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8366"><a href="https://lpp.cnrs.fr/publications/images/">Images</a></li>
+<li id="menu-item-8365" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8365"><a href="https://lpp.cnrs.fr/publications/sons/">Sons</a></li>
+</ul>
+</li>
+<li id="menu-item-2315" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-has-children menu-item-2315"><a href="https://lpp.cnrs.fr/science-et-societe/">Science et société</a>
+<ul class="sub-menu">
+<li id="menu-item-8270" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8270"><a href="https://lpp.cnrs.fr/science-et-societe/distinctions/">Distinctions</a></li>
+<li id="menu-item-3214" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3214"><a href="https://lpp.cnrs.fr/science-et-societe/brevets/">Brevets</a></li>
+<li id="menu-item-3239" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3239"><a href="https://lpp.cnrs.fr/science-et-societe/medias/">LPP dans les médias</a></li>
+<li id="menu-item-3144" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3144"><a href="https://lpp.cnrs.fr/science-et-societe/manifestations/">Manifestations</a></li>
+<li id="menu-item-8283" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-8283"><a href="https://lpp.cnrs.fr/science-et-societe/livrets/pourquoi-parler-peut-devenir-difficile/">Livrets</a></li>
+<li id="menu-item-7754" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-7754"><a href="https://lpp.cnrs.fr/science-et-societe/patrimoine/">Patrimoine</a></li>
+</ul>
+</li>
+</ul></div>                                    </nav><!-- .main-navigation -->
+<div id="searchContainer">
+<form role="search" method="get" class="search-form" action="https://lpp.cnrs.fr">
+<input type="hidden" id="_wpnonce" name="_wpnonce" value="5d65a5fa90" /><input type="hidden" name="_wp_http_referer" value="/evenement/srpp-de-peter-birkholz/" />                                        <input type="checkbox" id="checkSearch" />
+<input type="text" id="searchInput" placeholder="Rechercher &hellip;" class="search-field" name="s" />
+<label for="checkSearch" id="searchIconContainer"><span class="icon-search"></span></label>
+</form>
+</div>
+</div><!-- .site-header-menu -->
+</div><!-- .site-header-main -->
+<span property="itemListElement" typeof="ListItem"><a property="item" typeof="WebPage" title="Aller à Laboratoire de Phonétique et Phonologie." href="https://lpp.cnrs.fr" class="home" ><span property="name">Laboratoire de Phonétique et Phonologie</span></a><meta property="position" content="1"></span> &gt; <span property="itemListElement" typeof="ListItem"><a property="item" typeof="WebPage" title="Go to the SRPP Catégorie d&amp;#039;événements archives." href="https://lpp.cnrs.fr/categorie-evenements/srpp/" class="taxonomy categorie_evenements" ><span property="name">SRPP</span></a><meta property="position" content="2"></span> &gt; <span property="itemListElement" typeof="ListItem"><span property="name" class="post post-evenement current-item">SRPP: Recent improvements of the articulatory speech synthesizer VocalTractLab</span><meta property="url" content="https://lpp.cnrs.fr/evenement/srpp-de-peter-birkholz/"><meta property="position" content="3"></span>                </header><!-- .site-header -->
+<div id="content" class="site-content">
+<div id="primary" class="content-area">
+<main id="main" class="site-main" role="main">
+<article id="post-6656" class="post-6656 evenement type-evenement status-publish hentry categorie_evenements-srpp">
+<header class="entry-header">
+<!--<div class="eventDateHeader"><span>17 November 2023</span></div>-->
+<h1 class="entry-title">SRPP: Recent improvements of the articulatory speech synthesizer VocalTractLab</h1>    </header><!-- .entry-header -->
+<div class="entry-content">
+<div class="leftCol">
+<div class="article-chapo">Speech Technology and Cognitive Systems (TU Dresden)</div>
+</div>
+<div class="rightCol">
+<div class="eventDateRight"><span>17 November 2023, 14h00</span><span>15h30</span></div>
+<div class="addCalendar"><form method="post" action="https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/tools/download-ics.php" class="ics-form">
+<input type="hidden" name="date_start" value="Fri, 17 Nov 2023 14:00:00 +0200">
+<input type="hidden" name="date_end" value="Fri, 17 Nov 2023 15:30:00 +0200">
+<input type="hidden" name="location" value="">
+<input type="hidden" name="description" value="Speech Technology and Cognitive Systems (TU Dresden)">
+<input type="hidden" name="summary" value="SRPP: Recent improvements of the articulatory speech synthesizer VocalTractLab">
+<input type="hidden" name="url" value="https://lpp.cnrs.fr/evenement/srpp-de-peter-birkholz/">
+<input type="hidden" name="filename" value="srpp-de-peter-birkholz">
+</form>
+<a href="#" id="ics-vbutton">Ajouter au calendrier</a></div>
+<div class="eventLocation">
+</div>
+</div>
+<p>Unlike mainstream neural speech synthesizers, articulatory speech synthesizers directly simulate the process of speech production at the articulatory and aero-acoustic levels. This talk presents the articulatory synthesizer VocalTractLab 2.3, its main model components, and its multiple control levels. We also present recent improvements in the synthesis of German diphthongs, the modelling of energy losses in the vocal tract, and new applications of the synthesizer. The synthesizer is available for download at <a href="http://www.vocaltractlab.de/">www.vocaltractlab.de</a>.</p>
+<div class="nextEvents">
+<header><h1>Prochains événements</h1><a href="https://lpp.cnrs.fr/lagenda/">Voir la liste d'événements</a></header>
+<article id="post-8239" class="evenement post-8239 type-evenement status-publish hentry categorie_evenements-srpp">
+<div class="eventDate"><span>22 May 2026</span></div>
+<!--<div><a href=""></a></div>-->
+<div>
+<header class="entry-header">
+<h1 class="entry-title"><a href="https://lpp.cnrs.fr/evenement/srpp-22-05-2026-katia-chirkova/">SRPP Beyond Uvularization: Acoustic and Articulatory Evidence from Mawo Qiang Vowels</a></h1>
+</header><!-- .entry-header -->
+<div class="entry-content">
+<p>Katia Chirkova (CRLAO, Inalco), Amélie Elmerich (LPP)</p>
+</div><!-- .entry-content -->
+</div>
+</article><!-- #post-## -->
+<article id="post-8443" class="evenement post-8443 type-evenement status-publish hentry categorie_evenements-seminaires">
+<div class="eventDate"><span>28 May 2026</span></div>
+<!--<div><a href=""></a></div>-->
+<div>
+<header class="entry-header">
+<h1 class="entry-title"><a href="https://lpp.cnrs.fr/evenement/stefanie-keulen-seminar-1/">Stefanie Keulen - Seminar 1</a></h1>
+</header><!-- .entry-header -->
+<div class="entry-content">
+<p>Language and the brain: a lifetime perspective.</p>
+</div><!-- .entry-content -->
+</div>
+</article><!-- #post-## -->
+<article id="post-8240" class="evenement post-8240 type-evenement status-publish hentry categorie_evenements-srpp">
+<div class="eventDate"><span>29 May 2026</span></div>
+<!--<div><a href=""></a></div>-->
+<div>
+<header class="entry-header">
+<h1 class="entry-title"><a href="https://lpp.cnrs.fr/evenement/srpp-29-05-2026-chenzi-xu/">SRPP 29/05/2026 Chenzi Xu</a></h1>
+</header><!-- .entry-header -->
+<div class="entry-content">
+<p>Chenzi Xu (Nanyang Technological University, Singapore)</p>
+</div><!-- .entry-content -->
+</div>
+</article><!-- #post-## -->
+<article id="post-8444" class="evenement post-8444 type-evenement status-publish hentry categorie_evenements-seminaires">
+<div class="eventDate"><span>02 June 2026</span></div>
+<!--<div><a href=""></a></div>-->
+<div>
+<header class="entry-header">
+<h1 class="entry-title"><a href="https://lpp.cnrs.fr/evenement/stefanie-keulen-seminar-2/">Stefanie Keulen - Seminar 2</a></h1>
+</header><!-- .entry-header -->
+<div class="entry-content">
+<p>The enigmatic cerebellum: involvement in speech and language.</p>
+</div><!-- .entry-content -->
+</div>
+</article><!-- #post-## -->
+<script>$('.moreEvents a').show();var hideLoadMore = true;(function ($) {
+if (hideLoadMore) {
+$('.moreEvents').hide();
+} else {
+$('.moreEvents').show();
+}
+})(jQuery);</script>  
+</div>
+</div><!-- .entry-content -->
+<footer class="entry-footer">
+</footer><!-- .entry-footer -->
+</article><!-- #post-## -->
+</main><!-- .site-main -->
+</div><!-- .content-area -->
+
+</div><!-- .site-content -->
+<footer id="colophon" class="site-footer" role="contentinfo">
+<nav class="footer-navigation" role="navigation" aria-label="Menu social du pied de page">
+<div class="cnrs-bottom-line">
+<div class="menu-menu-bas-de-page-1-container"><ul id="menu-menu-bas-de-page-1" class="footer-menu"><li id="menu-item-3491" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-3491"><a href="https://lpp.cnrs.fr/credits-mentions-legales/">Mentions légales</a></li>
+<li id="menu-item-6570" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6570"><a href="https://lpp.cnrs.fr/donnees-personnelles/">Données personnelles</a></li>
+<li id="menu-item-6569" class="menu-item menu-item-type-post_type menu-item-object-page menu-item-6569"><a href="https://lpp.cnrs.fr/cookies/">Cookies</a></li>
+</ul></div>			</div>
+</nav><!-- .social-navigation -->
+</footer><!-- .site-footer -->
+</div><!-- .site-inner -->
+</div><!-- .site -->
+<script type="speculationrules">
+{"prefetch":[{"source":"document","where":{"and":[{"href_matches":"/*"},{"not":{"href_matches":["/wp-*.php","/wp-admin/*","/wp-content/uploads/*","/wp-content/*","/wp-content/plugins/*","/wp-content/themes/cnrswebkit-child/*","/wp-content/themes/cnrswebkit/*","/*\\?(.+)"]}},{"not":{"selector_matches":"a[rel~=\"nofollow\"]"}},{"not":{"selector_matches":".no-prefetch, .no-prefetch a"}}]},"eagerness":"conservative"}]}
+</script>
+<!--googleoff: all--><div id="cookie-law-info-bar" data-nosnippet="true"><h5 class="cli_messagebar_head">Information relative aux conditions de la RGPD concernant les cookies</h5><span>Le site n'utilise que des cookies techniques pour son fonctionnement et n'utilise aucune application tierce émettrice de cookies non techniques. <a href="https://lpp.cnrs.fr/cookies/" id="CONSTANT_OPEN_URL" target="_blank" class="cli-plugin-main-link">Plus d&#039;informations</a> <a id="wt-cli-accept-all-btn" role='button' data-cli_action="accept_all" class="wt-cli-element medium cli-plugin-button wt-cli-accept-all-btn cookie_action_close_header cli_action_button">J&#039;ai Compris</a></span></div><div id="cookie-law-info-again" data-nosnippet="true"><span id="cookie_hdr_showagain">Informations Cookies RGPD</span></div><div class="cli-modal" data-nosnippet="true" id="cliSettingsPopup" tabindex="-1" role="dialog" aria-labelledby="cliSettingsPopup" aria-hidden="true">
+<div class="cli-modal-dialog" role="document">
+<div class="cli-modal-content cli-bar-popup">
+<button type="button" class="cli-modal-close" id="cliModalClose">
+<svg class="" viewBox="0 0 24 24"><path d="M19 6.41l-1.41-1.41-5.59 5.59-5.59-5.59-1.41 1.41 5.59 5.59-5.59 5.59 1.41 1.41 5.59-5.59 5.59 5.59 1.41-1.41-5.59-5.59z"></path><path d="M0 0h24v24h-24z" fill="none"></path></svg>
+<span class="wt-cli-sr-only">Fermer</span>
+</button>
+<div class="cli-modal-body">
+<div class="cli-container-fluid cli-tab-container">
+<div class="cli-row">
+<div class="cli-col-12 cli-align-items-stretch cli-px-0">
+<div class="cli-privacy-overview">
+<h4>Privacy Overview</h4>				<div class="cli-privacy-content">
+<div class="cli-privacy-content-text">This website uses cookies to improve your experience while you navigate through the website. Out of these cookies, the cookies that are categorized as necessary are stored on your browser as they are essential for the working of basic functionalities of the website. We also use third-party cookies that help us analyze and understand how you use this website. These cookies will be stored in your browser only with your consent. You also have the option to opt-out of these cookies. But opting out of some of these cookies may have an effect on your browsing experience.</div>
+</div>
+<a class="cli-privacy-readmore" aria-label="Voir plus" role="button" data-readmore-text="Voir plus" data-readless-text="Voir moins"></a>			</div>
+</div>
+<div class="cli-col-12 cli-align-items-stretch cli-px-0 cli-tab-section-container">
+<div class="cli-tab-section">
+<div class="cli-tab-header">
+<a role="button" tabindex="0" class="cli-nav-link cli-settings-mobile" data-target="necessary" data-toggle="cli-toggle-tab">
+Necessary							</a>
+<div class="wt-cli-necessary-checkbox">
+<input type="checkbox" class="cli-user-preference-checkbox" id="wt-cli-checkbox-necessary" data-id="checkbox-necessary" checked="checked" />
+<label class="form-check-label" for="wt-cli-checkbox-necessary">Necessary</label>
+</div>
+<span class="cli-necessary-caption">Toujours activé</span>
+</div>
+<div class="cli-tab-content">
+<div class="cli-tab-pane cli-fade" data-id="necessary">
+<div class="wt-cli-cookie-description">
+Necessary cookies are absolutely essential for the website to function properly. This category only includes cookies that ensures basic functionalities and security features of the website. These cookies do not store any personal information.								</div>
+</div>
+</div>
+</div>
+<div class="cli-tab-section">
+<div class="cli-tab-header">
+<a role="button" tabindex="0" class="cli-nav-link cli-settings-mobile" data-target="non-necessary" data-toggle="cli-toggle-tab">
+Non-necessary							</a>
+<div class="cli-switch">
+<input type="checkbox" id="wt-cli-checkbox-non-necessary" class="cli-user-preference-checkbox" data-id="checkbox-non-necessary" checked='checked' />
+<label for="wt-cli-checkbox-non-necessary" class="cli-slider" data-cli-enable="Activé" data-cli-disable="Désactivé"><span class="wt-cli-sr-only">Non-necessary</span></label>
+</div>
+</div>
+<div class="cli-tab-content">
+<div class="cli-tab-pane cli-fade" data-id="non-necessary">
+<div class="wt-cli-cookie-description">
+Any cookies that may not be particularly necessary for the website to function and is used specifically to collect user personal data via analytics, ads, other embedded contents are termed as non-necessary cookies. It is mandatory to procure user consent prior to running these cookies on your website.								</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cli-modal-footer">
+<div class="wt-cli-element cli-container-fluid cli-tab-container">
+<div class="cli-row">
+<div class="cli-col-12 cli-align-items-stretch cli-px-0">
+<div class="cli-tab-footer wt-cli-privacy-overview-actions">
+<a id="wt-cli-privacy-save-btn" role="button" tabindex="0" data-cli-action="accept" class="wt-cli-privacy-btn cli_setting_save_button wt-cli-privacy-accept-btn cli-btn">Enregistrer &amp; appliquer</a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="cli-modal-backdrop cli-fade cli-settings-overlay"></div>
+<div class="cli-modal-backdrop cli-fade cli-popupbar-overlay"></div>
+<!--googleon: all-->        <script data-cfasync="false">
+window.dFlipLocation = 'https://lpp.cnrs.fr/wp-content/plugins/3d-flipbook-dflip-lite/assets/';
+window.dFlipWPGlobal = {"text":{"toggleSound":"Activer\/d\u00e9sactiver le son","toggleThumbnails":"Activer\/d\u00e9sactiver les miniatures","toggleOutline":"Permuter entre le contour\/marque-page","previousPage":"Page pr\u00e9c\u00e9dente","nextPage":"Page suivante","toggleFullscreen":"Basculer en plein \u00e9cran","zoomIn":"Zoom avant","zoomOut":"Zoom arri\u00e8re","toggleHelp":"Permuter l\u2019aide","singlePageMode":"Mode page unique","doublePageMode":"Mode double page","downloadPDFFile":"T\u00e9l\u00e9charger le fichier PDF","gotoFirstPage":"Aller \u00e0 la premi\u00e8re page","gotoLastPage":"Aller \u00e0 la derni\u00e8re page","share":"Partager","mailSubject":"Je voulais que vous voyiez ce FlipBook","mailBody":"Consultez ce site {{url}}","loading":"DearFlip\u00a0: Chargement "},"viewerType":"flipbook","moreControls":"download,pageMode,startPage,endPage,sound","hideControls":"","scrollWheel":"false","backgroundColor":"#777","backgroundImage":"","height":"auto","paddingLeft":"20","paddingRight":"20","controlsPosition":"bottom","duration":800,"soundEnable":"true","enableDownload":"true","showSearchControl":"false","showPrintControl":"false","enableAnnotation":false,"enableAnalytics":"false","webgl":"true","hard":"none","maxTextureSize":"1600","rangeChunkSize":"524288","zoomRatio":1.5,"stiffness":3,"pageMode":"0","singlePageMode":"0","pageSize":"0","autoPlay":"false","autoPlayDuration":5000,"autoPlayStart":"false","linkTarget":"2","sharePrefix":"flipbook-"};
+</script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/plugins/hal/js/cv-hal.js?ver=08d90e3c1d1326b8127ca2bc625361ce" id="wp-hal-script4-js"></script>
+<script type="text/javascript" id="pll_cookie_script-js-after">
+/* <![CDATA[ */
+(function() {
+var expirationDate = new Date();
+expirationDate.setTime( expirationDate.getTime() + 31536000 * 1000 );
+document.cookie = "pll_language=fr; expires=" + expirationDate.toUTCString() + "; path=/; secure; SameSite=Lax";
+}());
+//# sourceURL=pll_cookie_script-js-after
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/js/skip-link-focus-fix.js?ver=20160816" id="cnrswebkit-skip-link-focus-fix-js"></script>
+<script type="text/javascript" id="cnrswebkit-script-js-extra">
+/* <![CDATA[ */
+var screenReaderText = {"expand":"d\u00e9velopper le menu enfant","collapse":"fermer le menu enfant"};
+//# sourceURL=cnrswebkit-script-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/js/functions.js?ver=20160816" id="cnrswebkit-script-js"></script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/js/cnrs-init.js?ver=1.0-1779429626" id="cnrswebkit-init-js"></script>
+<script type="text/javascript" id="cnrswebkit-ajax-js-extra">
+/* <![CDATA[ */
+var adminAjax = "https://lpp.cnrs.fr/wp-admin/admin-ajax.php";
+//# sourceURL=cnrswebkit-ajax-js-extra
+/* ]]> */
+</script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/js/cnrs-ajax.js?ver=1.0-1779429626" id="cnrswebkit-ajax-js"></script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/js/masonry.pkgd.min.js?ver=3.3.2-1779429626" id="cnrswebkit-masonrypkgd-js"></script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/js/cnrs-common.js?ver=1.0-1779429626" id="cnrswebkit-common-js"></script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/themes/cnrswebkit/js/imagesloaded.pkgd.js?ver=4.1.3-1779429626" id="cnrswebkit-imagesloaded-js"></script>
+<script type="text/javascript" src="https://lpp.cnrs.fr/wp-content/plugins/3d-flipbook-dflip-lite/assets/js/dflip.min.js?ver=2.4.27" id="dflip-script-js"></script>
+<script id="wp-emoji-settings" type="application/json">
+{"baseUrl":"https://s.w.org/images/core/emoji/17.0.2/72x72/","ext":".png","svgUrl":"https://s.w.org/images/core/emoji/17.0.2/svg/","svgExt":".svg","source":{"concatemoji":"https://lpp.cnrs.fr/wp-includes/js/wp-emoji-release.min.js?ver=08d90e3c1d1326b8127ca2bc625361ce"}}
+</script>
+<script type="module">
+/* <![CDATA[ */
+/*! This file is auto-generated */
+const a=JSON.parse(document.getElementById("wp-emoji-settings").textContent),o=(window._wpemojiSettings=a,"wpEmojiSettingsSupports"),s=["flag","emoji"];function i(e){try{var t={supportTests:e,timestamp:(new Date).valueOf()};sessionStorage.setItem(o,JSON.stringify(t))}catch(e){}}function c(e,t,n){e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(t,0,0);t=new Uint32Array(e.getImageData(0,0,e.canvas.width,e.canvas.height).data);e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(n,0,0);const a=new Uint32Array(e.getImageData(0,0,e.canvas.width,e.canvas.height).data);return t.every((e,t)=>e===a[t])}function p(e,t){e.clearRect(0,0,e.canvas.width,e.canvas.height),e.fillText(t,0,0);var n=e.getImageData(16,16,1,1);for(let e=0;e<n.data.length;e++)if(0!==n.data[e])return!1;return!0}function u(e,t,n,a){switch(t){case"flag":return n(e,"\ud83c\udff3\ufe0f\u200d\u26a7\ufe0f","\ud83c\udff3\ufe0f\u200b\u26a7\ufe0f")?!1:!n(e,"\ud83c\udde8\ud83c\uddf6","\ud83c\udde8\u200b\ud83c\uddf6")&&!n(e,"\ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc65\udb40\udc6e\udb40\udc67\udb40\udc7f","\ud83c\udff4\u200b\udb40\udc67\u200b\udb40\udc62\u200b\udb40\udc65\u200b\udb40\udc6e\u200b\udb40\udc67\u200b\udb40\udc7f");case"emoji":return!a(e,"\ud83e\u1fac8")}return!1}function f(e,t,n,a){let r;const o=(r="undefined"!=typeof WorkerGlobalScope&&self instanceof WorkerGlobalScope?new OffscreenCanvas(300,150):document.createElement("canvas")).getContext("2d",{willReadFrequently:!0}),s=(o.textBaseline="top",o.font="600 32px Arial",{});return e.forEach(e=>{s[e]=t(o,e,n,a)}),s}function r(e){var t=document.createElement("script");t.src=e,t.defer=!0,document.head.appendChild(t)}a.supports={everything:!0,everythingExceptFlag:!0},new Promise(t=>{let n=function(){try{var e=JSON.parse(sessionStorage.getItem(o));if("object"==typeof e&&"number"==typeof e.timestamp&&(new Date).valueOf()<e.timestamp+604800&&"object"==typeof e.supportTests)return e.supportTests}catch(e){}return null}();if(!n){if("undefined"!=typeof Worker&&"undefined"!=typeof OffscreenCanvas&&"undefined"!=typeof URL&&URL.createObjectURL&&"undefined"!=typeof Blob)try{var e="postMessage("+f.toString()+"("+[JSON.stringify(s),u.toString(),c.toString(),p.toString()].join(",")+"));",a=new Blob([e],{type:"text/javascript"});const r=new Worker(URL.createObjectURL(a),{name:"wpTestEmojiSupports"});return void(r.onmessage=e=>{i(n=e.data),r.terminate(),t(n)})}catch(e){}i(n=f(s,u,c,p))}t(n)}).then(e=>{for(const n in e)a.supports[n]=e[n],a.supports.everything=a.supports.everything&&a.supports[n],"flag"!==n&&(a.supports.everythingExceptFlag=a.supports.everythingExceptFlag&&a.supports[n]);var t;a.supports.everythingExceptFlag=a.supports.everythingExceptFlag&&!a.supports.flag,a.supports.everything||((t=a.source||{}).concatemoji?r(t.concatemoji):t.wpemoji&&t.twemoji&&(r(t.twemoji),r(t.wpemoji)))});
+//# sourceURL=https://lpp.cnrs.fr/wp-includes/js/wp-emoji-loader.min.js
+/* ]]> */
+</script>
+</body>
+</html><!-- WP Fastest Cache file was created in 1.363 seconds, on 22 May 2026 @ 8 h 00 --><!-- via php -->

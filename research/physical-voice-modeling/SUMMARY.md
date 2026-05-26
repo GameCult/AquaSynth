@@ -26,6 +26,23 @@ The right abstraction is an acoustic port network:
   area/opening, pressure, tension, coupling, loss, and source balance. Raw
   emitted section indices are a backend detail.
 
+The practical implementation literature reinforces the same split:
+
+- Birkholz/VocalTractLab: continuous articulatory geometry plus multiple
+  control levels. Gestures and targets deform a physical model; the model is
+  not just a fixed list of tube cells.
+- Story/TubeTalker: area functions and tract length are the useful compact
+  bridge from anatomy to acoustic response. Formants are derived resonance
+  evidence, not the control authority.
+- Smith/digital waveguides: bidirectional delay-line wave variables, scattering
+  junctions, loss filters, and fractional delay are the efficient realtime
+  substrate.
+- Fels/ArtiSynth: heavy biomechanical models are valuable truth/calibration
+  sources, but realtime Aqua lowering should keep their authority split rather
+  than inherit their computational weight.
+- Praat/Gnuspeech/SndKit/PT: small implementations are excellent parity and
+  contract pressure, but none should become the public DSL shape.
+
 ## Faust Implications
 
 Faust already has useful primitives:
@@ -70,6 +87,19 @@ one glottal source port, one oral path, one nasal branch, and two radiation
 ports. A syrinx becomes two source ports plus bronchial/tracheal topology. Alien
 voices become more ports, branches, nonlinear junctions, and radiation surfaces.
 
+## Research Inventory
+
+Expanded source notes live beside this summary:
+
+- `PEOPLE.md`: practical scientists/implementers and Aqua implications.
+- `talks/TALKS.md`: captured talks, available transcripts, and transcript gaps.
+- `SOURCES.md`: downloadable source manifest with local hashes.
+
+Two public talk transcripts were captured: Julius Smith's CIRMMT physical
+modeling lecture and Brad Story's NCVS vocal-tract resonance tutorial. Peter
+Birkholz, Sidney Fels/John Lloyd, and Brad Story AZPM talk pages were preserved,
+but public transcripts were not exposed by their pages as of 2026-05-26.
+
 ## Open Questions
 
 - Whether the primary training renderer should be the full waveguide network or
@@ -82,4 +112,3 @@ voices become more ports, branches, nonlinear junctions, and radiation surfaces.
 - How to expose syrinx-specific controls without hardcoding "bird mode":
   paired source balance, independent tension/pressure, bronchial coupling, and
   shared tract loading seem like source-port/topology controls.
-

@@ -1,0 +1,1504 @@
+thank you for the um unnecessarily
+wonderful introduction I really
+appreciate the chance to come here and
+um and and meet everyone and U and visit
+Montreal it's been really nice the um
+this talk is a kind of a summary talk of
+uh physical modeling um you know as as
+Gary mentioned I've been involved in
+this area uh since the 80s it's a really
+uh Rich area there there are a lot of
+directions you can go in and it's very
+easy to go down a direction and and and
+and become specialized it's it's so big
+that really it's almost imposs to do all
+of it so for example if you're a string
+person uh I would say I'm primarily a
+string person um having come up in that
+tradition it's very difficult to do
+Woodwinds for example you know they're
+really very different uh rich areas and
+so this this talk is is going to be my
+summary of uh uh based on uh you know
+the work that I've had some involvement
+in over the years and uh and it's it's
+going to summarize really about three
+decades and also I we extended it a
+little earlier you'll
+see so so I'll start with some of the
+early ideas kind of organize things in a
+historical order uh just so you can sort
+of see the way things evolved through
+time and um and then land and then work
+working through those various examples
+and then and then sort of uh as a
+postlude talk about some of the more
+recent work works that that's ongoing
+right now at Karma and let me know if
+I'm uh if I'm making it impossible to
+read something so early ideas uh
+physical modeling uh synthesis and
+effects you know sort of an overview
+and well okay but I need my walking
+exercise so
+back so um yeah that that's an idea so
+um I I'll try to emphasize you know just
+kind of a high level review uh sound
+examples block diagrams and and the
+historical
+ordering next slide
+please so
+[Laughter]
+so uh so this is the uh building at Cara
+this is the null on Stanford campus and
+and so what I'm talking about will be
+from that perspective because it was
+here where um I've been doing my work I
+actually showed up there in 77 as a uh
+as a student actually as an engineer
+just a volunteer engineer from Silicon
+Valley and then got into the program and
+and U did my graduate student years
+there and I've gone away for short
+periods and come back but that that's
+that's the uh the bias you know okay but
+to go back to the beginning or let's say
+the mathematical beginning in physical
+Insight
+beginning uh you can go all the way back
+to Daniel
+beri and dalan
+bear and what's interesting is that
+within 11 years of each other they sort
+of launched two major branches of audio
+synthesis uh what we uh often call
+Spectral modeling and physical modeling
+so I'm going to concentrate on phys
+physical modeling today which is is
+which is this one it was launched by D
+Bear's paper on the first wave equation
+for the ideal vibrating string and its
+solution in the form of traveling waves
+and so that um and that's not the U only
+way to do physical modeling but it's a
+very efficient way and that's that's the
+area that I've been uh concentrating
+very efficient realtime models because
+ultimately we want to use these things
+as musical instruments in real time and
+and the nice thing about basing them on
+on physical models is that all
+performance information can make it into
+the sound so you don't sacrifice
+performability now spectral modeling is
+you can think of as based on forier
+theorem and it goes back before forier
+you know forier was in the 1800s and and
+you could say that forer's theorem was
+getting started really with d with uh
+bruli and uh Oiler and then later lrange
+and and then finally uh uh you know
+forier proved forier theorem but but
+they were trying to approximate General
+functions with sums of sin waves sine
+waves um much earlier and and you could
+say it started with bruli who who
+described physical vibration as a
+superposition of simple harmonic
+vibration which was a pure sinusoidal
+vibration and this expression of it um
+is by Oiler somewhat afterwards so Oiler
+did a lot of the heavy lifting on the
+mathematical
+formulations but beri had the original
+physical insight and and that's what
+launched the superposition of of
+harmonic vibration you could say modal
+synthesis came out of that and and then
+in contrast we have D Bear's
+formulation uh leading to traveling
+waves and they look pretty different but
+but yet these both describe a vibrating
+string so how can these be reconciled
+and a lot of effort went into
+reconciling these very different
+mathematical formulations of vibrating
+string motion in fact it went on for
+decades and and lrange at one point said
+that the vibrating string problem made
+him sick he actually got really tired of
+it because it just drove a lot of deep
+mathematical U
+investigation so now the way dalan bear
+came up with his formulation was to take
+uh Brook Taylor's restoring Force so
+Taylor of Taylor series Fame came up
+with this uh restoring Force as the
+string tension times the second
+derivative or the curvature so that was
+the restoring force on the vibrating
+string and then Dal bear plugged that
+into Newton's second law of motion f
+equals Ma so this is your F and then ma
+is just the string
+density uh mass is the string density
+times length and then acceleration is
+the second derivative with respected
+time and so there you have the wave
+equation for the ideal vibrating string
+and it's just you know FAL ma a and so
+then he went on so that was then
+published he published it in a kind of a
+differential form so if you cross
+multiply by the uh you know the Delta X
+and delta T you get the sort of
+differential calculus form that he
+published but you know you divide
+through and you get the modern wave
+equation and so that that was when it
+began but then he also solved it he he
+solved it and and found that
+any any traveling wave shape to the left
+and right would solve this uh wave
+function this this this wave equation so
+the the the the string displacement at
+time T in position X is given by a right
+goinging wave y+ and and so any function
+of the form T minus X over C is some
+shape moving to the right at speed C
+that's just a mathematical identity and
+then y minus any function of t plus X
+see is is a shape moving to the left at
+speed
+C okay and then um relating it back to
+the wave equation we have to have C
+equals uh tension over density so this
+is this is a you know first deep theory
+of strings that that tells you that the
+wave propagation speed is proportional
+to the square root of the tension and
+inversely proportional to the square
+root of the density and and that's the
+beginning of U I would say a physical
+theory of vibrating
+strings and
+so um that led to some interesting
+paradoxes the ones that made lrange ill
+at some point the uh the basic problem
+is how can you equate this traveling
+wave formulation
+to uh sum of simple harmonic vibrations
+you know so the this um harmonic
+vibration view so here we have the time
+variation so it's just a sinusoid at
+frequency new and then there's the
+spatial variation which is sinusoidal
+and then you have some arbitrary
+amplitude so it's like a sum of tuning
+Forks so so this mathematics says you
+can pluck a string and send waves going
+back and forth or you can take as many
+tuning Forks as you have overtones and
+hit them all at the right time and
+you'll get a pluck string sound so that
+that was the U Paradox you know how
+could that be because um you know in
+modern terms you'd say that these are
+standing waves they're they're just VI
+vibrations in place and these are
+so-called Progressive waves how can you
+make how can a progressive wave be made
+out of standing waves for example when
+you first pluck the string let's say you
+pluck it at one end and you send a
+disturbance propagating at speed C how
+do you represent that as a sum of sign
+waves that are all over the string I
+mean the whole string uh is is uh made
+up of sin each of these sine waves goes
+the full length of the string so it
+looks impossible to even set up the
+initial pluck that situation and and and
+and what they were wrestling with was 4A
+Theory and and we know now that it's not
+a problem you just take the 48 transform
+of that initial shape and that gives you
+the U harmonic overtone weights and it
+just happens to be an infinite Series so
+what really tripped people up is that it
+was an infinite sum and with an infinite
+sum you can do almost anything and uh it
+took them a long time to come to grips
+with
+that now it was interesting also to look
+at what sound was in this this day sound
+was not a superposition of simple tones
+it was a simple it was a superposition
+of pulse it was a pulse train and and
+these are Big heavyweight names uh of
+the day Oiler Delan bear and L gr they
+all agreeed that tonal sound was a
+periodic pulse train and the pulse shape
+was not critical it didn't really matter
+what the details of the shape were now
+we know now that the 48 Transformer of
+that pulse shape is the envelope of the
+spectrum and it matters a lot but you
+know in those days they didn't have
+Spectrum analyzers and and uh they
+didn't have computers so they were
+unable to really see the importance of
+the pul
+shape now of course
+beri uh said well uh there's something
+more fundamental here all right and you
+could say that pipe organs of the day
+did a kind of additive synthesis but it
+was not mixing sinusoids it was mixing
+Elementary sounds like readed sounds and
+and uh flu sounds like flute flute
+sounding uh voices and you have you know
+different octaves and registers so
+you're doing an additive synthesis in
+terms of natural waveforms and you get a
+kind of added synthesis like we have
+today but it's just not boiled down to
+sums of sinusoids as we often do now and
+and this idea of of approximating
+physical shapes with sinusoids they
+thought it was just a mathematical
+artifice uh it didn't have physical
+meaning it was just a mathematical uh
+expansion you could do they they did
+have tailor series and so you could do
+trigonometric series expansion of
+functions and that was interesting
+mathematically but it was not physics
+but beri thought it was physics and he
+had the original so what he had was the
+Insight of superposition the idea that
+uh linear system well in modern terms
+linear systems have sinusoids as igen
+functions and igen functions um go in
+and come out looking the same so if you
+put a sinusoid into an a linear system
+it comes out a sinusoid and it's the
+same frequency if it's a linear time
+invariance
+system so beri had this original insight
+into
+superposition so he thought they had
+separate physical existence in other
+words he saw separate physical uh
+component vibrations and d and Barett
+you know they wrote back and forth to
+each other um in in the literature and D
+bear said that can't be possibly right
+because of V modulation and and this is
+actually still a valid criticism for a
+speaker because imagine a low frequency
+in a speaker and now you add a high
+frequency so now it's going to wiggle
+fast as it goes slowly well you're going
+to get a a variable Doppler shift on
+that high frequency that that low
+frequency is going to be moving the high
+frequency uh and so it's going to go up
+as the low frequency diaphragm comes
+toward you and then as it reaches its
+Excursion limit and and starts to turn
+around and go backward then you're going
+to get a negative dopper shift so you're
+going to get this modulation and you do
+so you know the um the the takeaway is
+that you should only allow one sinusoid
+per loudspeaker so when you when you
+have the question how many loudspeakers
+do I need that's that's the limit and D
+bear foresaw this problem but of course
+you know you can neglect it to a good
+degree of approximation the inter
+modulation is fairly low and the ear
+listens to the upper Spectrum in a very
+strong way so so a lot of low-l stuff
+just doesn't get heard due to auditory
+masking and in fact the ear is built
+around that idea that that you want to
+take sound and break it down into its
+frequency components that's the basic
+mechanics of hearing and him Holtz uh
+was the first to show this that the ear
+is a kind of forier analyzer and so the
+ear does a kind of fora transform it it
+basically takes a frequency and Maps it
+to a particular place place along the
+Bas of our membrane so that it has its
+own little bundle of hair cells going
+into the auditory nerve so so the brain
+wants a spectrum through time and and so
+uh so br's Insight was uh was was
+followed by
+Evolution and here's a paper that I this
+is the best single paper that I found
+for this early historical information
+it's a fairly recent paper as such
+things go so deral the acoustic Origins
+of harmonic
+analysis in the archive for history of
+the exact Sciences so I I recommend that
+if you like this interesting uh early um
+ideas development then I really
+recommend that paper strongly so to
+summarize the early U points of view uh
+beri saw the superposition of harmonic
+vibrations dalen bear saw the uh
+formulated the traveling wave
+solution and now we know that they're
+interchangeable and it's through 48
+theory that that it's interchangeable so
+for example if you want to do a standing
+wave point of view or what we would call
+a spectral modeling point of view then
+your your basis functions are sinusoids
+and for a vibrating string it's the
+sinusoids that fit a whole number of
+periods in in the string length and you
+can take any arbitary string shape and
+project it onto those uh sinusoids and
+that's just a an inner product uh or a
+fora integral so you just multiply that
+shape Whatever It Is by a sinusoid
+integrate and boom you've got the
+coefficient for that component and
+that's we think of that as geometric
+projection you're finding the shadow of
+the original shape onto that particular
+direction in space where uh the
+frequency determines the direction so
+now you can also uh of course do that
+for um um the progressive wave model
+because a standing wave is a
+superposition of uh traveling waves and
+so I have a a video for
+that this is uh whoops thought I clicked
+on
+that am I in the did I not I must have
+missed
+it
+okay it was
+available let's
+see let's see I might have it cached
+actually thank you memory um let me find
+a good
+one yeah that's that that's a good one
+so um this shows so down here in blue we
+have the standing wave and so it's not
+going anywhere it's just sitting there
+standing waves have fixed nodes and and
+usually they'll have an antinode at the
+walls for acoustic pressure standing
+wave and you can see that uh such a wave
+can be uh just given by a simple
+superposition of two traveling waves in
+the the opposite direction so the net
+motion is nowhere but it's made of two
+moving Progressive waves so this was uh
+the solution to the Paradox how you can
+create um uh standing waves out of PR uh
+Progressive waves so there's really no
+problem but getting to this from
+effectively 48 Theory to took quite a
+while to work
+out and then the only other demo is this
+one this is showing how a pluck
+string which you know is initially this
+uh shape here you can expand that into a
+for expansion and these are the uh
+components so this shows you the initial
+string shape given by a
+sinusoidal uh fundamental of this shape
+and then the second harmonic third
+harmonic fourth harmonic and so when you
+add those sinusoids up you get an
+approximation sort of a
+filtered approximation and if you just
+keep going up in frequency in the limit
+as you go to an infinite frequency uh
+for the overtones you will get exactly
+the U sharp uh leaning triangle initial
+shape with its corner so you will you
+know reach that corner in the limit even
+though it would think you would think
+that signing waves can't do that and so
+that was U that was a difficult
+mathematical
+stage
+okay so now that's the um early ideas
+section the historical um leading up to
+the modern day um and so now I want to
+fast forward to the
+1950s uh first published in early 60s
+and you could say it's the first digital
+implementation of the progressive wave
+model of D bear so we'll call it digital
+dalon bear
+synthesis and so the the
+U the model here is called the uh Kelly
+lock bomb model because John Kelly and
+Carol lock bomb published in ' 62 this
+model of uh an acoustic vocal tract
+model and so it's an exact model of this
+idealized piecewise cylindrical model so
+the the vocal folds are here and you
+emit glottal pulses at the base of the
+vocal tract and then it's assumed that
+plane waves will travel down uh the axis
+of the tube and when and and then the
+tube geometry changes discontin ously
+for the next cylindrical segment and
+each cylindrical segment is the same
+height and what happens there is that a
+plane wave will partially reflect and
+transmit and that's called
+scattering and so you have some
+reflection coefficient and some
+transmission coefficient and that's what
+you see here um well this actually
+should have a delay there should be uh a
+delay here equal to this propagation
+delay or I could say there's a
+reflection right at the entrance and
+then there's the first reflection
+coefficient and the first transmission
+coefficient and then from the other
+direction you have the same thing going
+on so if a plane wave comes in from this
+way it reflects with opposite reflection
+coefficient and that's just because the
+tube uh is getting uh narrower instead
+of larger so that that changes the sign
+of the reflection coefficient and so
+that's why um oh and I have to introduce
+a notational
+convention uh box equals
+minus yeah that I just discovered that
+there's some font problem for certain
+figures and uh and and so we'll just
+make that notational adjustment uh so so
+this is minus K1 because it's stepping
+uh in the opposite direction and then
+the uh backward reflection uh
+transmission coefficient is also one
+minus
+K1 denoted by the Box
+operator um so okay so that that's the
+model and and it Mak amazingly good
+voice I mean it's it looks like a pretty
+crude approximation because you know our
+vocal tracks are not piecewise
+cylindrical but if you have a lot of uh
+cylinders you can you can follow a shape
+pretty well and it turns out that what
+we need out of this are the first three
+resonances to be about right you know
+that that turns out to be all you really
+need for a good vowel
+sound so uh let's hear how it sounds
+they Kelly and lock bomb collaborated
+with Max
+Matthews uh Max Matthews the father
+computer music who uh Ed Bell Labs uh
+did you know the music 5 acoustic
+compiler and um you pioneered computer
+music as we know it and he collaborated
+with uh Kelly and lock bomb at Bell labs
+and and did this example Max did the
+musical accompaniment and U uh Kelly and
+lock bomb did the uh the singing
+[Music]
+voice
+[Music]
+[Music]
+[Music]
+you
+so that that's pretty for listening
+that's the same model that's the same
+model so um way back in the early 1960s
+that could have been worked on in the
+late 50s um that that that is a a pretty
+good uh voice synthesis even by today's
+standards just I would say largely
+because most voice synthesis is is all
+about intelligibility and and so there
+hasn't been a lot of work I mean we we
+know some people who've worked on it but
+but there has not been relatively nearly
+as much work on making the quality of of
+uh synthesized voice uh very very
+good okay so now fast forward again so
+here we are in the early 60s now we're
+fast forwarding to uh uh what I was
+involved with at Karma and that is
+digital waveguide models um starting
+around 1985 and so what is a digital
+wave guide that it's another dalon bear
+building block you have a pair of delay
+lines to simulate these Progressive
+waves and the reason for that is these
+are really cheap a delay line is
+implemented using a circular buffer in
+memory so it's an order one computation
+if you know you know computational
+complexity notation meaning that every
+sample of sound all you do is you know
+um read memory write memory and Advance
+a pointer so uh that that's a very very
+low complexity for implementing
+effectively an entire string okay so
+it's make taking advantage of the
+traveling wave components as fixed
+shapes in the idea deal strength now you
+know we in practice we have to uh
+introduce losses and dispersion and
+nonlinear there all these things we have
+to add on but the basic starting point
+is extremely efficient and that's
+extremely important for realtime
+computational models for something that
+you can play as a performer and and uh
+that that's always a requirement in in
+this domain I mean we may do things
+offline at first but ultimately it needs
+a boil down to something that runs in
+real time and that is fully expressive
+that that renders all Nuance of
+performance so this not only does
+strings but it'll do BS uh it can do any
+plane wave um it's a plain wave
+simulator you can also simulate conical
+waves in which case you have samples of
+a of an expanding spherical wave or or
+Contracting spheric spherical wave and
+one other thing you need is the wave
+impedance so R denotes the wave
+impedance um I mentioned the speed of
+sound is the U square root of uh tension
+over density well the wave impedance is
+the square root of tension times density
+and uh it's a very valuable number
+because you can take the uh the
+traveling in in acoustical uh waves you
+can take the traveling
+pressure and divide it by the waving pen
+to get the traveling velocity and uh
+this is something that uh Lord rley
+seems to be the first to have published
+that that uh that way that acoustical
+pressure and velocity are directly
+proportional in a traveling wave and
+that real positive proportionality
+coefficient is the wave impedance and in
+the string it's the square root of
+tension time density in air it's uh it's
+you know gamma times the it is
+effectively the volume springiness times
+the density of
+air okay so what happens when you hook
+two of these together so if you hook up
+two digital wave guides you get
+scattering just like in the Kelly lock
+bomb uh context the impedance is
+changing from R1 to R2 so you get a a
+reflection coefficient K1 given by that
+expression again boxing know it's minus
+and then uh the transmission
+coefficients as before uh so this is
+what you would do for example if you
+want to have a vibrating string uh
+suddenly change its density or or you
+have a way of maybe changing its uh
+tension uh and and and it's more
+important in the acoustic bore context
+where you know you have cylindrical
+segments changing all right so back to
+Strings you can say that um this delay
+line models the string and what we're
+really explicitly simulating are the
+progressive wave components and so for a
+pluck string you put in the uh you put
+in half of the initial pluck and then
+half of the initial pluck is going in
+the other direction and by symmetry uh
+they need to be equal because you know
+they add together to give you the
+initial uh string shape and then as time
+starts to go they they go in opposite
+directions and the equality of them uh
+pertains to the fact that there's no
+lateral Motion in the pluck um another
+way of saying it is that there's initial
+velocity of zero so it's an initial
+position with a zero initial velocity if
+you introduce nonzero initial velocity
+then you'll introduce an asymmetry in
+those traveling wave components and then
+these minus one Reflections at the end
+uh correspond to an infinite Impe
+impedance so the bridge impedance is
+modeled as Infinity the nut impedance is
+modeled as infinity and that'll give you
+just a simple minus one and and one
+another thing we do a lot is commute the
+diagram so so this minus one can be
+commuted with this delay line and
+combined with that one to make it go
+away and you can Comm uh you can add
+these delay lines together and just get
+one delay line with a feedback loop
+around it and and yet you can see that
+as a physical model of a
+string and and so now here's an ideal
+initial stru string in this case we
+choose velocity waves for the wave
+variable and uh if the hammer strikes
+the string on a piano uh in this
+idealized world then there's a momentum
+transfer and so the the width of the
+hammer is the width of this rectangle
+and so after the strike there's some
+velocity here that that that con that
+conserves momentum so you take the mass
+of the hammer times its striking
+velocity that's the momentum that has to
+exist in the string uh when you're done
+and so that equation is expressing
+that so we can do ideal pluck strings
+and ideal uh struck strings without
+spinning much computation these are
+really Dirt Cheap this is still an order
+one computation so we can get a lot of
+these strings in real time we can pluck
+them we can uh we can strike them now
+completely independently of that story
+uh a Compu two computer science students
+Kevin carplus and Alex
+strong discovered an interesting
+algorithm that uh they called it the
+digitar algorithm because it obviously
+sounded like a guitar and so here is the
+block diagram this is kind of a signal
+processing rendering uh I mean they
+would not draw a diagram like that
+because you know they were computer s
+guys they were working on a on a uh an
+8bit
+microprocessor and they were doing wave
+table synthesis and they found that you
+know that was kind of boring and and we
+all you know anyone who's worked with
+Luke waveforms knows that they're pretty
+boring they almost sound like some kind
+of
+orgon but so you have to do something
+with them and of course we do envelopes
+we do frequency modulation we do lots
+and lots of them detuned there are all
+these tricks we have for making them not
+sound so boring well Alex strong had the
+interesting idea why don't we modify the
+table as we go through and and what he
+could afford to do in his 8bit
+microcomputer is um add the current
+sample to the previous sample and then
+WR shift one bit you know of course he's
+in fix point in eight bits and then
+write that into the table so overwrite
+the table with the twoo average of the
+last Red sample and the previously last
+red sample and so that's basically a
+twoo average smoothing and so you're low
+pass filtering the the the table every
+time you go through it and this is the
+uh low pass filter so we would say this
+is a one zero um f low pass filter and
+and so this was how it would look if you
+diagrammed it up and they discovered it
+back in
+1978 and they tried a lot of different
+uh excitations and and settled on random
+numbers as their favorite okay and
+that's really interesting to me because
+it random numbers are are are really
+different from an initial leaning
+triangle um if you if you now take the
+physical interpretation of that diagram
+and back everything out random numbers
+correspond to a random pluck position
+and a random initial velocity at every
+sample along the string so you're you're
+simultaneously plucking and striking the
+string everywhere along its length so
+this is an example of something that you
+can do very easily in the virtual world
+that that uh that piano makers clavier
+makers and guitar makers would have a
+very hard time doing and and I can also
+say that just from watching composers
+Through The Years nobody really went
+back even after we had the physical
+interpretation and you could say to
+someone well you know if you put a
+leaning triangle in there you'll be
+really simulating a string and they
+would try that and they would say Ah
+that's kind of thin and boring by
+comparison so they went right back to
+random numbers
+and uh so there's a a richness A
+diversity in that that that the real
+world can't keep up with this is an
+example where the virtual world cut took
+out ahead went out ahead of the real
+world and and uh and the Gap was never
+closed so I I like the virtual world I
+think it's a good
+place uh you can do things there that
+you can't do in the real world you get
+your own reality so um now uh David
+jaffy was a composer in the music
+department uh same time I was a graduate
+student inou and he played in a string
+quartet with with Alex strong and Alex
+said hey you got to hear this algor them
+it really sounds good and David listened
+to it and said that does sound good you
+know because he was at the computer
+music center and he heard what we were
+getting by with in the way of you know
+basically Loop wave TBL uh synthesis for
+the most part and uh he said you know
+I've got to use this in a piece and he
+implemented on all all the synthesizers
+we had at the time and I was an engineer
+who uh could help him with things like
+interpolation and getting it in tune and
+adding filters and so this is what we
+ended up with um it's got it's basically
+an extended carplus strong algorithm
+where you basically add uh uh a pick
+pick Direction low pass picture filter
+that that's to capture the difference in
+an up down pick there's a little bit of
+a spectral uh difference alternating and
+so you just make that filter a little
+different going up and down and it
+satisfies your ear that you're getting a
+reasonable tremolo effect and then
+there's a u pick position comb filter
+that corresponds to plucking it at
+various distances away from the bridge
+and um I'll leave it as an exercise to
+prove that it comes out in the form of a
+comb filter like that and then we have a
+string damping filter which is more
+General than the twoo average uh then we
+also uh added a string stiffness all
+pass filter that that gives you stiff
+strings for what you need for piano
+pianos have uh audibly stiff strings
+because what it does is it stretches the
+overtones in the U in the sound so it's
+not a harmonic vibrating sound it's a
+it's a it's a it's somewhere between a
+string and a bar so a stiff string is
+sort of toward a vibrating bar in terms
+of its
+overtones okay and then uh these are
+those um filters uh that were added uh
+the dynamic level low PA pass filter was
+to make it brighter when you hit it
+harder that's inspired by not only
+pianos but even guitars do that it's
+it's a a u nonlinear effect in the piano
+it comes from the nonlinear compression
+of the felt uh there's a power law for
+for the uh uh the force that's applied
+as a function of compression on the
+felt so let's hear it let's hear some of
+the uh I don't have the original carong
+examples but you can find them on the
+web they're eight bits they're U they're
+they're not very musical but but David
+was a composer and he really uh wanted
+to uh harness this thing as musical
+instrument and so here are examples from
+the syn is toolkit by Perry Cook and
+Gary scavone this is the uh software
+environment that we use for all of our
+physical modeling prototyping well not
+all of it but anything hard and advanced
+we end up doing it you know in C++ and
+the SDK there are some nice uh
+programming environments that that work
+really well for various CA special cases
+but the really General tool is is the
+SDK uh so here here's an
+example
+[Music]
+and this just shows a uh a progression
+of examples that's a very low
+pitch need go up that's a higher pitch
+and huh let me rewind
+there and then finally I have one
+finally have one that goes over the
+range this really gives you a sense of
+the
+[Music]
+so that's using the random noise
+excitation so this is you can call it
+the spuck string it's struck and plucked
+everywhere along its length and uh it
+doesn't quite sound like a string or a
+piano or a clav cord it's it's got its
+own sort of space but it's in that
+General ballpark another thing about
+random numbers is that you know the 48
+transform is random numbers so it means
+you have a a a completely random initial
+spectrum and that's valued uh by
+composers because from note to note
+there's a liveliness that comes from
+that the fact that the spectrum is not
+just repeating inexorably every noe's a
+little
+different but of course you eventually
+get to the point where you want to save
+your random number seeds you know oh
+well and control them and here's here's
+an example that we did at next computer
+this was used at the introduction of the
+next computer in dve Symphony Hall with
+the first chair violinist playing the
+violin part which is not included this
+will just be the orchestra backup for
+the bach a minor cherto and it was uh it
+was sort of uh unreduced from a piano
+reduction uh by the violinist's wife Dan
+Kaka and uh David jaffy and uh and
+others of us in the music group at next
+um worked on the score and the in the
+voicing and here's what we came up with
+and we got a standing ovation but that's
+totally unfair because you know it was
+after a fantastic presentation by Steve
+Jobs on the new next computer and it was
+evation for the whole show but but we
+were at the end and it it felt like
+[Music]
+ours you know that
+[Music]
+piece
+[Music]
+sound system by George coats so the uhu
+um that that's just the uh pluck string
+uh the uh you basically the extended car
+plus strong algorithm running all those
+voices running in real time on on a
+single Motorola 56,000 DSP chip which
+had a clock rate at that time of about
+10 MHz so it was a very uh you know uh
+it had to be a very efficient algorithm
+to run in real time of course that was
+you know optimize Assembly Language and
+so on uh just the unit generators were
+optimized then you could assemble the
+unit generators using the high level
+music kit so uh you had to write your
+inner Loops in Assembly Language to get
+the best out of it so all right so that
+was um the string early string now we in
+the late 80s and so I'm going to uh sort
+of pick up the pace a little bit because
+it would take too long to really explain
+these things but the same basic approach
+has been applied to Woodwinds so here's
+uh now a delay line used as a woodwind
+bore so uh waves going out to the Bell
+reflecting off the bell and coming back
+down the reflection filter is basically
+a low pass filter the high frequencies
+go out and that's what you hear the low
+frequencies reflect back down the bore
+and keep the oscillation going and those
+low frequencies that reflect back get
+sharpened as they reflect off the read
+and so this is the read model uh it's
+just one way to formate there a lot of
+ways to formulate this so you have mouth
+pressure coming in and you have incoming
+uh pressure wave ass to be a plane wave
+and then and you go through this
+nonlinear reflection coefficient that uh
+is determined by this table and then
+that propagates back down and uh that's
+your basic uh clarinet model single
+read okay so now here's the s K
+clarinet so you can find that by
+searching for SDK clarinet we took that
+and um and made a uh
+flute uh I'm sorry we took the SDK flute
+and made a made a flute for the staccato
+project at
+[Music]
+Karma
+and here is um here are some examples in
+the Yamaha V1 this came out in '94 uh
+based on this type of approach and here
+is their bamboo
+[Music]
+flute and then the OBO
+[Music]
+bassoon
+[Music]
+and the tenor saxophone from the V1 I
+must have missed oh I have to hit this
+sorry
+[Music]
+for
+[Music]
+so that's being played with a with a
+mouth pressure sensor a regular keyboard
+synthesizer keyboard and a modulation
+wheel that is modulation uh of amuser so
+you get some of these little dips in the
+sound from that so it's really mapping
+uh a physical model uh of a saxophone to
+a keyboard for keyboard
+players who are willing to uh wear a
+mouth pressure sensor um I think that
+may have been a problem for the product
+but uh you know some people could really
+play that thing so now B strings can
+similarly be um addressed so here we
+have two segments of the string because
+the bows you know VI um Boe interior and
+so here's the same kind of uh model for
+the bow string uh friction contact as as
+in the uh read you basically just have
+this uh uh friction table um formulated
+as a nonlinear reflection coefficient uh
+that that is now terminating both sides
+of the string and so you have the nut on
+one side or the finger this maybe should
+be a low pass filter for finger damping
+there should really even be some
+nonlinearity in there for U vibrating
+against the fingerboard uh that's always
+pretty nonlinear actually and it makes a
+difference um and then you have your low
+pass reflection F well this is a very
+complex filer because the bridge of a
+violin sees the uh mod Lo of the
+vibration of the instrument so it's a
+fairly complex um uh frequency response
+to the reflection and then you have your
+output violin body and take as many
+outputs as you want and map them into
+space so that's that's how you can apply
+to both strings and here's a an example
+by a student on the using the
+cello and here's another one by the same
+student
+[Music]
+and I have to say the best example I've
+heard to date was by estabon mestra who
+was visiting from Barcelona uh while he
+was still a PhD student and his research
+has to do with performance modeling
+modeling the actual you know gestures
+and and bringing out the control
+functions um and he hooked up his uh
+performance measurement data actually in
+modeled form and drove the STK uh b. CPP
+instrument which is not necessarily a
+violin or a viola in other words it
+doesn't have a specific body but it um
+implements that basic diagram and it
+sounded amazing it was the best demo I
+had ever heard of the SDK b. CPP uh
+class so um it it underscored I mean I
+already knew it was true but it really
+hit me hard that man we really got to
+get the performance uh synthesis right
+uh and and the way to do that is you
+know measure a lot of performance model
+it properly so performance estimation
+performance synthesis is is a very
+active uh research
+area and and good results have been
+obtained so now moving on to the
+Distortion electric guitar so to make it
+distort one thing you can do is put in a
+a clipping function and so this is
+reminiscent of overdriven tube
+amplifiers in guitar amplifiers and so
+because we're working in discreete time
+we like to minimize aliasing and so it's
+nice to work with the least aliasing
+nonlinearity and and among non Ian among
+odd
+functions um which is kind of you know
+any all S curves are are odd right then
+uh the simplest one the the the most
+gentle is the cubic and so the cubic
+nonlinearity is is very popular um you
+also see more accurate tube simulation
+nonlinearities but then you also usually
+see an oversampling factor and it's not
+uncommon to see a factor of eight over
+sampling you know meaning that you know
+if you're U if 50 khz is your nominal
+sampling rate you know now you're going
+have to 400 kiltz for your simulation so
+that you don't have this non the because
+the nonlinearity generates Overton which
+will then uh Alias at half the sampling
+rate now in addition to the nonlinearity
+you can you can put in amplifier
+feedback so this is the amplifier coming
+back and driving your strings you know
+Pete towns and Ed it a lot a lot of
+guitar players you know would get up
+against against their uh amplifiers and
+make things Howl in a controlled way and
+uh Charlie Sullivan at Princeton uh
+published this diagram in the computer
+music journal and it uh the string model
+can be whatever you want but of course
+we probably want to use uh you know
+something simple like you know order one
+computation with delay lines and then
+you have your nonlinearity and then uh
+amplifier feedback and and typically
+these nonlinearities have uh a little
+bit of EQ going in and and a and and an
+EQ coming out a lot of times you'll roll
+off the the high frequencies go through
+the nonlinearity and then bring them
+back up if you want and you know so
+there's a lot of uh work that goes on
+there to get the sound that you want
+okay let's hear this one this so this is
+not that much more expensive than just
+the basic string model we're just adding
+U cubic Distortion and a feedback path
+with a gain for getting some howling and
+so let's hear what some of these sound
+like
+[Music]
+you know what it
+[Music]
+is so uh RP uh Jimmy
+Hendrick this is the amplifier
+[Music]
+feedback back to square one there this
+is being played on a on a midi guitar
+controller that is uh going into a midi
+interface to a next computer and being
+rendered in real time on the Motorola
+56000 chip and so here's just another
+feedback uh
+[Music]
+example
+[Music]
+see so you can really hear those um
+overtones um coming in and the and the
+feedback delay of course tells you which
+uh which overtones are going to be
+favored and tend to to come out like
+that all right so then uh the last
+synthesis technique I wanted to talk
+about was uh commuted synthesis and the
+basic idea of commuted synthesis is uh
+making use of a the well let's it goes
+back to Daniel beri it's the principle
+of superposition in linear time
+invariance systems um uh you not only
+have superposition you also have
+commutativity you can run your your
+components in any order and so the uh
+resonator is really quite um linear in
+timing variant in a in a typical
+instrument you know it's hard wood and
+it's not vibrating very much compared to
+its uh shape but the string that's a bit
+of a stretch that's an approximation
+there's a lot of nonlinear things that
+go on in strings and and so that we're
+approximating that nonlinearity is not
+being there for purposes
+of uh making the computation way less
+expensive so to the extent that the
+string is linear and time in variant um
+you can interchange the order of the
+resonator and the string and and the
+reason this helps is because in this
+form the resonator is a gigantic filter
+you know there you could say there are
+hundreds of thousands of modes resonant
+modes in the in the audio band in in
+typical stringed instruments you know
+the these are Big vibrating bodies with
+lots and lots of uh resonances in the uh
+in the in the audio band uh particularly
+when you get into the cavity resonances
+you know because that's a
+threedimensional
+space and the um uh the density of modes
+as a function of frequency uh goes up um
+you know in polinomial well what is it
+it's um I think it's the or with
+frequency squared for U uh strings and
+with for for plates and frequency Cub
+for for volumes I hope I'm not off by
+one there I think that's right so it's
+an extreme density of modes and we don't
+want to have to implement those with by
+quads you know two pole digital filters
+so when you interchange the
+order the excitation excites this fixed
+resonator so really all that ever comes
+out of here is the resonator's impulse
+response or excitation response so
+basically we just need to tabulate this
+resonance impulse response maybe
+convolve it with some little excitation
+filter and then put that out through the
+ideal string and we've gotten rid of
+this gigantic filter uh you know the
+complexity of this model here is you you
+know order hundreds of thousands as
+opposed to order one for the string and
+a simple little uh model for the
+excitation I've never seen one more than
+order four um you know they're typically
+like a little mass and spring thing
+maybe with some friction maybe a little
+table so excitations are are generally
+quite small because they don't store a
+lot of energy you you get your
+complexity from energy storage and every
+resonance is an energy storage degree of
+freedom and we get away with Simplicity
+for the string because those uh
+resonances are Quasi harmonic and so the
+delay Line Filter model is extremely
+powerful for those um uh phenomena but
+not resonances in general although we
+can do a lot with um psycho acoustic
+simplification of resonator so you don't
+really Implement every little Peak uh
+you just have to implement it in a
+psycho acoustically equivalent way which
+we still don't know how to do exactly
+but uh that's another research
+area all right so that that's the basic
+technique and now let's look listen to
+some
+examples so U
+oops uh let's
+see well in the SDK you have the
+mandolin let's hear
+[Music]
+that and uh these are some of the
+examples from the sius
+[Music]
+project there's also a whammy bar
+simulation and uh there's also a pickup
+simulation which just a little simp
+simple
+[Music]
+filter so the main thing that changed
+there was the pickup model from single
+coil to dual coil all right now here are
+some more uh recent examples from
+Finland classical
+guitar
+so we can play you can ask me a question
+and uh May me go back to that if you
+want so these are now links to the
+websites at um Helsinki uh uh University
+of Technology and so uh I just say do a
+search for acoustic guitars there and
+you'll you'll get to their um examples
+these are just two links to those but
+since I'm low on time I'll U I'll I'll
+run along here um now so it can be
+applied to the violin and here's some
+example play just one example of
+commuted synthesis on
+[Music]
+violin and
+uh then finally the idea can be U
+applied to piano and the tricky part of
+the piano model is that you've got to do
+this nonlinear felt compression model
+somehow um and so the key observation is
+that for a given striking velocity that
+Force versus velocity curve is uh force
+is a function of striking velocity is a
+fixed shape so you can use a linear time
+invariant filter to to produce that
+shape and that means it will commute
+with the piano soundboard and body
+enclosure so so in other words
+conditioned on striking velocity it's a
+linear time invariant model and that
+enables the comput commuted synthesis uh
+technique and so here's the uh uh sort
+of non-c commuted ordering where you
+have an Impulse going into tap delay
+line putting out low path the reason you
+need three here is because sometimes you
+get overlapping pulses what happens is
+the the hammer drives into the string
+and you get several Reflections from the
+graph before the hammer finally Falls
+away so you need multiple pulses there
+that's the purpose for three here it
+could be five uh it can also be one and
+then you add them up and run to the
+string and so now the soundboard
+enclosure which is a mammoth huge filter
+can now be commuted with everything
+given a fixed Collision velocity so you
+you've pressed the key the hammer is in
+Flight you're not going to change its
+velocity it's flying it's got a fixed V
+subc we can now build that model on
+demand so these filters all assume
+they're setting for that Collision
+velocity before the hammer gets there
+and then boom uh all the soundboard can
+come back to the beginning so what we
+can do is then hit all this with a
+soundboard imp soundboard impulse
+response or soundboard and enclosure or
+soundboard and enclosure and room you
+can put anything you can put all your
+linear time and variant shaping filters
+in there and they can just be tabulated
+and you trigger a playback of that into
+the delay line into the low pass folders
+into the string and now we're back
+to not order one but maybe maybe these
+are fourth order um filters so maybe
+it's order order four it's really it's
+really
+cheap
+um so well that's still order one excuse
+me I'm being recorded I have to correct
+myself when I catch something all right
+so uh the soundboard enclosure commuted
+so let's hear some examples so this is
+uh our
+piano
+and here's our Harps
+[Music]
+Accord and I'm cutting them off because
+uh in Helsinki they have better ones and
+I'm going to
+play uh they just did a better job you
+know they they work with the seus
+Institute and the Acoustics group work
+together and uh so it's really very
+powerful to combine musicians and
+Engineers together because the engineers
+don't have the ears and uh and they just
+need each other and so you put them
+together and you get the best results
+I've seen it consistently through the
+years so that's just what's in the table
+that's the the
+soundboard uh symbolum here's the U
+harbs cord
+[Music]
+example
+[Music]
+I faded them out because I'm out of time
+but there there it is you can find on
+the website and so I'm out of time and
+the last topic is uh Recent research at
+Karma so I'll just give you a really
+very fast quick overview and then you
+can ask me questions about that and we
+can get into that in the questions CU we
+have um up to a half an hour questions
+so uh let me just say very briefly well
+maybe up to 27 minutes of questions so
+so the uh so the uh quick overview is
+basically the students who've been
+around Karma recently so this is just a
+and those working on you know virtual
+musical instrument related research so
+I'm not talking anything about the U the
+people doing music information retrieval
+which is very big these days or you know
+all the other topics so Nelson Lee uh
+PhD in computer science uh just finished
+a thesis on the virtual acoustic guitar
+his passion was the gypsy
+guitar and so he did a lot of
+measurement and uh model building for
+that edber doall just graduated and and
+he's a a dou PhD was aou PhD student now
+he's working at senheiser and um I think
+he's doing some collaboration various
+labs around the world right now it's
+hard to actually keep up with him he's
+everywhere doing everything and and one
+of his passions is haptic virtual
+instruments which is extremely relevant
+because when you build a good model you
+have to be able to control it somehow
+and and so we need good controllers that
+allow us to drive these models in a very
+natural way that feels right and fully
+exercises their dimensions and so um Ed
+is working in the hatic uh feedback
+control uh domain so that you get
+feedback from the controller so it
+really feels like the instrument as
+opposed to just a one-way connection to
+the
+instrument Jack P is a PhD in physics
+student and he's uh just just got back
+from his first conference he went to
+dafx and you may have seen it um I was
+just going to show one panel from his uh
+poster that just gives you the idea of
+what he's working on he's basically
+working on uh a better mathematical
+model of the pleum and the harps of cord
+so this is the pleum this yellow ball
+here is the string cross-section and so
+what happens is when you press a key on
+the harpsicord the Jack goes up and
+drags the plum past the string and
+plucks it and so what Jack has done is
+come up with an improved formulation of
+this shape so you we know much we have a
+much more precise model for how that
+pluck occurs and and that's really
+valuable because it allows us to U
+excite the string uh precisely in all
+directions as a result of that
+model
+so I did not mean to double drag
+um so let's get back to the summary I'll
+just do the summary and if you ask me a
+question I'll go to the expansion slide
+on these
+so so then then we also have a project
+going we call it the shevine project CH
+ha v i n um it's uh associated with a
+professor of archaeology um Professor
+Rick who is uh working in Chile in the
+Andes in a in an archaeological site
+that's deep underground and it has very
+interesting Acoustics and there's
+evidence that Acoustics the properties
+of the acoustic space are being used in
+rituals you know 8,000 years ago so uh
+we're involved in in U in acoustic space
+modeling associated with that and so
+there are a lot of students working in
+that
+area um and we also just came out with a
+special issue if you're in this field
+you probably know about this special
+issue it's really got a lot of good
+papers in it and uh uh vesa valaki um at
+Helsinki uh was the the lead editor and
+he organized orz a team of us and uh we
+got a lot of really good response a lot
+of excellent papers so I strongly uh
+recommend it's it's the May it's the May
+2010 special issue and then um my
+personal project activity is in this
+area right now basically software tools
+high level languages and software tools
+for expressing everything we need to
+know everything we know how to do in a
+few lines of really good highle language
+and then being able to compile that into
+any kind of plug in in any format for
+any platform and so my my current
+favorite in that domain sort of the uh
+the Pioneer language in my opinion is
+the F Language by Yan orari in um gra in
+Leon and it's really really nice but it
+doesn't do everything so um so I'm
+thinking about how can we take this to
+The Next Step by by importing some of
+these good ideas into the SDK domain in
+other words why can't I write a high
+level script in some language that we
+design that then gets compiled into SDK
+code for any platform for any plug-in
+format other words we can do the same
+kinds we can import these good ideas
+from computer science applied to music
+and and U and and achieve this Nirvana
+of instant Studio on demand uh using any
+known technique and you specify in a few
+lines and and you're looking at a rack
+of virtual gear you know in just a
+minute later uh if not less so that
+that's the U that's the overview and U I
+guess it is time to summarize and
+conclude the summary is we U we did a
+review kind of a Karma bias slice
+through the history of sound synthesis
+based on physical modeling starting with
+Bern's ingenious insight into
+superposition which really launched an
+enormous amount and uh you know seeing
+modal synthesis in his head uh from
+natural vibration and then D Bear's
+foundational super position of traveling
+waves the first wave equation for
+anything really as far as I know unless
+you want to call FAL M FAL Ma I don't
+know hooks law and I don't know first
+string wave equation first partial
+differential equation as far as I know
+and uh you know before and in boach was
+alive uh at the time so U you know it
+goes way back uh I have to be very
+careful B no that Bach was almost born I
+think okay we have to check me on the
+dates there
+huh wasn't he born in
+1750 what he died in 1750 1685 he was
+born
+okay 1686 maybe um okay so yeah it's
+funny you know your memory needs to be
+refreshed and I haven't I haven't read a
+a you know a biography of Bach recently
+and uh yeah 1750 yeah he was definitely
+alive but I don't think he was following
+the musical AC tics literature at the
+time um all right and then and then I
+took you through a tour in historical
+order of various uh physical model based
+syntheses techniques and some sound
+examples and uh a very brief uh summary
+of of related research going on at Karma
+uh you know current and recently
+graduated uh graduate students so I'm
+only nine minutes over so that's not too
+terrible uh and we have time for
+questions thank you
+thank
+you

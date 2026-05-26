@@ -1,0 +1,985 @@
+WEBVTT
+
+00:00:01.380 --> 00:00:04.319
+welcome to this tutorial from the ncvs
+
+00:00:04.319 --> 00:00:07.020
+I'm Brad story a professor in the
+
+00:00:07.020 --> 00:00:08.400
+department of speech language and
+
+00:00:08.400 --> 00:00:10.920
+hearing sciences at the University of
+
+00:00:10.920 --> 00:00:13.099
+Arizona
+
+00:00:14.400 --> 00:00:17.279
+this tutorial is a brief explanation of
+
+00:00:17.279 --> 00:00:19.500
+vocal tract resonances and their
+
+00:00:19.500 --> 00:00:21.779
+Associated standing waves specifically
+
+00:00:21.779 --> 00:00:25.460
+as they relate to vowel production
+
+00:00:27.119 --> 00:00:29.279
+typical production of vowels is based on
+
+00:00:29.279 --> 00:00:31.740
+vibration of the vocal folds providing a
+
+00:00:31.740 --> 00:00:33.719
+Sound Source that is filtered by the
+
+00:00:33.719 --> 00:00:35.640
+acoustic characteristics of the vocal
+
+00:00:35.640 --> 00:00:36.780
+tract
+
+00:00:36.780 --> 00:00:38.579
+the sound that radiates at the lip
+
+00:00:38.579 --> 00:00:41.399
+opening contains information of both the
+
+00:00:41.399 --> 00:00:44.360
+source and filter
+
+00:00:45.360 --> 00:00:47.520
+an example spectrum of a voice Source
+
+00:00:47.520 --> 00:00:49.920
+signal is shown here it contains a
+
+00:00:49.920 --> 00:00:52.200
+fundamental frequency component and many
+
+00:00:52.200 --> 00:00:55.199
+harmonics whose amplitudes decrease as a
+
+00:00:55.199 --> 00:00:58.699
+function of increasing frequency
+
+00:01:00.300 --> 00:01:02.160
+an example spectrum of the output
+
+00:01:02.160 --> 00:01:04.140
+pressure at the lip opening is shown
+
+00:01:04.140 --> 00:01:06.780
+here it contains exactly the same
+
+00:01:06.780 --> 00:01:09.000
+fundamental frequency component and
+
+00:01:09.000 --> 00:01:11.340
+harmonics except that their amplitudes
+
+00:01:11.340 --> 00:01:13.320
+have been modified by the filtering
+
+00:01:13.320 --> 00:01:16.760
+effect of the vocal tract
+
+00:01:17.939 --> 00:01:20.460
+a spectral envelope is a curve that
+
+00:01:20.460 --> 00:01:22.860
+encompasses the amplitudes of the
+
+00:01:22.860 --> 00:01:24.960
+harmonics in a spectrum
+
+00:01:24.960 --> 00:01:27.000
+a spectral envelope has been constructed
+
+00:01:27.000 --> 00:01:29.340
+for both The Source spectrum and output
+
+00:01:29.340 --> 00:01:30.840
+Spectrum
+
+00:01:30.840 --> 00:01:32.759
+The Source spectral envelope indicates
+
+00:01:32.759 --> 00:01:35.460
+the decrease in harmonic amplitudes as
+
+00:01:35.460 --> 00:01:38.159
+frequency increases whereas the envelope
+
+00:01:38.159 --> 00:01:40.500
+of the output Spectrum clearly shows
+
+00:01:40.500 --> 00:01:42.420
+distinct regions or Peaks where the
+
+00:01:42.420 --> 00:01:44.460
+harmonic energy has been enhanced
+
+00:01:44.460 --> 00:01:47.579
+relative to other regions
+
+00:01:47.579 --> 00:01:49.799
+these regions of the spectrum
+
+00:01:49.799 --> 00:01:52.079
+with enhanced energy are called formants
+
+00:01:52.079 --> 00:01:54.840
+or formant frequencies and result from
+
+00:01:54.840 --> 00:01:56.880
+the acoustic effect of the vocal tract
+
+00:01:56.880 --> 00:02:00.380
+on the source Spectrum
+
+00:02:01.740 --> 00:02:03.899
+to better understand how the vocal tract
+
+00:02:03.899 --> 00:02:06.780
+enhances the source Spectrum it is often
+
+00:02:06.780 --> 00:02:09.300
+easiest to begin by imagining the vocal
+
+00:02:09.300 --> 00:02:12.180
+tract to be a simple tube of uniform
+
+00:02:12.180 --> 00:02:14.700
+cross-section extending from the vocal
+
+00:02:14.700 --> 00:02:17.900
+folds to the lips
+
+00:02:18.660 --> 00:02:20.940
+the tube is considered to be closed at
+
+00:02:20.940 --> 00:02:23.459
+the end closest to the larynx and open
+
+00:02:23.459 --> 00:02:24.959
+at the lips
+
+00:02:24.959 --> 00:02:27.360
+the vibration of the vocal folds does
+
+00:02:27.360 --> 00:02:29.400
+open and close the glottis that is the
+
+00:02:29.400 --> 00:02:31.800
+airspace between the vocal folds at the
+
+00:02:31.800 --> 00:02:34.080
+closed end to inject sound into the
+
+00:02:34.080 --> 00:02:35.580
+vocal tract
+
+00:02:35.580 --> 00:02:37.620
+the size of the glottal opening however
+
+00:02:37.620 --> 00:02:39.660
+is small compared to the cross section
+
+00:02:39.660 --> 00:02:42.120
+of the vocal tract and there is
+
+00:02:42.120 --> 00:02:44.280
+potentially much time during each vocal
+
+00:02:44.280 --> 00:02:47.160
+fold vibratory cycle that the glottis is
+
+00:02:47.160 --> 00:02:48.959
+actually closed
+
+00:02:48.959 --> 00:02:51.060
+both of these conditions motivate the
+
+00:02:51.060 --> 00:02:53.819
+use of a closed open tube as a model of
+
+00:02:53.819 --> 00:02:56.640
+the vocal tract
+
+00:02:56.640 --> 00:02:59.819
+note also that the nearly 90 degree Bend
+
+00:02:59.819 --> 00:03:02.099
+in an actual vocal tract is not
+
+00:03:02.099 --> 00:03:04.680
+represented by the uniform tube
+
+00:03:04.680 --> 00:03:06.660
+although the band is biomechanically
+
+00:03:06.660 --> 00:03:08.400
+significant for providing an efficient
+
+00:03:08.400 --> 00:03:10.560
+means of deforming the tube shape during
+
+00:03:10.560 --> 00:03:13.200
+speech it is a much less significance
+
+00:03:13.200 --> 00:03:16.640
+from an acoustic perspective
+
+00:03:16.920 --> 00:03:19.019
+the average vocal tract length for an
+
+00:03:19.019 --> 00:03:21.000
+adult male is about 17 and a half
+
+00:03:21.000 --> 00:03:22.500
+centimeters
+
+00:03:22.500 --> 00:03:24.659
+a closed open uniform tube of this
+
+00:03:24.659 --> 00:03:26.400
+specific length can be characterized
+
+00:03:26.400 --> 00:03:29.099
+acoustically by the frequency response
+
+00:03:29.099 --> 00:03:31.140
+function shown here
+
+00:03:31.140 --> 00:03:33.120
+the frequency response function or
+
+00:03:33.120 --> 00:03:35.819
+sometimes called a transfer function is
+
+00:03:35.819 --> 00:03:38.700
+not a spectrum of a particular sound but
+
+00:03:38.700 --> 00:03:40.739
+rather indicates the effect that the
+
+00:03:40.739 --> 00:03:43.080
+uniform tube would have on any frequency
+
+00:03:43.080 --> 00:03:45.659
+component of a sound propagating through
+
+00:03:45.659 --> 00:03:47.900
+it
+
+00:03:48.959 --> 00:03:50.700
+the peaks in the frequency response
+
+00:03:50.700 --> 00:03:53.400
+function correspond to the resonances or
+
+00:03:53.400 --> 00:03:55.560
+natural frequencies of the particular
+
+00:03:55.560 --> 00:03:58.140
+tube configuration and they can be
+
+00:03:58.140 --> 00:03:59.879
+considered the origin of the formant
+
+00:03:59.879 --> 00:04:02.940
+frequencies that is the resonances of
+
+00:04:02.940 --> 00:04:05.220
+the vocal tract enhance the amplitudes
+
+00:04:05.220 --> 00:04:09.500
+of particular regions of frequencies
+
+00:04:11.640 --> 00:04:14.459
+when a sinusoidal wave with a frequency
+
+00:04:14.459 --> 00:04:16.560
+matched to the first Resonance of the
+
+00:04:16.560 --> 00:04:19.799
+uniform tube is injected through a tiny
+
+00:04:19.799 --> 00:04:22.199
+aperture at the closed end a standing
+
+00:04:22.199 --> 00:04:24.600
+wave is produced within the tube that
+
+00:04:24.600 --> 00:04:27.979
+extends along its length
+
+00:04:28.620 --> 00:04:31.259
+in the case shown here the frequency of
+
+00:04:31.259 --> 00:04:34.560
+the input sinusoid is 500 Hertz the same
+
+00:04:34.560 --> 00:04:37.500
+frequency as the first tube resonance
+
+00:04:37.500 --> 00:04:39.360
+the acoustic pressure along the tube
+
+00:04:39.360 --> 00:04:42.300
+length is shown as a variation in color
+
+00:04:42.300 --> 00:04:44.880
+the deepest red indicates large positive
+
+00:04:44.880 --> 00:04:47.460
+pressure the deepest blue indicates
+
+00:04:47.460 --> 00:04:49.259
+large negative pressure
+
+00:04:49.259 --> 00:04:51.960
+and light green represents zero or
+
+00:04:51.960 --> 00:04:53.940
+atmospheric pressure
+
+00:04:53.940 --> 00:04:56.040
+the plot just above the tube also
+
+00:04:56.040 --> 00:04:58.440
+indicates pressure along the tube length
+
+00:04:58.440 --> 00:05:00.000
+but is shown as a traditional
+
+00:05:00.000 --> 00:05:02.280
+two-dimensional plot of pressure versus
+
+00:05:02.280 --> 00:05:06.300
+distance from the closed end or glottis
+
+00:05:06.300 --> 00:05:08.520
+although the input frequency is 500
+
+00:05:08.520 --> 00:05:11.580
+Hertz the animation is shown in extreme
+
+00:05:11.580 --> 00:05:13.440
+slow motion so that the pressure
+
+00:05:13.440 --> 00:05:17.479
+variations can be visually trapped
+
+00:05:17.699 --> 00:05:19.440
+note that the pressure oscillates
+
+00:05:19.440 --> 00:05:21.960
+between large positive values to large
+
+00:05:21.960 --> 00:05:25.020
+negative values at the closed end and
+
+00:05:25.020 --> 00:05:27.720
+tapers to zero at the open end
+
+00:05:27.720 --> 00:05:29.699
+that is the closed end provides
+
+00:05:29.699 --> 00:05:31.919
+containment of the error and allows for
+
+00:05:31.919 --> 00:05:34.259
+a buildup of pressure whereas at the
+
+00:05:34.259 --> 00:05:36.479
+open end the pressure must become equal
+
+00:05:36.479 --> 00:05:39.000
+to the atmospheric pressure which is
+
+00:05:39.000 --> 00:05:40.860
+zero
+
+00:05:40.860 --> 00:05:42.780
+these are known as boundary conditions
+
+00:05:42.780 --> 00:05:44.699
+that determine the pattern of pressure
+
+00:05:44.699 --> 00:05:48.000
+variation that can be reinforced by the
+
+00:05:48.000 --> 00:05:52.160
+specific configuration of the tube
+
+00:05:53.639 --> 00:05:55.919
+when the input frequency is aligned with
+
+00:05:55.919 --> 00:05:58.020
+the first Resonance of a closed open
+
+00:05:58.020 --> 00:06:01.199
+tube the standing wave produced is one
+
+00:06:01.199 --> 00:06:03.600
+quarter of the wavelength
+
+00:06:03.600 --> 00:06:06.300
+for this reason closed open tubes are
+
+00:06:06.300 --> 00:06:09.300
+sometimes referred to as a quarter wave
+
+00:06:09.300 --> 00:06:13.759
+resonator or a quarter wave tube
+
+00:06:16.500 --> 00:06:19.139
+in this case a sinusoidal wave with a
+
+00:06:19.139 --> 00:06:20.400
+frequency matched to the second
+
+00:06:20.400 --> 00:06:22.740
+Resonance of the uniform tube is
+
+00:06:22.740 --> 00:06:25.020
+injected at the closed end again
+
+00:06:25.020 --> 00:06:28.699
+producing a standing wave
+
+00:06:29.880 --> 00:06:31.560
+this time however the pattern is
+
+00:06:31.560 --> 00:06:33.539
+different there are now two regions
+
+00:06:33.539 --> 00:06:35.580
+along the vocal tract length at which
+
+00:06:35.580 --> 00:06:37.380
+the pressure oscillates between large
+
+00:06:37.380 --> 00:06:40.319
+positive and negative pressures and two
+
+00:06:40.319 --> 00:06:42.840
+regions at which the pressure remains at
+
+00:06:42.840 --> 00:06:44.280
+zero
+
+00:06:44.280 --> 00:06:46.620
+the regions with zero pressure are
+
+00:06:46.620 --> 00:06:48.720
+located one-third of the length of the
+
+00:06:48.720 --> 00:06:50.100
+tube
+
+00:06:50.100 --> 00:06:52.319
+and also at the lips
+
+00:06:52.319 --> 00:06:54.360
+even though the pattern is different the
+
+00:06:54.360 --> 00:06:55.979
+boundary conditions at the closed and
+
+00:06:55.979 --> 00:06:58.500
+open ends of the tube are met just as in
+
+00:06:58.500 --> 00:07:00.120
+the previous animation
+
+00:07:00.120 --> 00:07:02.400
+in this case three quarters of the
+
+00:07:02.400 --> 00:07:06.259
+wavelength comprise the standing wave
+
+00:07:10.800 --> 00:07:13.319
+in this case a sinusoidal wave with a
+
+00:07:13.319 --> 00:07:15.240
+frequency matched to the third Resonance
+
+00:07:15.240 --> 00:07:17.819
+of the uniform tube is injected at the
+
+00:07:17.819 --> 00:07:20.460
+closed end producing a standing wave
+
+00:07:20.460 --> 00:07:25.220
+with three zero pressure nodes
+
+00:07:26.220 --> 00:07:27.660
+the pattern of pressure is different
+
+00:07:27.660 --> 00:07:31.020
+than the two previous animations but
+
+00:07:31.020 --> 00:07:32.639
+again the boundary conditions at the
+
+00:07:32.639 --> 00:07:37.639
+closed and open ends of the tube are met
+
+00:07:40.860 --> 00:07:42.900
+for comparison to the previous standing
+
+00:07:42.900 --> 00:07:45.660
+wave animations the sinusoidal wave
+
+00:07:45.660 --> 00:07:47.880
+injected at the closed end in this case
+
+00:07:47.880 --> 00:07:52.139
+has a frequency 750 Hertz that is not
+
+00:07:52.139 --> 00:07:55.400
+aligned with a resonance
+
+00:07:56.699 --> 00:07:59.099
+a standing wave is not produced at this
+
+00:07:59.099 --> 00:08:01.620
+frequency rather the amplitude of the
+
+00:08:01.620 --> 00:08:04.740
+input sound is highly attenuated as it
+
+00:08:04.740 --> 00:08:08.180
+propagates in the tube
+
+00:08:12.060 --> 00:08:14.240
+thank you
+
+00:08:14.940 --> 00:08:16.919
+the boundary condition of zero pressure
+
+00:08:16.919 --> 00:08:20.520
+at the open end of the tube is an
+
+00:08:20.520 --> 00:08:23.180
+idealization
+
+00:08:23.220 --> 00:08:25.379
+in reality the section of air and
+
+00:08:25.379 --> 00:08:27.840
+vibration at the lips transmits a small
+
+00:08:27.840 --> 00:08:30.120
+amount of acoustic energy that radiates
+
+00:08:30.120 --> 00:08:33.000
+outward away from the end of the tube
+
+00:08:33.000 --> 00:08:34.740
+while typically far less than one
+
+00:08:34.740 --> 00:08:36.599
+percent of the total energy produced
+
+00:08:36.599 --> 00:08:38.820
+during speech or singing
+
+00:08:38.820 --> 00:08:40.919
+this is the sound that is actually heard
+
+00:08:40.919 --> 00:08:43.140
+by a listener
+
+00:08:43.140 --> 00:08:45.360
+this correction
+
+00:08:45.360 --> 00:08:47.760
+also slightly increases the effective
+
+00:08:47.760 --> 00:08:50.459
+length of the tube and results in a
+
+00:08:50.459 --> 00:08:53.339
+lowering of each resonance frequency as
+
+00:08:53.339 --> 00:08:55.740
+can be seen in the frequency response
+
+00:08:55.740 --> 00:08:58.100
+function
+
+00:09:04.860 --> 00:09:06.959
+standing waves corresponding to each of
+
+00:09:06.959 --> 00:09:08.580
+the first three resonances of the
+
+00:09:08.580 --> 00:09:11.220
+uniform tube will be shown again but
+
+00:09:11.220 --> 00:09:15.019
+with the correction for sound radiation
+
+00:09:23.940 --> 00:09:25.560
+the patterns of pressure variation
+
+00:09:25.560 --> 00:09:27.540
+appear to be nearly identical to those
+
+00:09:27.540 --> 00:09:29.640
+in the idealized cases
+
+00:09:29.640 --> 00:09:31.140
+the difference is simply that the
+
+00:09:31.140 --> 00:09:32.760
+frequencies at which the standing waves
+
+00:09:32.760 --> 00:09:36.120
+occur are slightly lower than before
+
+00:09:36.120 --> 00:09:38.339
+note that in each case the upward and
+
+00:09:38.339 --> 00:09:40.500
+downward movement of the small black dot
+
+00:09:40.500 --> 00:09:42.620
+at the right side of each pressure plot
+
+00:09:42.620 --> 00:09:46.880
+indicates the radiated pressure
+
+00:09:51.360 --> 00:09:53.540
+foreign
+
+00:09:57.000 --> 00:09:59.100
+although the uniform tube is useful for
+
+00:09:59.100 --> 00:10:01.080
+understanding the basic Acoustics of the
+
+00:10:01.080 --> 00:10:03.540
+vocal tract it is not a realistic
+
+00:10:03.540 --> 00:10:05.459
+configuration
+
+00:10:05.459 --> 00:10:07.620
+in these two cases the uniform tube will
+
+00:10:07.620 --> 00:10:09.720
+morph into a tubular version of an e
+
+00:10:09.720 --> 00:10:11.279
+vowel on the left
+
+00:10:11.279 --> 00:10:14.220
+and an ah vowel on the right both of
+
+00:10:14.220 --> 00:10:15.720
+which were measured from a real person
+
+00:10:15.720 --> 00:10:19.500
+using magnetic resonance imaging
+
+00:10:19.500 --> 00:10:21.959
+as the vocal track shape changes the
+
+00:10:21.959 --> 00:10:23.519
+corresponding frequency response
+
+00:10:23.519 --> 00:10:27.080
+functions will also change
+
+00:10:42.600 --> 00:10:45.060
+the deformation of the uniform tube into
+
+00:10:45.060 --> 00:10:47.120
+realistic vocal tract configurations
+
+00:10:47.120 --> 00:10:49.680
+shifts the resonance frequencies upward
+
+00:10:49.680 --> 00:10:52.320
+or downward into a pattern that is
+
+00:10:52.320 --> 00:10:56.899
+representative of each respective vowel
+
+00:11:01.019 --> 00:11:03.120
+standing waves will now be demonstrated
+
+00:11:03.120 --> 00:11:05.339
+for the first three resonances of the
+
+00:11:05.339 --> 00:11:08.959
+vowels e and ah
+
+00:11:12.720 --> 00:11:14.940
+the first Resonance of this particular e
+
+00:11:14.940 --> 00:11:18.899
+vowel is 227 Hertz as can be seen
+
+00:11:18.899 --> 00:11:20.700
+however the standing wave associated
+
+00:11:20.700 --> 00:11:23.220
+with this frequency is similar to the
+
+00:11:23.220 --> 00:11:25.260
+standing wave observed for the first
+
+00:11:25.260 --> 00:11:27.540
+Resonance of the uniform tube
+
+00:11:27.540 --> 00:11:30.180
+which had a frequency of 500 Hertz
+
+00:11:30.180 --> 00:11:32.100
+that is the pressure oscillates between
+
+00:11:32.100 --> 00:11:34.320
+large positive and large negative values
+
+00:11:34.320 --> 00:11:36.600
+in the back portion of the vocal tract
+
+00:11:36.600 --> 00:11:39.420
+and tapers to nearly but not quite zero
+
+00:11:39.420 --> 00:11:42.779
+at the lips the difference is that the
+
+00:11:42.779 --> 00:11:44.940
+pressure variation along the vocal tract
+
+00:11:44.940 --> 00:11:47.640
+length is modified by the expansions and
+
+00:11:47.640 --> 00:11:49.320
+constrictions that form the
+
+00:11:49.320 --> 00:11:52.220
+e-configuration
+
+00:11:55.440 --> 00:11:57.240
+the first Resonance of this particular
+
+00:11:57.240 --> 00:12:01.680
+ah vowel is 811 Hertz but again the
+
+00:12:01.680 --> 00:12:03.240
+standing wave associated with this
+
+00:12:03.240 --> 00:12:05.519
+frequency is similar to the standing
+
+00:12:05.519 --> 00:12:07.920
+wave observed for the first Resonance of
+
+00:12:07.920 --> 00:12:11.040
+both the uniform tube and the E vowel
+
+00:12:11.040 --> 00:12:12.959
+the pressure variation along the vocal
+
+00:12:12.959 --> 00:12:15.420
+tract length however is modified by the
+
+00:12:15.420 --> 00:12:17.640
+constrictions and expansions that form
+
+00:12:17.640 --> 00:12:20.399
+the ah configuration
+
+00:12:20.399 --> 00:12:22.440
+the standing waves for the second and
+
+00:12:22.440 --> 00:12:24.899
+third resonances of the E and ah vowels
+
+00:12:24.899 --> 00:12:28.880
+will now be played consecutively
+
+00:12:30.420 --> 00:12:32.579
+watch carefully for similarities in
+
+00:12:32.579 --> 00:12:34.740
+locations of zero pressure and
+
+00:12:34.740 --> 00:12:37.380
+differences of pressure amplitudes in
+
+00:12:37.380 --> 00:12:41.180
+other regions of the vocal tract
+
+00:13:08.839 --> 00:13:11.399
+you may have observed that the locations
+
+00:13:11.399 --> 00:13:13.740
+of zero pressure or nodes is quite
+
+00:13:13.740 --> 00:13:15.720
+similar for standing waves associated
+
+00:13:15.720 --> 00:13:18.000
+with each resonance even though the
+
+00:13:18.000 --> 00:13:20.579
+frequency of those resonances is quite
+
+00:13:20.579 --> 00:13:23.160
+different due to the specific vocal
+
+00:13:23.160 --> 00:13:26.040
+tract configuration
+
+00:13:26.040 --> 00:13:28.740
+as we produce speech or sing the shape
+
+00:13:28.740 --> 00:13:30.480
+of the vocal tract undergoes almost
+
+00:13:30.480 --> 00:13:33.180
+continuous change in order to shift the
+
+00:13:33.180 --> 00:13:35.339
+frequencies at which standing waves will
+
+00:13:35.339 --> 00:13:37.079
+be supported
+
+00:13:37.079 --> 00:13:39.180
+this allows for easy passage of those
+
+00:13:39.180 --> 00:13:40.860
+frequency components aligned with a
+
+00:13:40.860 --> 00:13:42.120
+resonance
+
+00:13:42.120 --> 00:13:44.459
+through the vocaltrex system and to the
+
+00:13:44.459 --> 00:13:45.839
+outside world
+
+00:13:45.839 --> 00:13:47.700
+the continual change in the frequency
+
+00:13:47.700 --> 00:13:49.980
+bands that are enhanced or suppressed by
+
+00:13:49.980 --> 00:13:51.360
+this process
+
+00:13:51.360 --> 00:13:54.540
+is the means by which talkers encode a
+
+00:13:54.540 --> 00:13:56.700
+message that is transmitted to a
+
+00:13:56.700 --> 00:13:59.060
+listener
+
+00:14:01.980 --> 00:14:04.680
+all of the examples shown thus far have
+
+00:14:04.680 --> 00:14:06.420
+been based on a vocal tract length of
+
+00:14:06.420 --> 00:14:08.760
+17.5 centimeters
+
+00:14:08.760 --> 00:14:11.399
+as mentioned previously this is a
+
+00:14:11.399 --> 00:14:13.500
+typical length of an adult male vocal
+
+00:14:13.500 --> 00:14:14.880
+tract
+
+00:14:14.880 --> 00:14:16.800
+for comparison
+
+00:14:16.800 --> 00:14:18.600
+a typical length of an adult female
+
+00:14:18.600 --> 00:14:20.700
+vocal tract is about 15 and a half
+
+00:14:20.700 --> 00:14:22.980
+centimeters whereas a two-year-old child
+
+00:14:22.980 --> 00:14:25.560
+has a vocal tract that is about
+
+00:14:25.560 --> 00:14:29.300
+10.5 centimeters long
+
+00:14:29.339 --> 00:14:31.560
+this animation shows the frequency
+
+00:14:31.560 --> 00:14:34.680
+response function of the uniform tube as
+
+00:14:34.680 --> 00:14:37.139
+the length is shortened from 17 and a
+
+00:14:37.139 --> 00:14:40.940
+half to ten and a half centimeters
+
+00:14:47.160 --> 00:14:49.440
+as can be observed the shortening of
+
+00:14:49.440 --> 00:14:51.420
+vocal tract length systematically
+
+00:14:51.420 --> 00:14:53.339
+increases the frequency of each
+
+00:14:53.339 --> 00:14:54.540
+resonance
+
+00:14:54.540 --> 00:14:56.760
+had shorter vocal tracts been used for
+
+00:14:56.760 --> 00:14:58.920
+animating the standing waves at each
+
+00:14:58.920 --> 00:15:01.320
+resonance frequency the patterns of
+
+00:15:01.320 --> 00:15:03.420
+pressure variation along the vocal tract
+
+00:15:03.420 --> 00:15:06.180
+would have appeared essentially the same
+
+00:15:06.180 --> 00:15:07.980
+the difference would simply be that the
+
+00:15:07.980 --> 00:15:10.320
+standing waves occur at higher
+
+00:15:10.320 --> 00:15:12.860
+frequencies
+
+00:15:16.680 --> 00:15:19.199
+this concludes the tutorial on vocal
+
+00:15:19.199 --> 00:15:21.540
+tract resonances and their Associated
+
+00:15:21.540 --> 00:15:24.560
+standing waves

@@ -1,0 +1,9 @@
+Transcript unavailable as of 2026-05-26.
+
+Source page preserved:
+https://www.microsoft.com/en-us/research/video/developing-physically-based-dynamic-vocal-tract-models-using-artisynth/
+
+The Microsoft Research page identifies Sidney Fels and John E. Lloyd's 2007
+talk on dynamic vocal tract models using ArtiSynth and gives a detailed
+abstract. The captured page requires video consent/playback and does not expose
+a public transcript in page text.

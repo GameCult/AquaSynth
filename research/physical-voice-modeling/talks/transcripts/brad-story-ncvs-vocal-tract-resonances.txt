@@ -1,0 +1,328 @@
+welcome to this tutorial from the ncvs
+I'm Brad story a professor in the
+department of speech language and
+hearing sciences at the University of
+Arizona
+this tutorial is a brief explanation of
+vocal tract resonances and their
+Associated standing waves specifically
+as they relate to vowel production
+typical production of vowels is based on
+vibration of the vocal folds providing a
+Sound Source that is filtered by the
+acoustic characteristics of the vocal
+tract
+the sound that radiates at the lip
+opening contains information of both the
+source and filter
+an example spectrum of a voice Source
+signal is shown here it contains a
+fundamental frequency component and many
+harmonics whose amplitudes decrease as a
+function of increasing frequency
+an example spectrum of the output
+pressure at the lip opening is shown
+here it contains exactly the same
+fundamental frequency component and
+harmonics except that their amplitudes
+have been modified by the filtering
+effect of the vocal tract
+a spectral envelope is a curve that
+encompasses the amplitudes of the
+harmonics in a spectrum
+a spectral envelope has been constructed
+for both The Source spectrum and output
+Spectrum
+The Source spectral envelope indicates
+the decrease in harmonic amplitudes as
+frequency increases whereas the envelope
+of the output Spectrum clearly shows
+distinct regions or Peaks where the
+harmonic energy has been enhanced
+relative to other regions
+these regions of the spectrum
+with enhanced energy are called formants
+or formant frequencies and result from
+the acoustic effect of the vocal tract
+on the source Spectrum
+to better understand how the vocal tract
+enhances the source Spectrum it is often
+easiest to begin by imagining the vocal
+tract to be a simple tube of uniform
+cross-section extending from the vocal
+folds to the lips
+the tube is considered to be closed at
+the end closest to the larynx and open
+at the lips
+the vibration of the vocal folds does
+open and close the glottis that is the
+airspace between the vocal folds at the
+closed end to inject sound into the
+vocal tract
+the size of the glottal opening however
+is small compared to the cross section
+of the vocal tract and there is
+potentially much time during each vocal
+fold vibratory cycle that the glottis is
+actually closed
+both of these conditions motivate the
+use of a closed open tube as a model of
+the vocal tract
+note also that the nearly 90 degree Bend
+in an actual vocal tract is not
+represented by the uniform tube
+although the band is biomechanically
+significant for providing an efficient
+means of deforming the tube shape during
+speech it is a much less significance
+from an acoustic perspective
+the average vocal tract length for an
+adult male is about 17 and a half
+centimeters
+a closed open uniform tube of this
+specific length can be characterized
+acoustically by the frequency response
+function shown here
+the frequency response function or
+sometimes called a transfer function is
+not a spectrum of a particular sound but
+rather indicates the effect that the
+uniform tube would have on any frequency
+component of a sound propagating through
+it
+the peaks in the frequency response
+function correspond to the resonances or
+natural frequencies of the particular
+tube configuration and they can be
+considered the origin of the formant
+frequencies that is the resonances of
+the vocal tract enhance the amplitudes
+of particular regions of frequencies
+when a sinusoidal wave with a frequency
+matched to the first Resonance of the
+uniform tube is injected through a tiny
+aperture at the closed end a standing
+wave is produced within the tube that
+extends along its length
+in the case shown here the frequency of
+the input sinusoid is 500 Hertz the same
+frequency as the first tube resonance
+the acoustic pressure along the tube
+length is shown as a variation in color
+the deepest red indicates large positive
+pressure the deepest blue indicates
+large negative pressure
+and light green represents zero or
+atmospheric pressure
+the plot just above the tube also
+indicates pressure along the tube length
+but is shown as a traditional
+two-dimensional plot of pressure versus
+distance from the closed end or glottis
+although the input frequency is 500
+Hertz the animation is shown in extreme
+slow motion so that the pressure
+variations can be visually trapped
+note that the pressure oscillates
+between large positive values to large
+negative values at the closed end and
+tapers to zero at the open end
+that is the closed end provides
+containment of the error and allows for
+a buildup of pressure whereas at the
+open end the pressure must become equal
+to the atmospheric pressure which is
+zero
+these are known as boundary conditions
+that determine the pattern of pressure
+variation that can be reinforced by the
+specific configuration of the tube
+when the input frequency is aligned with
+the first Resonance of a closed open
+tube the standing wave produced is one
+quarter of the wavelength
+for this reason closed open tubes are
+sometimes referred to as a quarter wave
+resonator or a quarter wave tube
+in this case a sinusoidal wave with a
+frequency matched to the second
+Resonance of the uniform tube is
+injected at the closed end again
+producing a standing wave
+this time however the pattern is
+different there are now two regions
+along the vocal tract length at which
+the pressure oscillates between large
+positive and negative pressures and two
+regions at which the pressure remains at
+zero
+the regions with zero pressure are
+located one-third of the length of the
+tube
+and also at the lips
+even though the pattern is different the
+boundary conditions at the closed and
+open ends of the tube are met just as in
+the previous animation
+in this case three quarters of the
+wavelength comprise the standing wave
+in this case a sinusoidal wave with a
+frequency matched to the third Resonance
+of the uniform tube is injected at the
+closed end producing a standing wave
+with three zero pressure nodes
+the pattern of pressure is different
+than the two previous animations but
+again the boundary conditions at the
+closed and open ends of the tube are met
+for comparison to the previous standing
+wave animations the sinusoidal wave
+injected at the closed end in this case
+has a frequency 750 Hertz that is not
+aligned with a resonance
+a standing wave is not produced at this
+frequency rather the amplitude of the
+input sound is highly attenuated as it
+propagates in the tube
+thank you
+the boundary condition of zero pressure
+at the open end of the tube is an
+idealization
+in reality the section of air and
+vibration at the lips transmits a small
+amount of acoustic energy that radiates
+outward away from the end of the tube
+while typically far less than one
+percent of the total energy produced
+during speech or singing
+this is the sound that is actually heard
+by a listener
+this correction
+also slightly increases the effective
+length of the tube and results in a
+lowering of each resonance frequency as
+can be seen in the frequency response
+function
+standing waves corresponding to each of
+the first three resonances of the
+uniform tube will be shown again but
+with the correction for sound radiation
+the patterns of pressure variation
+appear to be nearly identical to those
+in the idealized cases
+the difference is simply that the
+frequencies at which the standing waves
+occur are slightly lower than before
+note that in each case the upward and
+downward movement of the small black dot
+at the right side of each pressure plot
+indicates the radiated pressure
+foreign
+although the uniform tube is useful for
+understanding the basic Acoustics of the
+vocal tract it is not a realistic
+configuration
+in these two cases the uniform tube will
+morph into a tubular version of an e
+vowel on the left
+and an ah vowel on the right both of
+which were measured from a real person
+using magnetic resonance imaging
+as the vocal track shape changes the
+corresponding frequency response
+functions will also change
+the deformation of the uniform tube into
+realistic vocal tract configurations
+shifts the resonance frequencies upward
+or downward into a pattern that is
+representative of each respective vowel
+standing waves will now be demonstrated
+for the first three resonances of the
+vowels e and ah
+the first Resonance of this particular e
+vowel is 227 Hertz as can be seen
+however the standing wave associated
+with this frequency is similar to the
+standing wave observed for the first
+Resonance of the uniform tube
+which had a frequency of 500 Hertz
+that is the pressure oscillates between
+large positive and large negative values
+in the back portion of the vocal tract
+and tapers to nearly but not quite zero
+at the lips the difference is that the
+pressure variation along the vocal tract
+length is modified by the expansions and
+constrictions that form the
+e-configuration
+the first Resonance of this particular
+ah vowel is 811 Hertz but again the
+standing wave associated with this
+frequency is similar to the standing
+wave observed for the first Resonance of
+both the uniform tube and the E vowel
+the pressure variation along the vocal
+tract length however is modified by the
+constrictions and expansions that form
+the ah configuration
+the standing waves for the second and
+third resonances of the E and ah vowels
+will now be played consecutively
+watch carefully for similarities in
+locations of zero pressure and
+differences of pressure amplitudes in
+other regions of the vocal tract
+you may have observed that the locations
+of zero pressure or nodes is quite
+similar for standing waves associated
+with each resonance even though the
+frequency of those resonances is quite
+different due to the specific vocal
+tract configuration
+as we produce speech or sing the shape
+of the vocal tract undergoes almost
+continuous change in order to shift the
+frequencies at which standing waves will
+be supported
+this allows for easy passage of those
+frequency components aligned with a
+resonance
+through the vocaltrex system and to the
+outside world
+the continual change in the frequency
+bands that are enhanced or suppressed by
+this process
+is the means by which talkers encode a
+message that is transmitted to a
+listener
+all of the examples shown thus far have
+been based on a vocal tract length of
+17.5 centimeters
+as mentioned previously this is a
+typical length of an adult male vocal
+tract
+for comparison
+a typical length of an adult female
+vocal tract is about 15 and a half
+centimeters whereas a two-year-old child
+has a vocal tract that is about
+10.5 centimeters long
+this animation shows the frequency
+response function of the uniform tube as
+the length is shortened from 17 and a
+half to ten and a half centimeters
+as can be observed the shortening of
+vocal tract length systematically
+increases the frequency of each
+resonance
+had shorter vocal tracts been used for
+animating the standing waves at each
+resonance frequency the patterns of
+pressure variation along the vocal tract
+would have appeared essentially the same
+the difference would simply be that the
+standing waves occur at higher
+frequencies
+this concludes the tutorial on vocal
+tract resonances and their Associated
+standing waves

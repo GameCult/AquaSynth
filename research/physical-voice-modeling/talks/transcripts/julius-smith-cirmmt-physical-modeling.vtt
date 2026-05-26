@@ -1,0 +1,4513 @@
+WEBVTT
+
+00:00:25.240 --> 00:00:28.080
+thank you for the um unnecessarily
+
+00:00:28.080 --> 00:00:29.359
+wonderful introduction I really
+
+00:00:29.359 --> 00:00:31.560
+appreciate the chance to come here and
+
+00:00:31.560 --> 00:00:36.079
+um and and meet everyone and U and visit
+
+00:00:36.079 --> 00:00:39.239
+Montreal it's been really nice the um
+
+00:00:39.239 --> 00:00:42.440
+this talk is a kind of a summary talk of
+
+00:00:42.440 --> 00:00:45.000
+uh physical modeling um you know as as
+
+00:00:45.000 --> 00:00:46.199
+Gary mentioned I've been involved in
+
+00:00:46.199 --> 00:00:48.920
+this area uh since the 80s it's a really
+
+00:00:48.920 --> 00:00:51.320
+uh Rich area there there are a lot of
+
+00:00:51.320 --> 00:00:53.440
+directions you can go in and it's very
+
+00:00:53.440 --> 00:00:56.359
+easy to go down a direction and and and
+
+00:00:56.359 --> 00:00:58.519
+and become specialized it's it's so big
+
+00:00:58.519 --> 00:01:00.920
+that really it's almost imposs to do all
+
+00:01:00.920 --> 00:01:03.399
+of it so for example if you're a string
+
+00:01:03.399 --> 00:01:05.360
+person uh I would say I'm primarily a
+
+00:01:05.360 --> 00:01:07.640
+string person um having come up in that
+
+00:01:07.640 --> 00:01:09.320
+tradition it's very difficult to do
+
+00:01:09.320 --> 00:01:11.159
+Woodwinds for example you know they're
+
+00:01:11.159 --> 00:01:14.960
+really very different uh rich areas and
+
+00:01:14.960 --> 00:01:16.960
+so this this talk is is going to be my
+
+00:01:16.960 --> 00:01:20.320
+summary of uh uh based on uh you know
+
+00:01:20.320 --> 00:01:22.360
+the work that I've had some involvement
+
+00:01:22.360 --> 00:01:25.439
+in over the years and uh and it's it's
+
+00:01:25.439 --> 00:01:28.520
+going to summarize really about three
+
+00:01:28.520 --> 00:01:31.200
+decades and also I we extended it a
+
+00:01:31.200 --> 00:01:32.920
+little earlier you'll
+
+00:01:32.920 --> 00:01:35.479
+see so so I'll start with some of the
+
+00:01:35.479 --> 00:01:37.200
+early ideas kind of organize things in a
+
+00:01:37.200 --> 00:01:39.479
+historical order uh just so you can sort
+
+00:01:39.479 --> 00:01:42.000
+of see the way things evolved through
+
+00:01:42.000 --> 00:01:45.880
+time and um and then land and then work
+
+00:01:45.880 --> 00:01:47.280
+working through those various examples
+
+00:01:47.280 --> 00:01:48.759
+and then and then sort of uh as a
+
+00:01:48.759 --> 00:01:50.719
+postlude talk about some of the more
+
+00:01:50.719 --> 00:01:52.680
+recent work works that that's ongoing
+
+00:01:52.680 --> 00:01:54.560
+right now at Karma and let me know if
+
+00:01:54.560 --> 00:01:57.560
+I'm uh if I'm making it impossible to
+
+00:01:57.560 --> 00:02:00.240
+read something so early ideas uh
+
+00:02:00.240 --> 00:02:02.799
+physical modeling uh synthesis and
+
+00:02:02.799 --> 00:02:06.680
+effects you know sort of an overview
+
+00:02:07.720 --> 00:02:11.360
+and well okay but I need my walking
+
+00:02:11.360 --> 00:02:13.480
+exercise so
+
+00:02:13.480 --> 00:02:16.800
+back so um yeah that that's an idea so
+
+00:02:16.800 --> 00:02:18.640
+um I I'll try to emphasize you know just
+
+00:02:18.640 --> 00:02:20.519
+kind of a high level review uh sound
+
+00:02:20.519 --> 00:02:22.920
+examples block diagrams and and the
+
+00:02:22.920 --> 00:02:24.360
+historical
+
+00:02:24.360 --> 00:02:27.879
+ordering next slide
+
+00:02:28.200 --> 00:02:30.900
+please so
+
+00:02:30.900 --> 00:02:32.640
+[Laughter]
+
+00:02:32.640 --> 00:02:35.720
+so uh so this is the uh building at Cara
+
+00:02:35.720 --> 00:02:38.879
+this is the null on Stanford campus and
+
+00:02:38.879 --> 00:02:40.280
+and so what I'm talking about will be
+
+00:02:40.280 --> 00:02:42.560
+from that perspective because it was
+
+00:02:42.560 --> 00:02:45.360
+here where um I've been doing my work I
+
+00:02:45.360 --> 00:02:47.920
+actually showed up there in 77 as a uh
+
+00:02:47.920 --> 00:02:49.480
+as a student actually as an engineer
+
+00:02:49.480 --> 00:02:51.400
+just a volunteer engineer from Silicon
+
+00:02:51.400 --> 00:02:53.800
+Valley and then got into the program and
+
+00:02:53.800 --> 00:02:56.440
+and U did my graduate student years
+
+00:02:56.440 --> 00:02:58.599
+there and I've gone away for short
+
+00:02:58.599 --> 00:03:00.760
+periods and come back but that that's
+
+00:03:00.760 --> 00:03:04.000
+that's the uh the bias you know okay but
+
+00:03:04.000 --> 00:03:06.280
+to go back to the beginning or let's say
+
+00:03:06.280 --> 00:03:08.799
+the mathematical beginning in physical
+
+00:03:08.799 --> 00:03:09.799
+Insight
+
+00:03:09.799 --> 00:03:11.959
+beginning uh you can go all the way back
+
+00:03:11.959 --> 00:03:13.200
+to Daniel
+
+00:03:13.200 --> 00:03:15.799
+beri and dalan
+
+00:03:15.799 --> 00:03:18.159
+bear and what's interesting is that
+
+00:03:18.159 --> 00:03:20.519
+within 11 years of each other they sort
+
+00:03:20.519 --> 00:03:24.040
+of launched two major branches of audio
+
+00:03:24.040 --> 00:03:26.519
+synthesis uh what we uh often call
+
+00:03:26.519 --> 00:03:28.519
+Spectral modeling and physical modeling
+
+00:03:28.519 --> 00:03:29.720
+so I'm going to concentrate on phys
+
+00:03:29.720 --> 00:03:32.040
+physical modeling today which is is
+
+00:03:32.040 --> 00:03:34.439
+which is this one it was launched by D
+
+00:03:34.439 --> 00:03:38.120
+Bear's paper on the first wave equation
+
+00:03:38.120 --> 00:03:40.640
+for the ideal vibrating string and its
+
+00:03:40.640 --> 00:03:43.480
+solution in the form of traveling waves
+
+00:03:43.480 --> 00:03:46.879
+and so that um and that's not the U only
+
+00:03:46.879 --> 00:03:48.200
+way to do physical modeling but it's a
+
+00:03:48.200 --> 00:03:50.040
+very efficient way and that's that's the
+
+00:03:50.040 --> 00:03:52.280
+area that I've been uh concentrating
+
+00:03:52.280 --> 00:03:55.319
+very efficient realtime models because
+
+00:03:55.319 --> 00:03:56.879
+ultimately we want to use these things
+
+00:03:56.879 --> 00:03:59.239
+as musical instruments in real time and
+
+00:03:59.239 --> 00:04:01.239
+and the nice thing about basing them on
+
+00:04:01.239 --> 00:04:03.239
+on physical models is that all
+
+00:04:03.239 --> 00:04:06.120
+performance information can make it into
+
+00:04:06.120 --> 00:04:08.280
+the sound so you don't sacrifice
+
+00:04:08.280 --> 00:04:11.879
+performability now spectral modeling is
+
+00:04:11.879 --> 00:04:14.159
+you can think of as based on forier
+
+00:04:14.159 --> 00:04:17.320
+theorem and it goes back before forier
+
+00:04:17.320 --> 00:04:19.440
+you know forier was in the 1800s and and
+
+00:04:19.440 --> 00:04:20.919
+you could say that forer's theorem was
+
+00:04:20.919 --> 00:04:24.199
+getting started really with d with uh
+
+00:04:24.199 --> 00:04:28.840
+bruli and uh Oiler and then later lrange
+
+00:04:28.840 --> 00:04:33.080
+and and then finally uh uh you know
+
+00:04:33.080 --> 00:04:35.919
+forier proved forier theorem but but
+
+00:04:35.919 --> 00:04:37.759
+they were trying to approximate General
+
+00:04:37.759 --> 00:04:40.400
+functions with sums of sin waves sine
+
+00:04:40.400 --> 00:04:43.199
+waves um much earlier and and you could
+
+00:04:43.199 --> 00:04:45.440
+say it started with bruli who who
+
+00:04:45.440 --> 00:04:48.160
+described physical vibration as a
+
+00:04:48.160 --> 00:04:50.520
+superposition of simple harmonic
+
+00:04:50.520 --> 00:04:53.400
+vibration which was a pure sinusoidal
+
+00:04:53.400 --> 00:04:56.520
+vibration and this expression of it um
+
+00:04:56.520 --> 00:05:00.199
+is by Oiler somewhat afterwards so Oiler
+
+00:05:00.199 --> 00:05:02.199
+did a lot of the heavy lifting on the
+
+00:05:02.199 --> 00:05:03.479
+mathematical
+
+00:05:03.479 --> 00:05:05.880
+formulations but beri had the original
+
+00:05:05.880 --> 00:05:08.919
+physical insight and and that's what
+
+00:05:08.919 --> 00:05:11.440
+launched the superposition of of
+
+00:05:11.440 --> 00:05:13.120
+harmonic vibration you could say modal
+
+00:05:13.120 --> 00:05:16.039
+synthesis came out of that and and then
+
+00:05:16.039 --> 00:05:18.160
+in contrast we have D Bear's
+
+00:05:18.160 --> 00:05:20.319
+formulation uh leading to traveling
+
+00:05:20.319 --> 00:05:22.440
+waves and they look pretty different but
+
+00:05:22.440 --> 00:05:25.479
+but yet these both describe a vibrating
+
+00:05:25.479 --> 00:05:28.039
+string so how can these be reconciled
+
+00:05:28.039 --> 00:05:29.560
+and a lot of effort went into
+
+00:05:29.560 --> 00:05:31.720
+reconciling these very different
+
+00:05:31.720 --> 00:05:33.960
+mathematical formulations of vibrating
+
+00:05:33.960 --> 00:05:36.840
+string motion in fact it went on for
+
+00:05:36.840 --> 00:05:38.919
+decades and and lrange at one point said
+
+00:05:38.919 --> 00:05:40.960
+that the vibrating string problem made
+
+00:05:40.960 --> 00:05:44.160
+him sick he actually got really tired of
+
+00:05:44.160 --> 00:05:46.440
+it because it just drove a lot of deep
+
+00:05:46.440 --> 00:05:48.800
+mathematical U
+
+00:05:48.800 --> 00:05:51.319
+investigation so now the way dalan bear
+
+00:05:51.319 --> 00:05:55.160
+came up with his formulation was to take
+
+00:05:55.160 --> 00:05:57.360
+uh Brook Taylor's restoring Force so
+
+00:05:57.360 --> 00:06:00.280
+Taylor of Taylor series Fame came up
+
+00:06:00.280 --> 00:06:03.759
+with this uh restoring Force as the
+
+00:06:03.759 --> 00:06:06.000
+string tension times the second
+
+00:06:06.000 --> 00:06:08.319
+derivative or the curvature so that was
+
+00:06:08.319 --> 00:06:10.080
+the restoring force on the vibrating
+
+00:06:10.080 --> 00:06:13.360
+string and then Dal bear plugged that
+
+00:06:13.360 --> 00:06:15.919
+into Newton's second law of motion f
+
+00:06:15.919 --> 00:06:20.840
+equals Ma so this is your F and then ma
+
+00:06:20.840 --> 00:06:23.120
+is just the string
+
+00:06:23.120 --> 00:06:25.800
+density uh mass is the string density
+
+00:06:25.800 --> 00:06:28.160
+times length and then acceleration is
+
+00:06:28.160 --> 00:06:29.960
+the second derivative with respected
+
+00:06:29.960 --> 00:06:32.520
+time and so there you have the wave
+
+00:06:32.520 --> 00:06:35.319
+equation for the ideal vibrating string
+
+00:06:35.319 --> 00:06:38.680
+and it's just you know FAL ma a and so
+
+00:06:38.680 --> 00:06:40.280
+then he went on so that was then
+
+00:06:40.280 --> 00:06:42.039
+published he published it in a kind of a
+
+00:06:42.039 --> 00:06:44.039
+differential form so if you cross
+
+00:06:44.039 --> 00:06:47.280
+multiply by the uh you know the Delta X
+
+00:06:47.280 --> 00:06:49.080
+and delta T you get the sort of
+
+00:06:49.080 --> 00:06:50.800
+differential calculus form that he
+
+00:06:50.800 --> 00:06:52.440
+published but you know you divide
+
+00:06:52.440 --> 00:06:54.039
+through and you get the modern wave
+
+00:06:54.039 --> 00:06:56.120
+equation and so that that was when it
+
+00:06:56.120 --> 00:06:58.000
+began but then he also solved it he he
+
+00:06:58.000 --> 00:07:00.280
+solved it and and found that
+
+00:07:00.280 --> 00:07:03.039
+any any traveling wave shape to the left
+
+00:07:03.039 --> 00:07:06.840
+and right would solve this uh wave
+
+00:07:06.840 --> 00:07:09.440
+function this this this wave equation so
+
+00:07:09.440 --> 00:07:11.639
+the the the the string displacement at
+
+00:07:11.639 --> 00:07:14.280
+time T in position X is given by a right
+
+00:07:14.280 --> 00:07:17.759
+goinging wave y+ and and so any function
+
+00:07:17.759 --> 00:07:20.360
+of the form T minus X over C is some
+
+00:07:20.360 --> 00:07:22.919
+shape moving to the right at speed C
+
+00:07:22.919 --> 00:07:25.120
+that's just a mathematical identity and
+
+00:07:25.120 --> 00:07:29.520
+then y minus any function of t plus X
+
+00:07:29.520 --> 00:07:31.639
+see is is a shape moving to the left at
+
+00:07:31.639 --> 00:07:32.440
+speed
+
+00:07:32.440 --> 00:07:36.720
+C okay and then um relating it back to
+
+00:07:36.720 --> 00:07:40.120
+the wave equation we have to have C
+
+00:07:40.120 --> 00:07:42.840
+equals uh tension over density so this
+
+00:07:42.840 --> 00:07:45.879
+is this is a you know first deep theory
+
+00:07:45.879 --> 00:07:48.000
+of strings that that tells you that the
+
+00:07:48.000 --> 00:07:50.720
+wave propagation speed is proportional
+
+00:07:50.720 --> 00:07:52.560
+to the square root of the tension and
+
+00:07:52.560 --> 00:07:54.000
+inversely proportional to the square
+
+00:07:54.000 --> 00:07:56.319
+root of the density and and that's the
+
+00:07:56.319 --> 00:07:59.440
+beginning of U I would say a physical
+
+00:07:59.440 --> 00:08:00.800
+theory of vibrating
+
+00:08:00.800 --> 00:08:03.520
+strings and
+
+00:08:03.520 --> 00:08:06.159
+so um that led to some interesting
+
+00:08:06.159 --> 00:08:09.159
+paradoxes the ones that made lrange ill
+
+00:08:09.159 --> 00:08:12.440
+at some point the uh the basic problem
+
+00:08:12.440 --> 00:08:14.800
+is how can you equate this traveling
+
+00:08:14.800 --> 00:08:16.919
+wave formulation
+
+00:08:16.919 --> 00:08:20.520
+to uh sum of simple harmonic vibrations
+
+00:08:20.520 --> 00:08:23.720
+you know so the this um harmonic
+
+00:08:23.720 --> 00:08:25.479
+vibration view so here we have the time
+
+00:08:25.479 --> 00:08:27.520
+variation so it's just a sinusoid at
+
+00:08:27.520 --> 00:08:29.520
+frequency new and then there's the
+
+00:08:29.520 --> 00:08:32.039
+spatial variation which is sinusoidal
+
+00:08:32.039 --> 00:08:33.800
+and then you have some arbitrary
+
+00:08:33.800 --> 00:08:36.240
+amplitude so it's like a sum of tuning
+
+00:08:36.240 --> 00:08:39.839
+Forks so so this mathematics says you
+
+00:08:39.839 --> 00:08:41.959
+can pluck a string and send waves going
+
+00:08:41.959 --> 00:08:44.880
+back and forth or you can take as many
+
+00:08:44.880 --> 00:08:47.320
+tuning Forks as you have overtones and
+
+00:08:47.320 --> 00:08:48.760
+hit them all at the right time and
+
+00:08:48.760 --> 00:08:51.200
+you'll get a pluck string sound so that
+
+00:08:51.200 --> 00:08:54.000
+that was the U Paradox you know how
+
+00:08:54.000 --> 00:08:55.760
+could that be because um you know in
+
+00:08:55.760 --> 00:08:57.279
+modern terms you'd say that these are
+
+00:08:57.279 --> 00:08:59.200
+standing waves they're they're just VI
+
+00:08:59.200 --> 00:09:01.160
+vibrations in place and these are
+
+00:09:01.160 --> 00:09:03.560
+so-called Progressive waves how can you
+
+00:09:03.560 --> 00:09:05.959
+make how can a progressive wave be made
+
+00:09:05.959 --> 00:09:07.720
+out of standing waves for example when
+
+00:09:07.720 --> 00:09:09.079
+you first pluck the string let's say you
+
+00:09:09.079 --> 00:09:10.839
+pluck it at one end and you send a
+
+00:09:10.839 --> 00:09:13.360
+disturbance propagating at speed C how
+
+00:09:13.360 --> 00:09:15.279
+do you represent that as a sum of sign
+
+00:09:15.279 --> 00:09:17.279
+waves that are all over the string I
+
+00:09:17.279 --> 00:09:20.600
+mean the whole string uh is is uh made
+
+00:09:20.600 --> 00:09:23.160
+up of sin each of these sine waves goes
+
+00:09:23.160 --> 00:09:25.000
+the full length of the string so it
+
+00:09:25.000 --> 00:09:27.519
+looks impossible to even set up the
+
+00:09:27.519 --> 00:09:31.000
+initial pluck that situation and and and
+
+00:09:31.000 --> 00:09:33.160
+and what they were wrestling with was 4A
+
+00:09:33.160 --> 00:09:35.760
+Theory and and we know now that it's not
+
+00:09:35.760 --> 00:09:38.200
+a problem you just take the 48 transform
+
+00:09:38.200 --> 00:09:41.040
+of that initial shape and that gives you
+
+00:09:41.040 --> 00:09:43.760
+the U harmonic overtone weights and it
+
+00:09:43.760 --> 00:09:46.519
+just happens to be an infinite Series so
+
+00:09:46.519 --> 00:09:49.079
+what really tripped people up is that it
+
+00:09:49.079 --> 00:09:50.880
+was an infinite sum and with an infinite
+
+00:09:50.880 --> 00:09:53.320
+sum you can do almost anything and uh it
+
+00:09:53.320 --> 00:09:54.959
+took them a long time to come to grips
+
+00:09:54.959 --> 00:09:56.800
+with
+
+00:09:56.800 --> 00:09:58.920
+that now it was interesting also to look
+
+00:09:58.920 --> 00:10:02.320
+at what sound was in this this day sound
+
+00:10:02.320 --> 00:10:05.519
+was not a superposition of simple tones
+
+00:10:05.519 --> 00:10:07.440
+it was a simple it was a superposition
+
+00:10:07.440 --> 00:10:10.000
+of pulse it was a pulse train and and
+
+00:10:10.000 --> 00:10:12.240
+these are Big heavyweight names uh of
+
+00:10:12.240 --> 00:10:14.800
+the day Oiler Delan bear and L gr they
+
+00:10:14.800 --> 00:10:16.959
+all agreeed that tonal sound was a
+
+00:10:16.959 --> 00:10:19.760
+periodic pulse train and the pulse shape
+
+00:10:19.760 --> 00:10:22.440
+was not critical it didn't really matter
+
+00:10:22.440 --> 00:10:24.320
+what the details of the shape were now
+
+00:10:24.320 --> 00:10:26.040
+we know now that the 48 Transformer of
+
+00:10:26.040 --> 00:10:29.399
+that pulse shape is the envelope of the
+
+00:10:29.399 --> 00:10:31.600
+spectrum and it matters a lot but you
+
+00:10:31.600 --> 00:10:32.680
+know in those days they didn't have
+
+00:10:32.680 --> 00:10:34.560
+Spectrum analyzers and and uh they
+
+00:10:34.560 --> 00:10:36.200
+didn't have computers so they were
+
+00:10:36.200 --> 00:10:39.000
+unable to really see the importance of
+
+00:10:39.000 --> 00:10:40.079
+the pul
+
+00:10:40.079 --> 00:10:42.839
+shape now of course
+
+00:10:42.839 --> 00:10:46.440
+beri uh said well uh there's something
+
+00:10:46.440 --> 00:10:48.000
+more fundamental here all right and you
+
+00:10:48.000 --> 00:10:49.560
+could say that pipe organs of the day
+
+00:10:49.560 --> 00:10:52.120
+did a kind of additive synthesis but it
+
+00:10:52.120 --> 00:10:55.279
+was not mixing sinusoids it was mixing
+
+00:10:55.279 --> 00:10:57.800
+Elementary sounds like readed sounds and
+
+00:10:57.800 --> 00:11:00.079
+and uh flu sounds like flute flute
+
+00:11:00.079 --> 00:11:03.000
+sounding uh voices and you have you know
+
+00:11:03.000 --> 00:11:04.839
+different octaves and registers so
+
+00:11:04.839 --> 00:11:06.360
+you're doing an additive synthesis in
+
+00:11:06.360 --> 00:11:08.800
+terms of natural waveforms and you get a
+
+00:11:08.800 --> 00:11:11.560
+kind of added synthesis like we have
+
+00:11:11.560 --> 00:11:13.519
+today but it's just not boiled down to
+
+00:11:13.519 --> 00:11:16.760
+sums of sinusoids as we often do now and
+
+00:11:16.760 --> 00:11:18.920
+and this idea of of approximating
+
+00:11:18.920 --> 00:11:20.680
+physical shapes with sinusoids they
+
+00:11:20.680 --> 00:11:22.880
+thought it was just a mathematical
+
+00:11:22.880 --> 00:11:25.360
+artifice uh it didn't have physical
+
+00:11:25.360 --> 00:11:28.320
+meaning it was just a mathematical uh
+
+00:11:28.320 --> 00:11:30.200
+expansion you could do they they did
+
+00:11:30.200 --> 00:11:32.240
+have tailor series and so you could do
+
+00:11:32.240 --> 00:11:34.160
+trigonometric series expansion of
+
+00:11:34.160 --> 00:11:36.040
+functions and that was interesting
+
+00:11:36.040 --> 00:11:38.120
+mathematically but it was not physics
+
+00:11:38.120 --> 00:11:40.360
+but beri thought it was physics and he
+
+00:11:40.360 --> 00:11:42.440
+had the original so what he had was the
+
+00:11:42.440 --> 00:11:45.519
+Insight of superposition the idea that
+
+00:11:45.519 --> 00:11:47.360
+uh linear system well in modern terms
+
+00:11:47.360 --> 00:11:50.399
+linear systems have sinusoids as igen
+
+00:11:50.399 --> 00:11:53.800
+functions and igen functions um go in
+
+00:11:53.800 --> 00:11:55.519
+and come out looking the same so if you
+
+00:11:55.519 --> 00:11:58.399
+put a sinusoid into an a linear system
+
+00:11:58.399 --> 00:12:00.760
+it comes out a sinusoid and it's the
+
+00:12:00.760 --> 00:12:02.279
+same frequency if it's a linear time
+
+00:12:02.279 --> 00:12:03.600
+invariance
+
+00:12:03.600 --> 00:12:07.440
+system so beri had this original insight
+
+00:12:07.440 --> 00:12:09.720
+into
+
+00:12:09.760 --> 00:12:12.880
+superposition so he thought they had
+
+00:12:12.880 --> 00:12:14.279
+separate physical existence in other
+
+00:12:14.279 --> 00:12:16.760
+words he saw separate physical uh
+
+00:12:16.760 --> 00:12:19.399
+component vibrations and d and Barett
+
+00:12:19.399 --> 00:12:20.600
+you know they wrote back and forth to
+
+00:12:20.600 --> 00:12:24.360
+each other um in in the literature and D
+
+00:12:24.360 --> 00:12:26.519
+bear said that can't be possibly right
+
+00:12:26.519 --> 00:12:28.639
+because of V modulation and and this is
+
+00:12:28.639 --> 00:12:30.680
+actually still a valid criticism for a
+
+00:12:30.680 --> 00:12:33.199
+speaker because imagine a low frequency
+
+00:12:33.199 --> 00:12:35.480
+in a speaker and now you add a high
+
+00:12:35.480 --> 00:12:37.800
+frequency so now it's going to wiggle
+
+00:12:37.800 --> 00:12:40.680
+fast as it goes slowly well you're going
+
+00:12:40.680 --> 00:12:43.519
+to get a a variable Doppler shift on
+
+00:12:43.519 --> 00:12:45.399
+that high frequency that that low
+
+00:12:45.399 --> 00:12:47.920
+frequency is going to be moving the high
+
+00:12:47.920 --> 00:12:50.279
+frequency uh and so it's going to go up
+
+00:12:50.279 --> 00:12:52.120
+as the low frequency diaphragm comes
+
+00:12:52.120 --> 00:12:54.199
+toward you and then as it reaches its
+
+00:12:54.199 --> 00:12:56.360
+Excursion limit and and starts to turn
+
+00:12:56.360 --> 00:12:57.480
+around and go backward then you're going
+
+00:12:57.480 --> 00:12:59.480
+to get a negative dopper shift so you're
+
+00:12:59.480 --> 00:13:02.760
+going to get this modulation and you do
+
+00:13:02.760 --> 00:13:05.360
+so you know the um the the takeaway is
+
+00:13:05.360 --> 00:13:07.360
+that you should only allow one sinusoid
+
+00:13:07.360 --> 00:13:09.399
+per loudspeaker so when you when you
+
+00:13:09.399 --> 00:13:10.839
+have the question how many loudspeakers
+
+00:13:10.839 --> 00:13:14.480
+do I need that's that's the limit and D
+
+00:13:14.480 --> 00:13:17.760
+bear foresaw this problem but of course
+
+00:13:17.760 --> 00:13:19.440
+you know you can neglect it to a good
+
+00:13:19.440 --> 00:13:21.279
+degree of approximation the inter
+
+00:13:21.279 --> 00:13:25.120
+modulation is fairly low and the ear
+
+00:13:25.120 --> 00:13:27.959
+listens to the upper Spectrum in a very
+
+00:13:27.959 --> 00:13:30.160
+strong way so so a lot of low-l stuff
+
+00:13:30.160 --> 00:13:33.120
+just doesn't get heard due to auditory
+
+00:13:33.120 --> 00:13:36.519
+masking and in fact the ear is built
+
+00:13:36.519 --> 00:13:38.360
+around that idea that that you want to
+
+00:13:38.360 --> 00:13:40.040
+take sound and break it down into its
+
+00:13:40.040 --> 00:13:42.320
+frequency components that's the basic
+
+00:13:42.320 --> 00:13:46.519
+mechanics of hearing and him Holtz uh
+
+00:13:46.519 --> 00:13:48.800
+was the first to show this that the ear
+
+00:13:48.800 --> 00:13:52.000
+is a kind of forier analyzer and so the
+
+00:13:52.000 --> 00:13:55.600
+ear does a kind of fora transform it it
+
+00:13:55.600 --> 00:13:57.759
+basically takes a frequency and Maps it
+
+00:13:57.759 --> 00:13:59.440
+to a particular place place along the
+
+00:13:59.440 --> 00:14:01.720
+Bas of our membrane so that it has its
+
+00:14:01.720 --> 00:14:04.000
+own little bundle of hair cells going
+
+00:14:04.000 --> 00:14:06.959
+into the auditory nerve so so the brain
+
+00:14:06.959 --> 00:14:11.279
+wants a spectrum through time and and so
+
+00:14:11.279 --> 00:14:15.000
+uh so br's Insight was uh was was
+
+00:14:15.000 --> 00:14:16.160
+followed by
+
+00:14:16.160 --> 00:14:18.920
+Evolution and here's a paper that I this
+
+00:14:18.920 --> 00:14:20.519
+is the best single paper that I found
+
+00:14:20.519 --> 00:14:23.000
+for this early historical information
+
+00:14:23.000 --> 00:14:25.240
+it's a fairly recent paper as such
+
+00:14:25.240 --> 00:14:28.759
+things go so deral the acoustic Origins
+
+00:14:28.759 --> 00:14:30.120
+of harmonic
+
+00:14:30.120 --> 00:14:32.480
+analysis in the archive for history of
+
+00:14:32.480 --> 00:14:35.399
+the exact Sciences so I I recommend that
+
+00:14:35.399 --> 00:14:38.120
+if you like this interesting uh early um
+
+00:14:38.120 --> 00:14:39.800
+ideas development then I really
+
+00:14:39.800 --> 00:14:42.000
+recommend that paper strongly so to
+
+00:14:42.000 --> 00:14:44.800
+summarize the early U points of view uh
+
+00:14:44.800 --> 00:14:46.959
+beri saw the superposition of harmonic
+
+00:14:46.959 --> 00:14:49.880
+vibrations dalen bear saw the uh
+
+00:14:49.880 --> 00:14:51.839
+formulated the traveling wave
+
+00:14:51.839 --> 00:14:53.720
+solution and now we know that they're
+
+00:14:53.720 --> 00:14:55.680
+interchangeable and it's through 48
+
+00:14:55.680 --> 00:14:57.880
+theory that that it's interchangeable so
+
+00:14:57.880 --> 00:15:00.079
+for example if you want to do a standing
+
+00:15:00.079 --> 00:15:02.399
+wave point of view or what we would call
+
+00:15:02.399 --> 00:15:04.440
+a spectral modeling point of view then
+
+00:15:04.440 --> 00:15:06.480
+your your basis functions are sinusoids
+
+00:15:06.480 --> 00:15:08.360
+and for a vibrating string it's the
+
+00:15:08.360 --> 00:15:11.120
+sinusoids that fit a whole number of
+
+00:15:11.120 --> 00:15:13.759
+periods in in the string length and you
+
+00:15:13.759 --> 00:15:16.759
+can take any arbitary string shape and
+
+00:15:16.759 --> 00:15:19.839
+project it onto those uh sinusoids and
+
+00:15:19.839 --> 00:15:22.360
+that's just a an inner product uh or a
+
+00:15:22.360 --> 00:15:25.040
+fora integral so you just multiply that
+
+00:15:25.040 --> 00:15:27.519
+shape Whatever It Is by a sinusoid
+
+00:15:27.519 --> 00:15:29.120
+integrate and boom you've got the
+
+00:15:29.120 --> 00:15:31.240
+coefficient for that component and
+
+00:15:31.240 --> 00:15:33.079
+that's we think of that as geometric
+
+00:15:33.079 --> 00:15:35.360
+projection you're finding the shadow of
+
+00:15:35.360 --> 00:15:38.040
+the original shape onto that particular
+
+00:15:38.040 --> 00:15:39.920
+direction in space where uh the
+
+00:15:39.920 --> 00:15:42.759
+frequency determines the direction so
+
+00:15:42.759 --> 00:15:44.680
+now you can also uh of course do that
+
+00:15:44.680 --> 00:15:49.279
+for um um the progressive wave model
+
+00:15:49.279 --> 00:15:52.040
+because a standing wave is a
+
+00:15:52.040 --> 00:15:55.160
+superposition of uh traveling waves and
+
+00:15:55.160 --> 00:15:57.600
+so I have a a video for
+
+00:15:57.600 --> 00:16:02.040
+that this is uh whoops thought I clicked
+
+00:16:02.040 --> 00:16:02.759
+on
+
+00:16:02.759 --> 00:16:05.360
+that am I in the did I not I must have
+
+00:16:05.360 --> 00:16:06.399
+missed
+
+00:16:06.399 --> 00:16:09.399
+it
+
+00:16:10.800 --> 00:16:14.160
+okay it was
+
+00:16:14.160 --> 00:16:17.440
+available let's
+
+00:16:19.600 --> 00:16:24.040
+see let's see I might have it cached
+
+00:16:26.920 --> 00:16:30.519
+actually thank you memory um let me find
+
+00:16:30.519 --> 00:16:32.319
+a good
+
+00:16:32.319 --> 00:16:34.920
+one yeah that's that that's a good one
+
+00:16:34.920 --> 00:16:38.160
+so um this shows so down here in blue we
+
+00:16:38.160 --> 00:16:40.680
+have the standing wave and so it's not
+
+00:16:40.680 --> 00:16:41.839
+going anywhere it's just sitting there
+
+00:16:41.839 --> 00:16:45.160
+standing waves have fixed nodes and and
+
+00:16:45.160 --> 00:16:47.399
+usually they'll have an antinode at the
+
+00:16:47.399 --> 00:16:50.040
+walls for acoustic pressure standing
+
+00:16:50.040 --> 00:16:54.079
+wave and you can see that uh such a wave
+
+00:16:54.079 --> 00:16:56.240
+can be uh just given by a simple
+
+00:16:56.240 --> 00:16:58.360
+superposition of two traveling waves in
+
+00:16:58.360 --> 00:16:59.959
+the the opposite direction so the net
+
+00:16:59.959 --> 00:17:02.560
+motion is nowhere but it's made of two
+
+00:17:02.560 --> 00:17:07.160
+moving Progressive waves so this was uh
+
+00:17:07.160 --> 00:17:09.439
+the solution to the Paradox how you can
+
+00:17:09.439 --> 00:17:13.199
+create um uh standing waves out of PR uh
+
+00:17:13.199 --> 00:17:15.760
+Progressive waves so there's really no
+
+00:17:15.760 --> 00:17:19.360
+problem but getting to this from
+
+00:17:19.360 --> 00:17:21.439
+effectively 48 Theory to took quite a
+
+00:17:21.439 --> 00:17:24.039
+while to work
+
+00:17:26.400 --> 00:17:29.360
+out and then the only other demo is this
+
+00:17:29.360 --> 00:17:32.799
+one this is showing how a pluck
+
+00:17:32.799 --> 00:17:36.240
+string which you know is initially this
+
+00:17:36.240 --> 00:17:39.679
+uh shape here you can expand that into a
+
+00:17:39.679 --> 00:17:41.760
+for expansion and these are the uh
+
+00:17:41.760 --> 00:17:43.480
+components so this shows you the initial
+
+00:17:43.480 --> 00:17:47.559
+string shape given by a
+
+00:17:47.559 --> 00:17:50.720
+sinusoidal uh fundamental of this shape
+
+00:17:50.720 --> 00:17:52.640
+and then the second harmonic third
+
+00:17:52.640 --> 00:17:54.960
+harmonic fourth harmonic and so when you
+
+00:17:54.960 --> 00:17:57.400
+add those sinusoids up you get an
+
+00:17:57.400 --> 00:17:59.039
+approximation sort of a
+
+00:17:59.039 --> 00:18:01.000
+filtered approximation and if you just
+
+00:18:01.000 --> 00:18:03.720
+keep going up in frequency in the limit
+
+00:18:03.720 --> 00:18:06.120
+as you go to an infinite frequency uh
+
+00:18:06.120 --> 00:18:09.200
+for the overtones you will get exactly
+
+00:18:09.200 --> 00:18:13.080
+the U sharp uh leaning triangle initial
+
+00:18:13.080 --> 00:18:15.919
+shape with its corner so you will you
+
+00:18:15.919 --> 00:18:18.360
+know reach that corner in the limit even
+
+00:18:18.360 --> 00:18:19.520
+though it would think you would think
+
+00:18:19.520 --> 00:18:22.640
+that signing waves can't do that and so
+
+00:18:22.640 --> 00:18:25.240
+that was U that was a difficult
+
+00:18:25.240 --> 00:18:27.320
+mathematical
+
+00:18:27.320 --> 00:18:29.640
+stage
+
+00:18:29.640 --> 00:18:32.320
+okay so now that's the um early ideas
+
+00:18:32.320 --> 00:18:36.520
+section the historical um leading up to
+
+00:18:36.520 --> 00:18:39.280
+the modern day um and so now I want to
+
+00:18:39.280 --> 00:18:41.880
+fast forward to the
+
+00:18:41.880 --> 00:18:45.440
+1950s uh first published in early 60s
+
+00:18:45.440 --> 00:18:48.600
+and you could say it's the first digital
+
+00:18:48.600 --> 00:18:50.640
+implementation of the progressive wave
+
+00:18:50.640 --> 00:18:52.919
+model of D bear so we'll call it digital
+
+00:18:52.919 --> 00:18:54.480
+dalon bear
+
+00:18:54.480 --> 00:18:57.320
+synthesis and so the the
+
+00:18:57.320 --> 00:19:00.039
+U the model here is called the uh Kelly
+
+00:19:00.039 --> 00:19:02.000
+lock bomb model because John Kelly and
+
+00:19:02.000 --> 00:19:04.280
+Carol lock bomb published in ' 62 this
+
+00:19:04.280 --> 00:19:07.240
+model of uh an acoustic vocal tract
+
+00:19:07.240 --> 00:19:11.400
+model and so it's an exact model of this
+
+00:19:11.400 --> 00:19:15.000
+idealized piecewise cylindrical model so
+
+00:19:15.000 --> 00:19:17.159
+the the vocal folds are here and you
+
+00:19:17.159 --> 00:19:19.000
+emit glottal pulses at the base of the
+
+00:19:19.000 --> 00:19:20.840
+vocal tract and then it's assumed that
+
+00:19:20.840 --> 00:19:24.080
+plane waves will travel down uh the axis
+
+00:19:24.080 --> 00:19:26.240
+of the tube and when and and then the
+
+00:19:26.240 --> 00:19:28.679
+tube geometry changes discontin ously
+
+00:19:28.679 --> 00:19:30.960
+for the next cylindrical segment and
+
+00:19:30.960 --> 00:19:33.000
+each cylindrical segment is the same
+
+00:19:33.000 --> 00:19:35.440
+height and what happens there is that a
+
+00:19:35.440 --> 00:19:37.320
+plane wave will partially reflect and
+
+00:19:37.320 --> 00:19:39.559
+transmit and that's called
+
+00:19:39.559 --> 00:19:41.400
+scattering and so you have some
+
+00:19:41.400 --> 00:19:42.760
+reflection coefficient and some
+
+00:19:42.760 --> 00:19:44.760
+transmission coefficient and that's what
+
+00:19:44.760 --> 00:19:47.120
+you see here um well this actually
+
+00:19:47.120 --> 00:19:49.760
+should have a delay there should be uh a
+
+00:19:49.760 --> 00:19:51.880
+delay here equal to this propagation
+
+00:19:51.880 --> 00:19:53.799
+delay or I could say there's a
+
+00:19:53.799 --> 00:19:55.600
+reflection right at the entrance and
+
+00:19:55.600 --> 00:19:56.919
+then there's the first reflection
+
+00:19:56.919 --> 00:19:58.760
+coefficient and the first transmission
+
+00:19:58.760 --> 00:20:00.520
+coefficient and then from the other
+
+00:20:00.520 --> 00:20:02.080
+direction you have the same thing going
+
+00:20:02.080 --> 00:20:05.559
+on so if a plane wave comes in from this
+
+00:20:05.559 --> 00:20:08.880
+way it reflects with opposite reflection
+
+00:20:08.880 --> 00:20:10.799
+coefficient and that's just because the
+
+00:20:10.799 --> 00:20:13.320
+tube uh is getting uh narrower instead
+
+00:20:13.320 --> 00:20:15.440
+of larger so that that changes the sign
+
+00:20:15.440 --> 00:20:17.280
+of the reflection coefficient and so
+
+00:20:17.280 --> 00:20:19.960
+that's why um oh and I have to introduce
+
+00:20:19.960 --> 00:20:21.120
+a notational
+
+00:20:21.120 --> 00:20:26.080
+convention uh box equals
+
+00:20:26.080 --> 00:20:28.960
+minus yeah that I just discovered that
+
+00:20:28.960 --> 00:20:30.840
+there's some font problem for certain
+
+00:20:30.840 --> 00:20:33.960
+figures and uh and and so we'll just
+
+00:20:33.960 --> 00:20:38.120
+make that notational adjustment uh so so
+
+00:20:38.120 --> 00:20:40.919
+this is minus K1 because it's stepping
+
+00:20:40.919 --> 00:20:42.640
+uh in the opposite direction and then
+
+00:20:42.640 --> 00:20:44.799
+the uh backward reflection uh
+
+00:20:44.799 --> 00:20:47.159
+transmission coefficient is also one
+
+00:20:47.159 --> 00:20:48.120
+minus
+
+00:20:48.120 --> 00:20:52.039
+K1 denoted by the Box
+
+00:20:52.039 --> 00:20:54.720
+operator um so okay so that that's the
+
+00:20:54.720 --> 00:20:57.520
+model and and it Mak amazingly good
+
+00:20:57.520 --> 00:20:59.840
+voice I mean it's it looks like a pretty
+
+00:20:59.840 --> 00:21:02.760
+crude approximation because you know our
+
+00:21:02.760 --> 00:21:04.400
+vocal tracks are not piecewise
+
+00:21:04.400 --> 00:21:07.080
+cylindrical but if you have a lot of uh
+
+00:21:07.080 --> 00:21:09.440
+cylinders you can you can follow a shape
+
+00:21:09.440 --> 00:21:11.360
+pretty well and it turns out that what
+
+00:21:11.360 --> 00:21:13.840
+we need out of this are the first three
+
+00:21:13.840 --> 00:21:15.840
+resonances to be about right you know
+
+00:21:15.840 --> 00:21:17.520
+that that turns out to be all you really
+
+00:21:17.520 --> 00:21:19.200
+need for a good vowel
+
+00:21:19.200 --> 00:21:22.640
+sound so uh let's hear how it sounds
+
+00:21:22.640 --> 00:21:24.600
+they Kelly and lock bomb collaborated
+
+00:21:24.600 --> 00:21:25.840
+with Max
+
+00:21:25.840 --> 00:21:28.240
+Matthews uh Max Matthews the father
+
+00:21:28.240 --> 00:21:31.080
+computer music who uh Ed Bell Labs uh
+
+00:21:31.080 --> 00:21:32.760
+did you know the music 5 acoustic
+
+00:21:32.760 --> 00:21:35.559
+compiler and um you pioneered computer
+
+00:21:35.559 --> 00:21:38.720
+music as we know it and he collaborated
+
+00:21:38.720 --> 00:21:41.120
+with uh Kelly and lock bomb at Bell labs
+
+00:21:41.120 --> 00:21:42.760
+and and did this example Max did the
+
+00:21:42.760 --> 00:21:45.400
+musical accompaniment and U uh Kelly and
+
+00:21:45.400 --> 00:21:49.080
+lock bomb did the uh the singing
+
+00:21:49.550 --> 00:21:56.210
+[Music]
+
+00:21:57.039 --> 00:22:00.039
+voice
+
+00:22:01.940 --> 00:22:05.329
+[Music]
+
+00:22:12.160 --> 00:22:15.269
+[Music]
+
+00:22:18.550 --> 00:22:26.960
+[Music]
+
+00:22:26.960 --> 00:22:29.440
+you
+
+00:22:29.440 --> 00:22:31.720
+so that that's pretty for listening
+
+00:22:31.720 --> 00:22:33.320
+that's the same model that's the same
+
+00:22:33.320 --> 00:22:37.240
+model so um way back in the early 1960s
+
+00:22:37.240 --> 00:22:38.360
+that could have been worked on in the
+
+00:22:38.360 --> 00:22:42.559
+late 50s um that that that is a a pretty
+
+00:22:42.559 --> 00:22:45.240
+good uh voice synthesis even by today's
+
+00:22:45.240 --> 00:22:47.440
+standards just I would say largely
+
+00:22:47.440 --> 00:22:49.360
+because most voice synthesis is is all
+
+00:22:49.360 --> 00:22:51.400
+about intelligibility and and so there
+
+00:22:51.400 --> 00:22:53.679
+hasn't been a lot of work I mean we we
+
+00:22:53.679 --> 00:22:55.240
+know some people who've worked on it but
+
+00:22:55.240 --> 00:22:57.320
+but there has not been relatively nearly
+
+00:22:57.320 --> 00:23:00.000
+as much work on making the quality of of
+
+00:23:00.000 --> 00:23:02.960
+uh synthesized voice uh very very
+
+00:23:02.960 --> 00:23:05.559
+good okay so now fast forward again so
+
+00:23:05.559 --> 00:23:07.679
+here we are in the early 60s now we're
+
+00:23:07.679 --> 00:23:10.039
+fast forwarding to uh uh what I was
+
+00:23:10.039 --> 00:23:12.120
+involved with at Karma and that is
+
+00:23:12.120 --> 00:23:14.120
+digital waveguide models um starting
+
+00:23:14.120 --> 00:23:17.360
+around 1985 and so what is a digital
+
+00:23:17.360 --> 00:23:20.159
+wave guide that it's another dalon bear
+
+00:23:20.159 --> 00:23:23.000
+building block you have a pair of delay
+
+00:23:23.000 --> 00:23:24.960
+lines to simulate these Progressive
+
+00:23:24.960 --> 00:23:28.159
+waves and the reason for that is these
+
+00:23:28.159 --> 00:23:30.320
+are really cheap a delay line is
+
+00:23:30.320 --> 00:23:32.400
+implemented using a circular buffer in
+
+00:23:32.400 --> 00:23:35.679
+memory so it's an order one computation
+
+00:23:35.679 --> 00:23:37.039
+if you know you know computational
+
+00:23:37.039 --> 00:23:39.360
+complexity notation meaning that every
+
+00:23:39.360 --> 00:23:42.720
+sample of sound all you do is you know
+
+00:23:42.720 --> 00:23:44.760
+um read memory write memory and Advance
+
+00:23:44.760 --> 00:23:47.640
+a pointer so uh that that's a very very
+
+00:23:47.640 --> 00:23:49.600
+low complexity for implementing
+
+00:23:49.600 --> 00:23:52.679
+effectively an entire string okay so
+
+00:23:52.679 --> 00:23:54.440
+it's make taking advantage of the
+
+00:23:54.440 --> 00:23:56.919
+traveling wave components as fixed
+
+00:23:56.919 --> 00:23:59.120
+shapes in the idea deal strength now you
+
+00:23:59.120 --> 00:24:00.919
+know we in practice we have to uh
+
+00:24:00.919 --> 00:24:02.520
+introduce losses and dispersion and
+
+00:24:02.520 --> 00:24:03.760
+nonlinear there all these things we have
+
+00:24:03.760 --> 00:24:06.120
+to add on but the basic starting point
+
+00:24:06.120 --> 00:24:08.480
+is extremely efficient and that's
+
+00:24:08.480 --> 00:24:10.600
+extremely important for realtime
+
+00:24:10.600 --> 00:24:12.559
+computational models for something that
+
+00:24:12.559 --> 00:24:14.840
+you can play as a performer and and uh
+
+00:24:14.840 --> 00:24:17.360
+that that's always a requirement in in
+
+00:24:17.360 --> 00:24:19.760
+this domain I mean we may do things
+
+00:24:19.760 --> 00:24:21.640
+offline at first but ultimately it needs
+
+00:24:21.640 --> 00:24:23.640
+a boil down to something that runs in
+
+00:24:23.640 --> 00:24:26.799
+real time and that is fully expressive
+
+00:24:26.799 --> 00:24:30.000
+that that renders all Nuance of
+
+00:24:30.000 --> 00:24:32.279
+performance so this not only does
+
+00:24:32.279 --> 00:24:34.720
+strings but it'll do BS uh it can do any
+
+00:24:34.720 --> 00:24:36.880
+plane wave um it's a plain wave
+
+00:24:36.880 --> 00:24:38.440
+simulator you can also simulate conical
+
+00:24:38.440 --> 00:24:40.480
+waves in which case you have samples of
+
+00:24:40.480 --> 00:24:43.880
+a of an expanding spherical wave or or
+
+00:24:43.880 --> 00:24:47.000
+Contracting spheric spherical wave and
+
+00:24:47.000 --> 00:24:48.480
+one other thing you need is the wave
+
+00:24:48.480 --> 00:24:50.679
+impedance so R denotes the wave
+
+00:24:50.679 --> 00:24:52.840
+impedance um I mentioned the speed of
+
+00:24:52.840 --> 00:24:56.279
+sound is the U square root of uh tension
+
+00:24:56.279 --> 00:24:58.440
+over density well the wave impedance is
+
+00:24:58.440 --> 00:25:01.320
+the square root of tension times density
+
+00:25:01.320 --> 00:25:03.600
+and uh it's a very valuable number
+
+00:25:03.600 --> 00:25:05.520
+because you can take the uh the
+
+00:25:05.520 --> 00:25:08.240
+traveling in in acoustical uh waves you
+
+00:25:08.240 --> 00:25:09.720
+can take the traveling
+
+00:25:09.720 --> 00:25:12.159
+pressure and divide it by the waving pen
+
+00:25:12.159 --> 00:25:14.799
+to get the traveling velocity and uh
+
+00:25:14.799 --> 00:25:16.760
+this is something that uh Lord rley
+
+00:25:16.760 --> 00:25:18.399
+seems to be the first to have published
+
+00:25:18.399 --> 00:25:21.240
+that that uh that way that acoustical
+
+00:25:21.240 --> 00:25:23.440
+pressure and velocity are directly
+
+00:25:23.440 --> 00:25:25.520
+proportional in a traveling wave and
+
+00:25:25.520 --> 00:25:27.840
+that real positive proportionality
+
+00:25:27.840 --> 00:25:30.159
+coefficient is the wave impedance and in
+
+00:25:30.159 --> 00:25:31.279
+the string it's the square root of
+
+00:25:31.279 --> 00:25:34.640
+tension time density in air it's uh it's
+
+00:25:34.640 --> 00:25:36.240
+you know gamma times the it is
+
+00:25:36.240 --> 00:25:38.520
+effectively the volume springiness times
+
+00:25:38.520 --> 00:25:41.159
+the density of
+
+00:25:41.159 --> 00:25:43.520
+air okay so what happens when you hook
+
+00:25:43.520 --> 00:25:45.880
+two of these together so if you hook up
+
+00:25:45.880 --> 00:25:47.039
+two digital wave guides you get
+
+00:25:47.039 --> 00:25:48.960
+scattering just like in the Kelly lock
+
+00:25:48.960 --> 00:25:51.440
+bomb uh context the impedance is
+
+00:25:51.440 --> 00:25:53.880
+changing from R1 to R2 so you get a a
+
+00:25:53.880 --> 00:25:56.440
+reflection coefficient K1 given by that
+
+00:25:56.440 --> 00:25:59.000
+expression again boxing know it's minus
+
+00:25:59.000 --> 00:26:00.240
+and then uh the transmission
+
+00:26:00.240 --> 00:26:03.440
+coefficients as before uh so this is
+
+00:26:03.440 --> 00:26:04.799
+what you would do for example if you
+
+00:26:04.799 --> 00:26:07.480
+want to have a vibrating string uh
+
+00:26:07.480 --> 00:26:10.240
+suddenly change its density or or you
+
+00:26:10.240 --> 00:26:12.360
+have a way of maybe changing its uh
+
+00:26:12.360 --> 00:26:14.640
+tension uh and and and it's more
+
+00:26:14.640 --> 00:26:16.720
+important in the acoustic bore context
+
+00:26:16.720 --> 00:26:18.200
+where you know you have cylindrical
+
+00:26:18.200 --> 00:26:20.760
+segments changing all right so back to
+
+00:26:20.760 --> 00:26:24.200
+Strings you can say that um this delay
+
+00:26:24.200 --> 00:26:25.919
+line models the string and what we're
+
+00:26:25.919 --> 00:26:27.840
+really explicitly simulating are the
+
+00:26:27.840 --> 00:26:30.880
+progressive wave components and so for a
+
+00:26:30.880 --> 00:26:33.039
+pluck string you put in the uh you put
+
+00:26:33.039 --> 00:26:36.000
+in half of the initial pluck and then
+
+00:26:36.000 --> 00:26:37.640
+half of the initial pluck is going in
+
+00:26:37.640 --> 00:26:40.399
+the other direction and by symmetry uh
+
+00:26:40.399 --> 00:26:41.880
+they need to be equal because you know
+
+00:26:41.880 --> 00:26:43.399
+they add together to give you the
+
+00:26:43.399 --> 00:26:46.080
+initial uh string shape and then as time
+
+00:26:46.080 --> 00:26:47.840
+starts to go they they go in opposite
+
+00:26:47.840 --> 00:26:50.760
+directions and the equality of them uh
+
+00:26:50.760 --> 00:26:52.799
+pertains to the fact that there's no
+
+00:26:52.799 --> 00:26:55.399
+lateral Motion in the pluck um another
+
+00:26:55.399 --> 00:26:57.000
+way of saying it is that there's initial
+
+00:26:57.000 --> 00:26:58.840
+velocity of zero so it's an initial
+
+00:26:58.840 --> 00:27:01.120
+position with a zero initial velocity if
+
+00:27:01.120 --> 00:27:03.760
+you introduce nonzero initial velocity
+
+00:27:03.760 --> 00:27:05.440
+then you'll introduce an asymmetry in
+
+00:27:05.440 --> 00:27:07.880
+those traveling wave components and then
+
+00:27:07.880 --> 00:27:11.000
+these minus one Reflections at the end
+
+00:27:11.000 --> 00:27:13.240
+uh correspond to an infinite Impe
+
+00:27:13.240 --> 00:27:15.919
+impedance so the bridge impedance is
+
+00:27:15.919 --> 00:27:18.720
+modeled as Infinity the nut impedance is
+
+00:27:18.720 --> 00:27:20.799
+modeled as infinity and that'll give you
+
+00:27:20.799 --> 00:27:23.399
+just a simple minus one and and one
+
+00:27:23.399 --> 00:27:25.080
+another thing we do a lot is commute the
+
+00:27:25.080 --> 00:27:27.559
+diagram so so this minus one can be
+
+00:27:27.559 --> 00:27:29.240
+commuted with this delay line and
+
+00:27:29.240 --> 00:27:30.720
+combined with that one to make it go
+
+00:27:30.720 --> 00:27:33.480
+away and you can Comm uh you can add
+
+00:27:33.480 --> 00:27:34.880
+these delay lines together and just get
+
+00:27:34.880 --> 00:27:36.480
+one delay line with a feedback loop
+
+00:27:36.480 --> 00:27:39.200
+around it and and yet you can see that
+
+00:27:39.200 --> 00:27:42.440
+as a physical model of a
+
+00:27:43.000 --> 00:27:45.679
+string and and so now here's an ideal
+
+00:27:45.679 --> 00:27:48.320
+initial stru string in this case we
+
+00:27:48.320 --> 00:27:50.559
+choose velocity waves for the wave
+
+00:27:50.559 --> 00:27:54.159
+variable and uh if the hammer strikes
+
+00:27:54.159 --> 00:27:56.960
+the string on a piano uh in this
+
+00:27:56.960 --> 00:27:59.240
+idealized world then there's a momentum
+
+00:27:59.240 --> 00:28:01.120
+transfer and so the the width of the
+
+00:28:01.120 --> 00:28:03.559
+hammer is the width of this rectangle
+
+00:28:03.559 --> 00:28:06.000
+and so after the strike there's some
+
+00:28:06.000 --> 00:28:08.159
+velocity here that that that con that
+
+00:28:08.159 --> 00:28:09.840
+conserves momentum so you take the mass
+
+00:28:09.840 --> 00:28:11.640
+of the hammer times its striking
+
+00:28:11.640 --> 00:28:13.919
+velocity that's the momentum that has to
+
+00:28:13.919 --> 00:28:17.039
+exist in the string uh when you're done
+
+00:28:17.039 --> 00:28:20.320
+and so that equation is expressing
+
+00:28:20.320 --> 00:28:23.120
+that so we can do ideal pluck strings
+
+00:28:23.120 --> 00:28:26.399
+and ideal uh struck strings without
+
+00:28:26.399 --> 00:28:27.960
+spinning much computation these are
+
+00:28:27.960 --> 00:28:29.919
+really Dirt Cheap this is still an order
+
+00:28:29.919 --> 00:28:32.880
+one computation so we can get a lot of
+
+00:28:32.880 --> 00:28:34.840
+these strings in real time we can pluck
+
+00:28:34.840 --> 00:28:38.120
+them we can uh we can strike them now
+
+00:28:38.120 --> 00:28:40.799
+completely independently of that story
+
+00:28:40.799 --> 00:28:43.480
+uh a Compu two computer science students
+
+00:28:43.480 --> 00:28:45.360
+Kevin carplus and Alex
+
+00:28:45.360 --> 00:28:48.000
+strong discovered an interesting
+
+00:28:48.000 --> 00:28:51.159
+algorithm that uh they called it the
+
+00:28:51.159 --> 00:28:53.159
+digitar algorithm because it obviously
+
+00:28:53.159 --> 00:28:56.480
+sounded like a guitar and so here is the
+
+00:28:56.480 --> 00:28:58.120
+block diagram this is kind of a signal
+
+00:28:58.120 --> 00:29:00.159
+processing rendering uh I mean they
+
+00:29:00.159 --> 00:29:01.600
+would not draw a diagram like that
+
+00:29:01.600 --> 00:29:02.840
+because you know they were computer s
+
+00:29:02.840 --> 00:29:05.000
+guys they were working on a on a uh an
+
+00:29:05.000 --> 00:29:06.240
+8bit
+
+00:29:06.240 --> 00:29:08.159
+microprocessor and they were doing wave
+
+00:29:08.159 --> 00:29:10.960
+table synthesis and they found that you
+
+00:29:10.960 --> 00:29:12.919
+know that was kind of boring and and we
+
+00:29:12.919 --> 00:29:14.559
+all you know anyone who's worked with
+
+00:29:14.559 --> 00:29:16.640
+Luke waveforms knows that they're pretty
+
+00:29:16.640 --> 00:29:18.440
+boring they almost sound like some kind
+
+00:29:18.440 --> 00:29:19.399
+of
+
+00:29:19.399 --> 00:29:21.600
+orgon but so you have to do something
+
+00:29:21.600 --> 00:29:23.360
+with them and of course we do envelopes
+
+00:29:23.360 --> 00:29:25.840
+we do frequency modulation we do lots
+
+00:29:25.840 --> 00:29:27.919
+and lots of them detuned there are all
+
+00:29:27.919 --> 00:29:29.799
+these tricks we have for making them not
+
+00:29:29.799 --> 00:29:32.600
+sound so boring well Alex strong had the
+
+00:29:32.600 --> 00:29:34.799
+interesting idea why don't we modify the
+
+00:29:34.799 --> 00:29:37.399
+table as we go through and and what he
+
+00:29:37.399 --> 00:29:39.120
+could afford to do in his 8bit
+
+00:29:39.120 --> 00:29:42.640
+microcomputer is um add the current
+
+00:29:42.640 --> 00:29:45.000
+sample to the previous sample and then
+
+00:29:45.000 --> 00:29:46.919
+WR shift one bit you know of course he's
+
+00:29:46.919 --> 00:29:49.080
+in fix point in eight bits and then
+
+00:29:49.080 --> 00:29:51.159
+write that into the table so overwrite
+
+00:29:51.159 --> 00:29:54.440
+the table with the twoo average of the
+
+00:29:54.440 --> 00:29:56.640
+last Red sample and the previously last
+
+00:29:56.640 --> 00:29:58.679
+red sample and so that's basically a
+
+00:29:58.679 --> 00:30:01.760
+twoo average smoothing and so you're low
+
+00:30:01.760 --> 00:30:04.360
+pass filtering the the the table every
+
+00:30:04.360 --> 00:30:06.519
+time you go through it and this is the
+
+00:30:06.519 --> 00:30:08.399
+uh low pass filter so we would say this
+
+00:30:08.399 --> 00:30:12.720
+is a one zero um f low pass filter and
+
+00:30:12.720 --> 00:30:14.279
+and so this was how it would look if you
+
+00:30:14.279 --> 00:30:16.120
+diagrammed it up and they discovered it
+
+00:30:16.120 --> 00:30:17.600
+back in
+
+00:30:17.600 --> 00:30:20.480
+1978 and they tried a lot of different
+
+00:30:20.480 --> 00:30:23.080
+uh excitations and and settled on random
+
+00:30:23.080 --> 00:30:26.880
+numbers as their favorite okay and
+
+00:30:26.880 --> 00:30:28.960
+that's really interesting to me because
+
+00:30:28.960 --> 00:30:31.440
+it random numbers are are are really
+
+00:30:31.440 --> 00:30:34.240
+different from an initial leaning
+
+00:30:34.240 --> 00:30:37.880
+triangle um if you if you now take the
+
+00:30:37.880 --> 00:30:40.840
+physical interpretation of that diagram
+
+00:30:40.840 --> 00:30:42.960
+and back everything out random numbers
+
+00:30:42.960 --> 00:30:45.880
+correspond to a random pluck position
+
+00:30:45.880 --> 00:30:49.840
+and a random initial velocity at every
+
+00:30:49.840 --> 00:30:51.960
+sample along the string so you're you're
+
+00:30:51.960 --> 00:30:54.559
+simultaneously plucking and striking the
+
+00:30:54.559 --> 00:30:57.960
+string everywhere along its length so
+
+00:30:57.960 --> 00:30:59.679
+this is an example of something that you
+
+00:30:59.679 --> 00:31:02.279
+can do very easily in the virtual world
+
+00:31:02.279 --> 00:31:04.919
+that that uh that piano makers clavier
+
+00:31:04.919 --> 00:31:06.679
+makers and guitar makers would have a
+
+00:31:06.679 --> 00:31:09.559
+very hard time doing and and I can also
+
+00:31:09.559 --> 00:31:10.960
+say that just from watching composers
+
+00:31:10.960 --> 00:31:12.720
+Through The Years nobody really went
+
+00:31:12.720 --> 00:31:14.919
+back even after we had the physical
+
+00:31:14.919 --> 00:31:16.760
+interpretation and you could say to
+
+00:31:16.760 --> 00:31:18.159
+someone well you know if you put a
+
+00:31:18.159 --> 00:31:19.799
+leaning triangle in there you'll be
+
+00:31:19.799 --> 00:31:21.600
+really simulating a string and they
+
+00:31:21.600 --> 00:31:23.000
+would try that and they would say Ah
+
+00:31:23.000 --> 00:31:24.840
+that's kind of thin and boring by
+
+00:31:24.840 --> 00:31:26.519
+comparison so they went right back to
+
+00:31:26.519 --> 00:31:27.880
+random numbers
+
+00:31:27.880 --> 00:31:30.240
+and uh so there's a a richness A
+
+00:31:30.240 --> 00:31:32.440
+diversity in that that that the real
+
+00:31:32.440 --> 00:31:33.919
+world can't keep up with this is an
+
+00:31:33.919 --> 00:31:36.159
+example where the virtual world cut took
+
+00:31:36.159 --> 00:31:38.000
+out ahead went out ahead of the real
+
+00:31:38.000 --> 00:31:41.080
+world and and uh and the Gap was never
+
+00:31:41.080 --> 00:31:43.679
+closed so I I like the virtual world I
+
+00:31:43.679 --> 00:31:46.279
+think it's a good
+
+00:31:47.360 --> 00:31:49.519
+place uh you can do things there that
+
+00:31:49.519 --> 00:31:51.039
+you can't do in the real world you get
+
+00:31:51.039 --> 00:31:54.799
+your own reality so um now uh David
+
+00:31:54.799 --> 00:31:56.639
+jaffy was a composer in the music
+
+00:31:56.639 --> 00:31:58.279
+department uh same time I was a graduate
+
+00:31:58.279 --> 00:32:01.639
+student inou and he played in a string
+
+00:32:01.639 --> 00:32:04.120
+quartet with with Alex strong and Alex
+
+00:32:04.120 --> 00:32:05.240
+said hey you got to hear this algor them
+
+00:32:05.240 --> 00:32:07.080
+it really sounds good and David listened
+
+00:32:07.080 --> 00:32:08.480
+to it and said that does sound good you
+
+00:32:08.480 --> 00:32:09.519
+know because he was at the computer
+
+00:32:09.519 --> 00:32:11.760
+music center and he heard what we were
+
+00:32:11.760 --> 00:32:14.080
+getting by with in the way of you know
+
+00:32:14.080 --> 00:32:16.440
+basically Loop wave TBL uh synthesis for
+
+00:32:16.440 --> 00:32:19.279
+the most part and uh he said you know
+
+00:32:19.279 --> 00:32:20.760
+I've got to use this in a piece and he
+
+00:32:20.760 --> 00:32:22.600
+implemented on all all the synthesizers
+
+00:32:22.600 --> 00:32:25.159
+we had at the time and I was an engineer
+
+00:32:25.159 --> 00:32:26.600
+who uh could help him with things like
+
+00:32:26.600 --> 00:32:28.760
+interpolation and getting it in tune and
+
+00:32:28.760 --> 00:32:30.279
+adding filters and so this is what we
+
+00:32:30.279 --> 00:32:33.480
+ended up with um it's got it's basically
+
+00:32:33.480 --> 00:32:35.080
+an extended carplus strong algorithm
+
+00:32:35.080 --> 00:32:39.559
+where you basically add uh uh a pick
+
+00:32:39.559 --> 00:32:42.399
+pick Direction low pass picture filter
+
+00:32:42.399 --> 00:32:44.360
+that that's to capture the difference in
+
+00:32:44.360 --> 00:32:46.000
+an up down pick there's a little bit of
+
+00:32:46.000 --> 00:32:48.399
+a spectral uh difference alternating and
+
+00:32:48.399 --> 00:32:49.639
+so you just make that filter a little
+
+00:32:49.639 --> 00:32:51.080
+different going up and down and it
+
+00:32:51.080 --> 00:32:52.880
+satisfies your ear that you're getting a
+
+00:32:52.880 --> 00:32:55.320
+reasonable tremolo effect and then
+
+00:32:55.320 --> 00:32:58.519
+there's a u pick position comb filter
+
+00:32:58.519 --> 00:33:01.200
+that corresponds to plucking it at
+
+00:33:01.200 --> 00:33:03.519
+various distances away from the bridge
+
+00:33:03.519 --> 00:33:05.799
+and um I'll leave it as an exercise to
+
+00:33:05.799 --> 00:33:07.639
+prove that it comes out in the form of a
+
+00:33:07.639 --> 00:33:10.559
+comb filter like that and then we have a
+
+00:33:10.559 --> 00:33:12.320
+string damping filter which is more
+
+00:33:12.320 --> 00:33:15.039
+General than the twoo average uh then we
+
+00:33:15.039 --> 00:33:17.279
+also uh added a string stiffness all
+
+00:33:17.279 --> 00:33:18.840
+pass filter that that gives you stiff
+
+00:33:18.840 --> 00:33:20.720
+strings for what you need for piano
+
+00:33:20.720 --> 00:33:24.320
+pianos have uh audibly stiff strings
+
+00:33:24.320 --> 00:33:25.960
+because what it does is it stretches the
+
+00:33:25.960 --> 00:33:28.600
+overtones in the U in the sound so it's
+
+00:33:28.600 --> 00:33:31.440
+not a harmonic vibrating sound it's a
+
+00:33:31.440 --> 00:33:33.880
+it's a it's a it's somewhere between a
+
+00:33:33.880 --> 00:33:37.080
+string and a bar so a stiff string is
+
+00:33:37.080 --> 00:33:39.519
+sort of toward a vibrating bar in terms
+
+00:33:39.519 --> 00:33:40.919
+of its
+
+00:33:40.919 --> 00:33:43.039
+overtones okay and then uh these are
+
+00:33:43.039 --> 00:33:46.279
+those um filters uh that were added uh
+
+00:33:46.279 --> 00:33:48.279
+the dynamic level low PA pass filter was
+
+00:33:48.279 --> 00:33:49.880
+to make it brighter when you hit it
+
+00:33:49.880 --> 00:33:51.919
+harder that's inspired by not only
+
+00:33:51.919 --> 00:33:53.919
+pianos but even guitars do that it's
+
+00:33:53.919 --> 00:33:57.679
+it's a a u nonlinear effect in the piano
+
+00:33:57.679 --> 00:33:59.799
+it comes from the nonlinear compression
+
+00:33:59.799 --> 00:34:02.679
+of the felt uh there's a power law for
+
+00:34:02.679 --> 00:34:05.480
+for the uh uh the force that's applied
+
+00:34:05.480 --> 00:34:07.879
+as a function of compression on the
+
+00:34:07.879 --> 00:34:10.520
+felt so let's hear it let's hear some of
+
+00:34:10.520 --> 00:34:13.919
+the uh I don't have the original carong
+
+00:34:13.919 --> 00:34:15.119
+examples but you can find them on the
+
+00:34:15.119 --> 00:34:17.639
+web they're eight bits they're U they're
+
+00:34:17.639 --> 00:34:19.679
+they're not very musical but but David
+
+00:34:19.679 --> 00:34:22.200
+was a composer and he really uh wanted
+
+00:34:22.200 --> 00:34:24.320
+to uh harness this thing as musical
+
+00:34:24.320 --> 00:34:26.399
+instrument and so here are examples from
+
+00:34:26.399 --> 00:34:29.399
+the syn is toolkit by Perry Cook and
+
+00:34:29.399 --> 00:34:32.919
+Gary scavone this is the uh software
+
+00:34:32.919 --> 00:34:34.599
+environment that we use for all of our
+
+00:34:34.599 --> 00:34:36.240
+physical modeling prototyping well not
+
+00:34:36.240 --> 00:34:38.320
+all of it but anything hard and advanced
+
+00:34:38.320 --> 00:34:40.520
+we end up doing it you know in C++ and
+
+00:34:40.520 --> 00:34:42.560
+the SDK there are some nice uh
+
+00:34:42.560 --> 00:34:44.320
+programming environments that that work
+
+00:34:44.320 --> 00:34:46.879
+really well for various CA special cases
+
+00:34:46.879 --> 00:34:49.720
+but the really General tool is is the
+
+00:34:49.720 --> 00:34:54.280
+SDK uh so here here's an
+
+00:34:55.879 --> 00:34:58.879
+example
+
+00:35:01.080 --> 00:35:02.920
+[Music]
+
+00:35:02.920 --> 00:35:05.040
+and this just shows a uh a progression
+
+00:35:05.040 --> 00:35:09.359
+of examples that's a very low
+
+00:35:09.920 --> 00:35:14.640
+pitch need go up that's a higher pitch
+
+00:35:14.640 --> 00:35:18.280
+and huh let me rewind
+
+00:35:18.280 --> 00:35:21.359
+there and then finally I have one
+
+00:35:21.359 --> 00:35:22.680
+finally have one that goes over the
+
+00:35:22.680 --> 00:35:25.800
+range this really gives you a sense of
+
+00:35:25.800 --> 00:35:27.070
+the
+
+00:35:27.070 --> 00:35:31.760
+[Music]
+
+00:35:31.760 --> 00:35:33.079
+so that's using the random noise
+
+00:35:33.079 --> 00:35:34.960
+excitation so this is you can call it
+
+00:35:34.960 --> 00:35:37.640
+the spuck string it's struck and plucked
+
+00:35:37.640 --> 00:35:40.240
+everywhere along its length and uh it
+
+00:35:40.240 --> 00:35:41.760
+doesn't quite sound like a string or a
+
+00:35:41.760 --> 00:35:43.839
+piano or a clav cord it's it's got its
+
+00:35:43.839 --> 00:35:45.400
+own sort of space but it's in that
+
+00:35:45.400 --> 00:35:47.359
+General ballpark another thing about
+
+00:35:47.359 --> 00:35:49.280
+random numbers is that you know the 48
+
+00:35:49.280 --> 00:35:51.359
+transform is random numbers so it means
+
+00:35:51.359 --> 00:35:53.920
+you have a a a completely random initial
+
+00:35:53.920 --> 00:35:57.079
+spectrum and that's valued uh by
+
+00:35:57.079 --> 00:35:58.680
+composers because from note to note
+
+00:35:58.680 --> 00:36:00.160
+there's a liveliness that comes from
+
+00:36:00.160 --> 00:36:01.640
+that the fact that the spectrum is not
+
+00:36:01.640 --> 00:36:04.040
+just repeating inexorably every noe's a
+
+00:36:04.040 --> 00:36:05.119
+little
+
+00:36:05.119 --> 00:36:06.960
+different but of course you eventually
+
+00:36:06.960 --> 00:36:08.040
+get to the point where you want to save
+
+00:36:08.040 --> 00:36:10.839
+your random number seeds you know oh
+
+00:36:10.839 --> 00:36:13.520
+well and control them and here's here's
+
+00:36:13.520 --> 00:36:15.480
+an example that we did at next computer
+
+00:36:15.480 --> 00:36:17.160
+this was used at the introduction of the
+
+00:36:17.160 --> 00:36:19.599
+next computer in dve Symphony Hall with
+
+00:36:19.599 --> 00:36:21.720
+the first chair violinist playing the
+
+00:36:21.720 --> 00:36:23.920
+violin part which is not included this
+
+00:36:23.920 --> 00:36:25.800
+will just be the orchestra backup for
+
+00:36:25.800 --> 00:36:29.599
+the bach a minor cherto and it was uh it
+
+00:36:29.599 --> 00:36:33.920
+was sort of uh unreduced from a piano
+
+00:36:33.920 --> 00:36:37.280
+reduction uh by the violinist's wife Dan
+
+00:36:37.280 --> 00:36:40.960
+Kaka and uh David jaffy and uh and
+
+00:36:40.960 --> 00:36:43.000
+others of us in the music group at next
+
+00:36:43.000 --> 00:36:44.680
+um worked on the score and the in the
+
+00:36:44.680 --> 00:36:46.680
+voicing and here's what we came up with
+
+00:36:46.680 --> 00:36:50.480
+and we got a standing ovation but that's
+
+00:36:50.480 --> 00:36:51.960
+totally unfair because you know it was
+
+00:36:51.960 --> 00:36:53.960
+after a fantastic presentation by Steve
+
+00:36:53.960 --> 00:36:56.880
+Jobs on the new next computer and it was
+
+00:36:56.880 --> 00:36:58.720
+evation for the whole show but but we
+
+00:36:58.720 --> 00:37:01.920
+were at the end and it it felt like
+
+00:37:01.920 --> 00:37:09.040
+[Music]
+
+00:37:09.040 --> 00:37:12.480
+ours you know that
+
+00:37:13.060 --> 00:37:24.080
+[Music]
+
+00:37:25.599 --> 00:37:27.110
+piece
+
+00:37:27.110 --> 00:37:42.839
+[Music]
+
+00:37:42.839 --> 00:37:46.280
+sound system by George coats so the uhu
+
+00:37:46.280 --> 00:37:50.119
+um that that's just the uh pluck string
+
+00:37:50.119 --> 00:37:52.760
+uh the uh you basically the extended car
+
+00:37:52.760 --> 00:37:55.040
+plus strong algorithm running all those
+
+00:37:55.040 --> 00:37:56.839
+voices running in real time on on a
+
+00:37:56.839 --> 00:38:00.800
+single Motorola 56,000 DSP chip which
+
+00:38:00.800 --> 00:38:02.400
+had a clock rate at that time of about
+
+00:38:02.400 --> 00:38:07.000
+10 MHz so it was a very uh you know uh
+
+00:38:07.000 --> 00:38:08.400
+it had to be a very efficient algorithm
+
+00:38:08.400 --> 00:38:09.760
+to run in real time of course that was
+
+00:38:09.760 --> 00:38:11.240
+you know optimize Assembly Language and
+
+00:38:11.240 --> 00:38:14.040
+so on uh just the unit generators were
+
+00:38:14.040 --> 00:38:15.680
+optimized then you could assemble the
+
+00:38:15.680 --> 00:38:17.119
+unit generators using the high level
+
+00:38:17.119 --> 00:38:19.680
+music kit so uh you had to write your
+
+00:38:19.680 --> 00:38:21.680
+inner Loops in Assembly Language to get
+
+00:38:21.680 --> 00:38:23.920
+the best out of it so all right so that
+
+00:38:23.920 --> 00:38:26.880
+was um the string early string now we in
+
+00:38:26.880 --> 00:38:29.560
+the late 80s and so I'm going to uh sort
+
+00:38:29.560 --> 00:38:31.760
+of pick up the pace a little bit because
+
+00:38:31.760 --> 00:38:33.440
+it would take too long to really explain
+
+00:38:33.440 --> 00:38:35.280
+these things but the same basic approach
+
+00:38:35.280 --> 00:38:38.079
+has been applied to Woodwinds so here's
+
+00:38:38.079 --> 00:38:41.000
+uh now a delay line used as a woodwind
+
+00:38:41.000 --> 00:38:43.839
+bore so uh waves going out to the Bell
+
+00:38:43.839 --> 00:38:45.560
+reflecting off the bell and coming back
+
+00:38:45.560 --> 00:38:47.560
+down the reflection filter is basically
+
+00:38:47.560 --> 00:38:49.240
+a low pass filter the high frequencies
+
+00:38:49.240 --> 00:38:50.960
+go out and that's what you hear the low
+
+00:38:50.960 --> 00:38:52.599
+frequencies reflect back down the bore
+
+00:38:52.599 --> 00:38:54.960
+and keep the oscillation going and those
+
+00:38:54.960 --> 00:38:57.240
+low frequencies that reflect back get
+
+00:38:57.240 --> 00:39:00.200
+sharpened as they reflect off the read
+
+00:39:00.200 --> 00:39:02.680
+and so this is the read model uh it's
+
+00:39:02.680 --> 00:39:03.800
+just one way to formate there a lot of
+
+00:39:03.800 --> 00:39:05.599
+ways to formulate this so you have mouth
+
+00:39:05.599 --> 00:39:08.520
+pressure coming in and you have incoming
+
+00:39:08.520 --> 00:39:10.640
+uh pressure wave ass to be a plane wave
+
+00:39:10.640 --> 00:39:11.839
+and then and you go through this
+
+00:39:11.839 --> 00:39:15.240
+nonlinear reflection coefficient that uh
+
+00:39:15.240 --> 00:39:17.319
+is determined by this table and then
+
+00:39:17.319 --> 00:39:20.119
+that propagates back down and uh that's
+
+00:39:20.119 --> 00:39:24.079
+your basic uh clarinet model single
+
+00:39:24.079 --> 00:39:29.160
+read okay so now here's the s K
+
+00:39:31.160 --> 00:39:33.359
+clarinet so you can find that by
+
+00:39:33.359 --> 00:39:35.720
+searching for SDK clarinet we took that
+
+00:39:35.720 --> 00:39:37.920
+and um and made a uh
+
+00:39:37.920 --> 00:39:41.160
+flute uh I'm sorry we took the SDK flute
+
+00:39:41.160 --> 00:39:43.960
+and made a made a flute for the staccato
+
+00:39:43.960 --> 00:39:46.359
+project at
+
+00:39:46.370 --> 00:39:51.690
+[Music]
+
+00:39:55.400 --> 00:39:57.760
+Karma
+
+00:39:57.760 --> 00:40:00.640
+and here is um here are some examples in
+
+00:40:00.640 --> 00:40:04.400
+the Yamaha V1 this came out in '94 uh
+
+00:40:04.400 --> 00:40:06.040
+based on this type of approach and here
+
+00:40:06.040 --> 00:40:08.280
+is their bamboo
+
+00:40:08.280 --> 00:40:18.359
+[Music]
+
+00:40:18.359 --> 00:40:22.310
+flute and then the OBO
+
+00:40:22.310 --> 00:40:25.359
+[Music]
+
+00:40:25.359 --> 00:40:28.359
+bassoon
+
+00:40:28.590 --> 00:40:50.440
+[Music]
+
+00:40:50.440 --> 00:40:53.599
+and the tenor saxophone from the V1 I
+
+00:40:53.599 --> 00:40:56.040
+must have missed oh I have to hit this
+
+00:40:56.040 --> 00:40:58.319
+sorry
+
+00:41:00.030 --> 00:41:19.899
+[Music]
+
+00:41:25.240 --> 00:41:28.240
+for
+
+00:41:28.780 --> 00:41:32.069
+[Music]
+
+00:41:33.640 --> 00:41:36.040
+so that's being played with a with a
+
+00:41:36.040 --> 00:41:39.160
+mouth pressure sensor a regular keyboard
+
+00:41:39.160 --> 00:41:41.599
+synthesizer keyboard and a modulation
+
+00:41:41.599 --> 00:41:45.319
+wheel that is modulation uh of amuser so
+
+00:41:45.319 --> 00:41:46.680
+you get some of these little dips in the
+
+00:41:46.680 --> 00:41:49.920
+sound from that so it's really mapping
+
+00:41:49.920 --> 00:41:52.880
+uh a physical model uh of a saxophone to
+
+00:41:52.880 --> 00:41:55.240
+a keyboard for keyboard
+
+00:41:55.240 --> 00:41:59.160
+players who are willing to uh wear a
+
+00:41:59.160 --> 00:42:02.720
+mouth pressure sensor um I think that
+
+00:42:02.720 --> 00:42:05.040
+may have been a problem for the product
+
+00:42:05.040 --> 00:42:06.960
+but uh you know some people could really
+
+00:42:06.960 --> 00:42:10.000
+play that thing so now B strings can
+
+00:42:10.000 --> 00:42:12.920
+similarly be um addressed so here we
+
+00:42:12.920 --> 00:42:14.599
+have two segments of the string because
+
+00:42:14.599 --> 00:42:17.520
+the bows you know VI um Boe interior and
+
+00:42:17.520 --> 00:42:20.559
+so here's the same kind of uh model for
+
+00:42:20.559 --> 00:42:23.720
+the bow string uh friction contact as as
+
+00:42:23.720 --> 00:42:25.880
+in the uh read you basically just have
+
+00:42:25.880 --> 00:42:30.400
+this uh uh friction table um formulated
+
+00:42:30.400 --> 00:42:33.559
+as a nonlinear reflection coefficient uh
+
+00:42:33.559 --> 00:42:35.520
+that that is now terminating both sides
+
+00:42:35.520 --> 00:42:37.319
+of the string and so you have the nut on
+
+00:42:37.319 --> 00:42:38.760
+one side or the finger this maybe should
+
+00:42:38.760 --> 00:42:40.720
+be a low pass filter for finger damping
+
+00:42:40.720 --> 00:42:41.680
+there should really even be some
+
+00:42:41.680 --> 00:42:44.480
+nonlinearity in there for U vibrating
+
+00:42:44.480 --> 00:42:46.359
+against the fingerboard uh that's always
+
+00:42:46.359 --> 00:42:48.240
+pretty nonlinear actually and it makes a
+
+00:42:48.240 --> 00:42:50.800
+difference um and then you have your low
+
+00:42:50.800 --> 00:42:52.520
+pass reflection F well this is a very
+
+00:42:52.520 --> 00:42:54.119
+complex filer because the bridge of a
+
+00:42:54.119 --> 00:42:56.680
+violin sees the uh mod Lo of the
+
+00:42:56.680 --> 00:42:58.839
+vibration of the instrument so it's a
+
+00:42:58.839 --> 00:43:02.599
+fairly complex um uh frequency response
+
+00:43:02.599 --> 00:43:04.240
+to the reflection and then you have your
+
+00:43:04.240 --> 00:43:06.680
+output violin body and take as many
+
+00:43:06.680 --> 00:43:09.680
+outputs as you want and map them into
+
+00:43:09.680 --> 00:43:11.960
+space so that's that's how you can apply
+
+00:43:11.960 --> 00:43:14.640
+to both strings and here's a an example
+
+00:43:14.640 --> 00:43:17.880
+by a student on the using the
+
+00:43:19.359 --> 00:43:23.599
+cello and here's another one by the same
+
+00:43:25.079 --> 00:43:27.400
+student
+
+00:43:27.400 --> 00:43:32.789
+[Music]
+
+00:43:33.200 --> 00:43:35.160
+and I have to say the best example I've
+
+00:43:35.160 --> 00:43:38.880
+heard to date was by estabon mestra who
+
+00:43:38.880 --> 00:43:41.400
+was visiting from Barcelona uh while he
+
+00:43:41.400 --> 00:43:43.599
+was still a PhD student and his research
+
+00:43:43.599 --> 00:43:45.920
+has to do with performance modeling
+
+00:43:45.920 --> 00:43:48.319
+modeling the actual you know gestures
+
+00:43:48.319 --> 00:43:50.359
+and and bringing out the control
+
+00:43:50.359 --> 00:43:54.480
+functions um and he hooked up his uh
+
+00:43:54.480 --> 00:43:57.160
+performance measurement data actually in
+
+00:43:57.160 --> 00:44:02.760
+modeled form and drove the STK uh b. CPP
+
+00:44:02.760 --> 00:44:04.480
+instrument which is not necessarily a
+
+00:44:04.480 --> 00:44:06.280
+violin or a viola in other words it
+
+00:44:06.280 --> 00:44:09.000
+doesn't have a specific body but it um
+
+00:44:09.000 --> 00:44:10.880
+implements that basic diagram and it
+
+00:44:10.880 --> 00:44:13.480
+sounded amazing it was the best demo I
+
+00:44:13.480 --> 00:44:16.480
+had ever heard of the SDK b. CPP uh
+
+00:44:16.480 --> 00:44:19.920
+class so um it it underscored I mean I
+
+00:44:19.920 --> 00:44:21.640
+already knew it was true but it really
+
+00:44:21.640 --> 00:44:23.880
+hit me hard that man we really got to
+
+00:44:23.880 --> 00:44:26.760
+get the performance uh synthesis right
+
+00:44:26.760 --> 00:44:27.960
+uh and and the way to do that is you
+
+00:44:27.960 --> 00:44:29.680
+know measure a lot of performance model
+
+00:44:29.680 --> 00:44:31.480
+it properly so performance estimation
+
+00:44:31.480 --> 00:44:33.480
+performance synthesis is is a very
+
+00:44:33.480 --> 00:44:35.079
+active uh research
+
+00:44:35.079 --> 00:44:37.160
+area and and good results have been
+
+00:44:37.160 --> 00:44:38.920
+obtained so now moving on to the
+
+00:44:38.920 --> 00:44:41.760
+Distortion electric guitar so to make it
+
+00:44:41.760 --> 00:44:44.359
+distort one thing you can do is put in a
+
+00:44:44.359 --> 00:44:47.040
+a clipping function and so this is
+
+00:44:47.040 --> 00:44:49.400
+reminiscent of overdriven tube
+
+00:44:49.400 --> 00:44:53.480
+amplifiers in guitar amplifiers and so
+
+00:44:53.480 --> 00:44:54.920
+because we're working in discreete time
+
+00:44:54.920 --> 00:44:57.280
+we like to minimize aliasing and so it's
+
+00:44:57.280 --> 00:44:59.920
+nice to work with the least aliasing
+
+00:44:59.920 --> 00:45:03.400
+nonlinearity and and among non Ian among
+
+00:45:03.400 --> 00:45:04.280
+odd
+
+00:45:04.280 --> 00:45:06.800
+functions um which is kind of you know
+
+00:45:06.800 --> 00:45:10.599
+any all S curves are are odd right then
+
+00:45:10.599 --> 00:45:12.319
+uh the simplest one the the the most
+
+00:45:12.319 --> 00:45:15.240
+gentle is the cubic and so the cubic
+
+00:45:15.240 --> 00:45:18.599
+nonlinearity is is very popular um you
+
+00:45:18.599 --> 00:45:21.040
+also see more accurate tube simulation
+
+00:45:21.040 --> 00:45:22.839
+nonlinearities but then you also usually
+
+00:45:22.839 --> 00:45:25.240
+see an oversampling factor and it's not
+
+00:45:25.240 --> 00:45:27.520
+uncommon to see a factor of eight over
+
+00:45:27.520 --> 00:45:29.359
+sampling you know meaning that you know
+
+00:45:29.359 --> 00:45:32.119
+if you're U if 50 khz is your nominal
+
+00:45:32.119 --> 00:45:33.800
+sampling rate you know now you're going
+
+00:45:33.800 --> 00:45:36.319
+have to 400 kiltz for your simulation so
+
+00:45:36.319 --> 00:45:38.680
+that you don't have this non the because
+
+00:45:38.680 --> 00:45:40.680
+the nonlinearity generates Overton which
+
+00:45:40.680 --> 00:45:44.040
+will then uh Alias at half the sampling
+
+00:45:44.040 --> 00:45:47.240
+rate now in addition to the nonlinearity
+
+00:45:47.240 --> 00:45:49.000
+you can you can put in amplifier
+
+00:45:49.000 --> 00:45:50.720
+feedback so this is the amplifier coming
+
+00:45:50.720 --> 00:45:52.440
+back and driving your strings you know
+
+00:45:52.440 --> 00:45:53.880
+Pete towns and Ed it a lot a lot of
+
+00:45:53.880 --> 00:45:55.640
+guitar players you know would get up
+
+00:45:55.640 --> 00:45:57.480
+against against their uh amplifiers and
+
+00:45:57.480 --> 00:46:00.920
+make things Howl in a controlled way and
+
+00:46:00.920 --> 00:46:03.839
+uh Charlie Sullivan at Princeton uh
+
+00:46:03.839 --> 00:46:05.240
+published this diagram in the computer
+
+00:46:05.240 --> 00:46:09.599
+music journal and it uh the string model
+
+00:46:09.599 --> 00:46:11.440
+can be whatever you want but of course
+
+00:46:11.440 --> 00:46:13.240
+we probably want to use uh you know
+
+00:46:13.240 --> 00:46:15.960
+something simple like you know order one
+
+00:46:15.960 --> 00:46:18.079
+computation with delay lines and then
+
+00:46:18.079 --> 00:46:20.839
+you have your nonlinearity and then uh
+
+00:46:20.839 --> 00:46:22.680
+amplifier feedback and and typically
+
+00:46:22.680 --> 00:46:25.640
+these nonlinearities have uh a little
+
+00:46:25.640 --> 00:46:28.240
+bit of EQ going in and and a and and an
+
+00:46:28.240 --> 00:46:30.640
+EQ coming out a lot of times you'll roll
+
+00:46:30.640 --> 00:46:32.440
+off the the high frequencies go through
+
+00:46:32.440 --> 00:46:34.359
+the nonlinearity and then bring them
+
+00:46:34.359 --> 00:46:35.880
+back up if you want and you know so
+
+00:46:35.880 --> 00:46:38.040
+there's a lot of uh work that goes on
+
+00:46:38.040 --> 00:46:40.000
+there to get the sound that you want
+
+00:46:40.000 --> 00:46:41.599
+okay let's hear this one this so this is
+
+00:46:41.599 --> 00:46:43.240
+not that much more expensive than just
+
+00:46:43.240 --> 00:46:46.359
+the basic string model we're just adding
+
+00:46:46.359 --> 00:46:49.160
+U cubic Distortion and a feedback path
+
+00:46:49.160 --> 00:46:52.440
+with a gain for getting some howling and
+
+00:46:52.440 --> 00:46:54.800
+so let's hear what some of these sound
+
+00:46:54.800 --> 00:46:57.800
+like
+
+00:46:57.910 --> 00:46:59.839
+[Music]
+
+00:46:59.839 --> 00:47:01.660
+you know what it
+
+00:47:01.660 --> 00:47:08.189
+[Music]
+
+00:47:09.400 --> 00:47:14.599
+is so uh RP uh Jimmy
+
+00:47:14.599 --> 00:47:16.870
+Hendrick this is the amplifier
+
+00:47:16.870 --> 00:47:24.280
+[Music]
+
+00:47:24.280 --> 00:47:27.400
+feedback back to square one there this
+
+00:47:27.400 --> 00:47:29.520
+is being played on a on a midi guitar
+
+00:47:29.520 --> 00:47:31.960
+controller that is uh going into a midi
+
+00:47:31.960 --> 00:47:34.119
+interface to a next computer and being
+
+00:47:34.119 --> 00:47:35.880
+rendered in real time on the Motorola
+
+00:47:35.880 --> 00:47:38.359
+56000 chip and so here's just another
+
+00:47:38.359 --> 00:47:40.050
+feedback uh
+
+00:47:40.050 --> 00:47:43.649
+[Music]
+
+00:47:44.599 --> 00:47:46.790
+example
+
+00:47:46.790 --> 00:47:49.400
+[Music]
+
+00:47:49.400 --> 00:47:51.839
+see so you can really hear those um
+
+00:47:51.839 --> 00:47:54.280
+overtones um coming in and the and the
+
+00:47:54.280 --> 00:47:56.720
+feedback delay of course tells you which
+
+00:47:56.720 --> 00:47:57.920
+uh which overtones are going to be
+
+00:47:57.920 --> 00:47:59.960
+favored and tend to to come out like
+
+00:47:59.960 --> 00:48:03.079
+that all right so then uh the last
+
+00:48:03.079 --> 00:48:04.520
+synthesis technique I wanted to talk
+
+00:48:04.520 --> 00:48:07.040
+about was uh commuted synthesis and the
+
+00:48:07.040 --> 00:48:09.800
+basic idea of commuted synthesis is uh
+
+00:48:09.800 --> 00:48:11.440
+making use of a the well let's it goes
+
+00:48:11.440 --> 00:48:14.160
+back to Daniel beri it's the principle
+
+00:48:14.160 --> 00:48:16.240
+of superposition in linear time
+
+00:48:16.240 --> 00:48:19.839
+invariance systems um uh you not only
+
+00:48:19.839 --> 00:48:21.280
+have superposition you also have
+
+00:48:21.280 --> 00:48:23.319
+commutativity you can run your your
+
+00:48:23.319 --> 00:48:26.440
+components in any order and so the uh
+
+00:48:26.440 --> 00:48:30.839
+resonator is really quite um linear in
+
+00:48:30.839 --> 00:48:32.800
+timing variant in a in a typical
+
+00:48:32.800 --> 00:48:35.040
+instrument you know it's hard wood and
+
+00:48:35.040 --> 00:48:37.520
+it's not vibrating very much compared to
+
+00:48:37.520 --> 00:48:40.920
+its uh shape but the string that's a bit
+
+00:48:40.920 --> 00:48:42.400
+of a stretch that's an approximation
+
+00:48:42.400 --> 00:48:43.720
+there's a lot of nonlinear things that
+
+00:48:43.720 --> 00:48:45.400
+go on in strings and and so that we're
+
+00:48:45.400 --> 00:48:47.520
+approximating that nonlinearity is not
+
+00:48:47.520 --> 00:48:49.799
+being there for purposes
+
+00:48:49.799 --> 00:48:53.000
+of uh making the computation way less
+
+00:48:53.000 --> 00:48:54.640
+expensive so to the extent that the
+
+00:48:54.640 --> 00:48:57.720
+string is linear and time in variant um
+
+00:48:57.720 --> 00:48:59.720
+you can interchange the order of the
+
+00:48:59.720 --> 00:49:01.920
+resonator and the string and and the
+
+00:49:01.920 --> 00:49:03.960
+reason this helps is because in this
+
+00:49:03.960 --> 00:49:06.760
+form the resonator is a gigantic filter
+
+00:49:06.760 --> 00:49:08.160
+you know there you could say there are
+
+00:49:08.160 --> 00:49:10.480
+hundreds of thousands of modes resonant
+
+00:49:10.480 --> 00:49:13.200
+modes in the in the audio band in in
+
+00:49:13.200 --> 00:49:14.599
+typical stringed instruments you know
+
+00:49:14.599 --> 00:49:17.280
+the these are Big vibrating bodies with
+
+00:49:17.280 --> 00:49:20.200
+lots and lots of uh resonances in the uh
+
+00:49:20.200 --> 00:49:22.440
+in the in the audio band uh particularly
+
+00:49:22.440 --> 00:49:24.240
+when you get into the cavity resonances
+
+00:49:24.240 --> 00:49:24.880
+you know because that's a
+
+00:49:24.880 --> 00:49:25.960
+threedimensional
+
+00:49:25.960 --> 00:49:29.520
+space and the um uh the density of modes
+
+00:49:29.520 --> 00:49:33.000
+as a function of frequency uh goes up um
+
+00:49:33.000 --> 00:49:35.440
+you know in polinomial well what is it
+
+00:49:35.440 --> 00:49:37.640
+it's um I think it's the or with
+
+00:49:37.640 --> 00:49:42.359
+frequency squared for U uh strings and
+
+00:49:42.359 --> 00:49:44.319
+with for for plates and frequency Cub
+
+00:49:44.319 --> 00:49:46.480
+for for volumes I hope I'm not off by
+
+00:49:46.480 --> 00:49:48.280
+one there I think that's right so it's
+
+00:49:48.280 --> 00:49:51.400
+an extreme density of modes and we don't
+
+00:49:51.400 --> 00:49:53.960
+want to have to implement those with by
+
+00:49:53.960 --> 00:49:56.359
+quads you know two pole digital filters
+
+00:49:56.359 --> 00:49:58.599
+so when you interchange the
+
+00:49:58.599 --> 00:50:02.319
+order the excitation excites this fixed
+
+00:50:02.319 --> 00:50:03.960
+resonator so really all that ever comes
+
+00:50:03.960 --> 00:50:05.920
+out of here is the resonator's impulse
+
+00:50:05.920 --> 00:50:08.040
+response or excitation response so
+
+00:50:08.040 --> 00:50:10.400
+basically we just need to tabulate this
+
+00:50:10.400 --> 00:50:12.520
+resonance impulse response maybe
+
+00:50:12.520 --> 00:50:14.920
+convolve it with some little excitation
+
+00:50:14.920 --> 00:50:16.680
+filter and then put that out through the
+
+00:50:16.680 --> 00:50:18.079
+ideal string and we've gotten rid of
+
+00:50:18.079 --> 00:50:21.720
+this gigantic filter uh you know the
+
+00:50:21.720 --> 00:50:25.559
+complexity of this model here is you you
+
+00:50:25.559 --> 00:50:27.400
+know order hundreds of thousands as
+
+00:50:27.400 --> 00:50:29.640
+opposed to order one for the string and
+
+00:50:29.640 --> 00:50:31.960
+a simple little uh model for the
+
+00:50:31.960 --> 00:50:34.880
+excitation I've never seen one more than
+
+00:50:34.880 --> 00:50:37.839
+order four um you know they're typically
+
+00:50:37.839 --> 00:50:40.000
+like a little mass and spring thing
+
+00:50:40.000 --> 00:50:41.559
+maybe with some friction maybe a little
+
+00:50:41.559 --> 00:50:44.799
+table so excitations are are generally
+
+00:50:44.799 --> 00:50:46.599
+quite small because they don't store a
+
+00:50:46.599 --> 00:50:47.920
+lot of energy you you get your
+
+00:50:47.920 --> 00:50:50.319
+complexity from energy storage and every
+
+00:50:50.319 --> 00:50:52.920
+resonance is an energy storage degree of
+
+00:50:52.920 --> 00:50:55.920
+freedom and we get away with Simplicity
+
+00:50:55.920 --> 00:50:58.119
+for the string because those uh
+
+00:50:58.119 --> 00:51:00.720
+resonances are Quasi harmonic and so the
+
+00:51:00.720 --> 00:51:02.799
+delay Line Filter model is extremely
+
+00:51:02.799 --> 00:51:05.880
+powerful for those um uh phenomena but
+
+00:51:05.880 --> 00:51:08.119
+not resonances in general although we
+
+00:51:08.119 --> 00:51:10.280
+can do a lot with um psycho acoustic
+
+00:51:10.280 --> 00:51:11.960
+simplification of resonator so you don't
+
+00:51:11.960 --> 00:51:14.119
+really Implement every little Peak uh
+
+00:51:14.119 --> 00:51:15.240
+you just have to implement it in a
+
+00:51:15.240 --> 00:51:17.799
+psycho acoustically equivalent way which
+
+00:51:17.799 --> 00:51:19.200
+we still don't know how to do exactly
+
+00:51:19.200 --> 00:51:21.040
+but uh that's another research
+
+00:51:21.040 --> 00:51:23.559
+area all right so that that's the basic
+
+00:51:23.559 --> 00:51:25.799
+technique and now let's look listen to
+
+00:51:25.799 --> 00:51:26.720
+some
+
+00:51:26.720 --> 00:51:30.280
+examples so U
+
+00:51:30.280 --> 00:51:33.000
+oops uh let's
+
+00:51:33.000 --> 00:51:35.160
+see well in the SDK you have the
+
+00:51:35.160 --> 00:51:37.060
+mandolin let's hear
+
+00:51:37.060 --> 00:51:39.720
+[Music]
+
+00:51:39.720 --> 00:51:42.280
+that and uh these are some of the
+
+00:51:42.280 --> 00:51:46.240
+examples from the sius
+
+00:51:47.540 --> 00:51:49.280
+[Music]
+
+00:51:49.280 --> 00:51:51.640
+project there's also a whammy bar
+
+00:51:51.640 --> 00:51:54.040
+simulation and uh there's also a pickup
+
+00:51:54.040 --> 00:51:55.319
+simulation which just a little simp
+
+00:51:55.319 --> 00:51:56.360
+simple
+
+00:51:56.360 --> 00:52:01.690
+[Music]
+
+00:52:01.720 --> 00:52:03.799
+filter so the main thing that changed
+
+00:52:03.799 --> 00:52:06.079
+there was the pickup model from single
+
+00:52:06.079 --> 00:52:08.319
+coil to dual coil all right now here are
+
+00:52:08.319 --> 00:52:12.119
+some more uh recent examples from
+
+00:52:15.040 --> 00:52:18.480
+Finland classical
+
+00:52:24.280 --> 00:52:27.280
+guitar
+
+00:52:27.680 --> 00:52:29.440
+so we can play you can ask me a question
+
+00:52:29.440 --> 00:52:33.000
+and uh May me go back to that if you
+
+00:52:41.440 --> 00:52:44.839
+want so these are now links to the
+
+00:52:44.839 --> 00:52:50.160
+websites at um Helsinki uh uh University
+
+00:52:50.160 --> 00:52:53.599
+of Technology and so uh I just say do a
+
+00:52:53.599 --> 00:52:55.720
+search for acoustic guitars there and
+
+00:52:55.720 --> 00:52:58.599
+you'll you'll get to their um examples
+
+00:52:58.599 --> 00:53:00.559
+these are just two links to those but
+
+00:53:00.559 --> 00:53:03.040
+since I'm low on time I'll U I'll I'll
+
+00:53:03.040 --> 00:53:06.760
+run along here um now so it can be
+
+00:53:06.760 --> 00:53:08.640
+applied to the violin and here's some
+
+00:53:08.640 --> 00:53:10.119
+example play just one example of
+
+00:53:10.119 --> 00:53:13.079
+commuted synthesis on
+
+00:53:15.230 --> 00:53:23.880
+[Music]
+
+00:53:23.880 --> 00:53:26.400
+violin and
+
+00:53:26.400 --> 00:53:28.720
+uh then finally the idea can be U
+
+00:53:28.720 --> 00:53:30.760
+applied to piano and the tricky part of
+
+00:53:30.760 --> 00:53:33.040
+the piano model is that you've got to do
+
+00:53:33.040 --> 00:53:36.280
+this nonlinear felt compression model
+
+00:53:36.280 --> 00:53:39.680
+somehow um and so the key observation is
+
+00:53:39.680 --> 00:53:43.280
+that for a given striking velocity that
+
+00:53:43.280 --> 00:53:46.280
+Force versus velocity curve is uh force
+
+00:53:46.280 --> 00:53:48.680
+is a function of striking velocity is a
+
+00:53:48.680 --> 00:53:50.960
+fixed shape so you can use a linear time
+
+00:53:50.960 --> 00:53:52.960
+invariant filter to to produce that
+
+00:53:52.960 --> 00:53:55.680
+shape and that means it will commute
+
+00:53:55.680 --> 00:53:57.880
+with the piano soundboard and body
+
+00:53:57.880 --> 00:53:59.400
+enclosure so so in other words
+
+00:53:59.400 --> 00:54:01.200
+conditioned on striking velocity it's a
+
+00:54:01.200 --> 00:54:02.640
+linear time invariant model and that
+
+00:54:02.640 --> 00:54:05.680
+enables the comput commuted synthesis uh
+
+00:54:05.680 --> 00:54:08.960
+technique and so here's the uh uh sort
+
+00:54:08.960 --> 00:54:10.920
+of non-c commuted ordering where you
+
+00:54:10.920 --> 00:54:13.200
+have an Impulse going into tap delay
+
+00:54:13.200 --> 00:54:15.079
+line putting out low path the reason you
+
+00:54:15.079 --> 00:54:17.240
+need three here is because sometimes you
+
+00:54:17.240 --> 00:54:19.359
+get overlapping pulses what happens is
+
+00:54:19.359 --> 00:54:21.119
+the the hammer drives into the string
+
+00:54:21.119 --> 00:54:23.400
+and you get several Reflections from the
+
+00:54:23.400 --> 00:54:25.599
+graph before the hammer finally Falls
+
+00:54:25.599 --> 00:54:27.680
+away so you need multiple pulses there
+
+00:54:27.680 --> 00:54:29.520
+that's the purpose for three here it
+
+00:54:29.520 --> 00:54:32.440
+could be five uh it can also be one and
+
+00:54:32.440 --> 00:54:33.720
+then you add them up and run to the
+
+00:54:33.720 --> 00:54:36.280
+string and so now the soundboard
+
+00:54:36.280 --> 00:54:40.200
+enclosure which is a mammoth huge filter
+
+00:54:40.200 --> 00:54:42.240
+can now be commuted with everything
+
+00:54:42.240 --> 00:54:45.240
+given a fixed Collision velocity so you
+
+00:54:45.240 --> 00:54:47.000
+you've pressed the key the hammer is in
+
+00:54:47.000 --> 00:54:48.359
+Flight you're not going to change its
+
+00:54:48.359 --> 00:54:51.040
+velocity it's flying it's got a fixed V
+
+00:54:51.040 --> 00:54:54.520
+subc we can now build that model on
+
+00:54:54.520 --> 00:54:56.799
+demand so these filters all assume
+
+00:54:56.799 --> 00:54:58.480
+they're setting for that Collision
+
+00:54:58.480 --> 00:55:01.079
+velocity before the hammer gets there
+
+00:55:01.079 --> 00:55:03.640
+and then boom uh all the soundboard can
+
+00:55:03.640 --> 00:55:05.200
+come back to the beginning so what we
+
+00:55:05.200 --> 00:55:07.640
+can do is then hit all this with a
+
+00:55:07.640 --> 00:55:09.760
+soundboard imp soundboard impulse
+
+00:55:09.760 --> 00:55:12.240
+response or soundboard and enclosure or
+
+00:55:12.240 --> 00:55:14.520
+soundboard and enclosure and room you
+
+00:55:14.520 --> 00:55:16.319
+can put anything you can put all your
+
+00:55:16.319 --> 00:55:18.480
+linear time and variant shaping filters
+
+00:55:18.480 --> 00:55:21.079
+in there and they can just be tabulated
+
+00:55:21.079 --> 00:55:23.240
+and you trigger a playback of that into
+
+00:55:23.240 --> 00:55:25.119
+the delay line into the low pass folders
+
+00:55:25.119 --> 00:55:27.440
+into the string and now we're back
+
+00:55:27.440 --> 00:55:30.880
+to not order one but maybe maybe these
+
+00:55:30.880 --> 00:55:34.520
+are fourth order um filters so maybe
+
+00:55:34.520 --> 00:55:37.119
+it's order order four it's really it's
+
+00:55:37.119 --> 00:55:38.039
+really
+
+00:55:38.039 --> 00:55:39.760
+cheap
+
+00:55:39.760 --> 00:55:42.680
+um so well that's still order one excuse
+
+00:55:42.680 --> 00:55:45.200
+me I'm being recorded I have to correct
+
+00:55:45.200 --> 00:55:47.400
+myself when I catch something all right
+
+00:55:47.400 --> 00:55:49.720
+so uh the soundboard enclosure commuted
+
+00:55:49.720 --> 00:55:52.559
+so let's hear some examples so this is
+
+00:55:52.559 --> 00:55:54.000
+uh our
+
+00:55:54.000 --> 00:55:57.000
+piano
+
+00:55:57.160 --> 00:55:58.780
+and here's our Harps
+
+00:55:58.780 --> 00:56:02.520
+[Music]
+
+00:56:02.520 --> 00:56:05.440
+Accord and I'm cutting them off because
+
+00:56:05.440 --> 00:56:07.160
+uh in Helsinki they have better ones and
+
+00:56:07.160 --> 00:56:08.440
+I'm going to
+
+00:56:08.440 --> 00:56:10.720
+play uh they just did a better job you
+
+00:56:10.720 --> 00:56:13.680
+know they they work with the seus
+
+00:56:13.680 --> 00:56:15.640
+Institute and the Acoustics group work
+
+00:56:15.640 --> 00:56:18.359
+together and uh so it's really very
+
+00:56:18.359 --> 00:56:19.960
+powerful to combine musicians and
+
+00:56:19.960 --> 00:56:21.760
+Engineers together because the engineers
+
+00:56:21.760 --> 00:56:24.559
+don't have the ears and uh and they just
+
+00:56:24.559 --> 00:56:26.480
+need each other and so you put them
+
+00:56:26.480 --> 00:56:27.960
+together and you get the best results
+
+00:56:27.960 --> 00:56:31.440
+I've seen it consistently through the
+
+00:56:32.160 --> 00:56:34.760
+years so that's just what's in the table
+
+00:56:34.760 --> 00:56:36.480
+that's the the
+
+00:56:36.480 --> 00:56:39.480
+soundboard uh symbolum here's the U
+
+00:56:39.480 --> 00:56:42.039
+harbs cord
+
+00:56:43.370 --> 00:56:52.189
+[Music]
+
+00:56:53.880 --> 00:56:55.430
+example
+
+00:56:55.430 --> 00:57:02.090
+[Music]
+
+00:57:09.079 --> 00:57:10.520
+I faded them out because I'm out of time
+
+00:57:10.520 --> 00:57:11.640
+but there there it is you can find on
+
+00:57:11.640 --> 00:57:14.000
+the website and so I'm out of time and
+
+00:57:14.000 --> 00:57:16.319
+the last topic is uh Recent research at
+
+00:57:16.319 --> 00:57:18.559
+Karma so I'll just give you a really
+
+00:57:18.559 --> 00:57:20.319
+very fast quick overview and then you
+
+00:57:20.319 --> 00:57:21.599
+can ask me questions about that and we
+
+00:57:21.599 --> 00:57:23.440
+can get into that in the questions CU we
+
+00:57:23.440 --> 00:57:25.960
+have um up to a half an hour questions
+
+00:57:25.960 --> 00:57:28.720
+so uh let me just say very briefly well
+
+00:57:28.720 --> 00:57:31.559
+maybe up to 27 minutes of questions so
+
+00:57:31.559 --> 00:57:35.319
+so the uh so the uh quick overview is
+
+00:57:35.319 --> 00:57:36.440
+basically the students who've been
+
+00:57:36.440 --> 00:57:38.960
+around Karma recently so this is just a
+
+00:57:38.960 --> 00:57:41.319
+and those working on you know virtual
+
+00:57:41.319 --> 00:57:43.839
+musical instrument related research so
+
+00:57:43.839 --> 00:57:45.920
+I'm not talking anything about the U the
+
+00:57:45.920 --> 00:57:47.640
+people doing music information retrieval
+
+00:57:47.640 --> 00:57:49.799
+which is very big these days or you know
+
+00:57:49.799 --> 00:57:53.160
+all the other topics so Nelson Lee uh
+
+00:57:53.160 --> 00:57:55.520
+PhD in computer science uh just finished
+
+00:57:55.520 --> 00:57:57.640
+a thesis on the virtual acoustic guitar
+
+00:57:57.640 --> 00:57:59.799
+his passion was the gypsy
+
+00:57:59.799 --> 00:58:01.920
+guitar and so he did a lot of
+
+00:58:01.920 --> 00:58:04.319
+measurement and uh model building for
+
+00:58:04.319 --> 00:58:07.599
+that edber doall just graduated and and
+
+00:58:07.599 --> 00:58:11.319
+he's a a dou PhD was aou PhD student now
+
+00:58:11.319 --> 00:58:13.720
+he's working at senheiser and um I think
+
+00:58:13.720 --> 00:58:15.720
+he's doing some collaboration various
+
+00:58:15.720 --> 00:58:17.480
+labs around the world right now it's
+
+00:58:17.480 --> 00:58:19.039
+hard to actually keep up with him he's
+
+00:58:19.039 --> 00:58:21.440
+everywhere doing everything and and one
+
+00:58:21.440 --> 00:58:23.200
+of his passions is haptic virtual
+
+00:58:23.200 --> 00:58:25.359
+instruments which is extremely relevant
+
+00:58:25.359 --> 00:58:26.920
+because when you build a good model you
+
+00:58:26.920 --> 00:58:29.160
+have to be able to control it somehow
+
+00:58:29.160 --> 00:58:30.960
+and and so we need good controllers that
+
+00:58:30.960 --> 00:58:33.440
+allow us to drive these models in a very
+
+00:58:33.440 --> 00:58:36.119
+natural way that feels right and fully
+
+00:58:36.119 --> 00:58:39.359
+exercises their dimensions and so um Ed
+
+00:58:39.359 --> 00:58:41.599
+is working in the hatic uh feedback
+
+00:58:41.599 --> 00:58:43.839
+control uh domain so that you get
+
+00:58:43.839 --> 00:58:45.240
+feedback from the controller so it
+
+00:58:45.240 --> 00:58:47.079
+really feels like the instrument as
+
+00:58:47.079 --> 00:58:49.000
+opposed to just a one-way connection to
+
+00:58:49.000 --> 00:58:49.760
+the
+
+00:58:49.760 --> 00:58:52.839
+instrument Jack P is a PhD in physics
+
+00:58:52.839 --> 00:58:55.920
+student and he's uh just just got back
+
+00:58:55.920 --> 00:58:57.200
+from his first conference he went to
+
+00:58:57.200 --> 00:59:00.280
+dafx and you may have seen it um I was
+
+00:59:00.280 --> 00:59:04.720
+just going to show one panel from his uh
+
+00:59:04.720 --> 00:59:06.720
+poster that just gives you the idea of
+
+00:59:06.720 --> 00:59:08.359
+what he's working on he's basically
+
+00:59:08.359 --> 00:59:10.480
+working on uh a better mathematical
+
+00:59:10.480 --> 00:59:13.760
+model of the pleum and the harps of cord
+
+00:59:13.760 --> 00:59:16.720
+so this is the pleum this yellow ball
+
+00:59:16.720 --> 00:59:19.400
+here is the string cross-section and so
+
+00:59:19.400 --> 00:59:21.000
+what happens is when you press a key on
+
+00:59:21.000 --> 00:59:24.240
+the harpsicord the Jack goes up and
+
+00:59:24.240 --> 00:59:27.280
+drags the plum past the string and
+
+00:59:27.280 --> 00:59:30.359
+plucks it and so what Jack has done is
+
+00:59:30.359 --> 00:59:32.319
+come up with an improved formulation of
+
+00:59:32.319 --> 00:59:35.520
+this shape so you we know much we have a
+
+00:59:35.520 --> 00:59:38.400
+much more precise model for how that
+
+00:59:38.400 --> 00:59:41.039
+pluck occurs and and that's really
+
+00:59:41.039 --> 00:59:43.400
+valuable because it allows us to U
+
+00:59:43.400 --> 00:59:46.280
+excite the string uh precisely in all
+
+00:59:46.280 --> 00:59:48.920
+directions as a result of that
+
+00:59:48.920 --> 00:59:51.440
+model
+
+00:59:51.440 --> 00:59:55.280
+so I did not mean to double drag
+
+00:59:55.280 --> 00:59:57.920
+um so let's get back to the summary I'll
+
+00:59:57.920 --> 00:59:59.440
+just do the summary and if you ask me a
+
+00:59:59.440 --> 01:00:01.400
+question I'll go to the expansion slide
+
+01:00:01.400 --> 01:00:03.119
+on these
+
+01:00:03.119 --> 01:00:05.799
+so so then then we also have a project
+
+01:00:05.799 --> 01:00:08.240
+going we call it the shevine project CH
+
+01:00:08.240 --> 01:00:11.760
+ha v i n um it's uh associated with a
+
+01:00:11.760 --> 01:00:14.200
+professor of archaeology um Professor
+
+01:00:14.200 --> 01:00:17.319
+Rick who is uh working in Chile in the
+
+01:00:17.319 --> 01:00:20.319
+Andes in a in an archaeological site
+
+01:00:20.319 --> 01:00:22.599
+that's deep underground and it has very
+
+01:00:22.599 --> 01:00:24.640
+interesting Acoustics and there's
+
+01:00:24.640 --> 01:00:26.760
+evidence that Acoustics the properties
+
+01:00:26.760 --> 01:00:28.960
+of the acoustic space are being used in
+
+01:00:28.960 --> 01:00:32.200
+rituals you know 8,000 years ago so uh
+
+01:00:32.200 --> 01:00:35.240
+we're involved in in U in acoustic space
+
+01:00:35.240 --> 01:00:37.839
+modeling associated with that and so
+
+01:00:37.839 --> 01:00:39.039
+there are a lot of students working in
+
+01:00:39.039 --> 01:00:39.960
+that
+
+01:00:39.960 --> 01:00:42.359
+area um and we also just came out with a
+
+01:00:42.359 --> 01:00:43.960
+special issue if you're in this field
+
+01:00:43.960 --> 01:00:45.079
+you probably know about this special
+
+01:00:45.079 --> 01:00:47.400
+issue it's really got a lot of good
+
+01:00:47.400 --> 01:00:51.400
+papers in it and uh uh vesa valaki um at
+
+01:00:51.400 --> 01:00:53.920
+Helsinki uh was the the lead editor and
+
+01:00:53.920 --> 01:00:56.920
+he organized orz a team of us and uh we
+
+01:00:56.920 --> 01:00:59.079
+got a lot of really good response a lot
+
+01:00:59.079 --> 01:01:01.680
+of excellent papers so I strongly uh
+
+01:01:01.680 --> 01:01:04.160
+recommend it's it's the May it's the May
+
+01:01:04.160 --> 01:01:08.160
+2010 special issue and then um my
+
+01:01:08.160 --> 01:01:10.119
+personal project activity is in this
+
+01:01:10.119 --> 01:01:12.920
+area right now basically software tools
+
+01:01:12.920 --> 01:01:15.760
+high level languages and software tools
+
+01:01:15.760 --> 01:01:18.079
+for expressing everything we need to
+
+01:01:18.079 --> 01:01:20.000
+know everything we know how to do in a
+
+01:01:20.000 --> 01:01:22.760
+few lines of really good highle language
+
+01:01:22.760 --> 01:01:24.200
+and then being able to compile that into
+
+01:01:24.200 --> 01:01:26.520
+any kind of plug in in any format for
+
+01:01:26.520 --> 01:01:29.200
+any platform and so my my current
+
+01:01:29.200 --> 01:01:31.400
+favorite in that domain sort of the uh
+
+01:01:31.400 --> 01:01:33.720
+the Pioneer language in my opinion is
+
+01:01:33.720 --> 01:01:38.280
+the F Language by Yan orari in um gra in
+
+01:01:38.280 --> 01:01:42.319
+Leon and it's really really nice but it
+
+01:01:42.319 --> 01:01:45.319
+doesn't do everything so um so I'm
+
+01:01:45.319 --> 01:01:46.880
+thinking about how can we take this to
+
+01:01:46.880 --> 01:01:49.400
+The Next Step by by importing some of
+
+01:01:49.400 --> 01:01:52.279
+these good ideas into the SDK domain in
+
+01:01:52.279 --> 01:01:54.039
+other words why can't I write a high
+
+01:01:54.039 --> 01:01:56.920
+level script in some language that we
+
+01:01:56.920 --> 01:02:00.160
+design that then gets compiled into SDK
+
+01:02:00.160 --> 01:02:02.400
+code for any platform for any plug-in
+
+01:02:02.400 --> 01:02:04.480
+format other words we can do the same
+
+01:02:04.480 --> 01:02:06.760
+kinds we can import these good ideas
+
+01:02:06.760 --> 01:02:09.520
+from computer science applied to music
+
+01:02:09.520 --> 01:02:12.640
+and and U and and achieve this Nirvana
+
+01:02:12.640 --> 01:02:16.319
+of instant Studio on demand uh using any
+
+01:02:16.319 --> 01:02:18.520
+known technique and you specify in a few
+
+01:02:18.520 --> 01:02:20.200
+lines and and you're looking at a rack
+
+01:02:20.200 --> 01:02:22.039
+of virtual gear you know in just a
+
+01:02:22.039 --> 01:02:24.559
+minute later uh if not less so that
+
+01:02:24.559 --> 01:02:27.799
+that's the U that's the overview and U I
+
+01:02:27.799 --> 01:02:30.520
+guess it is time to summarize and
+
+01:02:30.520 --> 01:02:33.039
+conclude the summary is we U we did a
+
+01:02:33.039 --> 01:02:36.000
+review kind of a Karma bias slice
+
+01:02:36.000 --> 01:02:37.720
+through the history of sound synthesis
+
+01:02:37.720 --> 01:02:40.599
+based on physical modeling starting with
+
+01:02:40.599 --> 01:02:43.680
+Bern's ingenious insight into
+
+01:02:43.680 --> 01:02:45.599
+superposition which really launched an
+
+01:02:45.599 --> 01:02:49.000
+enormous amount and uh you know seeing
+
+01:02:49.000 --> 01:02:51.240
+modal synthesis in his head uh from
+
+01:02:51.240 --> 01:02:53.559
+natural vibration and then D Bear's
+
+01:02:53.559 --> 01:02:55.279
+foundational super position of traveling
+
+01:02:55.279 --> 01:02:57.200
+waves the first wave equation for
+
+01:02:57.200 --> 01:02:59.119
+anything really as far as I know unless
+
+01:02:59.119 --> 01:03:02.240
+you want to call FAL M FAL Ma I don't
+
+01:03:02.240 --> 01:03:04.279
+know hooks law and I don't know first
+
+01:03:04.279 --> 01:03:05.839
+string wave equation first partial
+
+01:03:05.839 --> 01:03:08.200
+differential equation as far as I know
+
+01:03:08.200 --> 01:03:10.599
+and uh you know before and in boach was
+
+01:03:10.599 --> 01:03:14.480
+alive uh at the time so U you know it
+
+01:03:14.480 --> 01:03:17.520
+goes way back uh I have to be very
+
+01:03:17.520 --> 01:03:21.839
+careful B no that Bach was almost born I
+
+01:03:21.839 --> 01:03:23.839
+think okay we have to check me on the
+
+01:03:23.839 --> 01:03:26.279
+dates there
+
+01:03:27.319 --> 01:03:30.599
+huh wasn't he born in
+
+01:03:30.599 --> 01:03:34.319
+1750 what he died in 1750 1685 he was
+
+01:03:34.319 --> 01:03:36.000
+born
+
+01:03:36.000 --> 01:03:41.279
+okay 1686 maybe um okay so yeah it's
+
+01:03:41.279 --> 01:03:43.359
+funny you know your memory needs to be
+
+01:03:43.359 --> 01:03:46.119
+refreshed and I haven't I haven't read a
+
+01:03:46.119 --> 01:03:48.240
+a you know a biography of Bach recently
+
+01:03:48.240 --> 01:03:51.000
+and uh yeah 1750 yeah he was definitely
+
+01:03:51.000 --> 01:03:53.559
+alive but I don't think he was following
+
+01:03:53.559 --> 01:03:55.359
+the musical AC tics literature at the
+
+01:03:55.359 --> 01:03:57.920
+time um all right and then and then I
+
+01:03:57.920 --> 01:03:59.680
+took you through a tour in historical
+
+01:03:59.680 --> 01:04:02.000
+order of various uh physical model based
+
+01:04:02.000 --> 01:04:04.079
+syntheses techniques and some sound
+
+01:04:04.079 --> 01:04:07.799
+examples and uh a very brief uh summary
+
+01:04:07.799 --> 01:04:10.359
+of of related research going on at Karma
+
+01:04:10.359 --> 01:04:11.680
+uh you know current and recently
+
+01:04:11.680 --> 01:04:15.480
+graduated uh graduate students so I'm
+
+01:04:15.480 --> 01:04:18.400
+only nine minutes over so that's not too
+
+01:04:18.400 --> 01:04:21.839
+terrible uh and we have time for
+
+01:04:21.839 --> 01:04:25.760
+questions thank you
+
+01:04:25.760 --> 01:04:27.960
+thank
+
+01:04:45.680 --> 01:04:48.680
+you

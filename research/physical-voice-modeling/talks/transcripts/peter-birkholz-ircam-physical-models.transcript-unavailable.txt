@@ -1,0 +1,9 @@
+Transcript unavailable as of 2026-05-26.
+
+Source page preserved:
+https://brahms.ircam.fr/en/media/xfb9e0a_peter-birkholz-how-physical-models-of-th
+
+The IRCAM resource page identifies a 39 minute Peter Birkholz talk, "How
+physical models of the vocal apparatus help us understand speech production",
+from 2023-03-15, but the captured public page exposes video metadata rather
+than a downloadable transcript.
