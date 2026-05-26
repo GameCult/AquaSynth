@@ -261,6 +261,25 @@ public enum WaveClockDelayStrategy
     CrossfadedVariable
 }
 
+public enum AcousticTerminalKind
+{
+    Junction,
+    Source,
+    Radiation,
+    Open,
+    Closed,
+    Probe
+}
+
+public enum AcousticConnectionLaw
+{
+    AreaScattering,
+    PressureContinuity,
+    AdmittanceScattering,
+    Lossy,
+    Bypass
+}
+
 public sealed record AcousticPath(
     string Name,
     TractAreaFunction AreaFunction,
@@ -299,6 +318,25 @@ public sealed record AcousticRadiationPort(
     float Reflection = -0.85f,
     float Loss = 1);
 
+public sealed record AcousticTerminal(
+    string Name,
+    string Path,
+    float Position,
+    AcousticTerminalKind Kind = AcousticTerminalKind.Junction,
+    string Port = "",
+    float AreaScale = 1,
+    float Reflection = 0);
+
+public sealed record AcousticConnection(
+    string Name,
+    IReadOnlyList<string>? Terminals = null,
+    AcousticConnectionLaw Law = AcousticConnectionLaw.AreaScattering,
+    float Coupling = 1,
+    float Loss = 1)
+{
+    public IReadOnlyList<string> Terminals { get; init; } = Terminals ?? Array.Empty<string>();
+}
+
 public sealed record WaveClockPolicy(
     string Name,
     WaveClockDelayStrategy Strategy = WaveClockDelayStrategy.UnitGrid,
@@ -312,11 +350,15 @@ public sealed record AcousticPortNetwork(
     string WaveClock = "",
     IReadOnlyList<string>? SourcePorts = null,
     IReadOnlyList<string>? Branches = null,
-    IReadOnlyList<string>? RadiationPorts = null)
+    IReadOnlyList<string>? RadiationPorts = null,
+    IReadOnlyList<string>? Terminals = null,
+    IReadOnlyList<string>? Connections = null)
 {
     public IReadOnlyList<string> SourcePorts { get; init; } = SourcePorts ?? Array.Empty<string>();
     public IReadOnlyList<string> Branches { get; init; } = Branches ?? Array.Empty<string>();
     public IReadOnlyList<string> RadiationPorts { get; init; } = RadiationPorts ?? Array.Empty<string>();
+    public IReadOnlyList<string> Terminals { get; init; } = Terminals ?? Array.Empty<string>();
+    public IReadOnlyList<string> Connections { get; init; } = Connections ?? Array.Empty<string>();
 }
 
 public sealed record GlottalSource(
@@ -603,6 +645,8 @@ public sealed record SynthPatch
     public IReadOnlyList<AcousticSourcePort> AcousticSourcePorts { get; init; } = Array.Empty<AcousticSourcePort>();
     public IReadOnlyList<AcousticBranch> AcousticBranches { get; init; } = Array.Empty<AcousticBranch>();
     public IReadOnlyList<AcousticRadiationPort> AcousticRadiationPorts { get; init; } = Array.Empty<AcousticRadiationPort>();
+    public IReadOnlyList<AcousticTerminal> AcousticTerminals { get; init; } = Array.Empty<AcousticTerminal>();
+    public IReadOnlyList<AcousticConnection> AcousticConnections { get; init; } = Array.Empty<AcousticConnection>();
     public IReadOnlyList<WaveClockPolicy> WaveClocks { get; init; } = Array.Empty<WaveClockPolicy>();
     public IReadOnlyList<AcousticPortNetwork> AcousticNetworks { get; init; } = Array.Empty<AcousticPortNetwork>();
     public IReadOnlyList<OperatorGraph> OperatorGraphs { get; init; } = Array.Empty<OperatorGraph>();

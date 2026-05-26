@@ -184,8 +184,15 @@ public sealed class PatchScriptTests
         Assert.Equal(["left_labium", "right_labium"], network.SourcePorts);
         Assert.Equal(["throat"], network.Branches);
         Assert.Equal(["mouth"], network.RadiationPorts);
+        Assert.Contains("left_labium", network.Terminals);
+        Assert.Contains("mouth", network.Terminals);
+        Assert.Contains("throat_from", network.Terminals);
+        Assert.Contains("throat_to", network.Terminals);
+        Assert.Contains("throat_connection", network.Connections);
 
         Assert.Equal(2, patch.AcousticPaths.Count);
+        Assert.Equal(5, patch.AcousticTerminals.Count);
+        Assert.Single(patch.AcousticConnections);
         Assert.All(patch.AcousticSourcePorts, port => Assert.Equal(AcousticSourceKind.Labial, port.Kind));
         Assert.Equal(AcousticBranchKind.Bronchial, Assert.Single(patch.AcousticBranches).Kind);
         Assert.Equal(AcousticRadiationKind.Lip, Assert.Single(patch.AcousticRadiationPorts).Kind);
@@ -205,6 +212,38 @@ public sealed class PatchScriptTests
         Assert.Contains("patch_param_0", export.Source);
         Assert.Contains("patch_param_1", export.Source);
         Assert.Contains("patch_param_2", export.Source);
+    }
+
+    [Fact]
+    public void ParserSupportsTypedAcousticPathGraph()
+    {
+        var patch = PatchScript.Parse("""
+            param path=/voice/velopharynx default=.18 min=0 max=1 step=.001
+            path name=trachea length_cm=12 diameters=.4,.7,1,1
+            path name=oral length_cm=17 diameters=.6,1.1,1.6,1.2,.8
+            path name=nasal length_cm=10 diameters=.05,.3,.8,.5
+            source_port name=folds path=trachea kind=glottal position=0 pressure=.7 tension=.55 opening=.45
+            radiation_port name=mouth path=oral kind=lip position=1 opening=1.4 reflection=-.82
+            radiation_port name=nostril path=nasal kind=nostril position=1 opening=.5 reflection=-.45
+            terminal name=trachea_top path=trachea position=1 kind=junction area_scale=1
+            terminal name=oral_back path=oral position=0 kind=junction area_scale=1
+            terminal name=nasal_gate path=nasal position=0 kind=junction area_scale=@/voice/velopharynx
+            connect name=velopharynx terminals=trachea_top,oral_back,nasal_gate law=area_scatter coupling=@/voice/velopharynx
+            acoustic_network name=humanish path=oral sources=folds radiation=mouth,nostril terminals=trachea_top,oral_back,nasal_gate connections=velopharynx
+            acoustic network=humanish freq=130 gain=.1
+            """);
+
+        var network = Assert.Single(patch.AcousticNetworks);
+        Assert.Equal(["folds"], network.SourcePorts);
+        Assert.Equal(["mouth", "nostril"], network.RadiationPorts);
+        Assert.Equal(["trachea_top", "oral_back", "nasal_gate", "folds", "mouth", "nostril"], network.Terminals);
+        Assert.Equal(["velopharynx"], network.Connections);
+
+        var connection = Assert.Single(patch.AcousticConnections);
+        Assert.Equal(AcousticConnectionLaw.AreaScattering, connection.Law);
+        Assert.Equal(["trachea_top", "oral_back", "nasal_gate"], connection.Terminals);
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/terminals/5/area_scale");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/connections/0/coupling");
     }
 
     [Fact]

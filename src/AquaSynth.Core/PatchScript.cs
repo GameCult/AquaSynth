@@ -54,6 +54,10 @@ public static class PatchScript
         private readonly Dictionary<string, AcousticBranch> _acousticBranchesByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<AcousticRadiationPort> _acousticRadiationPorts = [];
         private readonly Dictionary<string, AcousticRadiationPort> _acousticRadiationPortsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<AcousticTerminal> _acousticTerminals = [];
+        private readonly Dictionary<string, AcousticTerminal> _acousticTerminalsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<AcousticConnection> _acousticConnections = [];
+        private readonly Dictionary<string, AcousticConnection> _acousticConnectionsByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<WaveClockPolicy> _waveClocks = [];
         private readonly Dictionary<string, WaveClockPolicy> _waveClocksByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<AcousticPortNetwork> _acousticNetworks = [];
@@ -88,6 +92,8 @@ public static class PatchScript
                 AcousticSourcePorts = _acousticSourcePorts,
                 AcousticBranches = _acousticBranches,
                 AcousticRadiationPorts = _acousticRadiationPorts,
+                AcousticTerminals = _acousticTerminals,
+                AcousticConnections = _acousticConnections,
                 WaveClocks = _waveClocks,
                 AcousticNetworks = _acousticNetworks,
                 OperatorGraphs = _operatorGraphs,
@@ -176,6 +182,14 @@ public static class PatchScript
                 case "radiation_port":
                     FlushPendingOperatorGraph();
                     AddAcousticRadiationPort(fields, line);
+                    break;
+                case "terminal":
+                    FlushPendingOperatorGraph();
+                    AddAcousticTerminal(fields, line);
+                    break;
+                case "connection":
+                    FlushPendingOperatorGraph();
+                    AddAcousticConnection(fields, line);
                     break;
                 case "wave_clock":
                     FlushPendingOperatorGraph();
@@ -523,6 +537,12 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 1, $"/acoustic/sources/{_acousticSourcePorts.Count}/balance", "balance"),
                 TryGetAny(fields, ["active"], out var active) ? ParseBool(active, line) : true);
             AddAcousticSourcePortRecord(port);
+            AddAcousticTerminalRecord(new AcousticTerminal(
+                port.Name,
+                port.Path,
+                port.Position,
+                AcousticTerminalKind.Source,
+                port.Name));
         }
 
         private void AddAcousticBranch(IReadOnlyDictionary<string, string> fields, int line)
@@ -550,6 +570,25 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 1, $"/acoustic/branches/{_acousticBranches.Count}/coupling", "coupling"),
                 TryGetAny(fields, ["passive"], out var passive) ? ParseBool(passive, line) : true);
             AddAcousticBranchRecord(branch);
+            AddAcousticTerminalRecord(new AcousticTerminal(
+                BranchFromTerminalName(branch),
+                branch.FromPath,
+                branch.FromPosition,
+                AcousticTerminalKind.Junction,
+                branch.Name,
+                Math.Max(0, branch.Coupling)));
+            AddAcousticTerminalRecord(new AcousticTerminal(
+                BranchToTerminalName(branch),
+                branch.ToPath,
+                branch.ToPosition,
+                AcousticTerminalKind.Junction,
+                branch.Name,
+                Math.Max(0, branch.Opening)));
+            AddAcousticConnectionRecord(new AcousticConnection(
+                BranchConnectionName(branch),
+                [BranchFromTerminalName(branch), BranchToTerminalName(branch)],
+                AcousticConnectionLaw.AreaScattering,
+                branch.Coupling));
         }
 
         private void AddAcousticRadiationPort(IReadOnlyDictionary<string, string> fields, int line)
@@ -571,6 +610,59 @@ public static class PatchScript
                 GetBoundFloat(fields, line, -0.85f, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/reflection", "reflection"),
                 GetBoundFloat(fields, line, 1, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/loss", "loss"));
             AddAcousticRadiationPortRecord(port);
+            AddAcousticTerminalRecord(new AcousticTerminal(
+                port.Name,
+                port.Path,
+                port.Position,
+                AcousticTerminalKind.Radiation,
+                port.Name,
+                Math.Max(0, port.Opening),
+                port.Reflection));
+        }
+
+        private void AddAcousticTerminal(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_acousticTerminalsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate acoustic terminal `{name}`");
+            }
+
+            var path = Required(fields, "path", line);
+            RequireAcousticPath(path, line);
+            var terminal = new AcousticTerminal(
+                name,
+                path,
+                GetBoundFloat(fields, line, 0, $"/acoustic/terminals/{_acousticTerminals.Count}/position", "position", "pos", "at"),
+                ParseAcousticTerminalKind(GetAny(fields, ["kind", "terminal_kind", "type"], "junction"), line),
+                GetAny(fields, ["port", "ref"], ""),
+                GetBoundFloat(fields, line, 1, $"/acoustic/terminals/{_acousticTerminals.Count}/area_scale", "area_scale", "area", "admittance"),
+                GetBoundFloat(fields, line, 0, $"/acoustic/terminals/{_acousticTerminals.Count}/reflection", "reflection"));
+            AddAcousticTerminalRecord(terminal);
+        }
+
+        private void AddAcousticConnection(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_acousticConnectionsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate acoustic connection `{name}`");
+            }
+
+            var terminals = ParseNameList(RequiredAny(fields, ["terminals", "ports"], line));
+            if (terminals.Count < 2)
+            {
+                throw new PatchScriptException(line, "connection needs at least two terminals");
+            }
+            foreach (var terminal in terminals) RequireAcousticTerminal(terminal, line);
+
+            var connection = new AcousticConnection(
+                name,
+                terminals,
+                ParseAcousticConnectionLaw(GetAny(fields, ["law", "scatter", "mode"], "area_scatter"), line),
+                GetBoundFloat(fields, line, 1, $"/acoustic/connections/{_acousticConnections.Count}/coupling", "coupling"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/connections/{_acousticConnections.Count}/loss", "loss"));
+            AddAcousticConnectionRecord(connection);
         }
 
         private void AddWaveClock(IReadOnlyDictionary<string, string> fields, int line)
@@ -612,11 +704,15 @@ public static class PatchScript
                 waveClock,
                 ParseNameList(GetAny(fields, ["sources", "source_ports"], "")),
                 ParseNameList(GetAny(fields, ["branches"], "")),
-                ParseNameList(GetAny(fields, ["radiation", "radiation_ports"], "")));
+                ParseNameList(GetAny(fields, ["radiation", "radiation_ports"], "")),
+                ParseNameList(GetAny(fields, ["terminals"], "")),
+                ParseNameList(GetAny(fields, ["connections"], "")));
             foreach (var sourceName in network.SourcePorts) RequireAcousticSourcePort(sourceName, line);
             foreach (var branchName in network.Branches) RequireAcousticBranch(branchName, line);
             foreach (var radiationName in network.RadiationPorts) RequireAcousticRadiationPort(radiationName, line);
-            AddAcousticNetworkRecord(network);
+            foreach (var terminalName in network.Terminals) RequireAcousticTerminal(terminalName, line);
+            foreach (var connectionName in network.Connections) RequireAcousticConnection(connectionName, line);
+            AddAcousticNetworkRecord(ExpandNetworkGraphSugar(network));
         }
 
         private void AddAcousticPathRecord(AcousticPath path)
@@ -647,6 +743,20 @@ public static class PatchScript
             _acousticRadiationPortsByName[port.Name] = port;
         }
 
+        private void AddAcousticTerminalRecord(AcousticTerminal terminal)
+        {
+            if (_acousticTerminalsByName.ContainsKey(terminal.Name)) return;
+            _acousticTerminals.Add(terminal);
+            _acousticTerminalsByName[terminal.Name] = terminal;
+        }
+
+        private void AddAcousticConnectionRecord(AcousticConnection connection)
+        {
+            if (_acousticConnectionsByName.ContainsKey(connection.Name)) return;
+            _acousticConnections.Add(connection);
+            _acousticConnectionsByName[connection.Name] = connection;
+        }
+
         private void AddWaveClockRecord(WaveClockPolicy policy)
         {
             if (_waveClocksByName.ContainsKey(policy.Name)) return;
@@ -660,6 +770,51 @@ public static class PatchScript
             _acousticNetworks.Add(network);
             _acousticNetworksByName[network.Name] = network;
         }
+
+        private AcousticPortNetwork ExpandNetworkGraphSugar(AcousticPortNetwork network)
+        {
+            var terminals = new List<string>(network.Terminals);
+            var connections = new List<string>(network.Connections);
+            foreach (var sourceName in network.SourcePorts)
+            {
+                AddUnique(terminals, sourceName);
+            }
+            foreach (var radiationName in network.RadiationPorts)
+            {
+                AddUnique(terminals, radiationName);
+            }
+            foreach (var branchName in network.Branches)
+            {
+                if (!_acousticBranchesByName.TryGetValue(branchName, out var branch))
+                {
+                    continue;
+                }
+
+                AddUnique(terminals, BranchFromTerminalName(branch));
+                AddUnique(terminals, BranchToTerminalName(branch));
+                AddUnique(connections, BranchConnectionName(branch));
+            }
+
+            return network with
+            {
+                Terminals = terminals,
+                Connections = connections
+            };
+        }
+
+        private static void AddUnique(List<string> values, string value)
+        {
+            if (!values.Contains(value, StringComparer.OrdinalIgnoreCase))
+            {
+                values.Add(value);
+            }
+        }
+
+        private static string BranchFromTerminalName(AcousticBranch branch) => $"{branch.Name}_from";
+
+        private static string BranchToTerminalName(AcousticBranch branch) => $"{branch.Name}_to";
+
+        private static string BranchConnectionName(AcousticBranch branch) => $"{branch.Name}_connection";
 
         private void RequireAcousticPath(string name, int line)
         {
@@ -690,6 +845,22 @@ public static class PatchScript
             if (!_acousticRadiationPortsByName.ContainsKey(name))
             {
                 throw new PatchScriptException(line, $"unknown acoustic radiation port `{name}`");
+            }
+        }
+
+        private void RequireAcousticTerminal(string name, int line)
+        {
+            if (!_acousticTerminalsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"unknown acoustic terminal `{name}`");
+            }
+        }
+
+        private void RequireAcousticConnection(string name, int line)
+        {
+            if (!_acousticConnectionsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"unknown acoustic connection `{name}`");
             }
         }
 
@@ -2109,6 +2280,8 @@ public static class PatchScript
         "source_port" or "acoustic_source" or "port_source" => "source_port",
         "branch" or "acoustic_branch" => "branch",
         "radiation_port" or "radiation" or "acoustic_radiation" => "radiation_port",
+        "terminal" or "term" or "acoustic_terminal" => "terminal",
+        "connect" or "connection" or "junction" or "acoustic_connection" => "connection",
         "wave_clock" or "waveclock" or "clock" => "wave_clock",
         "acoustic_network" or "port_network" or "network" => "acoustic_network",
         "v" or "voice" => "voice",
@@ -2241,6 +2414,27 @@ public static class PatchScript
         _ => throw new PatchScriptException(line, $"unknown acoustic radiation kind `{value}`")
     };
 
+    private static AcousticTerminalKind ParseAcousticTerminalKind(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "junction" or "node" or "scatter" => AcousticTerminalKind.Junction,
+        "source" or "excitation" => AcousticTerminalKind.Source,
+        "radiation" or "radiator" or "output" => AcousticTerminalKind.Radiation,
+        "open" => AcousticTerminalKind.Open,
+        "closed" or "wall" => AcousticTerminalKind.Closed,
+        "probe" or "diagnostic" => AcousticTerminalKind.Probe,
+        _ => throw new PatchScriptException(line, $"unknown acoustic terminal kind `{value}`")
+    };
+
+    private static AcousticConnectionLaw ParseAcousticConnectionLaw(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "area" or "area_scatter" or "area_scattering" or "scatter" => AcousticConnectionLaw.AreaScattering,
+        "pressure" or "pressure_continuity" => AcousticConnectionLaw.PressureContinuity,
+        "admittance" or "admittance_scatter" or "admittance_scattering" => AcousticConnectionLaw.AdmittanceScattering,
+        "lossy" or "loss" => AcousticConnectionLaw.Lossy,
+        "bypass" or "pass" => AcousticConnectionLaw.Bypass,
+        _ => throw new PatchScriptException(line, $"unknown acoustic connection law `{value}`")
+    };
+
     private static WaveClockDelayStrategy ParseWaveClockDelayStrategy(string value, int line) => value.ToLowerInvariant() switch
     {
         "unit" or "unit_grid" or "grid" => WaveClockDelayStrategy.UnitGrid,
@@ -2259,6 +2453,9 @@ public static class PatchScript
 
     private static string Required(IReadOnlyDictionary<string, string> fields, string key, int line) =>
         fields.TryGetValue(key, out var value) ? value : throw new PatchScriptException(line, $"missing `{key}`");
+
+    private static string RequiredAny(IReadOnlyDictionary<string, string> fields, string[] keys, int line) =>
+        TryGetAny(fields, keys, out var value) ? value : throw new PatchScriptException(line, $"missing `{string.Join("|", keys)}`");
 
     private static string GetAny(IReadOnlyDictionary<string, string> fields, string[] keys, string fallback) =>
         TryGetAny(fields, keys, out var value) ? value : fallback;

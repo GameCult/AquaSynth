@@ -243,11 +243,17 @@ is to make `AcousticPortNetwork` own the waveguide renderer directly, at which
 point `Voice.Tract` should become a larynx-shaped authoring convenience over
 the same network rather than a separate audio authority.
 
-That next cut is currently blocked on junction semantics, not on a missing
-filter primitive. The model needs an explicit owner for N-port scattering,
-deterministic port ordering, source injection, radiation termination, and
-fractional-delay state. The existing `AcousticBranch` record is enough to say
-"this tube attaches to that tube"; it does not yet say whether the attachment is
-a two-port graft, a three-port nasal-style junction, or a general graph node
-with pressure/volume-velocity conservation. Expanding the response proxy before
-that decision would create a second PT-shaped instrument wearing generic names.
+The topology decision is now a path graph with typed terminals. `AcousticPath`
+owns tube geometry. `AcousticTerminal` owns a named position on a path and its
+role (`junction`, `source`, `radiation`, boundary, or diagnostic probe).
+`AcousticConnection` owns the set of terminals that scatter together and the
+connection law. `source_port`, `radiation_port`, and `branch` remain ergonomic
+commands, but they populate typed graph records rather than becoming the graph
+law themselves.
+
+The next implementation blocker is graph compilation. The compiler must split
+paths at terminal positions, order the ports of each connection, assign
+fractional-delay state from physical path length and wave-clock policy, inject
+sources at the declared terminals, and terminate radiation ports with physical
+reflection/output behavior. Expanding the response proxy before that would
+create a second PT-shaped instrument wearing generic names.
