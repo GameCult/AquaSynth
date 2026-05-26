@@ -20,7 +20,7 @@ intensity, tenseness, tongue index/diameter, velum, constriction
 index/diameter, turbulence, burst, lip opening, and radiation reflection
 controls.
 
-The browser synth runs a small waveguide-style witness so the knobs are
+The browser synth runs a stable source/filter witness so the knobs are
 touchable while the Faust graph lowering keeps maturing toward Pink Trombone
 parity. It is a control playground, not the canonical DSP owner; the canonical
 audio path is still the Aqua DSL -> Faust graph lowering.

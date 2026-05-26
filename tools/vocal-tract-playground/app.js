@@ -169,187 +169,83 @@ function updateMeters() {
 }
 
 function createTractSynth(sampleRate) {
-  const sections = 44;
-  const noseSections = 28;
-  const right = new Float32Array(sections);
-  const left = new Float32Array(sections);
-  const junctionRight = new Float32Array(sections);
-  const junctionLeft = new Float32Array(sections + 1);
-  const reflection = new Float32Array(sections);
-  const diameter = new Float32Array(sections);
-  const targetDiameter = new Float32Array(sections);
-  const noseRight = new Float32Array(noseSections);
-  const noseLeft = new Float32Array(noseSections);
-  const noseJunctionRight = new Float32Array(noseSections);
-  const noseJunctionLeft = new Float32Array(noseSections + 1);
-  const noseReflection = new Float32Array(noseSections);
-  const noseDiameter = new Float32Array(noseSections);
   let glottalPhase = 0;
   let noise = 0.1234567;
   let lastConstrictionDiameter = 1.0;
   let transient = 0;
   let dcBlockX = 0;
   let dcBlockY = 0;
-  let low1 = 0;
-  let low2 = 0;
-  let mid1 = 0;
-  let mid2 = 0;
-  let high1 = 0;
-  let high2 = 0;
-  let nasal1 = 0;
-  let nasal2 = 0;
-
-  initRest();
-  updateNose(0.01);
+  const breathMemory = { x: 0, y: 0 };
+  const fricMemory = { x: 0, y: 0 };
+  const f1 = makeBandpass();
+  const f2 = makeBandpass();
+  const f3 = makeBandpass();
+  const nasal = makeBandpass();
+  const fric = makeBandpass();
 
   function rand() {
     noise = (noise * 16807) % 2147483647;
     return noise / 1073741823.5 - 1;
   }
 
-  function initRest() {
-    for (let i = 0; i < sections; i++) {
-      const base = i < 7 ? 0.6 : i < 10 ? 1.1 : 1.5;
-      diameter[i] = base;
-      targetDiameter[i] = base;
-    }
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
   }
 
-  function updateTargets(s) {
-    for (let i = 0; i < sections; i++) {
-      let base = i < 7 ? 0.6 : i < 10 ? 1.1 : 1.5;
-      if (i > 10 && i < 39) {
-        const angle = 1.1 * Math.PI * (s.tongueIndex - i) / 22;
-        const fixedTongueDiameter = 2 + (s.tongueDiameter - 2) / 1.5;
-        let curve = (1.5 - fixedTongueDiameter + 1.7) * Math.cos(angle);
-        if (i === 8 || i === 38) curve *= 0.8;
-        if (i === 10 || i === 37) curve *= 0.94;
-        base = 1.5 - curve;
+  function makeBandpass() {
+    let b0 = 0;
+    let b1 = 0;
+    let b2 = 0;
+    let a1 = 0;
+    let a2 = 0;
+    let x1 = 0;
+    let x2 = 0;
+    let y1 = 0;
+    let y2 = 0;
+    return {
+      set(hz, q) {
+        const omega = 2 * Math.PI * clamp(hz, 40, sampleRate * 0.45) / sampleRate;
+        const sin = Math.sin(omega);
+        const alpha = sin / (2 * clamp(q, 0.2, 40));
+        const cos = Math.cos(omega);
+        const a0 = 1 + alpha;
+        b0 = alpha / a0;
+        b1 = 0;
+        b2 = -alpha / a0;
+        a1 = (-2 * cos) / a0;
+        a2 = (1 - alpha) / a0;
+      },
+      process(x) {
+        const y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+        x2 = x1;
+        x1 = x;
+        y2 = y1;
+        y1 = y;
+        return y;
       }
-      targetDiameter[i] = Math.max(0, base);
-    }
-
-    applyConstriction(s.constrictionIndex, s.constrictionDiameter);
-    targetDiameter[sections - 1] = Math.max(0.05, s.lipOpening);
+    };
   }
 
-  function applyConstriction(position, constrictionDiameter) {
-    const newDiameter = Math.max(0, constrictionDiameter - 0.3);
-    const range = position < 25 ? 10 : 5;
-    const lower = Math.max(0, Math.floor(position - range - 1));
-    const upper = Math.min(sections - 1, Math.ceil(position + range + 1));
-    for (let i = lower; i <= upper; i++) {
-      const offset = Math.abs(i - position) - 0.5;
-      let scale;
-      if (offset <= 0) scale = 0;
-      else if (offset > range) scale = 1;
-      else scale = 0.5 * (1 - Math.cos(Math.PI * offset / range));
-      const difference = targetDiameter[i] - newDiameter;
-      if (difference > 0) targetDiameter[i] = newDiameter + difference * scale;
-    }
-  }
-
-  function slewDiameters() {
-    for (let i = 0; i < sections; i++) {
-      const speed = i < 17 ? 0.00035 : i < 32 ? 0.00045 : 0.0007;
-      diameter[i] += Math.max(-speed, Math.min(speed * 2, targetDiameter[i] - diameter[i]));
-    }
-  }
-
-  function updateNose(velum) {
-    for (let i = 0; i < noseSections; i++) {
-      const d = 2 * (i / noseSections);
-      let value = i === 0 ? velum : d < 1 ? 0.4 + 1.6 * d : 0.5 + 1.5 * (2 - d);
-      noseDiameter[i] = Math.min(value, 1.9);
-    }
-    for (let i = 1; i < noseSections; i++) {
-      const a0 = Math.max(1e-6, noseDiameter[i - 1] * noseDiameter[i - 1]);
-      const a1 = Math.max(1e-6, noseDiameter[i] * noseDiameter[i]);
-      noseReflection[i] = (a0 - a1) / (a0 + a1);
-    }
-  }
-
-  function updateReflection() {
-    for (let i = 1; i < sections; i++) {
-      const a0 = Math.max(1e-6, diameter[i - 1] * diameter[i - 1]);
-      const a1 = Math.max(1e-6, diameter[i] * diameter[i]);
-      reflection[i] = ((a0 - a1) / (a0 + a1)) * 0.74;
-    }
+  function highpass(input, hz, memory) {
+    const alpha = 1 / (1 + 2 * Math.PI * hz / sampleRate);
+    const y = alpha * (memory.y + input - memory.x);
+    memory.x = input;
+    memory.y = y;
+    return y;
   }
 
   function glottis(s) {
     glottalPhase += s.frequency / sampleRate;
     glottalPhase -= Math.floor(glottalPhase);
-    const t = glottalPhase;
-    const tenseness = Math.max(0, Math.min(1, s.tenseness));
-    const openPhase = 0.55 + 0.32 * (1 - tenseness);
-    const pulse = t < openPhase
-      ? Math.sin(Math.PI * t / openPhase)
-      : -0.28 * Math.sin(Math.PI * (t - openPhase) / (1 - openPhase));
-    const harmonicBite = (0.12 + tenseness * 0.62) * Math.sin(4 * Math.PI * t);
-    const aspiration = rand() * s.intensity * (1 - Math.sqrt(tenseness)) * 0.18;
-    return (pulse - harmonicBite * 0.72 + aspiration) * s.intensity * (0.16 + 0.34 * Math.pow(tenseness, 0.35));
-  }
-
-  function injectTurbulence(s) {
-    const thinness = Math.max(0, Math.min(1, 8 * (0.7 - s.constrictionDiameter)));
-    const openness = Math.max(0, Math.min(1, 30 * (s.constrictionDiameter - 0.3)));
-    const frontLift = 0.35 + 0.65 * Math.max(0, Math.min(1, s.constrictionIndex / 44));
-    const pressure = Math.max(s.turbulence, s.burst);
-    const amount = rand() * s.turbulence * pressure * thinness * openness * s.intensity * frontLift * 1.8;
-    const i = Math.floor(s.constrictionIndex);
-    const delta = s.constrictionIndex - i;
-    if (i + 1 < sections) {
-      right[i + 1] += amount * (1 - delta) * 0.5;
-      left[i + 1] += amount * (1 - delta) * 0.5;
-    }
-    if (i + 2 < sections) {
-      right[i + 2] += amount * delta * 0.5;
-      left[i + 2] += amount * delta * 0.5;
-    }
-  }
-
-  function step(input, s) {
-    injectTurbulence(s);
-    junctionRight[0] = left[0] * s.glottalReflection * 0.72 + input;
-    junctionLeft[sections] = right[sections - 1] * s.lipReflection * 0.72;
-
-    for (let i = 1; i < sections; i++) {
-      const w = reflection[i] * (right[i - 1] + left[i]);
-      junctionRight[i] = right[i - 1] - w;
-      junctionLeft[i] = left[i] + w;
-    }
-
-    const noseStart = sections - noseSections + 1;
-    const velumArea = Math.max(1e-6, s.velum * s.velum);
-    const leftArea = Math.max(1e-6, diameter[noseStart] * diameter[noseStart]);
-    const rightArea = Math.max(1e-6, diameter[noseStart + 1] * diameter[noseStart + 1]);
-    const sum = leftArea + rightArea + velumArea;
-    const rl = (2 * leftArea - sum) / sum;
-    const rr = (2 * rightArea - sum) / sum;
-    const rn = (2 * velumArea - sum) / sum;
-    junctionLeft[noseStart] = rl * right[noseStart - 1] + (1 + rl) * (noseLeft[0] + left[noseStart]);
-    junctionRight[noseStart] = rr * left[noseStart] + (1 + rr) * (right[noseStart - 1] + noseLeft[0]);
-    noseJunctionRight[0] = rn * noseLeft[0] + (1 + rn) * (left[noseStart] + right[noseStart - 1]);
-
-    for (let i = 0; i < sections; i++) {
-      right[i] = junctionRight[i] * 0.985;
-      left[i] = junctionLeft[i + 1] * 0.985;
-    }
-    const lipOutput = right[sections - 1];
-
-    noseJunctionLeft[noseSections] = noseRight[noseSections - 1] * s.lipReflection * 0.68;
-    for (let i = 1; i < noseSections; i++) {
-      const w = noseReflection[i] * (noseRight[i - 1] + noseLeft[i]);
-      noseJunctionRight[i] = noseRight[i - 1] - w;
-      noseJunctionLeft[i] = noseLeft[i] + w;
-    }
-    for (let i = 0; i < noseSections; i++) {
-      noseRight[i] = noseJunctionRight[i] * 0.982;
-      noseLeft[i] = noseJunctionLeft[i + 1] * 0.982;
-    }
-
-    return lipOutput * (0.85 + s.lipOpening * 0.28) + noseRight[noseSections - 1] * Math.max(0, Math.min(1, s.velum / 0.4));
+    const phase = glottalPhase;
+    const tenseness = clamp(s.tenseness, 0, 1);
+    const openPhase = 0.42 + (1 - tenseness) * 0.36;
+    const glottalBoundary = clamp((s.glottalReflection + 0.95) / 1.9, 0, 1);
+    const pulse = phase < openPhase
+      ? Math.sin(Math.PI * phase / openPhase)
+      : -0.22 * Math.sin(Math.PI * (phase - openPhase) / Math.max(0.001, 1 - openPhase));
+    const bite = Math.sin(4 * Math.PI * phase) * (0.04 + tenseness * 0.20 + glottalBoundary * 0.10);
+    return (pulse * (0.72 + glottalBoundary * 0.42) - bite) * s.intensity * (0.13 + tenseness * 0.25);
   }
 
   function updateTransient(s) {
@@ -360,54 +256,56 @@ function createTractSynth(sampleRate) {
     lastConstrictionDiameter = s.constrictionDiameter;
   }
 
+  function formants(s) {
+    const tongue = clamp((s.tongueIndex - 8) / 26, 0, 1);
+    const tongueOpen = clamp((s.tongueDiameter - 0.45) / 3.15, 0, 1);
+    const lip = clamp((s.lipOpening - 0.35) / 2.15, 0, 1);
+    const lipReflection = clamp((-s.lipReflection - 0.1) / 0.88, 0, 1);
+    const constrict = clamp((1.15 - s.constrictionDiameter) / 1.15, 0, 1);
+    return {
+      f1: 240 + tongueOpen * 620 + lip * 80 - constrict * 130,
+      f2: 650 + tongue * 1850 + (1 - tongueOpen) * 320 - (1 - lip) * 320 - lipReflection * 120,
+      f3: 1850 + tongue * 900 + constrict * 1900 - lipReflection * 260,
+      nasal: 240 + clamp(s.velum / 0.4, 0, 1) * 420,
+      fric: 1400 + clamp(s.constrictionIndex / 44, 0, 1) * 5200,
+      radiation: 0.72 + (1 - lipReflection) * 0.46
+    };
+  }
+
   function condition(output) {
     const blocked = output - dcBlockX + 0.995 * dcBlockY;
     dcBlockX = output;
     dcBlockY = blocked;
-    return Math.tanh(blocked * 0.85);
-  }
-
-  function resonator(input, hz, radius, a, b) {
-    const omega = 2 * Math.PI * Math.max(40, Math.min(sampleRate * 0.45, hz)) / sampleRate;
-    const next = input + 2 * radius * Math.cos(omega) * a - radius * radius * b;
-    return [next, a];
-  }
-
-  function tractColor(input, s) {
-    const tongue = Math.max(0, Math.min(1, (s.tongueIndex - 8) / 26));
-    const tongueOpen = Math.max(0, Math.min(1, s.tongueDiameter / 3.4));
-    const lip = Math.max(0, Math.min(1, (s.lipOpening - 0.35) / 2.15));
-    const constrict = Math.max(0, Math.min(1, (1.2 - s.constrictionDiameter) / 1.2));
-    const velum = Math.max(0, Math.min(1, (s.velum - 0.01) / 0.39));
-
-    const f1 = 260 + tongueOpen * 520 - (1 - lip) * 140 - constrict * 90;
-    const f2 = 760 + tongue * 1500 + (1 - tongueOpen) * 380 - (1 - lip) * 260;
-    const f3 = 1800 + tongue * 1100 + constrict * 1600;
-    const nasalF = 240 + velum * 460;
-
-    [low1, low2] = resonator(input, f1, 0.985, low1, low2);
-    [mid1, mid2] = resonator(input, f2, 0.972, mid1, mid2);
-    [high1, high2] = resonator(input, f3, 0.948, high1, high2);
-    [nasal1, nasal2] = resonator(input, nasalF, 0.986, nasal1, nasal2);
-
-    const vowel = low1 * (0.22 + tongueOpen * 0.16) + mid1 * (0.14 + tongue * 0.16) + high1 * constrict * 0.06;
-    const nasal = nasal1 * velum * 0.16;
-    return input * 0.22 + vowel + nasal;
+    return Math.tanh(blocked * 1.15) * 0.72;
   }
 
   return {
     render(output, s) {
-      updateTargets(s);
-      updateNose(s.velum);
-      updateReflection();
       updateTransient(s);
       for (let i = 0; i < output.length; i++) {
-        slewDiameters();
         transient *= 0.995;
-        const g = glottis(s) + rand() * transient;
-        const a = step(g, s);
-        const b = step(g, s);
-        output[i] = condition(tractColor((a + b) * 0.18, s));
+        const shape = formants(s);
+        const velum = clamp((s.velum - 0.01) / 0.39, 0, 1);
+        const constrict = clamp((1.15 - s.constrictionDiameter) / 1.15, 0, 1);
+        const openness = clamp((s.constrictionDiameter - 0.18) / 0.9, 0, 1);
+        const source = glottis(s);
+        const white = rand();
+        const breath = highpass(white, 900, breathMemory);
+        const fricNoise = highpass(white, 2200, fricMemory);
+        const frication = fricNoise * s.turbulence * constrict * openness * (0.35 + s.intensity * 0.65);
+        const burst = rand() * transient;
+
+        f1.set(shape.f1, 8 + s.tenseness * 8);
+        f2.set(shape.f2, 6 + s.tenseness * 6);
+        f3.set(shape.f3, 5 + constrict * 8);
+        nasal.set(shape.nasal, 5 + velum * 8);
+        fric.set(shape.fric, 2.5 + constrict * 8);
+
+        const vowel = f1.process(source) * 1.8 + f2.process(source) * 1.25 + f3.process(source) * 0.65 * shape.radiation;
+        const air = breath * (1 - Math.sqrt(clamp(s.tenseness, 0, 1))) * s.intensity * 0.16;
+        const hiss = fric.process(frication + burst * 0.6) * 2.3;
+        const nose = nasal.process(source + air) * velum * 0.9;
+        output[i] = condition((vowel * (1 - velum * 0.28) + nose + hiss * shape.radiation + air) * 0.42);
       }
     }
   };
@@ -562,7 +460,7 @@ function drawWave(cx, cy, length, scale) {
 function drawReadout(width, height) {
   ctx.fillStyle = "#f0f4ed";
   ctx.font = "700 22px system-ui, sans-serif";
-  ctx.fillText(`tract graph witness freq=${state.frequency.toFixed(1)}Hz tense=${state.tenseness.toFixed(2)} velum=${state.velum.toFixed(2)} burst=${state.burst.toFixed(2)}`, 28, 42);
+  ctx.fillText(`source/filter witness freq=${state.frequency.toFixed(1)}Hz tense=${state.tenseness.toFixed(2)} velum=${state.velum.toFixed(2)} burst=${state.burst.toFixed(2)}`, 28, 42);
   ctx.fillStyle = "#a8b3a3";
   ctx.font = "15px system-ui, sans-serif";
   ctx.fillText("Aqua DSL tract voice controls: source, tongue, velum, constriction, turbulence, radiation", 28, height - 24);
