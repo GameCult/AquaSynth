@@ -136,6 +136,7 @@ public sealed class PatchScriptTests
         Assert.Contains("tract_lf_open", faust);
         Assert.Contains("tract_injection_close", faust);
         Assert.Contains("wg_injection_cell", faust);
+        Assert.Contains("wg_loop ~ si.bus", faust);
         Assert.Contains("wg_inject_6", faust);
         Assert.Contains("wg_diameter_target_3", faust);
         Assert.Contains("wg_area_3", faust);

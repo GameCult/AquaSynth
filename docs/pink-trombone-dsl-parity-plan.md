@@ -103,20 +103,24 @@ pressure instead of silently inventing all of them inside one helper. The
 waveguide lowering consumes the derived oral reflection field as right/left
 section state equations.
 
-The first log-mel rung is now real but not flattering. The compileable Aqua
-tract proxy baseline against the deterministic PT-style renderer currently
-lands around cosine 0.51 open vowel, 0.54 front vowel, 0.39 nasal, 0.12
-sibilant, and -0.18 closure-release. Those are pressure readings, not parity.
+The first log-mel rung is now real but not flattering. The first compileable
+Aqua proxy baseline against the deterministic PT-style renderer landed around
+cosine 0.51 open vowel, 0.54 front vowel, 0.39 nasal, 0.12 sibilant, and -0.18
+closure-release. That negative closure score correctly exposed the wrong
+machine.
 
-The attempted Faust waveguide backend exposed a harder boundary: named
-mutually recursive right/left state equations are not accepted by Faust in the
-obvious generated form, and even simplified large waveguide expressions can
-make the Faust compiler churn. The current automated parity harness therefore
-uses the compileable resonator/proxy lowering for numeric baselines while the
-waveguide-Faust backend remains explicit debt. Exact two recursive tract state
-updates per output sample still need a coherent backend strategy, likely a
-proper vector feedback component or native DSP renderer rather than more named
-equation sprawl.
+The waveguide backend now uses a Faust-friendly state owner:
+`wg_loop ~ si.bus(...)`. One feedback component owns the right/left oral and
+nasal traveling-wave state instead of hundreds of named recursive equations.
+The full 44-section oral tract plus 28-section nasal branch renders through
+Faust. Current waveguide baseline: open vowel 0.5578, front vowel 0.5368,
+nasal 0.4299, sibilant 0.2852, closure-release 0.1147. Those are pressure
+readings, not parity, but closure-release is no longer anti-correlated.
+
+Exact Pink Trombone timing still needs pressure: the loop currently performs
+one feedback update per output sample while carrying `substeps` as drive/loss
+intent. The next backend cut is true twice-per-sample state update inside the
+Faust-friendly loop shape, not a return to named equation sprawl.
 
 ## Cut Line
 

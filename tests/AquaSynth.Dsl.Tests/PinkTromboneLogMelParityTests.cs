@@ -5,7 +5,7 @@ namespace AquaSynth.Dsl.Tests;
 
 public sealed class PinkTromboneLogMelParityTests
 {
-    private const float SmokeCosineFloor = -0.25f;
+    private const float SmokeCosineFloor = 0.08f;
 
     [Fact]
     public void PinkTromboneReferenceRendererProducesAudibleFixtureAudio()
@@ -39,8 +39,7 @@ public sealed class PinkTromboneLogMelParityTests
         foreach (var fixture in PinkTromboneParityFixtures.All)
         {
             var reference = referenceRenderer.Render(fixture.Controls);
-            var candidateScript = fixture.AquaScript.Replace("propagation=waveguide", "propagation=resonator", StringComparison.Ordinal);
-            var candidateSource = FaustEmitter.EmitScript(candidateScript, new FaustExportOptions($"pt_{fixture.Id.Replace('-', '_')}_proxy"));
+            var candidateSource = FaustEmitter.EmitScript(fixture.AquaScript, new FaustExportOptions($"pt_{fixture.Id.Replace('-', '_')}"));
             var fixtureDir = Path.Combine(artifactDir, fixture.Id);
             Directory.CreateDirectory(fixtureDir);
             File.WriteAllText(Path.Combine(fixtureDir, "candidate.dsp"), candidateSource.Source);
