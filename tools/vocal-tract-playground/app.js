@@ -53,6 +53,7 @@ const presets = {
 const state = Object.fromEntries(controlSpecs.map(([, id, , value]) => [id, value]));
 const controls = new Map();
 let audio = null;
+let renderAbort = null;
 let animationFrame = 0;
 let phase = 0;
 
@@ -61,6 +62,7 @@ const ctx = canvas.getContext("2d");
 const controlsRoot = document.getElementById("controls");
 const playButton = document.getElementById("playButton");
 const panicButton = document.getElementById("panicButton");
+const renderStatus = document.getElementById("renderStatus");
 const pressureMeter = document.getElementById("pressureMeter");
 const noiseMeter = document.getElementById("noiseMeter");
 const nasalMeter = document.getElementById("nasalMeter");
@@ -124,35 +126,58 @@ function applyPreset(name) {
 async function startAudio() {
   if (audio) return;
 
+  playButton.disabled = true;
+  playButton.textContent = "Rendering...";
+  setStatus("Rendering Aqua DSL graph through Faust...");
   const context = new AudioContext();
   const master = context.createGain();
-  const processor = context.createScriptProcessor(1024, 0, 1);
-  const synth = createTractSynth(context.sampleRate);
+  master.gain.value = state.gain;
+  master.connect(context.destination);
 
-  processor.onaudioprocess = event => {
-    const output = event.outputBuffer.getChannelData(0);
-    synth.render(output, state);
-  };
-
-  master.gain.value = 0.0;
-  processor.connect(master).connect(context.destination);
-  audio = { context, master, processor, synth };
-  updateAudio();
-  playButton.textContent = "Stop";
-  playButton.setAttribute("aria-pressed", "true");
+  try {
+    const { buffer, summary } = await renderCurrentPatch(context);
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.connect(master);
+    source.onended = () => {
+      if (audio?.source === source) {
+        void stopAudio();
+      }
+    };
+    audio = { context, master, source };
+    source.start();
+    updateAudio();
+    setStatus(`Rendered ${summary.samples} samples, peak ${summary.peak.toFixed(3)}, rms ${summary.rms.toFixed(3)}`);
+    playButton.textContent = "Stop";
+    playButton.setAttribute("aria-pressed", "true");
+  } catch (error) {
+    await context.close();
+    setStatus(error.message);
+    playButton.textContent = "Render";
+    playButton.setAttribute("aria-pressed", "false");
+  } finally {
+    playButton.disabled = false;
+  }
 }
 
 async function stopAudio() {
-  if (!audio) return;
-
   const old = audio;
   audio = null;
-  old.master.gain.setTargetAtTime(0, old.context.currentTime, 0.02);
-  old.processor.disconnect();
-  await new Promise(resolve => setTimeout(resolve, 80));
-  await old.context.close();
-  playButton.textContent = "Play";
+  renderAbort?.abort();
+  renderAbort = null;
+  if (old) {
+    old.master.gain.setTargetAtTime(0, old.context.currentTime, 0.02);
+    try {
+      old.source.stop();
+    } catch {
+      // The source may already have ended.
+    }
+    await new Promise(resolve => setTimeout(resolve, 80));
+    await old.context.close();
+  }
+  playButton.textContent = "Render";
   playButton.setAttribute("aria-pressed", "false");
+  playButton.disabled = false;
 }
 
 function updateAudio() {
@@ -162,153 +187,44 @@ function updateAudio() {
   audio.master.gain.setTargetAtTime(state.gain, audio.context.currentTime, 0.03);
 }
 
+async function renderCurrentPatch(context) {
+  renderAbort = new AbortController();
+  const response = await fetch("/render", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      ...state,
+      durationSeconds: 0.72,
+      sampleRate: Math.round(context.sampleRate)
+    }),
+    signal: renderAbort.signal
+  });
+  renderAbort = null;
+
+  const summary = await response.json();
+  if (!response.ok) {
+    throw new Error(summary.error ?? "Graph render failed");
+  }
+
+  const wav = await fetch(summary.audioUrl, { cache: "no-store" });
+  if (!wav.ok) {
+    throw new Error(`Rendered WAV was not available: HTTP ${wav.status}`);
+  }
+
+  return {
+    summary,
+    buffer: await context.decodeAudioData(await wav.arrayBuffer())
+  };
+}
+
+function setStatus(message) {
+  if (renderStatus) renderStatus.textContent = message;
+}
+
 function updateMeters() {
   pressureMeter.value = state.intensity;
   noiseMeter.value = state.turbulence;
   nasalMeter.value = (state.velum - 0.01) / 0.39;
-}
-
-function createTractSynth(sampleRate) {
-  let glottalPhase = 0;
-  let noise = 0.1234567;
-  let lastConstrictionDiameter = 1.0;
-  let transient = 0;
-  let dcBlockX = 0;
-  let dcBlockY = 0;
-  const breathMemory = { x: 0, y: 0 };
-  const fricMemory = { x: 0, y: 0 };
-  const f1 = makeBandpass();
-  const f2 = makeBandpass();
-  const f3 = makeBandpass();
-  const nasal = makeBandpass();
-  const fric = makeBandpass();
-
-  function rand() {
-    noise = (noise * 16807) % 2147483647;
-    return noise / 1073741823.5 - 1;
-  }
-
-  function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-  }
-
-  function makeBandpass() {
-    let b0 = 0;
-    let b1 = 0;
-    let b2 = 0;
-    let a1 = 0;
-    let a2 = 0;
-    let x1 = 0;
-    let x2 = 0;
-    let y1 = 0;
-    let y2 = 0;
-    return {
-      set(hz, q) {
-        const omega = 2 * Math.PI * clamp(hz, 40, sampleRate * 0.45) / sampleRate;
-        const sin = Math.sin(omega);
-        const alpha = sin / (2 * clamp(q, 0.2, 40));
-        const cos = Math.cos(omega);
-        const a0 = 1 + alpha;
-        b0 = alpha / a0;
-        b1 = 0;
-        b2 = -alpha / a0;
-        a1 = (-2 * cos) / a0;
-        a2 = (1 - alpha) / a0;
-      },
-      process(x) {
-        const y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
-        x2 = x1;
-        x1 = x;
-        y2 = y1;
-        y1 = y;
-        return y;
-      }
-    };
-  }
-
-  function highpass(input, hz, memory) {
-    const alpha = 1 / (1 + 2 * Math.PI * hz / sampleRate);
-    const y = alpha * (memory.y + input - memory.x);
-    memory.x = input;
-    memory.y = y;
-    return y;
-  }
-
-  function glottis(s) {
-    glottalPhase += s.frequency / sampleRate;
-    glottalPhase -= Math.floor(glottalPhase);
-    const phase = glottalPhase;
-    const tenseness = clamp(s.tenseness, 0, 1);
-    const openPhase = 0.42 + (1 - tenseness) * 0.36;
-    const glottalBoundary = clamp((s.glottalReflection + 0.95) / 1.9, 0, 1);
-    const pulse = phase < openPhase
-      ? Math.sin(Math.PI * phase / openPhase)
-      : -0.22 * Math.sin(Math.PI * (phase - openPhase) / Math.max(0.001, 1 - openPhase));
-    const bite = Math.sin(4 * Math.PI * phase) * (0.04 + tenseness * 0.20 + glottalBoundary * 0.10);
-    return (pulse * (0.72 + glottalBoundary * 0.42) - bite) * s.intensity * (0.13 + tenseness * 0.25);
-  }
-
-  function updateTransient(s) {
-    const opening = s.constrictionDiameter - lastConstrictionDiameter;
-    if (opening > 0.18 && lastConstrictionDiameter < 0.28) {
-      transient += opening * s.intensity * (0.18 + s.turbulence * 0.42) * s.burst;
-    }
-    lastConstrictionDiameter = s.constrictionDiameter;
-  }
-
-  function formants(s) {
-    const tongue = clamp((s.tongueIndex - 8) / 26, 0, 1);
-    const tongueOpen = clamp((s.tongueDiameter - 0.45) / 3.15, 0, 1);
-    const lip = clamp((s.lipOpening - 0.35) / 2.15, 0, 1);
-    const lipReflection = clamp((-s.lipReflection - 0.1) / 0.88, 0, 1);
-    const constrict = clamp((1.15 - s.constrictionDiameter) / 1.15, 0, 1);
-    return {
-      f1: 240 + tongueOpen * 620 + lip * 80 - constrict * 130,
-      f2: 650 + tongue * 1850 + (1 - tongueOpen) * 320 - (1 - lip) * 320 - lipReflection * 120,
-      f3: 1850 + tongue * 900 + constrict * 1900 - lipReflection * 260,
-      nasal: 240 + clamp(s.velum / 0.4, 0, 1) * 420,
-      fric: 1400 + clamp(s.constrictionIndex / 44, 0, 1) * 5200,
-      radiation: 0.72 + (1 - lipReflection) * 0.46
-    };
-  }
-
-  function condition(output) {
-    const blocked = output - dcBlockX + 0.995 * dcBlockY;
-    dcBlockX = output;
-    dcBlockY = blocked;
-    return Math.tanh(blocked * 1.15) * 0.72;
-  }
-
-  return {
-    render(output, s) {
-      updateTransient(s);
-      for (let i = 0; i < output.length; i++) {
-        transient *= 0.995;
-        const shape = formants(s);
-        const velum = clamp((s.velum - 0.01) / 0.39, 0, 1);
-        const constrict = clamp((1.15 - s.constrictionDiameter) / 1.15, 0, 1);
-        const openness = clamp((s.constrictionDiameter - 0.18) / 0.9, 0, 1);
-        const source = glottis(s);
-        const white = rand();
-        const breath = highpass(white, 900, breathMemory);
-        const fricNoise = highpass(white, 2200, fricMemory);
-        const frication = fricNoise * s.turbulence * constrict * openness * (0.35 + s.intensity * 0.65);
-        const burst = rand() * transient;
-
-        f1.set(shape.f1, 8 + s.tenseness * 8);
-        f2.set(shape.f2, 6 + s.tenseness * 6);
-        f3.set(shape.f3, 5 + constrict * 8);
-        nasal.set(shape.nasal, 5 + velum * 8);
-        fric.set(shape.fric, 2.5 + constrict * 8);
-
-        const vowel = f1.process(source) * 1.8 + f2.process(source) * 1.25 + f3.process(source) * 0.65 * shape.radiation;
-        const air = breath * (1 - Math.sqrt(clamp(s.tenseness, 0, 1))) * s.intensity * 0.16;
-        const hiss = fric.process(frication + burst * 0.6) * 2.3;
-        const nose = nasal.process(source + air) * velum * 0.9;
-        output[i] = condition((vowel * (1 - velum * 0.28) + nose + hiss * shape.radiation + air) * 0.42);
-      }
-    }
-  };
 }
 
 function draw() {
@@ -460,10 +376,10 @@ function drawWave(cx, cy, length, scale) {
 function drawReadout(width, height) {
   ctx.fillStyle = "#f0f4ed";
   ctx.font = "700 22px system-ui, sans-serif";
-  ctx.fillText(`source/filter witness freq=${state.frequency.toFixed(1)}Hz tense=${state.tenseness.toFixed(2)} velum=${state.velum.toFixed(2)} burst=${state.burst.toFixed(2)}`, 28, 42);
+  ctx.fillText(`Aqua graph render freq=${state.frequency.toFixed(1)}Hz tense=${state.tenseness.toFixed(2)} velum=${state.velum.toFixed(2)} burst=${state.burst.toFixed(2)}`, 28, 42);
   ctx.fillStyle = "#a8b3a3";
   ctx.font = "15px system-ui, sans-serif";
-  ctx.fillText("Aqua DSL tract voice controls: source, tongue, velum, constriction, turbulence, radiation", 28, height - 24);
+  ctx.fillText("Render-on-demand through Aqua DSL -> Faust graph lowering", 28, height - 24);
 }
 
 document.querySelectorAll("[data-preset]").forEach(button => {
@@ -483,6 +399,5 @@ draw();
 
 window.AquaTractPlayground = {
   state,
-  presets,
-  createTractSynth
+  presets
 };

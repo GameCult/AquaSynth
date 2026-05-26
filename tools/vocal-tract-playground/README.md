@@ -1,6 +1,6 @@
 # AquaSynth Tract Voice Playground
 
-Touchable WebAudio playground for the Aqua DSL `tract` voice surface.
+Touchable audition playground for the Aqua DSL `tract` voice surface.
 
 Run it from this directory:
 
@@ -14,13 +14,14 @@ Then open:
 http://localhost:5125/
 ```
 
-This is a tract-voice control witness. It exposes the same Pink
-Trombone-shaped controls that Aqua DSL now lowers through `tract`: frequency,
-intensity, tenseness, tongue index/diameter, velum, constriction
-index/diameter, turbulence, burst, lip opening, and radiation reflection
-controls.
+This is an actual-machine audition surface. The browser sends the visible
+controls to `tools/TractGraphRenderer`, which emits an Aqua DSL patch with
+`tract propagation=graph`, lowers it through the normal Faust emitter, renders
+the compiled DSP, and returns a WAV for playback.
 
-The browser synth runs a stable source/filter witness so the knobs are
-touchable while the Faust graph lowering keeps maturing toward Pink Trombone
-parity. It is a control playground, not the canonical DSP owner; the canonical
-audio path is still the Aqua DSL -> Faust graph lowering.
+That makes rendering slower than a browser-native oscillator, but it removes
+the fake witness from the feedback loop. The sound you hear is the Aqua DSL ->
+Faust graph path that the compiler owns.
+
+Faust must be available through `PATH` or `FAUST_HOME`, and the .NET SDK must be
+available to run the renderer.

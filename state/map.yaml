@@ -29,6 +29,7 @@ surfaces:
   zyn_pad_reference_renderer: tools/zyn-reference/ZynPadReference.cpp
   zyn_voice_reference_renderer: tools/zyn-reference/ZynVoiceReference.cpp
   vocal_tract_playground: tools/vocal-tract-playground/index.html
+  tract_graph_renderer: tools/TractGraphRenderer/TractGraphRenderer.csproj
   zyn_reference_build_patches: tools/zyn-reference/patches
   zyn_project_fixtures: tests/AquaSynth.Dsl.Tests/Fixtures/ZynAddSubFX/ProjectAuthored
   core_package: AquaSynth.Core 0.1.0-alpha.3
@@ -69,6 +70,7 @@ modules:
   speech_distributed_training_tests: tests/AquaSynth.Dsl.Tests/SpeechDistributedTrainingTests.cs
   vocal_tract_learning_tests: tests/AquaSynth.Dsl.Tests/VocalTractLearningTests.cs
   vocal_tract_playground: tools/vocal-tract-playground
+  tract_graph_renderer: tools/TractGraphRenderer
   sfxr: src/AquaSynth.Core/SfxrParams.cs
   analysis: src/AquaSynth.Core/AudioAnalysis.cs
   mel_cepstral_warp_effect: src/AquaSynth.Core/MelCepstralWarpEffect.cs

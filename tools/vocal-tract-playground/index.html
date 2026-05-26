@@ -15,8 +15,8 @@
           <h1>Tract Voice Playground</h1>
         </div>
         <div class="transport" role="group" aria-label="Transport">
-          <button id="playButton" type="button" aria-pressed="false" title="Start or stop audio">Play</button>
-          <button id="panicButton" type="button" title="Silence immediately">Panic</button>
+          <button id="playButton" type="button" aria-pressed="false" title="Render and play actual Aqua graph audio">Render</button>
+          <button id="panicButton" type="button" title="Stop playback or render">Stop</button>
         </div>
       </header>
 
@@ -27,6 +27,7 @@
           <meter id="noiseMeter" min="0" max="1" value="0"></meter>
           <meter id="nasalMeter" min="0" max="1" value="0"></meter>
         </div>
+        <p id="renderStatus" class="render-status" role="status">Ready to render the Aqua DSL graph.</p>
       </div>
     </section>
 

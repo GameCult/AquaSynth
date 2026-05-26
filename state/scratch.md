@@ -2,6 +2,23 @@
 
 Current slice:
 
+- Replaced the vocal tract playground's browser-native source/filter witness
+  with actual Aqua DSL graph rendering. The page now posts the visible controls
+  to `/render`; `tools/TractGraphRenderer` emits `tract propagation=graph`,
+  lowers through `FaustEmitter`, renders through `FaustCompiler.RenderAsync`,
+  writes a WAV under `artifacts/vocal-tract-playground`, and the browser plays
+  that returned audio.
+- The fake JS `createTractSynth` path was deleted so the playground has one
+  audio authority: Aqua DSL -> Faust graph lowering. The UI is render-on-demand,
+  not realtime, because recompiling/rendering Faust per audition is the honest
+  current machine.
+- Verification:
+  `dotnet build tools\TractGraphRenderer\TractGraphRenderer.csproj --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false`
+  passed; direct renderer smoke wrote `artifacts\vocal-tract-playground\smoke.wav`
+  with peak `0.15414488`, RMS `0.066947475`, and no warnings; live server
+  `POST http://127.0.0.1:5126/render` returned a WAV and `/renders/...wav`
+  served HTTP 200; `node --check` passed for `app.js` and `serve.mjs`.
+
 - Added `tools/vocal-tract-playground`, a static WebAudio playground for the
   current AquaSynth `VocalTractControlTarget` surface. It exposes the 14 base
   voice-patch target controls plus six mel-envelope bands: these are the knobs
