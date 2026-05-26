@@ -149,6 +149,10 @@ Trombone anatomy:
 - accepted utterance parity lowers the surviving PT control-point sketches into
   Faust `age` curves over ordinary `/pink/...` parameters and compares the
   continuous Aqua waveguide render against the source-ported PT renderer.
+- waveguide radiation now adds a small high-passed lip-radiation emphasis after
+  the bidirectional tube output. This is the current answer to the accepted
+  utterance candidate sounding overly padded while already matching gross timing
+  and articulation.
 - `substeps` is now legacy waveguide clock pressure. Current Faust lowering
   consumes it through drive/loss scaling, but the coherent target is
   fractional-delay propagation from physical tract length and wave speed.

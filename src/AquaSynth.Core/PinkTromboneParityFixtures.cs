@@ -119,9 +119,12 @@ public static class PinkTromboneParityFixtures
         IReadOnlyList<string> referenceFeatures) =>
         new(id, description, controls, Script(controls, "waveguide"), Script(controls, "graph"), referenceFeatures);
 
-    private static string Script(PinkTromboneFixtureControls controls, string propagation) =>
+    private static string Script(PinkTromboneFixtureControls controls, string propagation)
+    {
+        var patchGain = propagation == "graph" ? 0.028f : 0.82f;
+        return
         $$"""
-        patch gain=0.82 soft_clip=true
+        patch gain={{F(patchGain)}} soft_clip=true
 
         tract_shape
             name=human
@@ -134,6 +137,7 @@ public static class PinkTromboneParityFixtures
 
         tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation={{propagation}} waveguide_loss=.999 freq={{F(controls.Frequency)}} gain={{F(controls.Gain)}} intensity={{F(controls.Intensity)}} tenseness={{F(controls.Tenseness)}} sustain=.45 decay=.12 tongue_index={{F(controls.TongueIndex)}} tongue_diameter={{F(controls.TongueDiameter)}} constriction_index={{F(controls.ConstrictionIndex)}} constriction_diameter={{F(controls.ConstrictionDiameter)}} turbulence={{F(controls.Turbulence)}} velum={{F(controls.Velum)}} lip={{F(controls.LipOpening)}} burst={{F(controls.Burst)}} glottal_reflection={{F(controls.GlottalReflection)}} lip_reflection={{F(controls.LipReflection)}}
         """;
+    }
 
     private static string F(float value) =>
         value.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);

@@ -1095,7 +1095,8 @@ public static class FaustEmitter
         source.AppendLine($"    {name}_wg_out = {name}_tract_oral_waveguide * (0.65 + 0.35 * abs({lipReflection})) + {name}_tract_nose_waveguide;");
         source.AppendLine("  };");
         source.AppendLine("};");
-        source.AppendLine($"{name}_tract_radiated = {name}_wg({name}_tract_excitation);");
+        source.AppendLine($"{name}_tract_radiated_raw = {name}_wg({name}_tract_excitation);");
+        source.AppendLine($"{name}_tract_radiated = {name}_tract_radiated_raw + ({name}_tract_radiated_raw : fi.highpass(1, 1200.0)) * 0.45;");
         return $"{name}_tract_radiated";
 
         static IEnumerable<string> nextStatesPlaceholder(int count) =>

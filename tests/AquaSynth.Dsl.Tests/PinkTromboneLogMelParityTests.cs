@@ -120,7 +120,7 @@ public sealed class PinkTromboneLogMelParityTests
         foreach (var fixture in PinkTromboneUtteranceFixtures.All.Where(fixture => UtteranceParityIds.Contains(fixture.Id)))
         {
             var reference = referenceRenderer.RenderUtterance(fixture.Id, fixture.ControlPoints, fixture.DurationSeconds);
-            var source = AutomatedGraphSource(fixture);
+            var source = AutomatedWaveguideSource(fixture);
             var candidate = await FaustCompiler.RenderAsync(
                 source,
                 new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate));
@@ -157,9 +157,9 @@ public sealed class PinkTromboneLogMelParityTests
             CultureInfo.InvariantCulture,
             $"{fixture.Id}/{candidate}: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000}");
 
-    private static string AutomatedGraphSource(PinkTromboneUtteranceFixture fixture)
+    private static string AutomatedWaveguideSource(PinkTromboneUtteranceFixture fixture)
     {
-        var source = FaustEmitter.EmitScript(UtteranceGraphScript(fixture), new FaustExportOptions($"pt_utterance_{fixture.Id}")).Source;
+        var source = FaustEmitter.EmitScript(UtteranceWaveguideScript(fixture), new FaustExportOptions($"pt_utterance_{fixture.Id}")).Source;
         var controls = ControlCurves(fixture.ControlPoints);
         for (var index = 0; index < controls.Count; index++)
         {
@@ -231,7 +231,7 @@ public sealed class PinkTromboneLogMelParityTests
         return 0.9f;
     }
 
-    private static string UtteranceGraphScript(PinkTromboneUtteranceFixture fixture) =>
+    private static string UtteranceWaveguideScript(PinkTromboneUtteranceFixture fixture) =>
         $$"""
         patch gain=0.12 soft_clip=true
 
