@@ -25,11 +25,12 @@ public static class PinkTromboneUtteranceFixtures
     private static readonly PinkTromboneFixtureControls U = A with
     {
         Frequency = 128,
-        TongueIndex = 12,
-        TongueDiameter = 2.9f,
+        Tenseness = 0.5f,
+        TongueIndex = 11.2f,
+        TongueDiameter = 3.05f,
         ConstrictionIndex = 38,
-        ConstrictionDiameter = 1.45f,
-        LipOpening = 0.55f,
+        ConstrictionDiameter = 1.55f,
+        LipOpening = 0.42f,
         LipReflection = -0.9f
     };
 
@@ -82,35 +83,37 @@ public static class PinkTromboneUtteranceFixtures
     private static readonly PinkTromboneFixtureControls PClosure = A with
     {
         Frequency = 126,
-        Intensity = 0.04f,
+        Intensity = 0.01f,
         Tenseness = 0.22f,
         ConstrictionIndex = 41,
         ConstrictionDiameter = 0.02f,
-        Turbulence = 0.08f,
+        Turbulence = 0.02f,
         Velum = 0.01f,
-        LipOpening = 0.35f,
-        Burst = 0.9f,
+        LipOpening = 0.08f,
+        Burst = 1.35f,
         Gain = 0.7f
     };
 
     private static readonly PinkTromboneFixtureControls PRelease = PClosure with
     {
-        Intensity = 0.28f,
-        Tenseness = 0.36f,
-        ConstrictionDiameter = 0.52f,
-        Turbulence = 0.75f,
-        Burst = 1.0f
+        Intensity = 0.34f,
+        Tenseness = 0.3f,
+        ConstrictionDiameter = 1.22f,
+        Turbulence = 0.9f,
+        LipOpening = 1.25f,
+        Burst = 1.55f
     };
 
     private static readonly PinkTromboneFixtureControls L = E with
     {
-        Frequency = 144,
-        TongueIndex = 28,
-        TongueDiameter = 1.2f,
-        ConstrictionIndex = 30,
-        ConstrictionDiameter = 0.85f,
+        Frequency = 136,
+        Tenseness = 0.5f,
+        TongueIndex = 29,
+        TongueDiameter = 0.9f,
+        ConstrictionIndex = 30.5f,
+        ConstrictionDiameter = 0.62f,
         Turbulence = 0.02f,
-        LipOpening = 1.25f
+        LipOpening = 1.05f
     };
 
     private static readonly PinkTromboneFixtureControls KClosure = A with
@@ -129,22 +132,23 @@ public static class PinkTromboneUtteranceFixtures
     private static readonly PinkTromboneFixtureControls KRelease = KClosure with
     {
         Intensity = 0.26f,
-        ConstrictionDiameter = 0.62f,
-        Turbulence = 0.58f,
-        Burst = 1.0f
+        ConstrictionDiameter = 1.12f,
+        Turbulence = 0.72f,
+        Burst = 1.45f
     };
 
     private static readonly PinkTromboneFixtureControls Th = A with
     {
         Frequency = 118,
-        Intensity = 0.18f,
-        Tenseness = 0.2f,
-        TongueIndex = 31,
-        TongueDiameter = 0.72f,
-        ConstrictionIndex = 32,
-        ConstrictionDiameter = 0.32f,
-        Turbulence = 0.86f,
-        LipOpening = 1.05f
+        Intensity = 0.03f,
+        Tenseness = 0.14f,
+        TongueIndex = 30,
+        TongueDiameter = 0.95f,
+        ConstrictionIndex = 31.5f,
+        ConstrictionDiameter = 0.48f,
+        Turbulence = 0.62f,
+        LipOpening = 1.0f,
+        Gain = 0.58f
     };
 
     private static readonly PinkTromboneFixtureControls R = O with
@@ -161,16 +165,18 @@ public static class PinkTromboneUtteranceFixtures
     private static readonly PinkTromboneFixtureControls BClosure = M with
     {
         Velum = 0.01f,
-        Intensity = 0.2f,
-        Burst = 0.85f
+        Intensity = 0.08f,
+        LipOpening = 0.08f,
+        Burst = 1.25f
     };
 
     private static readonly PinkTromboneFixtureControls BRelease = BClosure with
     {
-        Intensity = 0.58f,
-        ConstrictionDiameter = 0.62f,
-        Turbulence = 0.35f,
-        Burst = 0.9f
+        Intensity = 0.5f,
+        ConstrictionDiameter = 1.18f,
+        LipOpening = 1.2f,
+        Turbulence = 0.45f,
+        Burst = 1.35f
     };
 
     private static readonly PinkTromboneFixtureControls S = I with
@@ -207,13 +213,16 @@ public static class PinkTromboneUtteranceFixtures
             1.02f,
             Points(
                 (0.00f, PClosure, "p closure"),
-                (0.12f, PClosure, "p pressure"),
-                (0.16f, PRelease, "p release"),
+                (0.145f, PClosure, "p pressure"),
+                (0.157f, PRelease, "p release"),
+                (0.19f, PRelease, "p burst tail"),
                 (0.25f, A, "a"),
                 (0.45f, A, "a hold"),
                 (0.52f, PClosure, "p closure"),
-                (0.64f, PRelease, "p release"),
-                (0.73f, A with { Frequency = 142 }, "a"),
+                (0.645f, PClosure, "p pressure"),
+                (0.657f, PRelease, "p release"),
+                (0.69f, PRelease, "p burst tail"),
+                (0.74f, A with { Frequency = 142 }, "a"),
                 (1.02f, A with { Intensity = 0.46f }, "fade")),
             ["p", "a", "p", "a"]),
         new(
@@ -221,14 +230,17 @@ public static class PinkTromboneUtteranceFixtures
             "lulek",
             1.22f,
             Points(
-                (0.00f, L, "l"),
-                (0.13f, U, "u"),
-                (0.39f, U, "u hold"),
-                (0.48f, L with { Frequency = 148 }, "l"),
+                (0.00f, L, "l onset"),
+                (0.07f, L, "l hold"),
+                (0.11f, U, "u"),
+                (0.40f, U, "u hold"),
+                (0.47f, L with { Frequency = 142 }, "l"),
+                (0.55f, L with { Frequency = 142 }, "l hold"),
                 (0.61f, E, "e"),
                 (0.86f, E, "e hold"),
                 (0.95f, KClosure, "k closure"),
-                (1.07f, KRelease, "k release"),
+                (1.055f, KClosure, "k pressure"),
+                (1.067f, KRelease, "k release"),
                 (1.22f, KRelease with { Intensity = 0.02f, Turbulence = 0.12f }, "stop")),
             ["l", "u", "l", "e", "k"]),
         new(
@@ -237,14 +249,15 @@ public static class PinkTromboneUtteranceFixtures
             1.72f,
             Points(
                 (0.00f, Th, "th"),
-                (0.17f, Th, "th hold"),
-                (0.25f, R, "r"),
-                (0.39f, O, "o"),
+                (0.12f, Th, "th hold"),
+                (0.19f, R with { Frequency = 124 }, "r"),
+                (0.34f, O, "o"),
                 (0.59f, O, "o hold"),
                 (0.68f, M, "m"),
                 (0.82f, M, "m hold"),
                 (0.90f, BClosure, "b closure"),
-                (0.98f, BRelease, "b release"),
+                (0.975f, BClosure, "b pressure"),
+                (0.987f, BRelease, "b release"),
                 (1.07f, O with { Frequency = 140 }, "o"),
                 (1.25f, S, "s"),
                 (1.42f, I, "i"),

@@ -550,6 +550,7 @@ public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
         private int lastObstruction = -1;
         private float velumTarget;
         private float lastTurbulencePosition = float.NaN;
+        private float transientStrength = 1;
 
         public TractShaper(Tract tract)
         {
@@ -572,6 +573,7 @@ public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
             ReduceTargetDiametersByTouch(controls.ConstrictionIndex, Math.Max(0, controls.ConstrictionDiameter - 0.3f));
             targetDiameter[Tract.N - 1] = Math.Min(targetDiameter[Tract.N - 1], Math.Max(0, controls.LipOpening));
             velumTarget = controls.Velum > 0.08f ? Math.Clamp(controls.Velum, VelumClosedTarget, VelumOpenTarget) : VelumClosedTarget;
+            transientStrength = Math.Clamp(controls.Burst, 0, 2);
             if (controls.Turbulence > 0.001f)
             {
                 if (float.IsNaN(lastTurbulencePosition) || MathF.Abs(lastTurbulencePosition - controls.ConstrictionIndex) > 0.5f)
@@ -628,7 +630,7 @@ public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
 
             if (lastObstruction > -1 && newLastObstruction == -1 && tract.NoseDiameter[0] < 0.223f)
             {
-                tract.AddTransient(lastObstruction, 1);
+                tract.AddTransient(lastObstruction, transientStrength);
             }
 
             lastObstruction = newLastObstruction;
