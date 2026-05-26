@@ -284,7 +284,19 @@ public sealed record AcousticPath(
     string Name,
     TractAreaFunction AreaFunction,
     float PropagationSpeedMetersPerSecond = 343,
-    float Loss = 0.999f);
+    float Loss = 0.999f,
+    AcousticAreaControl? AreaControl = null);
+
+public sealed record AcousticAreaControl(
+    float TongueIndex = 12.9f,
+    float TongueDiameter = 2.43f,
+    float TongueWidth = 0.18f,
+    float ConstrictionIndex = 32,
+    float ConstrictionDiameter = 1,
+    float ConstrictionWidth = 0.09f,
+    float LipOpening = 1.5f,
+    float LipWidth = 0.04f,
+    float IndexScale = 1);
 
 public sealed record AcousticSourcePort(
     string Name,

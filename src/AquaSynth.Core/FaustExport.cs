@@ -633,7 +633,7 @@ public static class FaustEmitter
         {
             var terminalIndex = AcousticTerminalIndex(patch, terminal);
             var terminalPath = $"/acoustic/terminals/{terminalIndex}";
-            source.AppendLine($"{name}_graph_terminal_area_{SafeIdentifier(terminal.Name)} = max(0.000001, {F(TerminalArea(paths, terminal))} * max(0.0, {parameters.Expression(OwnerField(terminalPath, "area_scale"), terminal.AreaScale)}));");
+            source.AppendLine($"{name}_graph_terminal_area_{SafeIdentifier(terminal.Name)} = max(0.000001, {TerminalAreaExpression(patch, paths, parameters, terminal)} * max(0.0, {parameters.Expression(OwnerField(terminalPath, "area_scale"), terminal.AreaScale)}));");
             source.AppendLine($"{name}_graph_terminal_reflection_{SafeIdentifier(terminal.Name)} = {parameters.Expression(OwnerField(terminalPath, "reflection"), terminal.Reflection)};");
         }
         foreach (var node in graphNodes)
@@ -1360,15 +1360,44 @@ public static class FaustEmitter
             : 0;
     }
 
-    private static float TerminalArea(IReadOnlyDictionary<string, AcousticPath> paths, AcousticTerminal terminal)
+    private static string TerminalAreaExpression(
+        SynthPatch patch,
+        IReadOnlyDictionary<string, AcousticPath> paths,
+        ParameterMap parameters,
+        AcousticTerminal terminal)
     {
         if (!paths.TryGetValue(terminal.Path, out var path))
         {
-            return 1;
+            return "1.0";
         }
 
-        var diameter = path.AreaFunction.DiameterAt(Math.Clamp(terminal.Position, 0, 1));
-        return Math.Max(0.000001f, diameter * diameter);
+        var position = Math.Clamp(terminal.Position, 0, 1);
+        var restDiameter = path.AreaFunction.DiameterAt(position);
+        if (path.AreaControl is not { } area)
+        {
+            return F(Math.Max(0.000001f, restDiameter * restDiameter));
+        }
+
+        var pathIndex = AcousticPathIndex(patch, path);
+        var areaPath = $"/acoustic/paths/{pathIndex}/area";
+        var sections = Math.Max(2, path.AreaFunction.Sections);
+        var index = F(position * (sections - 1));
+        var tongueIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "tongue_index"), area.TongueIndex), area.IndexScale);
+        var tongueDiameter = parameters.Expression(OwnerField(areaPath, "tongue_diameter"), area.TongueDiameter);
+        var tongueWidth = $"max(0.001, {F(area.TongueWidth)} * {F(sections)})";
+        var constrictionIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "constriction_index"), area.ConstrictionIndex), area.IndexScale);
+        var constrictionDiameter = parameters.Expression(OwnerField(areaPath, "constriction_diameter"), area.ConstrictionDiameter);
+        var constrictionWidth = $"max(0.001, {F(area.ConstrictionWidth)} * {F(sections)})";
+        var lipOpening = parameters.Expression(OwnerField(areaPath, "lip_opening"), area.LipOpening);
+        var lipWeight = MathF.Exp(0 - MathF.Pow((1 - position) / Math.Max(0.001f, area.LipWidth), 2));
+        var tongueWeight = $"exp(0.0 - pow(({index} - ({tongueIndex})) / ({tongueWidth}), 2.0))";
+        var constrictionWeight = $"exp(0.0 - pow(({index} - ({constrictionIndex})) / ({constrictionWidth}), 2.0))";
+        var baseDiameter = $"({F(restDiameter)} + (({tongueDiameter}) - {F(restDiameter)}) * ({tongueWeight}) + (({lipOpening}) - {F(restDiameter)}) * {F(lipWeight)})";
+        var diameter = $"max(0.0, min({baseDiameter}, ({constrictionDiameter}) + max(0.0, ({baseDiameter}) - ({constrictionDiameter})) * (1.0 - ({constrictionWeight}))))";
+        return $"(({diameter}) * ({diameter}))";
+
+        static string ScaledAreaIndex(string expression, float scale) =>
+            scale == 1 ? expression : $"(({expression}) * {F(scale)})";
     }
 
     private static WaveClockPolicy ResolveWaveClock(
@@ -1484,6 +1513,20 @@ public static class FaustEmitter
         {
             if (ReferenceEquals(patch.AcousticConnections[i], connection) ||
                 patch.AcousticConnections[i].Name.Equals(connection.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int AcousticPathIndex(SynthPatch patch, AcousticPath path)
+    {
+        for (var i = 0; i < patch.AcousticPaths.Count; i++)
+        {
+            if (ReferenceEquals(patch.AcousticPaths[i], path) ||
+                patch.AcousticPaths[i].Name.Equals(path.Name, StringComparison.OrdinalIgnoreCase))
             {
                 return i;
             }

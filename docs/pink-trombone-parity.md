@@ -76,6 +76,8 @@ Current AquaSynth can express:
   reflections;
 - typed acoustic paths, terminals, connections, source ports, branch/radiation
   ports, and wave-clock policies;
+- optional acoustic path `AreaControl` fields that turn tongue, constriction,
+  and lip gestures into live diameter/area expressions at graph sample points;
 - graph lowering that splits paths at terminals, injects typed sources, scatters
   connection groups, and radiates from typed terminal ports;
 - oscillator/noise sources;
@@ -87,11 +89,10 @@ Current AquaSynth can express:
 
 Current AquaSynth cannot exactly express:
 
-- fractional-delay tract propagation whose clock derives from physical length,
-  propagation speed, and sample rate;
-- live continuous area modulation along each acoustic path segment. Generated
-  graph paths currently keep the authored rest morphology while live controls
-  own source pressure, branch coupling, and radiation apertures.
+- exact Pink Trombone wall update timing and obstruction history;
+- fully continuous area modulation inside a delay segment between graph sample
+  points. Generated tract graphs now sample live area along the path, but the
+  delay segment between two sampled nodes remains uniform.
 - exact Pink Trombone block timing and source/noise/transient behavior inside
   the Faust-lowered Aqua graph.
 
@@ -130,17 +131,17 @@ Trombone anatomy:
 - The `tract` DSL command parses into an ordinary `Voice` with `Voice.Tract`,
   and generates the same acoustic graph records used by explicit graph
   authoring.
-- `tract_shape` owns reusable continuous diameter/area functions. The current
-  graph uses the authored rest morphology as the compiled path and leaves
-  moving apertures to typed terminals and ports.
+- `tract_shape` owns reusable continuous diameter/area functions. Generated
+  graph paths now attach `AcousticAreaControl`, so tongue, constriction, and lip
+  gestures alter live node areas and therefore scattering along the oral tract.
 - `glottis` and `tract_injection` own excitation and positioned noise/burst
   controls consumed by tract voices.
 - `nasal_branch` adds a second diameter/area tube and generated oral/nasal
   connection terminals. Velum owns branch coupling and nasal aperture; the first
   nasal tube sample is not allowed to masquerade as the velum opening.
 - generated graph records mirror live `tract` parameter bindings into acoustic
-  source, terminal, connection, and radiation fields so `/pink/...` controls
-  exercise the actual graph.
+  source, terminal, connection, radiation, and path-area fields so `/pink/...`
+  controls exercise the actual graph.
 - accepted utterance parity lowers the surviving PT control-point sketches into
   Faust `age` curves over ordinary `/pink/...` parameters and compares the
   Aqua graph render against the source-ported PT renderer.
@@ -153,12 +154,12 @@ Trombone anatomy:
   writes listening WAV/report artifacts under
   `artifacts/parity/pink-trombone-logmel/`, and reports only the graph lane.
 - Latest static graph fixture evidence after cutting the old parity lane:
-  open vowel cosine 0.6015, front vowel 0.6358, nasal 0.6851,
-  bilabial-nasal-ma 0.5988, sibilant 0.3836, closure-release 0.4606.
+  open vowel cosine 0.6252, front vowel 0.6576, nasal 0.6893,
+  bilabial-nasal-ma 0.6550, sibilant 0.4166, closure-release 0.5554.
 - Latest graph utterance smoke evidence:
-  `mama` cosine 0.3365 / RMS 1.2421, `papa` 0.8264 / 0.3149,
-  `thrombosis` 0.3874 / 2.0519 under
-  `artifacts/parity/pink-trombone-utterance-logmel/20260526T230028874`.
+  `mama` cosine 0.3354 / RMS 1.0698, `papa` 0.8162 / 0.1815,
+  `thrombosis` 0.3584 / 1.9499 under
+  `artifacts/parity/pink-trombone-utterance-logmel/20260526T232106458`.
   This is still not final speech parity; it is the first honest graph-only
   moving-utterance rung.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
@@ -176,11 +177,10 @@ sound like an actual mouth.
 Do not add another formant workaround. The next coherent implementation is one
 of these:
 
-1. Add live path-area modulation to graph segments so tongue and constriction
-   controls alter scattering along the tract instead of only source/radiation
-   apertures.
-2. Give plosive/closure release a graph-native transient owner instead of
+1. Give plosive/closure release a graph-native transient owner instead of
    smearing burst pressure through the turbulence port.
+2. Improve graph source/radiation level normalization so `papa` is not
+   under-driven while `thrombosis` is hot.
 3. Use the log-mel artifact loop to golf `mama`, `papa`, and `thrombosis`
    against the source-ported PT renderer without reintroducing a parallel
    PT-shaped backend.

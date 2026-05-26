@@ -122,7 +122,7 @@ public static class PinkTromboneParityFixtures
     {
         return
         $$"""
-        patch gain=0.02 soft_clip=true
+        patch gain=0.018 soft_clip=true
 
         tract_shape
             name=human

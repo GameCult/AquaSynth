@@ -511,8 +511,46 @@ public static class PatchScript
                 name,
                 ParseTractAreaFunction(fields, line, 17),
                 GetBoundFloat(fields, line, 343, $"/acoustic/paths/{_acousticPaths.Count}/speed", "speed", "wave_speed", "propagation_speed"),
-                GetBoundFloat(fields, line, 0.999f, $"/acoustic/paths/{_acousticPaths.Count}/loss", "loss"));
+                GetBoundFloat(fields, line, 0.999f, $"/acoustic/paths/{_acousticPaths.Count}/loss", "loss"),
+                ParseAcousticAreaControl(fields, line, _acousticPaths.Count));
             AddAcousticPathRecord(path);
+        }
+
+        private static bool HasAcousticAreaControl(IReadOnlyDictionary<string, string> fields) =>
+            HasAny(
+                fields,
+                "area_control",
+                "morph",
+                "tongue_index",
+                "tongue",
+                "ti",
+                "tongue_diameter",
+                "td",
+                "constriction_index",
+                "ci",
+                "constriction_diameter",
+                "cd",
+                "lip",
+                "lip_opening",
+                "mouth");
+
+        private AcousticAreaControl? ParseAcousticAreaControl(IReadOnlyDictionary<string, string> fields, int line, int pathIndex)
+        {
+            if (!HasAcousticAreaControl(fields))
+            {
+                return null;
+            }
+
+            return new AcousticAreaControl(
+                GetBoundFloat(fields, line, 12.9f, $"/acoustic/paths/{pathIndex}/area/tongue_index", "tongue_index", "tongue", "ti"),
+                GetBoundFloat(fields, line, 2.43f, $"/acoustic/paths/{pathIndex}/area/tongue_diameter", "tongue_diameter", "td"),
+                GetBoundFloat(fields, line, 0.18f, $"/acoustic/paths/{pathIndex}/area/tongue_width", "tongue_width", "tw"),
+                GetBoundFloat(fields, line, 32, $"/acoustic/paths/{pathIndex}/area/constriction_index", "constriction_index", "ci"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/paths/{pathIndex}/area/constriction_diameter", "constriction_diameter", "cd"),
+                GetBoundFloat(fields, line, 0.09f, $"/acoustic/paths/{pathIndex}/area/constriction_width", "constriction_width", "cw"),
+                GetBoundFloat(fields, line, 1.5f, $"/acoustic/paths/{pathIndex}/area/lip_opening", "lip", "lip_opening", "mouth"),
+                GetBoundFloat(fields, line, 0.04f, $"/acoustic/paths/{pathIndex}/area/lip_width", "lip_width", "lw"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/paths/{pathIndex}/area/index_scale", "index_scale"));
         }
 
         private void AddAcousticSourcePort(IReadOnlyDictionary<string, string> fields, int line)
@@ -1234,11 +1272,32 @@ public static class PatchScript
             var primaryPathName = $"{prefix}_oral";
             var baseOralArea = tract.AreaFunction ?? new TractAreaFunction([0.6f, 0.8f, 1.2f, 1.5f, 1.5f, 1.2f, 0.8f, 0.6f], 17);
             var oralArea = baseOralArea;
-            AddAcousticPathRecord(new AcousticPath(primaryPathName, oralArea, 343, tract.WaveguideLoss));
+            var primaryPathIndex = _acousticPaths.Count;
+            AddAcousticPathRecord(new AcousticPath(
+                primaryPathName,
+                oralArea,
+                343,
+                tract.WaveguideLoss,
+                new AcousticAreaControl(
+                    tract.TongueIndex,
+                    tract.TongueDiameter,
+                    0.18f,
+                    tract.ConstrictionIndex,
+                    tract.ConstrictionDiameter,
+                    0.09f,
+                    tract.LipOpening,
+                    0.04f,
+                    tract.IndexScale)));
+            MirrorParameterBinding(OwnerField(tractPath, "tongue_index"), $"/acoustic/paths/{primaryPathIndex}/area/tongue_index");
+            MirrorParameterBinding(OwnerField(tractPath, "tongue_diameter"), $"/acoustic/paths/{primaryPathIndex}/area/tongue_diameter");
+            MirrorParameterBinding(OwnerField(tractPath, "constriction_index"), $"/acoustic/paths/{primaryPathIndex}/area/constriction_index");
+            MirrorParameterBinding(OwnerField(tractPath, "constriction_diameter"), $"/acoustic/paths/{primaryPathIndex}/area/constriction_diameter");
+            MirrorParameterBinding(OwnerField(tractPath, "lip_opening"), $"/acoustic/paths/{primaryPathIndex}/area/lip_opening");
 
             var sourceNames = new List<string>();
             var branchNames = new List<string>();
             var radiationNames = new List<string>();
+            var terminalNames = new List<string>();
 
             var sourceName = string.IsNullOrWhiteSpace(tract.Glottis?.Name) ? $"{prefix}_source" : $"{prefix}_{tract.Glottis!.Name}";
             var source = new AcousticSourcePort(
@@ -1264,6 +1323,21 @@ public static class PatchScript
                 tract.GlottalReflection));
             MirrorParameterBinding(OwnerField(tractPath, "glottal_reflection"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/reflection");
             sourceNames.Add(sourceName);
+
+            for (var section = 1; section < Math.Max(2, tract.Sections - 1); section++)
+            {
+                var position = section / (float)Math.Max(1, tract.Sections - 1);
+                var terminal = new AcousticTerminal(
+                    $"{prefix}_area_{section}",
+                    primaryPathName,
+                    position,
+                    AcousticTerminalKind.Junction,
+                    "",
+                    1,
+                    0);
+                AddAcousticTerminalRecord(terminal);
+                terminalNames.Add(terminal.Name);
+            }
 
             if (tract.Injection is { } injection)
             {
@@ -1388,7 +1462,8 @@ public static class PatchScript
                 clockName,
                 sourceNames,
                 branchNames,
-                radiationNames);
+                radiationNames,
+                terminalNames);
             var graphNetwork = ExpandNetworkGraphSugar(network);
             AddAcousticNetworkRecord(graphNetwork);
             return graphNetwork;

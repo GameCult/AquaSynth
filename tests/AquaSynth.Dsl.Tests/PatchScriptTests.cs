@@ -628,7 +628,10 @@ public sealed class PatchScriptTests
             Assert.NotEmpty(patch.NasalBranches);
             Assert.NotEmpty(patch.TractMotions);
             Assert.Equal(TractPropagationMode.Graph, voice.Tract.Propagation);
+            Assert.Contains(patch.AcousticPaths, path => path.Name == "voices_0_oral" && path.AreaControl is not null);
+            Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
             Assert.Contains("acoustic_graph_radiated", export.Source);
+            Assert.Contains("graph_terminal_area_voices_0_area_", export.Source);
             Assert.DoesNotContain("wg_diameter_target_", export.Source);
             Assert.NotEmpty(fixture.ReferenceFeatures);
         }

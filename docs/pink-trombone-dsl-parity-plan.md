@@ -214,10 +214,10 @@ question is whether graph-authored PT compatibility can beat the current weak
 
 The parity report now renders the graph lane only. The latest static fixture
 evidence is useful instead of decorative: open/front/nasal/ma/sibilant/closure
-cosine is 0.6015/0.6358/0.6851/0.5988/0.3836/0.4606. The useful levers so far
+cosine is 0.6252/0.6576/0.6893/0.6550/0.4166/0.5554. The useful levers so far
 are source semantics, radiation impedance, terminal-specific admittance,
-frication injection, and cutting stale first-frame morphology from generated
-graph paths.
+frication injection, cutting stale first-frame morphology from generated graph
+paths, and live path-area control at graph sample points.
 
 The nasal branch pressure exposed the next graph-law issue. The graph now uses
 terminal-specific admittance in connection pressure instead of collapsing every
@@ -231,6 +231,13 @@ not restore oral vowel RMS. The internal-node scatter fix made unconnected
 injection/source terminals transmit pressure between adjacent segments instead
 of acting as dead boundaries; latest utterance cosine is `mama` 0.3365, `papa`
 0.8264, and `thrombosis` 0.3874.
+
+Live graph morphology now has a path-level owner. `AcousticPath.AreaControl`
+turns tongue, constriction, and lip controls into live diameter/area expressions
+at generated graph terminals, and generated `tract propagation=graph` paths
+insert neutral area terminals along the oral tract so those live areas actually
+scatter waves. This is still sampled continuous morphology, not a resurrection
+of PT's fixed cell module.
 
 Frication also had a low-level ownership bug: generated graph `TurbulenceJet`
 ports were using burst as source pressure, so sustained sibilants were choked
