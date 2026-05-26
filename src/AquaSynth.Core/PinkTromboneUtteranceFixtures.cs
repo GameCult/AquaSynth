@@ -233,23 +233,6 @@ public static class PinkTromboneUtteranceFixtures
                 (1.02f, A with { Intensity = 0.46f }, "fade")),
             ["p", "a", "p", "a"]),
         new(
-            "lulek",
-            "lulek",
-            1.22f,
-            Points(
-                (0.00f, U with { Intensity = 0.58f }, "u lead-in"),
-                (0.08f, L, "l onset"),
-                (0.14f, U, "u"),
-                (0.42f, U, "u hold"),
-                (0.50f, L with { Frequency = 138 }, "l"),
-                (0.58f, E with { Frequency = 142, TongueDiameter = 1.2f }, "e"),
-                (0.88f, E with { Frequency = 142, TongueDiameter = 1.2f }, "e hold"),
-                (0.99f, KClosure, "k closure"),
-                (1.055f, KClosure, "k pressure"),
-                (1.067f, KRelease, "k release"),
-                (1.22f, KRelease with { Intensity = 0.02f, Turbulence = 0.08f }, "stop")),
-            ["l", "u", "l", "e", "k"]),
-        new(
             "thrombosis",
             "thrombosis",
             1.72f,

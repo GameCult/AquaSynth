@@ -112,6 +112,10 @@ hand-rolled approximation. Reference WAVs written before
 `20260526T211902375` were produced by the old approximation and are invalid for
 parity golf.
 
+The accepted utterance curriculum is intentionally small: `mama`, `papa`, and
+`thrombosis`. `lulek` was cut after listening because its control sketch was
+teaching a bad artifact rather than useful Pink Trombone capability.
+
 ## Current Parity Rung
 
 The current committed rung is an expressive tract voice, not exact Pink
@@ -142,6 +146,9 @@ Trombone anatomy:
 - waveguide lowering now defaults to an acoustic unit-delay compiled grid from
   physical tract length, currently turning a 17 cm oral tract into 22 compiled
   sections at the 44.1 kHz target instead of treating PT's 44 cells as anatomy.
+- accepted utterance parity lowers the surviving PT control-point sketches into
+  Faust `age` curves over ordinary `/pink/...` parameters and compares the
+  continuous Aqua waveguide render against the source-ported PT renderer.
 - `substeps` is now legacy waveguide clock pressure. Current Faust lowering
   consumes it through drive/loss scaling, but the coherent target is
   fractional-delay propagation from physical tract length and wave speed.
