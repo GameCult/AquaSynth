@@ -635,7 +635,12 @@ public static class PatchScript
             var injection = ParseTractInjectionReference(fields, ownerPath, line);
             var nasal = ParseNasalBranchReference(fields, ownerPath, line);
             var motion = ParseTractMotionReference(fields, ownerPath, line);
-            var sections = GetBoundInt(fields, line, areaFunction?.Sections ?? 44, OwnerField(ownerPath, "tract/sections"), "sections", "cells");
+            var propagation = ParseTractPropagationMode(GetAny(fields, ["propagation", "model"], "resonator"), line);
+            var originalSections = areaFunction?.Sections ?? 44;
+            var defaultSections = propagation == TractPropagationMode.Waveguide && areaFunction is not null && !HasAny(fields, "sections", "cells")
+                ? areaFunction.AcousticUnitDelaySections(44100, 343, 4)
+                : originalSections;
+            var sections = GetBoundInt(fields, line, defaultSections, OwnerField(ownerPath, "tract/sections"), "sections", "cells");
             if (sections < 4)
             {
                 throw new PatchScriptException(line, "tract sections must be at least 4");
@@ -643,11 +648,19 @@ public static class PatchScript
             areaFunction = areaFunction is not null && areaFunction.Sections != sections
                 ? areaFunction.Resample(sections)
                 : areaFunction;
-            var noseSections = GetBoundInt(fields, line, nasal?.AreaFunction?.Sections ?? 28, OwnerField(ownerPath, "tract/nose_sections"), "nose_sections", "nose_cells");
+            var indexScale = originalSections <= 0 ? 1 : sections / (float)originalSections;
+            var defaultNoseSections = propagation == TractPropagationMode.Waveguide && nasal?.AreaFunction is { } nasalArea && !HasAny(fields, "nose_sections", "nose_cells")
+                ? nasalArea.AcousticUnitDelaySections(44100, 343, 1)
+                : nasal?.AreaFunction?.Sections ?? 28;
+            var noseSections = GetBoundInt(fields, line, defaultNoseSections, OwnerField(ownerPath, "tract/nose_sections"), "nose_sections", "nose_cells");
             if (noseSections < 0)
             {
                 throw new PatchScriptException(line, "tract nose_sections must be non-negative");
             }
+            nasal = ResampleNasalBranch(nasal, noseSections, indexScale);
+
+            var tongueIndex = GetBoundFloat(fields, line, 12.9f, OwnerField(ownerPath, "tract/tongue_index"), "tongue_index", "tongue", "ti");
+            var constrictionIndex = GetBoundFloat(fields, line, injection?.Position ?? 32, OwnerField(ownerPath, "tract/constriction_index"), "constriction_index", "ci");
 
             return voice with
             {
@@ -656,10 +669,10 @@ public static class PatchScript
                     noseSections,
                     GetBoundFloat(fields, line, glottis?.Intensity ?? 0.72f, OwnerField(ownerPath, "tract/intensity"), "intensity", "pressure"),
                     GetBoundFloat(fields, line, glottis?.Tenseness ?? 0.6f, OwnerField(ownerPath, "tract/tenseness"), "tenseness", "tense"),
-                    GetBoundFloat(fields, line, 12.9f, OwnerField(ownerPath, "tract/tongue_index"), "tongue_index", "tongue", "ti"),
+                    tongueIndex,
                     GetBoundFloat(fields, line, 2.43f, OwnerField(ownerPath, "tract/tongue_diameter"), "tongue_diameter", "td"),
                     GetBoundFloat(fields, line, 0.01f, OwnerField(ownerPath, "tract/velum"), "velum", "nose", "nasal"),
-                    GetBoundFloat(fields, line, injection?.Position ?? 32, OwnerField(ownerPath, "tract/constriction_index"), "constriction_index", "ci"),
+                    constrictionIndex,
                     GetBoundFloat(fields, line, injection?.Diameter ?? 1, OwnerField(ownerPath, "tract/constriction_diameter"), "constriction_diameter", "cd"),
                     GetBoundFloat(fields, line, injection?.Turbulence ?? 0, OwnerField(ownerPath, "tract/turbulence"), "turbulence", "frication"),
                     GetBoundFloat(fields, line, 1.5f, OwnerField(ownerPath, "tract/lip_opening"), "lip", "lip_opening", "mouth"),
@@ -670,9 +683,27 @@ public static class PatchScript
                     injection,
                     nasal,
                     motion,
-                    ParseTractPropagationMode(GetAny(fields, ["propagation", "model"], "resonator"), line),
+                    propagation,
                     GetBoundFloat(fields, line, 0.999f, OwnerField(ownerPath, "tract/waveguide_loss"), "waveguide_loss", "loss"),
-                    GetBoundInt(fields, line, 1, OwnerField(ownerPath, "tract/substeps"), "substeps", "steps"))
+                    GetBoundInt(fields, line, 1, OwnerField(ownerPath, "tract/substeps"), "substeps", "steps"),
+                    indexScale)
+            };
+        }
+
+        private static NasalBranch? ResampleNasalBranch(NasalBranch? nasal, int noseSections, float oralIndexScale)
+        {
+            if (nasal is null)
+            {
+                return null;
+            }
+
+            var areaFunction = nasal.AreaFunction is { } shape && shape.Sections != noseSections && noseSections > 0
+                ? shape.Resample(noseSections)
+                : nasal.AreaFunction;
+            return nasal with
+            {
+                AreaFunction = areaFunction,
+                JunctionIndex = Math.Max(0, (int)MathF.Round(nasal.JunctionIndex * oralIndexScale, MidpointRounding.AwayFromZero))
             };
         }
 

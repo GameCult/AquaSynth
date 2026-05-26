@@ -115,6 +115,9 @@ Trombone anatomy:
   pressure from obstruction history.
 - waveguide lowering derives live per-section diameter targets, areas, and
   reflection coefficients from shape and gesture controls.
+- waveguide lowering now defaults to an acoustic unit-delay compiled grid from
+  physical tract length, currently turning a 17 cm oral tract into 22 compiled
+  sections at the 44.1 kHz target instead of treating PT's 44 cells as anatomy.
 - `substeps` is now legacy waveguide clock pressure. Current Faust lowering
   consumes it through drive/loss scaling, but the coherent target is
   fractional-delay propagation from physical tract length and wave speed.
@@ -126,12 +129,13 @@ Trombone anatomy:
 - `PinkTromboneLogMelParityTests` renders Aqua waveguide candidates,
   writes listening WAV/report artifacts under
   `artifacts/parity/pink-trombone-logmel/`, and reports the current waveguide
-  baseline: open vowel cosine 0.5578, front vowel 0.5368, nasal 0.4299,
-  sibilant 0.2852, closure-release 0.1147.
+  baseline: open vowel cosine 0.6143, front vowel 0.6349, nasal 0.5425,
+  sibilant 0.3744, closure-release -0.0820.
 - Waveguide lowering now uses one Faust feedback component
-  `wg_loop ~ si.bus(...)` for the full 44-section oral tract and 28-section
-  nasal branch. The previous scalar named-recursion form was cut because it was
-  the wrong Faust shape.
+  `wg_loop ~ si.bus(...)` for the compiled oral tract and nasal branch. The
+  previous scalar named-recursion form was cut because it was the wrong Faust
+  shape, and the PT 44/28 grid is now reference pressure rather than the
+  default emitted topology.
 - The proxy script parses and emits Faust with live controls, but its missing
   features explicitly name the waveguide authorities AquaSynth does not own.
 - `tools/vocal-tract-playground` exposes the same control surface for fast

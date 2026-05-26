@@ -408,10 +408,11 @@ public static class FaustEmitter
         var constrictionIndexPath = OwnerField(tractPath, "constriction_index");
         var constrictionDiameterPath = OwnerField(tractPath, "constriction_diameter");
         var lipOpeningPath = OwnerField(tractPath, "lip_opening");
-        var tongueIndexRaw = parameters.Expression(tongueIndexPath, tract.TongueIndex);
+        var indexScale = F(tract.IndexScale);
+        var tongueIndexRaw = ScaleIndex(parameters.Expression(tongueIndexPath, tract.TongueIndex));
         var tongueDiameterRaw = parameters.Expression(tongueDiameterPath, tract.TongueDiameter);
         var velumRaw = $"clip01(({parameters.Expression(velumPath, tract.Velum)} - 0.01) / 0.39)";
-        var constrictionIndexRaw = parameters.Expression(constrictionIndexPath, tract.ConstrictionIndex);
+        var constrictionIndexRaw = ScaleIndex(parameters.Expression(constrictionIndexPath, tract.ConstrictionIndex));
         var constrictionDiameterRaw = parameters.Expression(constrictionDiameterPath, tract.ConstrictionDiameter);
         var tongueIndexValue = SmoothControl(motion, parameters, tongueIndexPath, diameterSlew, tongueIndexRaw);
         var tongueDiameterValue = SmoothControl(motion, parameters, tongueDiameterPath, diameterSlew, tongueDiameterRaw);
@@ -434,13 +435,13 @@ public static class FaustEmitter
         var glottalSkew = $"clip01({parameters.Expression(OwnerField(tractPath, "glottis/skew"), glottis?.Skew ?? 0.42f)})";
         var injectionPositionPath = OwnerField(tractPath, "injection/position");
         var injectionDiameterPath = OwnerField(tractPath, "injection/diameter");
-        var injectionPositionRaw = parameters.Expression(injectionPositionPath, injection?.Position ?? tract.ConstrictionIndex);
+        var injectionPositionRaw = ScaleIndex(parameters.Expression(injectionPositionPath, injection?.Position ?? tract.ConstrictionIndex));
         var injectionDiameterRaw = parameters.Expression(injectionDiameterPath, injection?.Diameter ?? tract.ConstrictionDiameter);
         var injectionPositionValue = SmoothControl(motion, parameters, injectionPositionPath, constrictionSlew, injectionPositionRaw);
         var injectionDiameterValue = SmoothControl(motion, parameters, injectionDiameterPath, constrictionSlew, injectionDiameterRaw);
         var injectionTurbulence = $"clip01({parameters.Expression(OwnerField(tractPath, "injection/turbulence"), injection?.Turbulence ?? tract.Turbulence)})";
         var injectionBurst = $"clip01({parameters.Expression(OwnerField(tractPath, "injection/burst"), injection?.Burst ?? 0)})";
-        var injectionWidth = $"max(0.05, {parameters.Expression(OwnerField(tractPath, "injection/width"), injection?.Width ?? 1)})";
+        var injectionWidth = $"max(1.0, {ScaleIndex(parameters.Expression(OwnerField(tractPath, "injection/width"), injection?.Width ?? 1))})";
 
         source.AppendLine($"{name}_tract_phase = os.phasor(1.0, {frequency});");
         source.AppendLine($"{name}_tract_tongue_index = {tongueIndexValue};");
@@ -522,6 +523,9 @@ public static class FaustEmitter
         }
         source.AppendLine($"{name}_tract_radiated = ({name}_tract_oral * (0.65 + 0.35 * abs({lipReflection})) + {name}_tract_nose);");
         return $"{name}_tract_radiated";
+
+        string ScaleIndex(string expression) =>
+            tract.IndexScale == 1 ? expression : $"(({expression}) * {indexScale})";
     }
 
     private static string SmoothControl(TractMotion? motion, ParameterMap parameters, string fieldPath, string rate, string expression) =>

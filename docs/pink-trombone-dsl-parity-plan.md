@@ -124,10 +124,14 @@ machine.
 The waveguide backend now uses a Faust-friendly state owner:
 `wg_loop ~ si.bus(...)`. One feedback component owns the right/left oral and
 nasal traveling-wave state instead of hundreds of named recursive equations.
-The full 44-section oral tract plus 28-section nasal branch renders through
-Faust. Current waveguide baseline: open vowel 0.5578, front vowel 0.5368,
-nasal 0.4299, sibilant 0.2852, closure-release 0.1147. Those are pressure
-readings, not parity, but closure-release is no longer anti-correlated.
+The backend now resamples continuous geometry to an acoustic unit-delay grid
+when a waveguide tract does not explicitly request `sections=...`; a 17 cm oral
+tract renders as 22 compiled sections at the current 44.1 kHz target instead of
+leaking PT's 44 half-sample cells into Aqua as anatomy. Current waveguide
+baseline: open vowel 0.6143, front vowel 0.6349, nasal 0.5425, sibilant
+0.3744, closure-release -0.0820. Those are pressure readings, not parity. The
+vowel/nasal/sibilant cases now respond to the physical clock correction and
+runtime index scaling; the closure fixture remains an exposed failure.
 
 The continuous morphology cut has started. `tract_shape length_cm=...` is now
 physical geometry, not just a list length. `TractAreaFunction` can interpolate
@@ -140,9 +144,11 @@ output sample look like a discretization strategy for a half-sample cell grid,
 not a reusable Aqua language concept.
 
 Exact Pink Trombone timing still needs pressure, but the next backend cut is no
-longer "add more substeps." It is a fractional-delay waveguide lowering whose
-clock comes from physical length, propagation speed, and sample rate while
-morphology moves through runtime controls without recompiling the patch.
+longer "add more substeps." The current Faust-friendly compromise chooses a
+unit-delay scattering grid from physical length. The deeper target remains
+fractional-delay waveguide lowering whose clock comes from physical length,
+propagation speed, and sample rate while morphology moves through runtime
+controls without recompiling the patch.
 
 ## Cut Line
 

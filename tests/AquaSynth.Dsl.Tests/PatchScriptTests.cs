@@ -91,7 +91,7 @@ public sealed class PatchScriptTests
             tract_injection name=sibilant position=6 diameter=.45 turbulence=.8 burst=.3 width=.8
             nasal_branch name=nose junction=3 velum=.2 diameters=.01,.6,1.2,1.4
             tract_motion name=quick diameter_slew=20 constriction_slew=30 velum_slew=12 obstruction_threshold=.08
-            tract shape=human glottis=modal injection=sibilant nasal_branch=nose motion=quick propagation=waveguide waveguide_loss=.998 substeps=2 freq=140 tongue_index=4 tongue_diameter=1.4 velum=.2
+            tract shape=human glottis=modal injection=sibilant nasal_branch=nose motion=quick propagation=waveguide sections=8 nose_sections=4 waveguide_loss=.998 substeps=2 freq=140 tongue_index=4 tongue_diameter=1.4 velum=.2
             """);
 
         var shape = Assert.Single(patch.TractShapes);
@@ -205,6 +205,35 @@ public sealed class PatchScriptTests
         Assert.Equal(9, tract.AreaFunction.Sections);
         Assert.Equal(17, tract.AreaFunction.LengthCentimeters);
         Assert.Equal(shape.AreaFunction.DiameterAt(.375f), tract.AreaFunction.DiameterAt(.375f), 5);
+    }
+
+    [Fact]
+    public void WaveguideTractDefaultsToAcousticUnitDelayGrid()
+    {
+        var patch = PatchScript.Parse("""
+            tract_shape name=human length_cm=17 diameters=.6,.6,.8,1,1.2,1.4,1.5,1.5,1.5,1.5,1.4,1.2,1,.8,.7,.6,.6,.8,1,1.2,1.4,1.5,1.5,1.5,1.5,1.4,1.2,1,.8,.7,.6,.6,.8,1,1.2,1.4,1.5,1.5,1.5,1.5,1.4,1.2,1,.8
+            nasal_branch name=nose length_cm=12 junction=17 diameters=.01,.35,.5,.65,.8,.95,1.1,1.25,1.4,1.55,1.7,1.8,1.9,1.9,1.85,1.75,1.65,1.55,1.45,1.35,1.25,1.15,1.05,.95,.85,.75,.65,.55
+            tract_injection name=inj position=32 width=1
+            tract shape=human nasal_branch=nose injection=inj propagation=waveguide tongue_index=12.9 constriction_index=32
+            """);
+
+        var tract = Assert.Single(patch.Voices).Tract;
+
+        Assert.NotNull(tract?.AreaFunction);
+        Assert.Equal(22, tract.Sections);
+        Assert.Equal(15, tract.NoseSections);
+        Assert.Equal(22, tract.AreaFunction.Sections);
+        Assert.Equal(15, tract.Nasal?.AreaFunction?.Sections);
+        Assert.Equal(9, tract.Nasal?.JunctionIndex);
+        Assert.Equal(.5f, tract.IndexScale, 2);
+        Assert.Equal(12.9f, tract.TongueIndex, 2);
+        Assert.Equal(32, tract.ConstrictionIndex, 2);
+        Assert.Equal(32, tract.Injection?.Position);
+        Assert.Equal(1, tract.Injection?.Width);
+
+        var faust = FaustEmitter.Emit(patch, new FaustExportOptions("unit_delay_grid")).Source;
+        Assert.Contains("_tract_tongue_index = ((12.9) * 0.5);", faust);
+        Assert.Contains("_tract_injection_index = ((32) * 0.5);", faust);
     }
 
     [Fact]

@@ -151,6 +151,16 @@ public sealed record TractAreaFunction(IReadOnlyList<float> Diameters, float Len
             ? 0
             : SectionLengthMeters / propagationSpeedMetersPerSecond * MathF.Max(0, sampleRate);
 
+    public int AcousticUnitDelaySections(float sampleRate, float propagationSpeedMetersPerSecond = 343, int minimumSections = 1)
+    {
+        if (propagationSpeedMetersPerSecond <= 0 || sampleRate <= 0 || LengthMeters <= 0)
+        {
+            return Math.Max(1, minimumSections);
+        }
+
+        return Math.Max(Math.Max(1, minimumSections), (int)MathF.Round(LengthMeters / propagationSpeedMetersPerSecond * sampleRate));
+    }
+
     public IReadOnlyList<float> Areas => Diameters.Select(diameter => MathF.Max(0, diameter) * MathF.Max(0, diameter)).ToArray();
 
     public IReadOnlyList<float> ReflectionCoefficients
@@ -312,7 +322,8 @@ public sealed record VocalTract(
     TractMotion? Motion = null,
     TractPropagationMode Propagation = TractPropagationMode.Resonator,
     float WaveguideLoss = 0.999f,
-    int Substeps = 1);
+    int Substeps = 1,
+    float IndexScale = 1);
 
 public sealed record PatchParameter(
     string Path,

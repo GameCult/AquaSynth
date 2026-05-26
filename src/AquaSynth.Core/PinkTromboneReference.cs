@@ -73,14 +73,14 @@ public static class PinkTromboneReference
                 new("tract_shape_motion", "tract_motion slew semantics", "AquaSynth can author tract control slew and obstruction thresholds for moving diameter targets."),
                 new("diameter_authority", "dynamic waveguide section diameters", "Waveguide lowering derives live per-section diameter targets before recalculating section areas and reflection coefficients."),
                 new("closure_transients", "obstruction-history burst", "Waveguide lowering derives burst pressure from prior obstruction state and current opening."),
-                new("tract_sample_rate", "substeps field", "AquaSynth can author waveguide substep count and lowering scales drive/loss by that clock intent."),
+                new("tract_sample_rate", "physical-length acoustic grid", "Waveguide lowering can choose a compiled scattering grid from tract length and map runtime index controls onto it; `substeps` remains legacy clock pressure rather than the preferred surface."),
                 new("runtime_controls", "/pink/frequency,/pink/intensity,/pink/tenseness,/pink/tongue/index,/pink/tongue/diameter,/pink/velum,/pink/turbulence", "AquaSynth can expose stable runtime parameter paths."),
                 new("glottal_pitch_pressure_proxy", "tract LF-style source", "AquaSynth can drive pitch/loudness-like controls without recompiling."),
                 new("turbulence_proxy", "position-aware frication controls", "The tract voice has constriction index/diameter and turbulence controls."),
                 new("nasal_proxy", "velum-controlled nasal resonator", "The tract voice has a velum/nasal output lane.")
             ],
             [
-                new("exact_twice_rate_state_update", "two recursive tract state updates per audio sample", "AquaSynth records and uses substep intent, but Faust lowering still approximates intra-sample state updates with drive/loss scaling."),
+                new("exact_twice_rate_state_update", "two recursive tract state updates per audio sample", "AquaSynth now chooses a physical unit-delay grid for Faust lowering, but it does not yet implement true fractional-delay or twice-rate PT state updates."),
                 new("lf_glottal_exactness", "Pink Trombone LF-style coefficients", "The proxy uses an LF-like glottal source but does not yet match Pink Trombone coefficient updates exactly.")
             ],
             "This is a deliberately non-passing rebuild: it keeps the current source-filter proxy parseable while naming the tract-DSP authority AquaSynth lacks.");
