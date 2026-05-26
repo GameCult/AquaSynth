@@ -700,20 +700,23 @@ public static class FaustEmitter
 
             var safeConnection = SafeIdentifier(connection.Name);
             var connectionPressure = ConnectionPressureExpression(name, connection, ports);
+            var connectionMaxArea = MaxExpression(ports.Select(item => ConnectionPortAreaExpression(name, item.terminal, item.nodePortCount)));
             source.AppendLine($"    {name}_graph_connection_pressure_{safeConnection} = {connectionPressure};");
-            foreach (var (node, _, port, _) in ports)
+            foreach (var (node, terminal, port, nodePortCount) in ports)
             {
                 var incoming = GraphIncoming(name, port);
                 var outgoing = GraphOutgoing(name, port);
                 var sourceInjection = NodeSourceExpression(name, node, sources);
                 var portCoupling = $"{name}_graph_connection_coupling_{safeConnection}";
+                var portArea = ConnectionPortAreaExpression(name, terminal, nodePortCount);
+                var portAdmittance = $"(0.6 + 0.4 * sqrt(clip01({portArea} / max(0.000001, {connectionMaxArea}))))";
                 var bypassInput = ports.Count == 1
                     ? incoming
                     : $"(({string.Join(" + ", ports.Where(item => item.port != port).Select(item => GraphIncoming(name, item.port)))}) / {F(ports.Count - 1)})";
                 var scattered = connection.Law == AcousticConnectionLaw.Bypass
                     ? bypassInput
                     : $"({name}_graph_connection_pressure_{safeConnection} - {incoming})";
-                source.AppendLine($"    {outgoing} = (({scattered}) * ({portCoupling}) + {incoming} * (1.0 - ({portCoupling})) + ({sourceInjection}) / {F(Math.Max(1, incident[node.Name].Count))}) * {name}_graph_connection_loss_{safeConnection};");
+                source.AppendLine($"    {outgoing} = (({scattered}) * ({portCoupling}) * {portAdmittance} + {incoming} * (1.0 - ({portCoupling}) * {portAdmittance}) + ({sourceInjection}) / {F(Math.Max(1, incident[node.Name].Count))}) * {name}_graph_connection_loss_{safeConnection};");
             }
         }
 
@@ -1417,6 +1420,23 @@ public static class FaustEmitter
 
     private static string ConnectionPortAreaExpression(string voiceName, AcousticTerminal terminal, int nodePortCount) =>
         $"({voiceName}_graph_terminal_area_{SafeIdentifier(terminal.Name)} / {F(Math.Max(1, nodePortCount))})";
+
+    private static string MaxExpression(IEnumerable<string> expressions)
+    {
+        using var enumerator = expressions.GetEnumerator();
+        if (!enumerator.MoveNext())
+        {
+            return "0.000001";
+        }
+
+        var expression = enumerator.Current;
+        while (enumerator.MoveNext())
+        {
+            expression = $"max({expression}, {enumerator.Current})";
+        }
+
+        return expression;
+    }
 
     private static string NodeSourceExpression(
         string voiceName,

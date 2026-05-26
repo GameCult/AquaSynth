@@ -226,16 +226,17 @@ the generated graph path did not materially move the report; the useful levers
 so far are source semantics, radiation impedance, and transient/frication
 injection.
 
-The nasal branch pressure exposed a real graph-law blocker. The graph now uses
+The nasal branch pressure exposed the next graph-law issue. The graph now uses
 terminal-specific admittance in connection pressure instead of collapsing every
-co-located terminal into one node area, but log-mel parity did not move. Two
-tempting compensators failed: per-port outgoing coupling made supposedly oral
-fixtures nearly silent, and squaring the generated velum opening reduced nasal
-leakage while revealing that oral radiation was still too weak. The next
-architectural cut is not a gain trim. Closed and partially open side branches
-need a power/flow-consistent port law that separates junction admittance from
-outgoing wave normalization, so a weak nasal port can stop drawing/radiating
-energy without becoming the accidental loudness path for the oral tract.
+co-located terminal into one node area, and branch output uses a floored
+area-ratio pressure normalization so weak side ports no longer receive full
+junction pressure. That moved nasal graph cosine to 0.5159 and RMS ratio to
+1.4815 while keeping open/front graph cosine slightly above the waveguide lane
+at 0.6202/0.6417. Two tempting compensators were cut: raw per-port outgoing
+coupling made supposedly oral fixtures nearly silent, and lip/beak radiation
+gain did not restore oral vowel RMS. The remaining issue is oral energy: the
+side-branch law is less wrong, but the graph still needs better power/flow
+normalization before RMS parity becomes honest.
 
 ## Cut Line
 
