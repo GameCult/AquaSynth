@@ -190,6 +190,14 @@ function createTractSynth(sampleRate) {
   let transient = 0;
   let dcBlockX = 0;
   let dcBlockY = 0;
+  let low1 = 0;
+  let low2 = 0;
+  let mid1 = 0;
+  let mid2 = 0;
+  let high1 = 0;
+  let high2 = 0;
+  let nasal1 = 0;
+  let nasal2 = 0;
 
   initRest();
   updateNose(0.01);
@@ -265,7 +273,7 @@ function createTractSynth(sampleRate) {
     for (let i = 1; i < sections; i++) {
       const a0 = Math.max(1e-6, diameter[i - 1] * diameter[i - 1]);
       const a1 = Math.max(1e-6, diameter[i] * diameter[i]);
-      reflection[i] = (a0 - a1) / (a0 + a1);
+      reflection[i] = ((a0 - a1) / (a0 + a1)) * 0.74;
     }
   }
 
@@ -280,7 +288,7 @@ function createTractSynth(sampleRate) {
       : -0.28 * Math.sin(Math.PI * (t - openPhase) / (1 - openPhase));
     const harmonicBite = (0.12 + tenseness * 0.62) * Math.sin(4 * Math.PI * t);
     const aspiration = rand() * s.intensity * (1 - Math.sqrt(tenseness)) * 0.18;
-    return (pulse - harmonicBite + aspiration) * s.intensity * (0.45 + 0.75 * Math.pow(tenseness, 0.35));
+    return (pulse - harmonicBite * 0.72 + aspiration) * s.intensity * (0.16 + 0.34 * Math.pow(tenseness, 0.35));
   }
 
   function injectTurbulence(s) {
@@ -303,8 +311,8 @@ function createTractSynth(sampleRate) {
 
   function step(input, s) {
     injectTurbulence(s);
-    junctionRight[0] = left[0] * s.glottalReflection + input;
-    junctionLeft[sections] = right[sections - 1] * s.lipReflection;
+    junctionRight[0] = left[0] * s.glottalReflection * 0.72 + input;
+    junctionLeft[sections] = right[sections - 1] * s.lipReflection * 0.72;
 
     for (let i = 1; i < sections; i++) {
       const w = reflection[i] * (right[i - 1] + left[i]);
@@ -325,20 +333,20 @@ function createTractSynth(sampleRate) {
     noseJunctionRight[0] = rn * noseLeft[0] + (1 + rn) * (left[noseStart] + right[noseStart - 1]);
 
     for (let i = 0; i < sections; i++) {
-      right[i] = junctionRight[i] * 0.999;
-      left[i] = junctionLeft[i + 1] * 0.999;
+      right[i] = junctionRight[i] * 0.985;
+      left[i] = junctionLeft[i + 1] * 0.985;
     }
     const lipOutput = right[sections - 1];
 
-    noseJunctionLeft[noseSections] = noseRight[noseSections - 1] * s.lipReflection;
+    noseJunctionLeft[noseSections] = noseRight[noseSections - 1] * s.lipReflection * 0.68;
     for (let i = 1; i < noseSections; i++) {
       const w = noseReflection[i] * (noseRight[i - 1] + noseLeft[i]);
       noseJunctionRight[i] = noseRight[i - 1] - w;
       noseJunctionLeft[i] = noseLeft[i] + w;
     }
     for (let i = 0; i < noseSections; i++) {
-      noseRight[i] = noseJunctionRight[i] * 0.999;
-      noseLeft[i] = noseJunctionLeft[i + 1] * 0.999;
+      noseRight[i] = noseJunctionRight[i] * 0.982;
+      noseLeft[i] = noseJunctionLeft[i + 1] * 0.982;
     }
 
     return lipOutput * (0.85 + s.lipOpening * 0.28) + noseRight[noseSections - 1] * Math.max(0, Math.min(1, s.velum / 0.4));
@@ -356,7 +364,35 @@ function createTractSynth(sampleRate) {
     const blocked = output - dcBlockX + 0.995 * dcBlockY;
     dcBlockX = output;
     dcBlockY = blocked;
-    return Math.tanh(blocked * 1.9);
+    return Math.tanh(blocked * 0.85);
+  }
+
+  function resonator(input, hz, radius, a, b) {
+    const omega = 2 * Math.PI * Math.max(40, Math.min(sampleRate * 0.45, hz)) / sampleRate;
+    const next = input + 2 * radius * Math.cos(omega) * a - radius * radius * b;
+    return [next, a];
+  }
+
+  function tractColor(input, s) {
+    const tongue = Math.max(0, Math.min(1, (s.tongueIndex - 8) / 26));
+    const tongueOpen = Math.max(0, Math.min(1, s.tongueDiameter / 3.4));
+    const lip = Math.max(0, Math.min(1, (s.lipOpening - 0.35) / 2.15));
+    const constrict = Math.max(0, Math.min(1, (1.2 - s.constrictionDiameter) / 1.2));
+    const velum = Math.max(0, Math.min(1, (s.velum - 0.01) / 0.39));
+
+    const f1 = 260 + tongueOpen * 520 - (1 - lip) * 140 - constrict * 90;
+    const f2 = 760 + tongue * 1500 + (1 - tongueOpen) * 380 - (1 - lip) * 260;
+    const f3 = 1800 + tongue * 1100 + constrict * 1600;
+    const nasalF = 240 + velum * 460;
+
+    [low1, low2] = resonator(input, f1, 0.985, low1, low2);
+    [mid1, mid2] = resonator(input, f2, 0.972, mid1, mid2);
+    [high1, high2] = resonator(input, f3, 0.948, high1, high2);
+    [nasal1, nasal2] = resonator(input, nasalF, 0.986, nasal1, nasal2);
+
+    const vowel = low1 * (0.22 + tongueOpen * 0.16) + mid1 * (0.14 + tongue * 0.16) + high1 * constrict * 0.06;
+    const nasal = nasal1 * velum * 0.16;
+    return input * 0.22 + vowel + nasal;
   }
 
   return {
@@ -371,7 +407,7 @@ function createTractSynth(sampleRate) {
         const g = glottis(s) + rand() * transient;
         const a = step(g, s);
         const b = step(g, s);
-        output[i] = condition((a + b) * 0.72);
+        output[i] = condition(tractColor((a + b) * 0.18, s));
       }
     }
   };
@@ -546,3 +582,9 @@ panicButton.addEventListener("click", stopAudio);
 makeControls();
 cancelAnimationFrame(animationFrame);
 draw();
+
+window.AquaTractPlayground = {
+  state,
+  presets,
+  createTractSynth
+};
