@@ -183,7 +183,9 @@ public static class FaustEmitter
         var dutyExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "osc/duty"), voice.Oscillator.Duty)} + {parameters.Expression(OwnerField(ownerPath, "duty/ramp"), voice.Duty.RampPerSecond)} * age + patch_mod_duty + {duty})";
         var fmIndex = $"max(0.0, {parameters.Expression(OwnerField(ownerPath, "fm/index"), voice.Fm.Index)} + patch_mod_fm_index + {fmIndexMod}) * {FmDecay(parameters.Expression(OwnerField(ownerPath, "fm/decay"), voice.Fm.IndexDecaySeconds), voice.Fm.IndexDecaySeconds, parameters.IsBound(OwnerField(ownerPath, "fm/decay")))}";
         var oscillator = oscillatorOverride ??
-                         (voice.Tract is { } tract
+                         (voice.Tract is { Propagation: TractPropagationMode.Graph } && voice.AcousticNetwork is { } tractGraph
+                             ? AcousticNetworkExpression(source, patch, tractGraph, ownerPath, name, frequency, parameters, warnings)
+                             : voice.Tract is { } tract
                              ? TractExpression(source, tract, ownerPath, name, frequency, noteGate, parameters)
                              : voice.AcousticNetwork is { } acousticNetwork
                              ? AcousticNetworkExpression(source, patch, acousticNetwork, ownerPath, name, frequency, parameters, warnings)

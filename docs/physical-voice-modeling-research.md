@@ -263,4 +263,7 @@ junction, boundary, and radiation roles can inhabit the same anatomical point.
 The remaining limits are now parity and law depth rather than graph ownership:
 connection laws beyond area/pressure/bypass need sharper physical semantics,
 runtime morphology changes still require care around recompilation boundaries,
-and PT-shaped `Voice.Tract` has not yet been demoted to graph sugar.
+and the old PT-shaped `Voice.Tract` renderer remains as a baseline. A tract can
+now opt into graph lowering with `propagation=graph`, which reuses the
+PT-shaped authoring commands while routing audio through the typed acoustic
+network.

@@ -181,8 +181,10 @@ single graph node, so a source can share an anatomical point with a junction or
 boundary without disappearing.
 
 The remaining implementation pressure is now narrower: broaden connection laws
-with sharper physical semantics, demote PT-shaped `Voice.Tract` into graph
-authoring sugar, and run the log-mel parity loop against the graph renderer.
+with sharper physical semantics and run the log-mel parity loop against the
+graph renderer. PT-shaped `tract` authoring can now opt into graph lowering via
+`propagation=graph`; the legacy `propagation=waveguide` lane remains as the
+old parity baseline until the graph renderer wins on evidence.
 
 Authority map for the required rebuild:
 
@@ -207,8 +209,8 @@ Authority map for the required rebuild:
 
 Exact Pink Trombone timing still needs pressure, but the next backend cut is no
 longer "add more substeps." The graph renderer now has fractional-delay clock
-semantics; the remaining parity question is whether PT compatibility commands
-can be lowered into the graph closely enough to beat the current weak
+semantics and a `tract propagation=graph` entry point; the remaining parity
+question is whether graph-authored PT compatibility can beat the current weak
 `Voice.Tract` baseline.
 
 ## Cut Line

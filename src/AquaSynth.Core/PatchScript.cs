@@ -1223,7 +1223,7 @@ public static class PatchScript
             var radiationNames = new List<string>();
 
             var sourceName = string.IsNullOrWhiteSpace(tract.Glottis?.Name) ? $"{prefix}_source" : $"{prefix}_{tract.Glottis!.Name}";
-            AddAcousticSourcePortRecord(new AcousticSourcePort(
+            var source = new AcousticSourcePort(
                 sourceName,
                 primaryPathName,
                 0,
@@ -1231,21 +1231,25 @@ public static class PatchScript
                 tract.Intensity,
                 tract.Tenseness,
                 tract.Glottis?.Skew ?? 0.42f,
-                tract.Glottis?.Aspiration ?? 0.08f));
+                tract.Glottis?.Aspiration ?? 0.08f);
+            AddAcousticSourcePortRecord(source);
+            AddAcousticTerminalRecord(new AcousticTerminal(source.Name, source.Path, source.Position, AcousticTerminalKind.Source, source.Name));
             sourceNames.Add(sourceName);
 
             if (tract.Injection is { } injection)
             {
                 var injectionName = string.IsNullOrWhiteSpace(injection.Name) ? $"{prefix}_injection" : $"{prefix}_{injection.Name}";
-                AddAcousticSourcePortRecord(new AcousticSourcePort(
+                var injectionSource = new AcousticSourcePort(
                     injectionName,
                     primaryPathName,
-                    injection.Position,
+                    NormalizeTractIndex(injection.Position, tract.Sections),
                     AcousticSourceKind.TurbulenceJet,
                     injection.Burst,
                     0,
                     injection.Diameter,
-                    injection.Turbulence));
+                    injection.Turbulence);
+                AddAcousticSourcePortRecord(injectionSource);
+                AddAcousticTerminalRecord(new AcousticTerminal(injectionSource.Name, injectionSource.Path, injectionSource.Position, AcousticTerminalKind.Source, injectionSource.Name));
                 sourceNames.Add(injectionName);
             }
 
@@ -1253,37 +1257,75 @@ public static class PatchScript
             {
                 var nasalPathName = string.IsNullOrWhiteSpace(nasal.Name) ? $"{prefix}_nasal" : $"{prefix}_{nasal.Name}";
                 AddAcousticPathRecord(new AcousticPath(nasalPathName, nasalArea, 343, nasal.Loss));
-                AddAcousticBranchRecord(new AcousticBranch(
+                var branch = new AcousticBranch(
                     nasalPathName,
                     primaryPathName,
-                    nasal.JunctionIndex,
+                    NormalizeTractIndex(nasal.JunctionIndex, tract.Sections),
                     nasalPathName,
                     0,
                     AcousticBranchKind.Nasal,
                     nasal.Velum,
                     1,
-                    true));
-                AddAcousticRadiationPortRecord(new AcousticRadiationPort(
+                    true);
+                AddAcousticBranchRecord(branch);
+                AddAcousticTerminalRecord(new AcousticTerminal(
+                    BranchFromTerminalName(branch),
+                    branch.FromPath,
+                    branch.FromPosition,
+                    AcousticTerminalKind.Junction,
+                    branch.Name,
+                    Math.Max(0, branch.Coupling)));
+                AddAcousticTerminalRecord(new AcousticTerminal(
+                    BranchToTerminalName(branch),
+                    branch.ToPath,
+                    branch.ToPosition,
+                    AcousticTerminalKind.Junction,
+                    branch.Name,
+                    Math.Max(0, branch.Opening)));
+                AddAcousticConnectionRecord(new AcousticConnection(
+                    BranchConnectionName(branch),
+                    [BranchFromTerminalName(branch), BranchToTerminalName(branch)],
+                    AcousticConnectionLaw.AreaScattering,
+                    branch.Coupling));
+                var nasalRadiation = new AcousticRadiationPort(
                     $"{nasalPathName}_radiation",
                     nasalPathName,
                     1,
                     AcousticRadiationKind.Nostril,
                     nasal.Velum,
                     nasal.Reflection,
-                    nasal.Loss));
+                    nasal.Loss);
+                AddAcousticRadiationPortRecord(nasalRadiation);
+                AddAcousticTerminalRecord(new AcousticTerminal(
+                    nasalRadiation.Name,
+                    nasalRadiation.Path,
+                    nasalRadiation.Position,
+                    AcousticTerminalKind.Radiation,
+                    nasalRadiation.Name,
+                    Math.Max(0, nasalRadiation.Opening),
+                    nasalRadiation.Reflection));
                 branchNames.Add(nasalPathName);
                 radiationNames.Add($"{nasalPathName}_radiation");
             }
 
             var lipName = $"{prefix}_lip";
-            AddAcousticRadiationPortRecord(new AcousticRadiationPort(
+            var lip = new AcousticRadiationPort(
                 lipName,
                 primaryPathName,
                 1,
                 AcousticRadiationKind.Lip,
                 tract.LipOpening,
                 tract.LipReflection,
-                1));
+                1);
+            AddAcousticRadiationPortRecord(lip);
+            AddAcousticTerminalRecord(new AcousticTerminal(
+                lip.Name,
+                lip.Path,
+                lip.Position,
+                AcousticTerminalKind.Radiation,
+                lip.Name,
+                Math.Max(0, lip.Opening),
+                lip.Reflection));
             radiationNames.Add(lipName);
 
             var clockName = $"{prefix}_clock";
@@ -1291,6 +1333,8 @@ public static class PatchScript
                 clockName,
                 tract.Propagation == TractPropagationMode.Waveguide
                     ? WaveClockDelayStrategy.UnitGrid
+                    : tract.Propagation == TractPropagationMode.Graph
+                    ? WaveClockDelayStrategy.FractionalThiran
                     : WaveClockDelayStrategy.FractionalLinear));
 
             var network = new AcousticPortNetwork(
@@ -1300,9 +1344,13 @@ public static class PatchScript
                 sourceNames,
                 branchNames,
                 radiationNames);
-            AddAcousticNetworkRecord(network);
-            return network;
+            var graphNetwork = ExpandNetworkGraphSugar(network);
+            AddAcousticNetworkRecord(graphNetwork);
+            return graphNetwork;
         }
+
+        private static float NormalizeTractIndex(float index, int sections) =>
+            sections <= 0 ? 0 : Math.Clamp(index / Math.Max(1, sections - 1), 0, 1);
 
         private void AddModBus(IReadOnlyDictionary<string, string> fields, int line)
         {
@@ -2376,10 +2424,11 @@ public static class PatchScript
         _ => target.ToString().ToLowerInvariant()
     };
 
-    private static TractPropagationMode ParseTractPropagationMode(string value, int line) => value.ToLowerInvariant() switch
+        private static TractPropagationMode ParseTractPropagationMode(string value, int line) => value.ToLowerInvariant() switch
     {
         "resonator" or "proxy" or "formant" => TractPropagationMode.Resonator,
         "waveguide" or "kl" or "kelly-lochbaum" or "kelly_lochbaum" or "tube" => TractPropagationMode.Waveguide,
+        "graph" or "acoustic_graph" or "network" => TractPropagationMode.Graph,
         _ => throw new PatchScriptException(line, $"unknown tract propagation mode `{value}`")
     };
 

@@ -259,6 +259,27 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void TractVoiceCanLowerThroughAcousticGraph()
+    {
+        var patch = PatchScript.Parse("""
+            tract_shape name=human length_cm=17 diameters=.6,.8,1.2,1.5,1.2,.8
+            tract shape=human propagation=graph freq=140 gain=.1 sustain=.2
+            """);
+
+        var voice = Assert.Single(patch.Voices);
+        Assert.Equal(TractPropagationMode.Graph, voice.Tract?.Propagation);
+        var network = Assert.Single(patch.AcousticNetworks);
+        Assert.NotEmpty(network.Terminals);
+        Assert.Contains("voices_0_source", network.Terminals);
+        Assert.Contains("voices_0_lip", network.Terminals);
+
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph"));
+        Assert.Contains("acoustic_graph_radiated", export.Source);
+        Assert.Contains("de.fdelay1a", export.Source);
+        Assert.DoesNotContain("tract_lf", export.Source);
+    }
+
+    [Fact]
     public void TractAreaFunctionOwnsContinuousMorphology()
     {
         var shape = new TractAreaFunction([1, 3, 1], LengthCentimeters: 18);

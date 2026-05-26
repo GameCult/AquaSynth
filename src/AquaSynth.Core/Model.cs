@@ -380,7 +380,8 @@ public sealed record TractInjection(
 public enum TractPropagationMode
 {
     Resonator,
-    Waveguide
+    Waveguide,
+    Graph
 }
 
 public sealed record NasalBranch(
