@@ -223,6 +223,102 @@ public sealed record TractAreaFunction(IReadOnlyList<float> Diameters, float Len
 
 public sealed record TractShape(string Name, TractAreaFunction AreaFunction);
 
+public enum AcousticSourceKind
+{
+    Glottal,
+    Labial,
+    Reed,
+    TurbulenceJet,
+    Click,
+    Synthetic
+}
+
+public enum AcousticBranchKind
+{
+    SideBranch,
+    Nasal,
+    Bronchial,
+    Lateral,
+    Resonator
+}
+
+public enum AcousticRadiationKind
+{
+    Lip,
+    Nostril,
+    Beak,
+    Vent,
+    Membrane
+}
+
+public enum WaveClockDelayStrategy
+{
+    UnitGrid,
+    HalfSampleGrid,
+    FractionalLinear,
+    FractionalLagrange,
+    FractionalThiran,
+    CrossfadedVariable
+}
+
+public sealed record AcousticPath(
+    string Name,
+    TractAreaFunction AreaFunction,
+    float PropagationSpeedMetersPerSecond = 343,
+    float Loss = 0.999f);
+
+public sealed record AcousticSourcePort(
+    string Name,
+    string Path,
+    float Position = 0,
+    AcousticSourceKind Kind = AcousticSourceKind.Glottal,
+    float Pressure = 0.72f,
+    float Tension = 0.6f,
+    float Opening = 0.5f,
+    float Noise = 0.08f,
+    float Balance = 1,
+    bool Active = true);
+
+public sealed record AcousticBranch(
+    string Name,
+    string FromPath,
+    float FromPosition,
+    string ToPath,
+    float ToPosition = 0,
+    AcousticBranchKind Kind = AcousticBranchKind.SideBranch,
+    float Opening = 0,
+    float Coupling = 1,
+    bool Passive = true);
+
+public sealed record AcousticRadiationPort(
+    string Name,
+    string Path,
+    float Position = 1,
+    AcousticRadiationKind Kind = AcousticRadiationKind.Lip,
+    float Opening = 1,
+    float Reflection = -0.85f,
+    float Loss = 1);
+
+public sealed record WaveClockPolicy(
+    string Name,
+    WaveClockDelayStrategy Strategy = WaveClockDelayStrategy.UnitGrid,
+    int FractionalOrder = 1,
+    int MaxDelaySamples = 2048,
+    float SmoothingMilliseconds = 5);
+
+public sealed record AcousticPortNetwork(
+    string Name,
+    string PrimaryPath,
+    string WaveClock = "",
+    IReadOnlyList<string>? SourcePorts = null,
+    IReadOnlyList<string>? Branches = null,
+    IReadOnlyList<string>? RadiationPorts = null)
+{
+    public IReadOnlyList<string> SourcePorts { get; init; } = SourcePorts ?? Array.Empty<string>();
+    public IReadOnlyList<string> Branches { get; init; } = Branches ?? Array.Empty<string>();
+    public IReadOnlyList<string> RadiationPorts { get; init; } = RadiationPorts ?? Array.Empty<string>();
+}
+
 public sealed record GlottalSource(
     string Name = "",
     float Intensity = 0.72f,
@@ -323,7 +419,8 @@ public sealed record VocalTract(
     TractPropagationMode Propagation = TractPropagationMode.Resonator,
     float WaveguideLoss = 0.999f,
     int Substeps = 1,
-    float IndexScale = 1);
+    float IndexScale = 1,
+    AcousticPortNetwork? AcousticNetwork = null);
 
 public sealed record PatchParameter(
     string Path,
@@ -482,6 +579,7 @@ public sealed record Voice
     public Arpeggio? Arpeggio { get; init; }
     public FrequencyModulation Fm { get; init; } = new();
     public VocalTract? Tract { get; init; }
+    public AcousticPortNetwork? AcousticNetwork { get; init; }
     public VoiceColor Color { get; init; } = new();
     public IReadOnlyList<Formant> Formants { get; init; } = Array.Empty<Formant>();
     public IReadOnlyList<FormantFrame> FormantFrames { get; init; } = Array.Empty<FormantFrame>();
@@ -501,6 +599,12 @@ public sealed record SynthPatch
     public IReadOnlyList<TractInjection> TractInjections { get; init; } = Array.Empty<TractInjection>();
     public IReadOnlyList<NasalBranch> NasalBranches { get; init; } = Array.Empty<NasalBranch>();
     public IReadOnlyList<TractMotion> TractMotions { get; init; } = Array.Empty<TractMotion>();
+    public IReadOnlyList<AcousticPath> AcousticPaths { get; init; } = Array.Empty<AcousticPath>();
+    public IReadOnlyList<AcousticSourcePort> AcousticSourcePorts { get; init; } = Array.Empty<AcousticSourcePort>();
+    public IReadOnlyList<AcousticBranch> AcousticBranches { get; init; } = Array.Empty<AcousticBranch>();
+    public IReadOnlyList<AcousticRadiationPort> AcousticRadiationPorts { get; init; } = Array.Empty<AcousticRadiationPort>();
+    public IReadOnlyList<WaveClockPolicy> WaveClocks { get; init; } = Array.Empty<WaveClockPolicy>();
+    public IReadOnlyList<AcousticPortNetwork> AcousticNetworks { get; init; } = Array.Empty<AcousticPortNetwork>();
     public IReadOnlyList<OperatorGraph> OperatorGraphs { get; init; } = Array.Empty<OperatorGraph>();
     public IReadOnlyList<ControlLane> Controls { get; init; } = Array.Empty<ControlLane>();
     public IReadOnlyList<PatchParameter> Parameters { get; init; } = Array.Empty<PatchParameter>();

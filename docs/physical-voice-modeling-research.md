@@ -202,17 +202,32 @@ Avoid concepts as primary public abstractions:
 
 ## Next Implementation Cut
 
-Add model records before more audio golf:
+First implementation cut is now underway in `src/AquaSynth.Core/Model.cs` and
+`src/AquaSynth.Core/PatchScript.cs`. The new neutral records are the ownership
+surface:
 
 - `AcousticPath`: name, length, area curve, propagation speed, loss profile.
-- `AcousticBranch`: from path/position to path/position, opening/coupling,
-  branch kind.
 - `AcousticSourcePort`: path/position, source model, pressure/tension/noise
   controls.
+- `AcousticBranch`: from path/position to path/position, opening/coupling,
+  branch kind.
 - `AcousticRadiationPort`: path/position, opening/reflection/radiation filter.
 - `WaveClockPolicy`: unit grid, half-sample grid, fractional delay order, max
   delay, and smoothing mode.
+- `AcousticPortNetwork`: names one primary path and the source, branch,
+  radiation, and wave-clock records that make it renderable.
 
-Then lower the current PT fixtures through those records as one larynx-shaped
-configuration. A syrinx should be expressible by adding two source ports and a
-bronchial/tracheal branch topology, not by forking the tract voice.
+Parser support exists for `path`, `source_port`, `branch`, `radiation_port`,
+`wave_clock`, and `acoustic_network`. Existing PT-pressure commands now also
+feed the acoustic record lists: `tract_shape` demotes to an `AcousticPath`,
+`glottis`/`tract_injection` demote to `AcousticSourcePort`, `nasal_branch`
+demotes to an `AcousticPath` plus `AcousticBranch`, and each `tract` voice
+gets an `AcousticPortNetwork` over generated oral/source/branch/radiation
+records.
+
+This is intentionally a structural first cut. Faust lowering still uses the
+current `Voice.Tract` renderer, but the neutral acoustic records now exist so
+the next cuts can move waveguide/proxy lowering authority out of PT-shaped
+fields without losing fixture compatibility. A syrinx can already be authored
+as two labial `source_port` records plus bronchial/tract `branch` topology; the
+next proof is to give that network an audible lowering path.

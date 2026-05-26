@@ -46,6 +46,18 @@ public static class PatchScript
         private readonly Dictionary<string, NasalBranch> _nasalBranchesByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<TractMotion> _tractMotions = [];
         private readonly Dictionary<string, TractMotion> _tractMotionsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<AcousticPath> _acousticPaths = [];
+        private readonly Dictionary<string, AcousticPath> _acousticPathsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<AcousticSourcePort> _acousticSourcePorts = [];
+        private readonly Dictionary<string, AcousticSourcePort> _acousticSourcePortsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<AcousticBranch> _acousticBranches = [];
+        private readonly Dictionary<string, AcousticBranch> _acousticBranchesByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<AcousticRadiationPort> _acousticRadiationPorts = [];
+        private readonly Dictionary<string, AcousticRadiationPort> _acousticRadiationPortsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<WaveClockPolicy> _waveClocks = [];
+        private readonly Dictionary<string, WaveClockPolicy> _waveClocksByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<AcousticPortNetwork> _acousticNetworks = [];
+        private readonly Dictionary<string, AcousticPortNetwork> _acousticNetworksByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _defaults = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Dictionary<string, string>> _layerDefaults = new(StringComparer.OrdinalIgnoreCase);
         private PendingOperatorGraph? _pendingOperatorGraph;
@@ -72,6 +84,12 @@ public static class PatchScript
                 TractInjections = _tractInjections,
                 NasalBranches = _nasalBranches,
                 TractMotions = _tractMotions,
+                AcousticPaths = _acousticPaths,
+                AcousticSourcePorts = _acousticSourcePorts,
+                AcousticBranches = _acousticBranches,
+                AcousticRadiationPorts = _acousticRadiationPorts,
+                WaveClocks = _waveClocks,
+                AcousticNetworks = _acousticNetworks,
                 OperatorGraphs = _operatorGraphs,
                 Controls = _controls,
                 Parameters = _parameters,
@@ -142,6 +160,30 @@ public static class PatchScript
                 case "tract_motion":
                     FlushPendingOperatorGraph();
                     AddTractMotion(fields, line);
+                    break;
+                case "acoustic_path":
+                    FlushPendingOperatorGraph();
+                    AddAcousticPath(fields, line);
+                    break;
+                case "source_port":
+                    FlushPendingOperatorGraph();
+                    AddAcousticSourcePort(fields, line);
+                    break;
+                case "branch":
+                    FlushPendingOperatorGraph();
+                    AddAcousticBranch(fields, line);
+                    break;
+                case "radiation_port":
+                    FlushPendingOperatorGraph();
+                    AddAcousticRadiationPort(fields, line);
+                    break;
+                case "wave_clock":
+                    FlushPendingOperatorGraph();
+                    AddWaveClock(fields, line);
+                    break;
+                case "acoustic_network":
+                    FlushPendingOperatorGraph();
+                    AddAcousticNetwork(fields, line);
                     break;
                 case "voice":
                     FlushPendingOperatorGraph();
@@ -312,6 +354,11 @@ public static class PatchScript
             var shape = new TractShape(name, areaFunction);
             _tractShapes.Add(shape);
             _tractShapesByName[name] = shape;
+            AddAcousticPathRecord(new AcousticPath(
+                name,
+                areaFunction,
+                GetBoundFloat(fields, line, 343, $"/acoustic/paths/{_acousticPaths.Count}/speed", "speed", "wave_speed", "propagation_speed"),
+                GetBoundFloat(fields, line, 0.999f, $"/acoustic/paths/{_acousticPaths.Count}/loss", "loss")));
         }
 
         private void AddGlottalSource(IReadOnlyDictionary<string, string> fields, int line)
@@ -331,6 +378,19 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.42f, $"/glottis/{_glottalSources.Count}/skew", "skew", "open_phase"));
             _glottalSources.Add(glottis);
             _glottalSourcesByName[name] = glottis;
+            if (TryGetAny(fields, ["path"], out var path))
+            {
+                RequireAcousticPath(path, line);
+                AddAcousticSourcePortRecord(new AcousticSourcePort(
+                    name,
+                    path,
+                    GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/position", "position", "pos", "at"),
+                    AcousticSourceKind.Glottal,
+                    glottis.Intensity,
+                    glottis.Tenseness,
+                    glottis.Skew,
+                    glottis.Aspiration));
+            }
         }
 
         private void AddTractInjection(IReadOnlyDictionary<string, string> fields, int line)
@@ -350,6 +410,19 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 1, $"/tract_injections/{_tractInjections.Count}/width", "width"));
             _tractInjections.Add(injection);
             _tractInjectionsByName[name] = injection;
+            if (TryGetAny(fields, ["path"], out var path))
+            {
+                RequireAcousticPath(path, line);
+                AddAcousticSourcePortRecord(new AcousticSourcePort(
+                    name,
+                    path,
+                    injection.Position,
+                    AcousticSourceKind.TurbulenceJet,
+                    injection.Burst,
+                    0,
+                    injection.Diameter,
+                    injection.Turbulence));
+            }
         }
 
         private void AddNasalBranch(IReadOnlyDictionary<string, string> fields, int line)
@@ -369,6 +442,24 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.999f, $"/nasal_branches/{_nasalBranches.Count}/loss", "loss"));
             _nasalBranches.Add(branch);
             _nasalBranchesByName[name] = branch;
+            if (branch.AreaFunction is { } nasalArea)
+            {
+                AddAcousticPathRecord(new AcousticPath(
+                    name,
+                    nasalArea,
+                    GetBoundFloat(fields, line, 343, $"/acoustic/paths/{_acousticPaths.Count}/speed", "speed", "wave_speed", "propagation_speed"),
+                    branch.Loss));
+            }
+            AddAcousticBranchRecord(new AcousticBranch(
+                name,
+                GetAny(fields, ["from_path"], "oral"),
+                branch.JunctionIndex,
+                name,
+                0,
+                AcousticBranchKind.Nasal,
+                branch.Velum,
+                1,
+                true));
         }
 
         private void AddTractMotion(IReadOnlyDictionary<string, string> fields, int line)
@@ -388,6 +479,214 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.05f, $"/tract_motions/{_tractMotions.Count}/obstruction_threshold", "obstruction_threshold", "closure"));
             _tractMotions.Add(motion);
             _tractMotionsByName[name] = motion;
+        }
+
+        private void AddAcousticPath(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_acousticPathsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate acoustic path `{name}`");
+            }
+
+            var path = new AcousticPath(
+                name,
+                ParseTractAreaFunction(fields, line, 17),
+                GetBoundFloat(fields, line, 343, $"/acoustic/paths/{_acousticPaths.Count}/speed", "speed", "wave_speed", "propagation_speed"),
+                GetBoundFloat(fields, line, 0.999f, $"/acoustic/paths/{_acousticPaths.Count}/loss", "loss"));
+            AddAcousticPathRecord(path);
+        }
+
+        private void AddAcousticSourcePort(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_acousticSourcePortsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate acoustic source port `{name}`");
+            }
+
+            var path = Required(fields, "path", line);
+            RequireAcousticPath(path, line);
+            var port = new AcousticSourcePort(
+                name,
+                path,
+                GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/position", "position", "pos", "at"),
+                ParseAcousticSourceKind(GetAny(fields, ["kind", "source_kind"], "glottal"), line),
+                GetBoundFloat(fields, line, 0.72f, $"/acoustic/sources/{_acousticSourcePorts.Count}/pressure", "pressure", "intensity"),
+                GetBoundFloat(fields, line, 0.6f, $"/acoustic/sources/{_acousticSourcePorts.Count}/tension", "tension", "tenseness", "tense"),
+                GetBoundFloat(fields, line, 0.5f, $"/acoustic/sources/{_acousticSourcePorts.Count}/opening", "opening", "open"),
+                GetBoundFloat(fields, line, 0.08f, $"/acoustic/sources/{_acousticSourcePorts.Count}/noise", "noise", "aspiration"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/sources/{_acousticSourcePorts.Count}/balance", "balance"),
+                TryGetAny(fields, ["active"], out var active) ? ParseBool(active, line) : true);
+            AddAcousticSourcePortRecord(port);
+        }
+
+        private void AddAcousticBranch(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_acousticBranchesByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate acoustic branch `{name}`");
+            }
+
+            var fromPath = GetAny(fields, ["from_path", "from"], "");
+            var toPath = GetAny(fields, ["to_path", "to"], "");
+            if (fromPath.Length == 0) throw new PatchScriptException(line, "branch missing `from_path`");
+            if (toPath.Length == 0) throw new PatchScriptException(line, "branch missing `to_path`");
+            RequireAcousticPath(fromPath, line);
+            RequireAcousticPath(toPath, line);
+            var branch = new AcousticBranch(
+                name,
+                fromPath,
+                GetBoundFloat(fields, line, 0, $"/acoustic/branches/{_acousticBranches.Count}/from_position", "from_position", "from_pos", "from_at", "at"),
+                toPath,
+                GetBoundFloat(fields, line, 0, $"/acoustic/branches/{_acousticBranches.Count}/to_position", "to_position", "to_pos", "to_at"),
+                ParseAcousticBranchKind(GetAny(fields, ["kind", "branch_kind"], "side"), line),
+                GetBoundFloat(fields, line, 0, $"/acoustic/branches/{_acousticBranches.Count}/opening", "opening", "open"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/branches/{_acousticBranches.Count}/coupling", "coupling"),
+                TryGetAny(fields, ["passive"], out var passive) ? ParseBool(passive, line) : true);
+            AddAcousticBranchRecord(branch);
+        }
+
+        private void AddAcousticRadiationPort(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_acousticRadiationPortsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate acoustic radiation port `{name}`");
+            }
+
+            var path = Required(fields, "path", line);
+            RequireAcousticPath(path, line);
+            var port = new AcousticRadiationPort(
+                name,
+                path,
+                GetBoundFloat(fields, line, 1, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/position", "position", "pos", "at"),
+                ParseAcousticRadiationKind(GetAny(fields, ["kind", "radiation_kind"], "lip"), line),
+                GetBoundFloat(fields, line, 1, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/opening", "opening", "open"),
+                GetBoundFloat(fields, line, -0.85f, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/reflection", "reflection"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/loss", "loss"));
+            AddAcousticRadiationPortRecord(port);
+        }
+
+        private void AddWaveClock(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_waveClocksByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate wave clock `{name}`");
+            }
+
+            var policy = new WaveClockPolicy(
+                name,
+                ParseWaveClockDelayStrategy(GetAny(fields, ["strategy", "delay", "mode"], "unit_grid"), line),
+                GetBoundInt(fields, line, 1, $"/acoustic/wave_clocks/{_waveClocks.Count}/order", "order", "fractional_order"),
+                GetBoundInt(fields, line, 2048, $"/acoustic/wave_clocks/{_waveClocks.Count}/max_delay", "max_delay", "max_delay_samples"),
+                GetBoundFloat(fields, line, 5, $"/acoustic/wave_clocks/{_waveClocks.Count}/smoothing_ms", "smoothing_ms", "smooth_ms"));
+            AddWaveClockRecord(policy);
+        }
+
+        private void AddAcousticNetwork(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_acousticNetworksByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate acoustic network `{name}`");
+            }
+
+            var primaryPath = Required(fields, "path", line);
+            RequireAcousticPath(primaryPath, line);
+            var waveClock = GetAny(fields, ["wave_clock", "clock"], "");
+            if (waveClock.Length > 0 && !_waveClocksByName.ContainsKey(waveClock))
+            {
+                throw new PatchScriptException(line, $"unknown wave clock `{waveClock}`");
+            }
+
+            var network = new AcousticPortNetwork(
+                name,
+                primaryPath,
+                waveClock,
+                ParseNameList(GetAny(fields, ["sources", "source_ports"], "")),
+                ParseNameList(GetAny(fields, ["branches"], "")),
+                ParseNameList(GetAny(fields, ["radiation", "radiation_ports"], "")));
+            foreach (var sourceName in network.SourcePorts) RequireAcousticSourcePort(sourceName, line);
+            foreach (var branchName in network.Branches) RequireAcousticBranch(branchName, line);
+            foreach (var radiationName in network.RadiationPorts) RequireAcousticRadiationPort(radiationName, line);
+            AddAcousticNetworkRecord(network);
+        }
+
+        private void AddAcousticPathRecord(AcousticPath path)
+        {
+            if (_acousticPathsByName.ContainsKey(path.Name)) return;
+            _acousticPaths.Add(path);
+            _acousticPathsByName[path.Name] = path;
+        }
+
+        private void AddAcousticSourcePortRecord(AcousticSourcePort port)
+        {
+            if (_acousticSourcePortsByName.ContainsKey(port.Name)) return;
+            _acousticSourcePorts.Add(port);
+            _acousticSourcePortsByName[port.Name] = port;
+        }
+
+        private void AddAcousticBranchRecord(AcousticBranch branch)
+        {
+            if (_acousticBranchesByName.ContainsKey(branch.Name)) return;
+            _acousticBranches.Add(branch);
+            _acousticBranchesByName[branch.Name] = branch;
+        }
+
+        private void AddAcousticRadiationPortRecord(AcousticRadiationPort port)
+        {
+            if (_acousticRadiationPortsByName.ContainsKey(port.Name)) return;
+            _acousticRadiationPorts.Add(port);
+            _acousticRadiationPortsByName[port.Name] = port;
+        }
+
+        private void AddWaveClockRecord(WaveClockPolicy policy)
+        {
+            if (_waveClocksByName.ContainsKey(policy.Name)) return;
+            _waveClocks.Add(policy);
+            _waveClocksByName[policy.Name] = policy;
+        }
+
+        private void AddAcousticNetworkRecord(AcousticPortNetwork network)
+        {
+            if (_acousticNetworksByName.ContainsKey(network.Name)) return;
+            _acousticNetworks.Add(network);
+            _acousticNetworksByName[network.Name] = network;
+        }
+
+        private void RequireAcousticPath(string name, int line)
+        {
+            if (!_acousticPathsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"unknown acoustic path `{name}`");
+            }
+        }
+
+        private void RequireAcousticSourcePort(string name, int line)
+        {
+            if (!_acousticSourcePortsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"unknown acoustic source port `{name}`");
+            }
+        }
+
+        private void RequireAcousticBranch(string name, int line)
+        {
+            if (!_acousticBranchesByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"unknown acoustic branch `{name}`");
+            }
+        }
+
+        private void RequireAcousticRadiationPort(string name, int line)
+        {
+            if (!_acousticRadiationPortsByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"unknown acoustic radiation port `{name}`");
+            }
         }
 
         private Dictionary<string, string> ExpandVoiceFields(Dictionary<string, string> fields, int line)
@@ -662,31 +961,35 @@ public static class PatchScript
             var tongueIndex = GetBoundFloat(fields, line, 12.9f, OwnerField(ownerPath, "tract/tongue_index"), "tongue_index", "tongue", "ti");
             var constrictionIndex = GetBoundFloat(fields, line, injection?.Position ?? 32, OwnerField(ownerPath, "tract/constriction_index"), "constriction_index", "ci");
 
+            var tract = new VocalTract(
+                sections,
+                noseSections,
+                GetBoundFloat(fields, line, glottis?.Intensity ?? 0.72f, OwnerField(ownerPath, "tract/intensity"), "intensity", "pressure"),
+                GetBoundFloat(fields, line, glottis?.Tenseness ?? 0.6f, OwnerField(ownerPath, "tract/tenseness"), "tenseness", "tense"),
+                tongueIndex,
+                GetBoundFloat(fields, line, 2.43f, OwnerField(ownerPath, "tract/tongue_diameter"), "tongue_diameter", "td"),
+                GetBoundFloat(fields, line, 0.01f, OwnerField(ownerPath, "tract/velum"), "velum", "nose", "nasal"),
+                constrictionIndex,
+                GetBoundFloat(fields, line, injection?.Diameter ?? 1, OwnerField(ownerPath, "tract/constriction_diameter"), "constriction_diameter", "cd"),
+                GetBoundFloat(fields, line, injection?.Turbulence ?? 0, OwnerField(ownerPath, "tract/turbulence"), "turbulence", "frication"),
+                GetBoundFloat(fields, line, 1.5f, OwnerField(ownerPath, "tract/lip_opening"), "lip", "lip_opening", "mouth"),
+                GetBoundFloat(fields, line, glottis?.Reflection ?? 0.75f, OwnerField(ownerPath, "tract/glottal_reflection"), "glottal_reflection", "gr"),
+                GetBoundFloat(fields, line, -0.85f, OwnerField(ownerPath, "tract/lip_reflection"), "lip_reflection", "lr"),
+                areaFunction,
+                glottis,
+                injection,
+                nasal,
+                motion,
+                propagation,
+                GetBoundFloat(fields, line, 0.999f, OwnerField(ownerPath, "tract/waveguide_loss"), "waveguide_loss", "loss"),
+                GetBoundInt(fields, line, 1, OwnerField(ownerPath, "tract/substeps"), "substeps", "steps"),
+                indexScale);
+            var acousticNetwork = EnsureTractAcousticNetwork(ownerPath, tract);
+
             return voice with
             {
-                Tract = new VocalTract(
-                    sections,
-                    noseSections,
-                    GetBoundFloat(fields, line, glottis?.Intensity ?? 0.72f, OwnerField(ownerPath, "tract/intensity"), "intensity", "pressure"),
-                    GetBoundFloat(fields, line, glottis?.Tenseness ?? 0.6f, OwnerField(ownerPath, "tract/tenseness"), "tenseness", "tense"),
-                    tongueIndex,
-                    GetBoundFloat(fields, line, 2.43f, OwnerField(ownerPath, "tract/tongue_diameter"), "tongue_diameter", "td"),
-                    GetBoundFloat(fields, line, 0.01f, OwnerField(ownerPath, "tract/velum"), "velum", "nose", "nasal"),
-                    constrictionIndex,
-                    GetBoundFloat(fields, line, injection?.Diameter ?? 1, OwnerField(ownerPath, "tract/constriction_diameter"), "constriction_diameter", "cd"),
-                    GetBoundFloat(fields, line, injection?.Turbulence ?? 0, OwnerField(ownerPath, "tract/turbulence"), "turbulence", "frication"),
-                    GetBoundFloat(fields, line, 1.5f, OwnerField(ownerPath, "tract/lip_opening"), "lip", "lip_opening", "mouth"),
-                    GetBoundFloat(fields, line, glottis?.Reflection ?? 0.75f, OwnerField(ownerPath, "tract/glottal_reflection"), "glottal_reflection", "gr"),
-                    GetBoundFloat(fields, line, -0.85f, OwnerField(ownerPath, "tract/lip_reflection"), "lip_reflection", "lr"),
-                    areaFunction,
-                    glottis,
-                    injection,
-                    nasal,
-                    motion,
-                    propagation,
-                    GetBoundFloat(fields, line, 0.999f, OwnerField(ownerPath, "tract/waveguide_loss"), "waveguide_loss", "loss"),
-                    GetBoundInt(fields, line, 1, OwnerField(ownerPath, "tract/substeps"), "substeps", "steps"),
-                    indexScale)
+                Tract = tract with { AcousticNetwork = acousticNetwork },
+                AcousticNetwork = acousticNetwork
             };
         }
 
@@ -705,6 +1008,99 @@ public static class PatchScript
                 AreaFunction = areaFunction,
                 JunctionIndex = Math.Max(0, (int)MathF.Round(nasal.JunctionIndex * oralIndexScale, MidpointRounding.AwayFromZero))
             };
+        }
+
+        private AcousticPortNetwork EnsureTractAcousticNetwork(string ownerPath, VocalTract tract)
+        {
+            var prefix = ownerPath.Replace("/", "_", StringComparison.Ordinal).Trim('_');
+            var primaryPathName = $"{prefix}_oral";
+            var oralArea = tract.AreaFunction ?? new TractAreaFunction([0.6f, 0.8f, 1.2f, 1.5f, 1.5f, 1.2f, 0.8f, 0.6f], 17);
+            AddAcousticPathRecord(new AcousticPath(primaryPathName, oralArea, 343, tract.WaveguideLoss));
+
+            var sourceNames = new List<string>();
+            var branchNames = new List<string>();
+            var radiationNames = new List<string>();
+
+            var sourceName = string.IsNullOrWhiteSpace(tract.Glottis?.Name) ? $"{prefix}_source" : $"{prefix}_{tract.Glottis!.Name}";
+            AddAcousticSourcePortRecord(new AcousticSourcePort(
+                sourceName,
+                primaryPathName,
+                0,
+                AcousticSourceKind.Glottal,
+                tract.Intensity,
+                tract.Tenseness,
+                tract.Glottis?.Skew ?? 0.42f,
+                tract.Glottis?.Aspiration ?? 0.08f));
+            sourceNames.Add(sourceName);
+
+            if (tract.Injection is { } injection)
+            {
+                var injectionName = string.IsNullOrWhiteSpace(injection.Name) ? $"{prefix}_injection" : $"{prefix}_{injection.Name}";
+                AddAcousticSourcePortRecord(new AcousticSourcePort(
+                    injectionName,
+                    primaryPathName,
+                    injection.Position,
+                    AcousticSourceKind.TurbulenceJet,
+                    injection.Burst,
+                    0,
+                    injection.Diameter,
+                    injection.Turbulence));
+                sourceNames.Add(injectionName);
+            }
+
+            if (tract.Nasal is { AreaFunction: { } nasalArea } nasal)
+            {
+                var nasalPathName = string.IsNullOrWhiteSpace(nasal.Name) ? $"{prefix}_nasal" : $"{prefix}_{nasal.Name}";
+                AddAcousticPathRecord(new AcousticPath(nasalPathName, nasalArea, 343, nasal.Loss));
+                AddAcousticBranchRecord(new AcousticBranch(
+                    nasalPathName,
+                    primaryPathName,
+                    nasal.JunctionIndex,
+                    nasalPathName,
+                    0,
+                    AcousticBranchKind.Nasal,
+                    nasal.Velum,
+                    1,
+                    true));
+                AddAcousticRadiationPortRecord(new AcousticRadiationPort(
+                    $"{nasalPathName}_radiation",
+                    nasalPathName,
+                    1,
+                    AcousticRadiationKind.Nostril,
+                    nasal.Velum,
+                    nasal.Reflection,
+                    nasal.Loss));
+                branchNames.Add(nasalPathName);
+                radiationNames.Add($"{nasalPathName}_radiation");
+            }
+
+            var lipName = $"{prefix}_lip";
+            AddAcousticRadiationPortRecord(new AcousticRadiationPort(
+                lipName,
+                primaryPathName,
+                1,
+                AcousticRadiationKind.Lip,
+                tract.LipOpening,
+                tract.LipReflection,
+                1));
+            radiationNames.Add(lipName);
+
+            var clockName = $"{prefix}_clock";
+            AddWaveClockRecord(new WaveClockPolicy(
+                clockName,
+                tract.Propagation == TractPropagationMode.Waveguide
+                    ? WaveClockDelayStrategy.UnitGrid
+                    : WaveClockDelayStrategy.FractionalLinear));
+
+            var network = new AcousticPortNetwork(
+                $"{prefix}_network",
+                primaryPathName,
+                clockName,
+                sourceNames,
+                branchNames,
+                radiationNames);
+            AddAcousticNetworkRecord(network);
+            return network;
         }
 
         private void AddModBus(IReadOnlyDictionary<string, string> fields, int line)
@@ -1665,6 +2061,12 @@ public static class PatchScript
         "tract_injection" or "injection" or "frication" or "burst" => "tract_injection",
         "nasal_branch" or "nose_branch" or "nasal" => "nasal_branch",
         "tract_motion" or "shape_motion" or "slew" => "tract_motion",
+        "path" or "acoustic_path" or "morphology_path" => "acoustic_path",
+        "source_port" or "acoustic_source" or "port_source" => "source_port",
+        "branch" or "acoustic_branch" => "branch",
+        "radiation_port" or "radiation" or "acoustic_radiation" => "radiation_port",
+        "wave_clock" or "waveclock" or "clock" => "wave_clock",
+        "acoustic_network" or "port_network" or "network" => "acoustic_network",
         "v" or "voice" => "voice",
         "tract" or "vt" or "tractvoice" or "tract_voice" => "tract",
         "opgraph" or "ops" or "operators" => "opgraph",
@@ -1762,6 +2164,53 @@ public static class PatchScript
         "waveguide" or "kl" or "kelly-lochbaum" or "kelly_lochbaum" or "tube" => TractPropagationMode.Waveguide,
         _ => throw new PatchScriptException(line, $"unknown tract propagation mode `{value}`")
     };
+
+    private static AcousticSourceKind ParseAcousticSourceKind(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "glottal" or "glottis" or "larynx" => AcousticSourceKind.Glottal,
+        "labial" or "labia" or "syrinx" => AcousticSourceKind.Labial,
+        "reed" => AcousticSourceKind.Reed,
+        "turbulence" or "turbulence_jet" or "jet" or "frication" => AcousticSourceKind.TurbulenceJet,
+        "click" => AcousticSourceKind.Click,
+        "synthetic" or "synth" or "alien" => AcousticSourceKind.Synthetic,
+        _ => throw new PatchScriptException(line, $"unknown acoustic source kind `{value}`")
+    };
+
+    private static AcousticBranchKind ParseAcousticBranchKind(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "side" or "side_branch" => AcousticBranchKind.SideBranch,
+        "nasal" or "nose" => AcousticBranchKind.Nasal,
+        "bronchial" or "bronchus" => AcousticBranchKind.Bronchial,
+        "lateral" => AcousticBranchKind.Lateral,
+        "resonator" => AcousticBranchKind.Resonator,
+        _ => throw new PatchScriptException(line, $"unknown acoustic branch kind `{value}`")
+    };
+
+    private static AcousticRadiationKind ParseAcousticRadiationKind(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "lip" or "mouth" => AcousticRadiationKind.Lip,
+        "nostril" or "nose" => AcousticRadiationKind.Nostril,
+        "beak" => AcousticRadiationKind.Beak,
+        "vent" => AcousticRadiationKind.Vent,
+        "membrane" => AcousticRadiationKind.Membrane,
+        _ => throw new PatchScriptException(line, $"unknown acoustic radiation kind `{value}`")
+    };
+
+    private static WaveClockDelayStrategy ParseWaveClockDelayStrategy(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "unit" or "unit_grid" or "grid" => WaveClockDelayStrategy.UnitGrid,
+        "half" or "half_sample" or "half_sample_grid" => WaveClockDelayStrategy.HalfSampleGrid,
+        "linear" or "fractional_linear" => WaveClockDelayStrategy.FractionalLinear,
+        "lagrange" or "fractional_lagrange" => WaveClockDelayStrategy.FractionalLagrange,
+        "thiran" or "allpass" or "fractional_thiran" => WaveClockDelayStrategy.FractionalThiran,
+        "crossfade" or "crossfaded" or "variable" or "crossfaded_variable" => WaveClockDelayStrategy.CrossfadedVariable,
+        _ => throw new PatchScriptException(line, $"unknown wave clock strategy `{value}`")
+    };
+
+    private static IReadOnlyList<string> ParseNameList(string value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? Array.Empty<string>()
+            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     private static string Required(IReadOnlyDictionary<string, string> fields, string key, int line) =>
         fields.TryGetValue(key, out var value) ? value : throw new PatchScriptException(line, $"missing `{key}`");

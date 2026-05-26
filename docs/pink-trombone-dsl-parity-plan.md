@@ -143,6 +143,16 @@ delay is about 0.5 samples per cell. That makes PT's two tract updates per
 output sample look like a discretization strategy for a half-sample cell grid,
 not a reusable Aqua language concept.
 
+The acoustic-port cut has also started. Aqua now has neutral model records for
+`AcousticPath`, `AcousticSourcePort`, `AcousticBranch`,
+`AcousticRadiationPort`, `WaveClockPolicy`, and `AcousticPortNetwork`.
+Parser commands `path`, `source_port`, `branch`, `radiation_port`,
+`wave_clock`, and `acoustic_network` can express a larynx, paired labial
+syrinx-like sources, or stranger source/topology combinations without adding a
+species mode. Existing PT-shaped commands now populate those acoustic records
+as compatibility aliases: they no longer have to be the only authority surface
+for the next renderer.
+
 Exact Pink Trombone timing still needs pressure, but the next backend cut is no
 longer "add more substeps." The current Faust-friendly compromise chooses a
 unit-delay scattering grid from physical length. The deeper target remains
