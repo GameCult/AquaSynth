@@ -1,3 +1,6 @@
 [submodule "external/zynaddsubfx"]
 	path = external/zynaddsubfx
 	url = https://github.com/zynaddsubfx/zynaddsubfx
+[submodule "external/pink-trombone-mod"]
+	path = external/pink-trombone-mod
+	url = https://github.com/chdh/pink-trombone-mod

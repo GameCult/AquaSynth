@@ -16,6 +16,8 @@ Primary source for this packet:
 
 - `chdh/pink-trombone-mod`: MIT TypeScript modularization of Neil Thapen's Pink
   Trombone, <https://github.com/chdh/pink-trombone-mod>
+- Pinned local source: `external/pink-trombone-mod` at
+  `359c2d3b42b10280404c1650dc601902112b4c90`
 - Source files inspected:
   - `src/Synthesizer.ts`
   - `src/Glottis.ts`
@@ -86,7 +88,29 @@ Current AquaSynth cannot exactly express:
 
 - fractional-delay tract propagation whose clock derives from physical length,
   propagation speed, and sample rate;
-- exact Pink Trombone LF glottal coefficient updates.
+- exact Pink Trombone block timing and source/noise/transient behavior inside
+  the Faust-lowered Aqua graph.
+
+## Reference Renderer Authority
+
+`PinkTromboneReferenceRenderer` is a source-port of the pinned MIT TypeScript
+implementation, not a Pink-Trombone-flavored proxy. Its inner graph mirrors the
+upstream DSP authorities:
+
+- `Synthesizer`: 512-sample blocks, tract stepping twice per output sample;
+- `Glottis`: LF waveform coefficient solve, aspiration noise, vibrato/wobble,
+  and intensity/tenseness/frequency smoothing;
+- `Tract`: 44 oral cells, 28 nasal cells, area-derived reflections, three-way
+  nasal junction, lip/nose radiation sum, filtered frication, and closure
+  transients;
+- `TractShaper`: tongue/rest diameter targets, touch-style constriction
+  reduction, wall slew, velum slew, and obstruction release detection.
+
+The renderer keeps AquaSynth's fixture control record as the authoring surface,
+but those controls are now translated into the source graph rather than into a
+hand-rolled approximation. Reference WAVs written before
+`20260526T211902375` were produced by the old approximation and are invalid for
+parity golf.
 
 ## Current Parity Rung
 
