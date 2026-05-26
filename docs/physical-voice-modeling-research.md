@@ -251,9 +251,12 @@ connection law. `source_port`, `radiation_port`, and `branch` remain ergonomic
 commands, but they populate typed graph records rather than becoming the graph
 law themselves.
 
-The next implementation blocker is graph compilation. The compiler must split
-paths at terminal positions, order the ports of each connection, assign
-fractional-delay state from physical path length and wave-clock policy, inject
-sources at the declared terminals, and terminate radiation ports with physical
-reflection/output behavior. Expanding the response proxy before that would
-create a second PT-shaped instrument wearing generic names.
+The first graph compiler cut now exists. It splits paths at terminal positions,
+creates bidirectional segment state in Faust, scatters connected terminals by
+area-weighted pressure continuity, injects declared source ports at source
+terminals, and radiates declared radiation ports. Faust validation passes for a
+three-path trachea/oral/nasal graph. The remaining limits are named rather than
+hidden: segment delays are currently integer sample delays at the 44.1 kHz
+target, co-located terminals fall back to the response proxy until same-node
+aggregation is explicit, and the connection laws are compiled only as the first
+area-scattering form.

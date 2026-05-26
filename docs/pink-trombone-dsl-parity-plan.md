@@ -167,10 +167,16 @@ terminals. Authoring sugar can hide some ceremony later, but the compiler-facing
 shape is geometry plus terminals plus connections. `AcousticBranch` is no
 longer the future topology law; it is a side-branch shorthand over the graph.
 
-The remaining implementation blocker is graph lowering, not topology naming.
-The compiler must turn the typed graph into bidirectional waveguide Faust with
-deterministic segment splitting, port ordering, scattering law selection,
-source injection, radiation termination, and fractional-delay state.
+The first graph lowering cut now compiles typed graphs into bidirectional Faust
+segment state. It splits each path at terminal positions, orders connection
+ports deterministically, scatters connection groups with area-weighted pressure
+continuity, injects source terminals, and sums radiation terminals. Faust
+validation passes on a three-path trachea/oral/nasal graph.
+
+The remaining implementation pressure is now narrower: replace integer segment
+delays with wave-clock-driven fractional delays, add explicit same-node
+terminal aggregation for co-located sources/junctions, and broaden connection
+laws beyond the first area-scattering form.
 
 Authority map for the required rebuild:
 
@@ -189,8 +195,8 @@ Authority map for the required rebuild:
 - Shared paths: direct DSL authoring, PT compatibility commands, future
   syrinx/reed/alien voices, and training/playground parameter bindings must all
   commit through the same acoustic graph.
-- Deletion line: do not expand the proxy into a second fake synthesizer. The
-  next implementation compiles `AcousticTerminal`/`AcousticConnection` records;
+- Deletion line: do not expand the proxy into a second fake synthesizer.
+  `AcousticTerminal`/`AcousticConnection` records now own graph lowering;
   `branch` can remain only as shorthand that emits those records.
 
 Exact Pink Trombone timing still needs pressure, but the next backend cut is no
