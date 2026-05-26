@@ -10,6 +10,14 @@ public sealed class PinkTromboneLogMelParityTests
     {
         ["closure-release"] = -0.1f
     };
+    private static readonly IReadOnlyDictionary<string, float> GraphSmokeCosineFloors = new Dictionary<string, float>
+    {
+        ["open-vowel"] = 0.55f,
+        ["front-vowel"] = 0.57f,
+        ["nasal-vowel"] = 0.48f,
+        ["sibilant"] = 0.18f,
+        ["closure-release"] = 0.05f
+    };
 
     [Fact]
     public void PinkTromboneReferenceRendererProducesAudibleFixtureAudio()
@@ -76,6 +84,12 @@ public sealed class PinkTromboneLogMelParityTests
             Assert.True(
                 comparison.LogMelCosineSimilarity >= FixtureSmokeCosineFloors.GetValueOrDefault(fixture.Id, SmokeCosineFloor),
                 $"{Report(fixture, comparison, "waveguide")}{Environment.NewLine}artifacts: {artifactDir}");
+            Assert.True(
+                graphComparison.LogMelCosineSimilarity >= GraphSmokeCosineFloors.GetValueOrDefault(fixture.Id, SmokeCosineFloor),
+                $"{Report(fixture, graphComparison, "graph")}{Environment.NewLine}artifacts: {artifactDir}");
+            Assert.True(
+                graphComparison.RmsRatio is > 0.03f and < 2.25f,
+                $"{Report(fixture, graphComparison, "graph")}{Environment.NewLine}artifacts: {artifactDir}");
         }
 
         Directory.CreateDirectory(artifactDir);
