@@ -151,7 +151,42 @@ Parser commands `path`, `source_port`, `branch`, `radiation_port`,
 syrinx-like sources, or stranger source/topology combinations without adding a
 species mode. Existing PT-shaped commands now populate those acoustic records
 as compatibility aliases: they no longer have to be the only authority surface
-for the next renderer.
+for the next renderer. A first `acoustic` voice command now lowers an
+`AcousticPortNetwork` to an audible Faust response proxy, so non-larynx
+topologies can be heard before the full waveguide network owns them. Source,
+branch, and radiation fields can be bound to parameters and survive into the
+emitted Faust, which keeps playground/training knobs attached to declared
+acoustic owners instead of dead UI state.
+
+### Current architectural blocker: junction ownership
+
+The next cut is blocked on a real topology choice. `AcousticBranch` currently
+names a secondary path attached between two paths, which is enough for the
+response proxy and for PT-style nasal compatibility. It is not enough to lower
+an arbitrary physical network into bidirectional waveguide Faust without
+smuggling Pink Trombone assumptions back in.
+
+Authority map for the required rebuild:
+
+- Owner: the acoustic network lowering must own an ordered scattering graph,
+  not `Voice.Tract` and not the response proxy.
+- Inputs: continuous paths, source ports, branch/radiation ports, wave-clock
+  policy, and live parameter bindings.
+- Outputs: Faust state for delay-line segments, source injection points,
+  junction scattering, radiation, and diagnostics.
+- Derived state: `tract`/`nasal_branch` become larynx/PT-shaped authoring
+  conveniences over the same acoustic graph; the response proxy remains a
+  preview renderer only.
+- Forbidden writers: `Voice.Tract` must stop being a parallel audio authority
+  once graph lowering exists; branch/radiation controls must not be repaired by
+  a separate playground model.
+- Shared paths: direct DSL authoring, PT compatibility commands, future
+  syrinx/reed/alien voices, and training/playground parameter bindings must all
+  commit through the same acoustic graph.
+- Deletion line: do not expand the proxy into a second fake synthesizer. The
+  next implementation needs either explicit `AcousticJunction` semantics or a
+  stronger definition that makes every `branch` a concrete N-port scattering
+  junction with deterministic port ordering and fractional-delay state.
 
 Exact Pink Trombone timing still needs pressure, but the next backend cut is no
 longer "add more substeps." The current Faust-friendly compromise chooses a

@@ -164,15 +164,18 @@ public sealed class PatchScriptTests
     public void ParserSupportsReusableAcousticPortNetworkPrimitives()
     {
         var patch = PatchScript.Parse("""
+            param path=/voice/left_pressure default=.7 min=0 max=1 step=.001
+            param path=/voice/throat_opening default=.8 min=0 max=1 step=.001
+            param path=/voice/mouth_opening default=1.2 min=0 max=2 step=.001
             path name=trachea length_cm=12 diameters=.4,.7,1,1
             path name=oral length_cm=17 diameters=.6,1.1,1.6,1.2,.8
-            source_port name=left_labium path=trachea kind=labial position=.1 pressure=.7 tension=.55 opening=.4 noise=.02
+            source_port name=left_labium path=trachea kind=labial position=.1 pressure=@/voice/left_pressure tension=.55 opening=.4 noise=.02
             source_port name=right_labium path=trachea kind=labial position=.1 pressure=.65 tension=.5 opening=.45 noise=.03 balance=.8
-            branch name=throat from_path=trachea from_position=.9 to_path=oral kind=bronchial opening=.8 coupling=.7
-            radiation_port name=mouth path=oral kind=lip position=1 opening=1.4 reflection=-.82
+            branch name=throat from_path=trachea from_position=.9 to_path=oral kind=bronchial opening=@/voice/throat_opening coupling=.7
+            radiation_port name=mouth path=oral kind=lip position=1 opening=@/voice/mouth_opening reflection=-.82
             wave_clock name=continuous strategy=thiran order=1 max_delay=4096 smoothing_ms=3
             acoustic_network name=syrinxish path=trachea wave_clock=continuous sources=left_labium,right_labium branches=throat radiation=mouth
-            v w=saw f=140 gain=.1
+            acoustic network=syrinxish freq=140 gain=.1
             """);
 
         var network = Assert.Single(patch.AcousticNetworks);
@@ -187,6 +190,21 @@ public sealed class PatchScriptTests
         Assert.Equal(AcousticBranchKind.Bronchial, Assert.Single(patch.AcousticBranches).Kind);
         Assert.Equal(AcousticRadiationKind.Lip, Assert.Single(patch.AcousticRadiationPorts).Kind);
         Assert.Equal(WaveClockDelayStrategy.FractionalThiran, Assert.Single(patch.WaveClocks).Strategy);
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/pressure");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/branches/0/opening");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/radiation/0/opening");
+
+        var voice = Assert.Single(patch.Voices);
+        Assert.Equal(network, voice.AcousticNetwork);
+
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions("syrinxish"));
+        Assert.Contains("acoustic_source", export.Source);
+        Assert.Contains("acoustic_body", export.Source);
+        Assert.Contains("branch_throat", export.Source);
+        Assert.Contains("acoustic_radiated", export.Source);
+        Assert.Contains("patch_param_0", export.Source);
+        Assert.Contains("patch_param_1", export.Source);
+        Assert.Contains("patch_param_2", export.Source);
     }
 
     [Fact]

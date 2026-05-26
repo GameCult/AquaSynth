@@ -225,9 +225,29 @@ demotes to an `AcousticPath` plus `AcousticBranch`, and each `tract` voice
 gets an `AcousticPortNetwork` over generated oral/source/branch/radiation
 records.
 
-This is intentionally a structural first cut. Faust lowering still uses the
-current `Voice.Tract` renderer, but the neutral acoustic records now exist so
-the next cuts can move waveguide/proxy lowering authority out of PT-shaped
-fields without losing fixture compatibility. A syrinx can already be authored
-as two labial `source_port` records plus bronchial/tract `branch` topology; the
-next proof is to give that network an audible lowering path.
+The second cut gives those records an audible Faust proxy. An `acoustic` /
+`acoustic_voice` command can reference an `acoustic_network`; Faust lowering
+builds a compact source/body/radiation model from the declared source ports,
+primary path, branches, and radiation ports. This is a response-proxy renderer,
+not the final waveguide truth renderer: it derives modal resonances from path
+length and area summaries, then mixes branch and radiation responses. It exists
+so syrinx-like and alien topologies can be heard and tested before the full
+bidirectional network lowering is complete. Source-port pressure/tension/opening
+and branch/radiation opening-style controls can bind through normal Aqua
+parameters, so the knobs used by training and playground surfaces are attached
+to acoustic records instead of side-channel state.
+
+A syrinx can now be authored as two labial `source_port` records plus
+bronchial/tract `branch` topology without a species mode. The next deeper cut
+is to make `AcousticPortNetwork` own the waveguide renderer directly, at which
+point `Voice.Tract` should become a larynx-shaped authoring convenience over
+the same network rather than a separate audio authority.
+
+That next cut is currently blocked on junction semantics, not on a missing
+filter primitive. The model needs an explicit owner for N-port scattering,
+deterministic port ordering, source injection, radiation termination, and
+fractional-delay state. The existing `AcousticBranch` record is enough to say
+"this tube attaches to that tube"; it does not yet say whether the attachment is
+a two-port graft, a three-port nasal-style junction, or a general graph node
+with pressure/volume-velocity conservation. Expanding the response proxy before
+that decision would create a second PT-shaped instrument wearing generic names.

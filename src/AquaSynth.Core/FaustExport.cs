@@ -185,6 +185,8 @@ public static class FaustEmitter
         var oscillator = oscillatorOverride ??
                          (voice.Tract is { } tract
                              ? TractExpression(source, tract, ownerPath, name, frequency, noteGate, parameters)
+                             : voice.AcousticNetwork is { } acousticNetwork
+                             ? AcousticNetworkExpression(source, patch, acousticNetwork, ownerPath, name, frequency, parameters, warnings)
                              : OscillatorExpression(patch, voice, ownerPath, frequency, dutyExpression, fmIndex, parameters));
         var envelope = voice.RateLevelEnvelope is not null
             ? RateLevelEnvelopeExpression(voice.RateLevelEnvelope, noteGate)
@@ -379,6 +381,144 @@ public static class FaustEmitter
             Waveform.Triangle => $"1.0 - 4.0 * abs({phase} - 0.5)",
             Waveform.Noise => "no.noise",
             _ => throw new ArgumentOutOfRangeException()
+        };
+    }
+
+    private static string AcousticNetworkExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        AcousticPortNetwork network,
+        string ownerPath,
+        string name,
+        string frequency,
+        ParameterMap parameters,
+        List<string> warnings)
+    {
+        var paths = patch.AcousticPaths.ToDictionary(path => path.Name, StringComparer.OrdinalIgnoreCase);
+        var sources = patch.AcousticSourcePorts.ToDictionary(port => port.Name, StringComparer.OrdinalIgnoreCase);
+        var branches = patch.AcousticBranches.ToDictionary(branch => branch.Name, StringComparer.OrdinalIgnoreCase);
+        var radiation = patch.AcousticRadiationPorts.ToDictionary(port => port.Name, StringComparer.OrdinalIgnoreCase);
+        if (!paths.TryGetValue(network.PrimaryPath, out var primaryPath))
+        {
+            warnings.Add($"{name}: acoustic network `{network.Name}` has unknown primary path `{network.PrimaryPath}`");
+            return "0.0";
+        }
+
+        var sourceExpressions = new List<string>();
+        foreach (var sourceName in network.SourcePorts)
+        {
+            if (!sources.TryGetValue(sourceName, out var port))
+            {
+                warnings.Add($"{name}: acoustic network `{network.Name}` has unknown source port `{sourceName}`");
+                continue;
+            }
+            sourceExpressions.Add(AcousticSourceExpression(patch, port, frequency, parameters));
+        }
+        if (sourceExpressions.Count == 0)
+        {
+            sourceExpressions.Add("0.0");
+            warnings.Add($"{name}: acoustic network `{network.Name}` has no valid source ports");
+        }
+
+        var baseInput = $"({string.Join(" + ", sourceExpressions)})";
+        var lengthMeters = Math.Max(0.001f, primaryPath.AreaFunction.LengthMeters);
+        var quarterWave = primaryPath.PropagationSpeedMetersPerSecond / (4 * lengthMeters);
+        var back = primaryPath.AreaFunction.AverageDiameter(0.1f, 0.35f);
+        var middle = primaryPath.AreaFunction.AverageDiameter(0.35f, 0.7f);
+        var front = primaryPath.AreaFunction.AverageDiameter(0.7f, 1f);
+        var reflectionEnergy = primaryPath.AreaFunction.ReflectionCoefficients.Count == 0
+            ? 0.12f
+            : MathF.Min(1, primaryPath.AreaFunction.ReflectionCoefficients.Sum(item => MathF.Abs(item)) / primaryPath.AreaFunction.ReflectionCoefficients.Count);
+        var loss = F(Math.Clamp(primaryPath.Loss, 0, 1));
+        var q = F(2.5f + reflectionEnergy * 8f + (1 - Math.Clamp(primaryPath.Loss, 0, 1)) * 18f);
+        source.AppendLine($"{name}_acoustic_source = {baseInput};");
+        source.AppendLine($"{name}_acoustic_f1 = max(40.0, {F(quarterWave)} * (1.0 + {F(back - middle)} * 0.18));");
+        source.AppendLine($"{name}_acoustic_f2 = max(80.0, {F(quarterWave * 3)} * (1.0 + {F(middle - front)} * 0.14));");
+        source.AppendLine($"{name}_acoustic_f3 = max(120.0, {F(quarterWave * 5)} * (1.0 + {F(front - back)} * 0.10));");
+        source.AppendLine($"{name}_acoustic_body = ({name}_acoustic_source * 0.12 + ({name}_acoustic_source : fi.resonbp({name}_acoustic_f1, {q}, 1.0)) * 0.9 + ({name}_acoustic_source : fi.resonbp({name}_acoustic_f2, {q}, 1.0)) * 0.65 + ({name}_acoustic_source : fi.resonbp({name}_acoustic_f3, {q}, 1.0)) * 0.35) * {loss};");
+
+        var branchExpressions = new List<string>();
+        foreach (var branchName in network.Branches)
+        {
+            if (!branches.TryGetValue(branchName, out var branch) ||
+                !paths.TryGetValue(branch.ToPath, out var branchPath))
+            {
+                warnings.Add($"{name}: acoustic network `{network.Name}` has unknown branch `{branchName}`");
+                continue;
+            }
+
+            var branchLength = Math.Max(0.001f, branchPath.AreaFunction.LengthMeters);
+            var branchQuarterWave = branchPath.PropagationSpeedMetersPerSecond / (4 * branchLength);
+            var branchIndex = AcousticBranchIndex(patch, branch);
+            var branchPathName = $"/acoustic/branches/{branchIndex}";
+            var branchOpening = $"clip01({parameters.Expression(OwnerField(branchPathName, "opening"), branch.Opening)})";
+            var branchCoupling = $"max(0.0, {parameters.Expression(OwnerField(branchPathName, "coupling"), branch.Coupling)})";
+            var branchQ = F(2f + Math.Clamp(branch.Coupling, 0, 1) * 8f);
+            var branchKindGain = branch.Kind == AcousticBranchKind.Nasal ? "0.75" : branch.Kind == AcousticBranchKind.Bronchial ? "0.55" : "0.45";
+            source.AppendLine($"{name}_branch_{SafeIdentifier(branch.Name)} = ({name}_acoustic_source : fi.resonbp({F(branchQuarterWave)}, {branchQ}, 1.0) : fi.lowpass(2, {F(branchQuarterWave * 8)})) * {branchOpening} * {branchCoupling} * {branchKindGain};");
+            branchExpressions.Add($"{name}_branch_{SafeIdentifier(branch.Name)}");
+        }
+
+        var radiationExpressions = new List<string>();
+        foreach (var radiationName in network.RadiationPorts)
+        {
+            if (!radiation.TryGetValue(radiationName, out var port))
+            {
+                warnings.Add($"{name}: acoustic network `{network.Name}` has unknown radiation port `{radiationName}`");
+                continue;
+            }
+
+            var radiationIndex = AcousticRadiationPortIndex(patch, port);
+            var radiationPath = $"/acoustic/radiation/{radiationIndex}";
+            var opening = $"max(0.0, {parameters.Expression(OwnerField(radiationPath, "opening"), port.Opening)})";
+            var reflection = $"min(1.0, abs({parameters.Expression(OwnerField(radiationPath, "reflection"), port.Reflection)}))";
+            var portLoss = $"clip01({parameters.Expression(OwnerField(radiationPath, "loss"), port.Loss)})";
+            var highpass = port.Kind is AcousticRadiationKind.Lip or AcousticRadiationKind.Beak
+                ? "80.0"
+                : port.Kind == AcousticRadiationKind.Nostril
+                ? "40.0"
+                : "20.0";
+            radiationExpressions.Add($"(({name}_acoustic_body : fi.highpass(1, {highpass})) * {opening} * (0.55 + 0.45 * {reflection}) * {portLoss})");
+        }
+        if (radiationExpressions.Count == 0)
+        {
+            radiationExpressions.Add($"{name}_acoustic_body");
+        }
+
+        var branchMix = branchExpressions.Count == 0 ? "0.0" : string.Join(" + ", branchExpressions);
+        source.AppendLine($"{name}_acoustic_branches = {branchMix};");
+        source.AppendLine($"{name}_acoustic_radiated = ({string.Join(" + ", radiationExpressions)}) + {name}_acoustic_branches;");
+        return $"{name}_acoustic_radiated";
+    }
+
+    private static string AcousticSourceExpression(
+        SynthPatch patch,
+        AcousticSourcePort port,
+        string frequency,
+        ParameterMap parameters)
+    {
+        var index = AcousticSourcePortIndex(patch, port);
+        var path = $"/acoustic/sources/{index}";
+        var pressure = $"clip01({parameters.Expression(OwnerField(path, "pressure"), port.Pressure)})";
+        var tension = $"clip01({parameters.Expression(OwnerField(path, "tension"), port.Tension)})";
+        var opening = $"max(0.0, {parameters.Expression(OwnerField(path, "opening"), port.Opening)})";
+        var noise = $"clip01({parameters.Expression(OwnerField(path, "noise"), port.Noise)})";
+        var balance = parameters.Expression(OwnerField(path, "balance"), port.Balance);
+        var detune = port.Kind == AcousticSourceKind.Labial ? $" * (1.0 + ({balance} - 0.5) * 0.018)" : "";
+        var phase = $"os.phasor(1.0, {frequency}{detune})";
+        return port.Kind switch
+        {
+            AcousticSourceKind.Glottal or AcousticSourceKind.Labial =>
+                $"((sin(2.0 * ma.PI * {phase}) - {tension} * 0.35 * sin(4.0 * ma.PI * {phase})) * {pressure} * {opening} + no.noise * {noise} * {pressure} * (1.0 - {tension})) * {balance}",
+            AcousticSourceKind.Reed =>
+                $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
+            AcousticSourceKind.TurbulenceJet =>
+                $"no.noise * {noise} * {pressure} * {opening} * {balance}",
+            AcousticSourceKind.Click =>
+                $"no.noise * {pressure} * {opening} * exp(0.0 - age * 120.0) * {balance}",
+            AcousticSourceKind.Synthetic =>
+                $"sin(2.0 * ma.PI * {phase}) * {pressure} * {opening} * {balance}",
+            _ => "0.0"
         };
     }
 
@@ -915,6 +1055,59 @@ public static class FaustEmitter
                int.TryParse(name[prefix.Length..], NumberStyles.None, CultureInfo.InvariantCulture, out var index)
             ? index
             : 0;
+    }
+
+    private static int AcousticBranchIndex(SynthPatch patch, AcousticBranch branch)
+    {
+        for (var i = 0; i < patch.AcousticBranches.Count; i++)
+        {
+            if (ReferenceEquals(patch.AcousticBranches[i], branch) ||
+                patch.AcousticBranches[i].Name.Equals(branch.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int AcousticRadiationPortIndex(SynthPatch patch, AcousticRadiationPort port)
+    {
+        for (var i = 0; i < patch.AcousticRadiationPorts.Count; i++)
+        {
+            if (ReferenceEquals(patch.AcousticRadiationPorts[i], port) ||
+                patch.AcousticRadiationPorts[i].Name.Equals(port.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int AcousticSourcePortIndex(SynthPatch patch, AcousticSourcePort port)
+    {
+        for (var i = 0; i < patch.AcousticSourcePorts.Count; i++)
+        {
+            if (ReferenceEquals(patch.AcousticSourcePorts[i], port) ||
+                patch.AcousticSourcePorts[i].Name.Equals(port.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static string SafeIdentifier(string value)
+    {
+        var builder = new StringBuilder(value.Length);
+        foreach (var character in value)
+        {
+            builder.Append(char.IsAsciiLetterOrDigit(character) ? character : '_');
+        }
+
+        return builder.Length == 0 ? "unnamed" : builder.ToString();
     }
 
     private static string Escape(string value) => value.Replace("\\", "\\\\").Replace("\"", "\\\"");

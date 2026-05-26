@@ -189,6 +189,10 @@ public static class PatchScript
                     FlushPendingOperatorGraph();
                     Voices.Add(ParseVoice(ExpandVoiceFields(fields, line), VoicePath(Voices.Count), line));
                     break;
+                case "acoustic_voice":
+                    FlushPendingOperatorGraph();
+                    Voices.Add(ParseAcousticVoice(ExpandVoiceFields(fields, line), VoicePath(Voices.Count), line));
+                    break;
                 case "tract":
                     FlushPendingOperatorGraph();
                     Voices.Add(ParseTractVoice(ExpandVoiceFields(fields, line), VoicePath(Voices.Count), line));
@@ -904,8 +908,34 @@ public static class PatchScript
                 FormantFrames = formantFrames,
                 FormantFrameRateHz = GetBoundFloat(fields, line, 0.5f, OwnerField(ownerPath, "color/vowel_rate"), "vowel_hz", "vowel_rate", "vowels_hz"),
                 Modulators = modulators,
-                Gain = GetBoundFloat(fields, line, 0.2f, OwnerField(ownerPath, "gain"), "gain", "g") * gainScale
+                Gain = GetBoundFloat(fields, line, 0.2f, OwnerField(ownerPath, "gain"), "gain", "g") * gainScale,
+                AcousticNetwork = ParseAcousticNetworkReference(fields, line)
             };
+        }
+
+        private Voice ParseAcousticVoice(IReadOnlyDictionary<string, string> fields, string ownerPath, int line)
+        {
+            var voiceFields = new Dictionary<string, string>(fields, StringComparer.OrdinalIgnoreCase);
+            if (!HasAny(voiceFields, "wave", "w"))
+            {
+                voiceFields["wave"] = "saw";
+            }
+            if (!HasAny(voiceFields, "gain", "g"))
+            {
+                voiceFields["gain"] = "0.35";
+            }
+            if (!HasAny(voiceFields, "sustain", "s", "gate", "hold", "duration"))
+            {
+                voiceFields["sustain"] = "0.35";
+            }
+
+            var voice = ParseVoice(voiceFields, ownerPath, line);
+            if (voice.AcousticNetwork is null)
+            {
+                throw new PatchScriptException(line, "acoustic voice needs `network` or `acoustic_network`");
+            }
+
+            return voice;
         }
 
         private Voice ParseTractVoice(IReadOnlyDictionary<string, string> fields, string ownerPath, int line)
@@ -1508,6 +1538,20 @@ public static class PatchScript
             return shape.AreaFunction;
         }
 
+        private AcousticPortNetwork? ParseAcousticNetworkReference(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            if (!TryGetAny(fields, ["network", "acoustic_network"], out var networkName))
+            {
+                return null;
+            }
+            if (!_acousticNetworksByName.TryGetValue(networkName, out var network))
+            {
+                throw new PatchScriptException(line, $"unknown acoustic network `{networkName}`");
+            }
+
+            return network;
+        }
+
         private GlottalSource? ParseGlottalSourceReference(IReadOnlyDictionary<string, string> fields, string ownerPath, int line)
         {
             var hasInlineGlottis = HasAny(fields, "aspiration", "breath", "skew", "open_phase");
@@ -2068,6 +2112,7 @@ public static class PatchScript
         "wave_clock" or "waveclock" or "clock" => "wave_clock",
         "acoustic_network" or "port_network" or "network" => "acoustic_network",
         "v" or "voice" => "voice",
+        "acoustic" or "acoustic_voice" or "av" => "acoustic_voice",
         "tract" or "vt" or "tractvoice" or "tract_voice" => "tract",
         "opgraph" or "ops" or "operators" => "opgraph",
         "operator" or "op" => "operator",
