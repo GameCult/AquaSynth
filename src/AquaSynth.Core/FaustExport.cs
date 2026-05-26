@@ -684,13 +684,14 @@ public static class FaustEmitter
             .ToList();
         foreach (var connection in connectionGroups)
         {
-            var connectionNodes = connection.Terminals
+            var ports = connection.Terminals
                 .Where(terminalNodes.ContainsKey)
-                .Select(terminalName => terminalNodes[terminalName])
-                .DistinctBy(node => node.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var ports = connectionNodes
-                .SelectMany(node => incident[node.Name].Select(port => (node, port)))
+                .Select(terminalName => networkTerminals.First(terminal => terminal.Name.Equals(terminalName, StringComparison.OrdinalIgnoreCase)))
+                .SelectMany(terminal =>
+                {
+                    var node = terminalNodes[terminal.Name];
+                    return incident[node.Name].Select(port => (node, terminal, port, nodePortCount: incident[node.Name].Count));
+                })
                 .ToList();
             if (ports.Count < 2)
             {
@@ -700,18 +701,19 @@ public static class FaustEmitter
             var safeConnection = SafeIdentifier(connection.Name);
             var connectionPressure = ConnectionPressureExpression(name, connection, ports);
             source.AppendLine($"    {name}_graph_connection_pressure_{safeConnection} = {connectionPressure};");
-            foreach (var (node, port) in ports)
+            foreach (var (node, _, port, _) in ports)
             {
                 var incoming = GraphIncoming(name, port);
                 var outgoing = GraphOutgoing(name, port);
                 var sourceInjection = NodeSourceExpression(name, node, sources);
+                var portCoupling = $"{name}_graph_connection_coupling_{safeConnection}";
                 var bypassInput = ports.Count == 1
                     ? incoming
                     : $"(({string.Join(" + ", ports.Where(item => item.port != port).Select(item => GraphIncoming(name, item.port)))}) / {F(ports.Count - 1)})";
                 var scattered = connection.Law == AcousticConnectionLaw.Bypass
                     ? bypassInput
                     : $"({name}_graph_connection_pressure_{safeConnection} - {incoming})";
-                source.AppendLine($"    {outgoing} = (({scattered}) * {name}_graph_connection_coupling_{safeConnection} + {incoming} * (1.0 - {name}_graph_connection_coupling_{safeConnection}) + ({sourceInjection}) / {F(Math.Max(1, incident[node.Name].Count))}) * {name}_graph_connection_loss_{safeConnection};");
+                source.AppendLine($"    {outgoing} = (({scattered}) * ({portCoupling}) + {incoming} * (1.0 - ({portCoupling})) + ({sourceInjection}) / {F(Math.Max(1, incident[node.Name].Count))}) * {name}_graph_connection_loss_{safeConnection};");
             }
         }
 
@@ -1400,7 +1402,7 @@ public static class FaustEmitter
     private static string ConnectionPressureExpression(
         string voiceName,
         AcousticConnection connection,
-        IReadOnlyList<(AcousticGraphNode node, AcousticGraphPort port)> ports)
+        IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports)
     {
         if (connection.Law == AcousticConnectionLaw.PressureContinuity)
         {
@@ -1408,10 +1410,13 @@ public static class FaustEmitter
         }
 
         var weightedIncoming = ports
-            .Select(item => $"{voiceName}_graph_node_area_{item.node.Name} * {GraphIncoming(voiceName, item.port)}");
-        var areaSum = ports.Select(item => $"{voiceName}_graph_node_area_{item.node.Name}");
+            .Select(item => $"{ConnectionPortAreaExpression(voiceName, item.terminal, item.nodePortCount)} * {GraphIncoming(voiceName, item.port)}");
+        var areaSum = ports.Select(item => ConnectionPortAreaExpression(voiceName, item.terminal, item.nodePortCount));
         return $"2.0 * ({string.Join(" + ", weightedIncoming)}) / max(0.000001, {string.Join(" + ", areaSum)})";
     }
+
+    private static string ConnectionPortAreaExpression(string voiceName, AcousticTerminal terminal, int nodePortCount) =>
+        $"({voiceName}_graph_terminal_area_{SafeIdentifier(terminal.Name)} / {F(Math.Max(1, nodePortCount))})";
 
     private static string NodeSourceExpression(
         string voiceName,

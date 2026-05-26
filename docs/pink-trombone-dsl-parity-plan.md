@@ -226,6 +226,17 @@ the generated graph path did not materially move the report; the useful levers
 so far are source semantics, radiation impedance, and transient/frication
 injection.
 
+The nasal branch pressure exposed a real graph-law blocker. The graph now uses
+terminal-specific admittance in connection pressure instead of collapsing every
+co-located terminal into one node area, but log-mel parity did not move. Two
+tempting compensators failed: per-port outgoing coupling made supposedly oral
+fixtures nearly silent, and squaring the generated velum opening reduced nasal
+leakage while revealing that oral radiation was still too weak. The next
+architectural cut is not a gain trim. Closed and partially open side branches
+need a power/flow-consistent port law that separates junction admittance from
+outgoing wave normalization, so a weak nasal port can stop drawing/radiating
+energy without becoming the accidental loudness path for the oral tract.
+
 ## Cut Line
 
 The current `Voice.Tract` scalar proxy may survive only as an adapter over real
