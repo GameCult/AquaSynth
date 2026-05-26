@@ -2,6 +2,28 @@
 
 Current slice:
 
+- Added time-varying Pink Trombone utterance reference fixtures before any Aqua
+  utterance metric golf. `PinkTromboneReferenceRenderer.RenderUtterance`
+  interpolates timestamped `PinkTromboneControlPoint` curves sample by sample,
+  preserving the existing PT-style waveguide state.
+- New fixture set: `mama`, `papa`, `lulek`, and `thrombosis`. Each fixture owns
+  explicit control points for PT frequency, intensity, tenseness, tongue
+  index/diameter, constriction index/diameter, turbulence, velum, lip opening,
+  reflections, gain, and burst. These are first-pass pronunciation sketches,
+  not accepted references until user listening approves them.
+- `PinkTromboneUtteranceReferenceTests.PinkTromboneUtteranceFixturesWriteReferenceWavs`
+  writes PT reference WAVs, `controls.csv`, and `summary.txt` under
+  `artifacts/parity/pink-trombone-utterances/<timestamp>/<word>/`.
+- Latest artifact set:
+  `artifacts/parity/pink-trombone-utterances/20260526T205230009`.
+  Reported PT reference peaks/RMS:
+  `mama` `0.7033/0.4213`;
+  `papa` `0.7012/0.3618`;
+  `lulek` `0.7200/0.4087`;
+  `thrombosis` `0.7600/0.4658`.
+  Do not golf Aqua against these until the user has judged whether the PT
+  reference words are recognizable enough to serve as targets.
+
 - Golfed the actual graph tract path against the PT log-mel harness after the
   playground `Ma` preset sounded like amplified buzzing. The failure was not a
   playground-only gain problem: generated graph topology reused velum as both

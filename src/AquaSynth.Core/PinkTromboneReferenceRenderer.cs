@@ -5,6 +5,17 @@ public sealed record PinkTromboneReferenceRender(
     int SampleRate,
     PinkTromboneFixtureControls Controls);
 
+public sealed record PinkTromboneUtteranceRender(
+    float[] Samples,
+    int SampleRate,
+    string FixtureId,
+    IReadOnlyList<PinkTromboneControlPoint> ControlPoints);
+
+public sealed record PinkTromboneControlPoint(
+    float TimeSeconds,
+    PinkTromboneFixtureControls Controls,
+    string Label = "");
+
 public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
 {
     private const int Sections = 44;
@@ -20,6 +31,67 @@ public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
         synth.Render(samples, controls);
         return new PinkTromboneReferenceRender(samples, sampleRate, controls);
     }
+
+    public PinkTromboneUtteranceRender RenderUtterance(
+        string fixtureId,
+        IReadOnlyList<PinkTromboneControlPoint> controlPoints,
+        float durationSeconds)
+    {
+        if (controlPoints.Count == 0)
+        {
+            throw new ArgumentException("Utterance render needs at least one control point.", nameof(controlPoints));
+        }
+
+        var ordered = controlPoints
+            .OrderBy(point => point.TimeSeconds)
+            .ToArray();
+        var frames = Math.Max(1, (int)MathF.Round(sampleRate * Math.Max(durationSeconds, 1f / sampleRate)));
+        var synth = new State(sampleRate);
+        var samples = new float[frames];
+        synth.Render(samples, frame => InterpolateControls(ordered, frame / (float)sampleRate));
+        return new PinkTromboneUtteranceRender(samples, sampleRate, fixtureId, ordered);
+    }
+
+    private static PinkTromboneFixtureControls InterpolateControls(IReadOnlyList<PinkTromboneControlPoint> points, float timeSeconds)
+    {
+        if (timeSeconds <= points[0].TimeSeconds) return points[0].Controls;
+        for (var i = 0; i < points.Count - 1; i++)
+        {
+            var current = points[i];
+            var next = points[i + 1];
+            if (timeSeconds > next.TimeSeconds) continue;
+            var span = Math.Max(0.0001f, next.TimeSeconds - current.TimeSeconds);
+            var t = Smooth01((timeSeconds - current.TimeSeconds) / span);
+            return Lerp(current.Controls, next.Controls, t);
+        }
+
+        return points[^1].Controls;
+    }
+
+    private static float Smooth01(float value)
+    {
+        var t = Math.Clamp(value, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    private static PinkTromboneFixtureControls Lerp(PinkTromboneFixtureControls a, PinkTromboneFixtureControls b, float t) =>
+        new(
+            Frequency: Mix(a.Frequency, b.Frequency, t),
+            Intensity: Mix(a.Intensity, b.Intensity, t),
+            Tenseness: Mix(a.Tenseness, b.Tenseness, t),
+            TongueIndex: Mix(a.TongueIndex, b.TongueIndex, t),
+            TongueDiameter: Mix(a.TongueDiameter, b.TongueDiameter, t),
+            ConstrictionIndex: Mix(a.ConstrictionIndex, b.ConstrictionIndex, t),
+            ConstrictionDiameter: Mix(a.ConstrictionDiameter, b.ConstrictionDiameter, t),
+            Turbulence: Mix(a.Turbulence, b.Turbulence, t),
+            Velum: Mix(a.Velum, b.Velum, t),
+            LipOpening: Mix(a.LipOpening, b.LipOpening, t),
+            GlottalReflection: Mix(a.GlottalReflection, b.GlottalReflection, t),
+            LipReflection: Mix(a.LipReflection, b.LipReflection, t),
+            Gain: Mix(a.Gain, b.Gain, t),
+            Burst: Mix(a.Burst, b.Burst, t));
+
+    private static float Mix(float a, float b, float t) => a + (b - a) * t;
 
     private sealed class State
     {
@@ -53,12 +125,18 @@ public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
 
         public void Render(float[] output, PinkTromboneFixtureControls controls)
         {
-            UpdateTargets(controls);
-            UpdateNose(controls.Velum);
-            UpdateReflection();
-            UpdateTransient(controls);
+            Render(output, _ => controls);
+        }
+
+        public void Render(float[] output, Func<int, PinkTromboneFixtureControls> controlsAtFrame)
+        {
             for (var i = 0; i < output.Length; i++)
             {
+                var controls = controlsAtFrame(i);
+                UpdateTargets(controls);
+                UpdateNose(controls.Velum);
+                UpdateReflection();
+                UpdateTransient(controls);
                 SlewDiameters();
                 transient *= 0.995f;
                 var glottal = Glottis(controls) + Rand() * transient;
