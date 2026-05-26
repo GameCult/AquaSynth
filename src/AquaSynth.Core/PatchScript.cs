@@ -1215,7 +1215,10 @@ public static class PatchScript
         {
             var prefix = ownerPath.Replace("/", "_", StringComparison.Ordinal).Trim('_');
             var primaryPathName = $"{prefix}_oral";
-            var oralArea = tract.AreaFunction ?? new TractAreaFunction([0.6f, 0.8f, 1.2f, 1.5f, 1.5f, 1.2f, 0.8f, 0.6f], 17);
+            var baseOralArea = tract.AreaFunction ?? new TractAreaFunction([0.6f, 0.8f, 1.2f, 1.5f, 1.5f, 1.2f, 0.8f, 0.6f], 17);
+            var oralArea = tract.Propagation == TractPropagationMode.Graph
+                ? TractGraphAreaFunction(tract, baseOralArea)
+                : baseOralArea;
             AddAcousticPathRecord(new AcousticPath(primaryPathName, oralArea, 343, tract.WaveguideLoss));
 
             var sourceNames = new List<string>();
@@ -1233,7 +1236,14 @@ public static class PatchScript
                 tract.Glottis?.Skew ?? 0.42f,
                 tract.Glottis?.Aspiration ?? 0.08f);
             AddAcousticSourcePortRecord(source);
-            AddAcousticTerminalRecord(new AcousticTerminal(source.Name, source.Path, source.Position, AcousticTerminalKind.Source, source.Name));
+            AddAcousticTerminalRecord(new AcousticTerminal(
+                source.Name,
+                source.Path,
+                source.Position,
+                AcousticTerminalKind.Source,
+                source.Name,
+                1,
+                tract.GlottalReflection));
             sourceNames.Add(sourceName);
 
             if (tract.Injection is { } injection)
@@ -1351,6 +1361,33 @@ public static class PatchScript
 
         private static float NormalizeTractIndex(float index, int sections) =>
             sections <= 0 ? 0 : Math.Clamp(index / Math.Max(1, sections - 1), 0, 1);
+
+        private static TractAreaFunction TractGraphAreaFunction(VocalTract tract, TractAreaFunction areaFunction)
+        {
+            var sections = areaFunction.Sections;
+            var diameters = new float[sections];
+            for (var i = 0; i < sections; i++)
+            {
+                var diameter = areaFunction.Diameters[i];
+                if (i == sections - 1)
+                {
+                    diameter = tract.LipOpening;
+                }
+                else
+                {
+                    var tongueWidth = Math.Max(1, sections * 0.18f);
+                    var tongueWeight = MathF.Exp(0 - MathF.Pow((i - tract.TongueIndex) / tongueWidth, 2));
+                    diameter += (tract.TongueDiameter - diameter) * tongueWeight;
+                }
+
+                var constrictionWidth = Math.Max(1, sections * 0.09f);
+                var constrictionWeight = MathF.Exp(0 - MathF.Pow((i - tract.ConstrictionIndex) / constrictionWidth, 2));
+                diameter = Math.Min(diameter, tract.ConstrictionDiameter + Math.Max(0, diameter - tract.ConstrictionDiameter) * (1 - constrictionWeight));
+                diameters[i] = Math.Max(0, diameter);
+            }
+
+            return new TractAreaFunction(diameters, areaFunction.LengthCentimeters);
+        }
 
         private void AddModBus(IReadOnlyDictionary<string, string> fields, int line)
         {

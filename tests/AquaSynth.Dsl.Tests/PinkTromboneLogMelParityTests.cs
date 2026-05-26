@@ -57,26 +57,40 @@ public sealed class PinkTromboneLogMelParityTests
 
             var comparison = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: reference.SampleRate))
                 .Compare(reference.Samples, candidate.Samples);
-            reports.Add(Report(fixture, comparison));
-            WriteFixtureArtifacts(artifactDir, fixture, reference.Samples, candidate.Samples, reference.SampleRate, comparison, candidateSource.Source);
+            reports.Add(Report(fixture, comparison, "waveguide"));
+            WriteFixtureArtifacts(artifactDir, fixture, "waveguide", reference.Samples, candidate.Samples, reference.SampleRate, comparison, candidateSource.Source);
+
+            var graphSource = FaustEmitter.EmitScript(fixture.GraphAquaScript, new FaustExportOptions($"pt_graph_{fixture.Id.Replace('-', '_')}"));
+            File.WriteAllText(Path.Combine(fixtureDir, "candidate-graph.dsp"), graphSource.Source);
+            var graphCandidate = await FaustCompiler.RenderAsync(
+                graphSource.Source,
+                new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate));
+            Assert.NotNull(graphCandidate);
+            Assert.True(graphCandidate.Samples.Length > 0, $"{graphCandidate.Stderr}{Environment.NewLine}artifacts: {fixtureDir}");
+            Assert.True(graphCandidate.Samples.Max(MathF.Abs) > 0.00001f, graphCandidate.Stderr);
+            var graphComparison = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: reference.SampleRate))
+                .Compare(reference.Samples, graphCandidate.Samples);
+            reports.Add(Report(fixture, graphComparison, "graph"));
+            WriteFixtureArtifacts(artifactDir, fixture, "graph", reference.Samples, graphCandidate.Samples, reference.SampleRate, graphComparison, graphSource.Source);
 
             Assert.True(
                 comparison.LogMelCosineSimilarity >= FixtureSmokeCosineFloors.GetValueOrDefault(fixture.Id, SmokeCosineFloor),
-                $"{Report(fixture, comparison)}{Environment.NewLine}artifacts: {artifactDir}");
+                $"{Report(fixture, comparison, "waveguide")}{Environment.NewLine}artifacts: {artifactDir}");
         }
 
         Directory.CreateDirectory(artifactDir);
         File.WriteAllText(Path.Combine(artifactDir, "summary.txt"), string.Join(Environment.NewLine + Environment.NewLine, reports));
     }
 
-    private static string Report(PinkTromboneParityFixture fixture, AudioComparison comparison) =>
+    private static string Report(PinkTromboneParityFixture fixture, AudioComparison comparison, string candidate) =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"{fixture.Id}: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000}");
+            $"{fixture.Id}/{candidate}: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000}");
 
     private static void WriteFixtureArtifacts(
         string artifactDir,
         PinkTromboneParityFixture fixture,
+        string candidateName,
         IReadOnlyList<float> reference,
         IReadOnlyList<float> candidate,
         int sampleRate,
@@ -86,9 +100,9 @@ public sealed class PinkTromboneLogMelParityTests
         var fixtureDir = Path.Combine(artifactDir, fixture.Id);
         Directory.CreateDirectory(fixtureDir);
         WriteWav(Path.Combine(fixtureDir, "reference-pink-trombone.wav"), reference, sampleRate);
-        WriteWav(Path.Combine(fixtureDir, "candidate-aquasynth.wav"), candidate, sampleRate);
-        File.WriteAllText(Path.Combine(fixtureDir, "candidate.dsp"), candidateSource);
-        File.WriteAllText(Path.Combine(fixtureDir, "report.txt"), Report(fixture, comparison));
+        WriteWav(Path.Combine(fixtureDir, $"candidate-{candidateName}.wav"), candidate, sampleRate);
+        File.WriteAllText(Path.Combine(fixtureDir, $"candidate-{candidateName}.dsp"), candidateSource);
+        File.WriteAllText(Path.Combine(fixtureDir, $"report-{candidateName}.txt"), Report(fixture, comparison, candidateName));
     }
 
     private static string ArtifactPath(params string[] parts)

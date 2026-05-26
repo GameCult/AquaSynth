@@ -629,6 +629,13 @@ public sealed class PatchScriptTests
             Assert.Contains("wg_diameter_target_", export.Source);
             Assert.Contains("wg_substep_drive", export.Source);
             Assert.Contains("process =", export.Source);
+
+            var graphPatch = PatchScript.Parse(fixture.GraphAquaScript);
+            var graphVoice = Assert.Single(graphPatch.Voices);
+            var graphExport = FaustEmitter.Emit(graphPatch, new FaustExportOptions($"pt_graph_{fixture.Id.Replace('-', '_')}"));
+            Assert.Equal(TractPropagationMode.Graph, graphVoice.Tract?.Propagation);
+            Assert.Contains("acoustic_graph_radiated", graphExport.Source);
+            Assert.DoesNotContain("wg_diameter_target_", graphExport.Source);
             Assert.NotEmpty(fixture.ReferenceFeatures);
         }
 

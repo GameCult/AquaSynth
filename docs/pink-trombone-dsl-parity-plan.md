@@ -213,6 +213,15 @@ semantics and a `tract propagation=graph` entry point; the remaining parity
 question is whether graph-authored PT compatibility can beat the current weak
 `Voice.Tract` baseline.
 
+The parity report now renders both lanes. Current graph evidence is mixed:
+nasal, sibilant, and closure-release scores improved in some proxy metrics, but
+open/front vowel log-mel cosine remains far below the legacy waveguide lane and
+the graph lane needed explicit radiation gain to escape underpowered output.
+Baking static tongue/constriction/lip shape into the generated graph path did
+not materially move the report, so the next useful pressure is lower-level
+source, scattering, radiation, and transient behavior rather than more contour
+paperwork.
+
 ## Cut Line
 
 The current `Voice.Tract` scalar proxy may survive only as an adapter over real

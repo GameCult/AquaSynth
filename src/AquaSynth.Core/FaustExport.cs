@@ -653,6 +653,7 @@ public static class FaustEmitter
             source.AppendLine($"{name}_graph_connection_coupling_{SafeIdentifier(connection.Name)} = clip01({parameters.Expression(OwnerField(connectionPath, "coupling"), connection.Coupling)});");
             source.AppendLine($"{name}_graph_connection_loss_{SafeIdentifier(connection.Name)} = clip01({parameters.Expression(OwnerField(connectionPath, "loss"), connection.Loss)});");
         }
+        source.AppendLine($"{name}_graph_radiation_gain = 24.0;");
 
         foreach (var sourceName in network.SourcePorts)
         {
@@ -759,7 +760,7 @@ public static class FaustEmitter
         }
         nextStates.AddRange(segments.Select(segment => $"{name}_graph_next_l{segment.Index}"));
         source.Replace(string.Join(", ", NextStatesPlaceholder(stateCount)), string.Join(", ", nextStates));
-        source.AppendLine($"    {name}_graph_out = {(radiated.Count == 0 ? "0.0" : string.Join(" + ", radiated))};");
+        source.AppendLine($"    {name}_graph_out = ({(radiated.Count == 0 ? "0.0" : string.Join(" + ", radiated))}) * {name}_graph_radiation_gain;");
         source.AppendLine("  };");
         source.AppendLine("};");
         source.AppendLine($"{name}_acoustic_graph_radiated = {name}_graph({name}_graph_drive);");
