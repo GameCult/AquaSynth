@@ -308,7 +308,7 @@ public static class PatchScript
                 throw new PatchScriptException(line, $"duplicate tract shape `{name}`");
             }
 
-            var areaFunction = ParseTractAreaFunction(fields, line);
+            var areaFunction = ParseTractAreaFunction(fields, line, 17);
             var shape = new TractShape(name, areaFunction);
             _tractShapes.Add(shape);
             _tractShapesByName[name] = shape;
@@ -362,7 +362,7 @@ public static class PatchScript
 
             var branch = new NasalBranch(
                 name,
-                ParseTractAreaFunction(fields, line),
+                ParseTractAreaFunction(fields, line, 12),
                 GetBoundInt(fields, line, 17, $"/nasal_branches/{_nasalBranches.Count}/junction", "junction", "junction_index", "at"),
                 GetBoundFloat(fields, line, 0.01f, $"/nasal_branches/{_nasalBranches.Count}/velum", "velum", "opening"),
                 GetBoundFloat(fields, line, -0.85f, $"/nasal_branches/{_nasalBranches.Count}/reflection", "reflection", "lip_reflection"),
@@ -640,10 +640,9 @@ public static class PatchScript
             {
                 throw new PatchScriptException(line, "tract sections must be at least 4");
             }
-            if (areaFunction is not null && areaFunction.Sections != sections)
-            {
-                throw new PatchScriptException(line, "tract shape section count must match tract sections");
-            }
+            areaFunction = areaFunction is not null && areaFunction.Sections != sections
+                ? areaFunction.Resample(sections)
+                : areaFunction;
             var noseSections = GetBoundInt(fields, line, nasal?.AreaFunction?.Sections ?? 28, OwnerField(ownerPath, "tract/nose_sections"), "nose_sections", "nose_cells");
             if (noseSections < 0)
             {
@@ -1068,7 +1067,7 @@ public static class PatchScript
             }
             if (hasInlineShape)
             {
-                return ParseTractAreaFunction(fields, line);
+                return ParseTractAreaFunction(fields, line, 17);
             }
             if (!hasNamedShape)
             {
@@ -1144,15 +1143,16 @@ public static class PatchScript
                 throw new PatchScriptException(line, $"unknown nasal branch `{nasalName}`");
             }
 
-            var fallback = hasNamedNasal ? namedNasal! : new NasalBranch(AreaFunction: new TractAreaFunction([0.01f, 0.6f, 1.2f, 1.6f]));
+            var fallback = hasNamedNasal ? namedNasal! : new NasalBranch(AreaFunction: new TractAreaFunction([0.01f, 0.6f, 1.2f, 1.6f], 12));
             var areaFunction = fallback.AreaFunction;
+            var lengthCentimeters = GetFloat(fields, line, areaFunction?.LengthCentimeters ?? 12, "length_cm", "length_centimeters");
             if (TryGetAny(fields, ["nose_diameters"], out var diameters))
             {
-                areaFunction = new TractAreaFunction(ParseFloatList(diameters, line, "nose_diameters").ToArray());
+                areaFunction = new TractAreaFunction(ParseFloatList(diameters, line, "nose_diameters").ToArray(), lengthCentimeters);
             }
             if (TryGetAny(fields, ["nose_areas"], out var areas))
             {
-                areaFunction = TractAreaFunction.FromAreas(ParseFloatList(areas, line, "nose_areas").ToArray());
+                areaFunction = TractAreaFunction.FromAreas(ParseFloatList(areas, line, "nose_areas").ToArray(), lengthCentimeters);
             }
 
             return new NasalBranch(
@@ -1188,7 +1188,7 @@ public static class PatchScript
                 GetBoundFloat(fields, line, fallback.ObstructionThreshold, OwnerField(ownerPath, "tract/motion/obstruction_threshold"), "obstruction_threshold", "closure"));
         }
 
-        private static TractAreaFunction ParseTractAreaFunction(IReadOnlyDictionary<string, string> fields, int line)
+        private static TractAreaFunction ParseTractAreaFunction(IReadOnlyDictionary<string, string> fields, int line, float defaultLengthCentimeters)
         {
             var hasDiameters = TryGetAny(fields, ["diameters", "diameter"], out var diametersText);
             var hasAreas = TryGetAny(fields, ["areas", "area"], out var areasText);
@@ -1206,10 +1206,15 @@ public static class PatchScript
             {
                 throw new PatchScriptException(line, "tract shape samples must be zero or greater");
             }
+            var lengthCentimeters = GetFloat(fields, line, defaultLengthCentimeters, "length_cm", "length_centimeters");
+            if (lengthCentimeters <= 0)
+            {
+                throw new PatchScriptException(line, "tract shape length_cm must be greater than zero");
+            }
 
             return hasDiameters
-                ? new TractAreaFunction(samples.ToArray())
-                : TractAreaFunction.FromAreas(samples.ToArray());
+                ? new TractAreaFunction(samples.ToArray(), lengthCentimeters)
+                : TractAreaFunction.FromAreas(samples.ToArray(), lengthCentimeters);
         }
 
         private static PadSpectrumProfile ParsePadSpectrumProfile(IReadOnlyDictionary<string, string> fields, int line)

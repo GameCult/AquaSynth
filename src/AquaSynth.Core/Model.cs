@@ -138,9 +138,18 @@ public sealed record Formant(float FrequencyHz, float BandwidthHz, float Gain);
 
 public sealed record FormantFrame(IReadOnlyList<Formant> Formants);
 
-public sealed record TractAreaFunction(IReadOnlyList<float> Diameters)
+public sealed record TractAreaFunction(IReadOnlyList<float> Diameters, float LengthCentimeters = 17)
 {
     public int Sections => Diameters.Count;
+
+    public float LengthMeters => MathF.Max(0, LengthCentimeters) / 100;
+
+    public float SectionLengthMeters => Sections == 0 ? 0 : LengthMeters / Sections;
+
+    public float CellDelaySamples(float sampleRate, float propagationSpeedMetersPerSecond = 343) =>
+        propagationSpeedMetersPerSecond <= 0
+            ? 0
+            : SectionLengthMeters / propagationSpeedMetersPerSecond * MathF.Max(0, sampleRate);
 
     public IReadOnlyList<float> Areas => Diameters.Select(diameter => MathF.Max(0, diameter) * MathF.Max(0, diameter)).ToArray();
 
@@ -164,8 +173,8 @@ public sealed record TractAreaFunction(IReadOnlyList<float> Diameters)
     public float AverageDiameter(float startFraction, float endFraction)
     {
         if (Diameters.Count == 0) return 0;
-        var start = Math.Clamp((int)MathF.Floor(startFraction * Diameters.Count), 0, Diameters.Count - 1);
-        var end = Math.Clamp((int)MathF.Ceiling(endFraction * Diameters.Count), start + 1, Diameters.Count);
+        var start = Math.Clamp((int)MathF.Floor(Math.Clamp(startFraction, 0, 1) * Diameters.Count), 0, Diameters.Count - 1);
+        var end = Math.Clamp((int)MathF.Ceiling(Math.Clamp(endFraction, 0, 1) * Diameters.Count), start + 1, Diameters.Count);
         var sum = 0f;
         for (var i = start; i < end; i++)
         {
@@ -175,10 +184,31 @@ public sealed record TractAreaFunction(IReadOnlyList<float> Diameters)
         return sum / Math.Max(1, end - start);
     }
 
+    public float DiameterAt(float normalizedPosition)
+    {
+        if (Diameters.Count == 0) return 0;
+        if (Diameters.Count == 1) return Diameters[0];
+        var position = Math.Clamp(normalizedPosition, 0, 1) * (Diameters.Count - 1);
+        var left = (int)MathF.Floor(position);
+        var right = Math.Min(Diameters.Count - 1, left + 1);
+        var mix = position - left;
+        return Diameters[left] + (Diameters[right] - Diameters[left]) * mix;
+    }
+
+    public TractAreaFunction Resample(int sections)
+    {
+        if (sections < 1) throw new ArgumentOutOfRangeException(nameof(sections), "section count must be positive");
+        if (sections == 1) return new TractAreaFunction([DiameterAt(0)], LengthCentimeters);
+        var diameters = Enumerable.Range(0, sections)
+            .Select(i => DiameterAt((float)i / (sections - 1)))
+            .ToArray();
+        return new TractAreaFunction(diameters, LengthCentimeters);
+    }
+
     public float MinimumDiameter => Diameters.Count == 0 ? 0 : Diameters.Min();
 
-    public static TractAreaFunction FromAreas(IReadOnlyList<float> areas) =>
-        new(areas.Select(area => MathF.Sqrt(MathF.Max(0, area))).ToArray());
+    public static TractAreaFunction FromAreas(IReadOnlyList<float> areas, float lengthCentimeters = 17) =>
+        new(areas.Select(area => MathF.Sqrt(MathF.Max(0, area))).ToArray(), lengthCentimeters);
 }
 
 public sealed record TractShape(string Name, TractAreaFunction AreaFunction);

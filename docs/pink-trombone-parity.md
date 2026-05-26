@@ -46,12 +46,21 @@ not static formants: the shaper slews section diameters toward target diameters,
 updates reflections at block boundaries, injects turbulence at constrictions,
 and emits a transient when a closure opens.
 
+The 44 oral and 28 nasal counts are Pink Trombone's implementation grid, not
+the AquaSynth abstraction. At 44.1 kHz, a 17 cm tract split into 44 cells has an
+acoustic travel time of roughly 0.5 samples per cell, so the twice-per-sample
+update is better understood as a discretization/wave-clock choice. AquaSynth's
+live target is continuous morphology plus fractional-delay waveguide lowering,
+with the grid chosen by the backend.
+
 ## AquaSynth Capability Map
 
 Current AquaSynth can express:
 
 - runtime parameters with stable paths;
-- reusable `tract_shape` declarations with authored diameter or area samples;
+- reusable `tract_shape` declarations with authored diameter or area samples,
+  physical length, normalized interpolation, resampling, and per-cell acoustic
+  delay derivation;
 - derived tract areas and adjacent-section reflection coefficients;
 - reusable `glottis` declarations for tract excitation quality;
 - reusable `tract_injection` declarations for positioned frication/burst
@@ -75,7 +84,8 @@ Current AquaSynth can express:
 
 Current AquaSynth cannot exactly express:
 
-- exact two recursive tract state updates inside one output sample;
+- fractional-delay tract propagation whose clock derives from physical length,
+  propagation speed, and sample rate;
 - exact Pink Trombone LF glottal coefficient updates.
 
 ## Current Parity Rung
@@ -89,9 +99,10 @@ Trombone anatomy:
   AquaSynth tract-voice proxy as a deliberately non-passing rebuild.
 - The `tract` DSL command parses into an ordinary `Voice` with `Voice.Tract`,
   so this remains a voice with a very expressive tract treatment.
-- `tract_shape` owns reusable section diameter/area functions. The current
-  proxy consumes its shape summaries and derived reflection energy; future
-  waveguide lowering should consume the full coefficients.
+- `tract_shape` owns reusable continuous diameter/area functions. The current
+  proxy consumes its shape summaries and derived reflection energy; waveguide
+  lowering consumes a compiled grid sampled from that continuous owner, so
+  authoring sample count and backend section count can differ.
 - `glottis` and `tract_injection` own excitation and positioned noise/burst
   controls consumed by tract voices.
 - `propagation=waveguide` emits an oral right/left tube from the derived
@@ -104,9 +115,9 @@ Trombone anatomy:
   pressure from obstruction history.
 - waveguide lowering derives live per-section diameter targets, areas, and
   reflection coefficients from shape and gesture controls.
-- `substeps` expresses waveguide clock intent; current Faust lowering consumes
-  it through drive/loss scaling but does not yet prove exact intra-sample state
-  updates.
+- `substeps` is now legacy waveguide clock pressure. Current Faust lowering
+  consumes it through drive/loss scaling, but the coherent target is
+  fractional-delay propagation from physical tract length and wave speed.
 - `PinkTromboneParityFixtures` defines fixed Aqua DSL workouts for open,
   front, nasal, sibilant, and closure cases using the reusable low-level
   primitives.
@@ -140,8 +151,10 @@ of these:
    DSP model in AquaSynth.Faust/Core: typed tract sections, diameter curves,
    reflection calculation, glottal source, nasal branch, and a Faust emitter for
    that structure.
-2. Add true twice-per-output-sample state update inside the Faust-friendly
-   feedback-loop component.
+2. Replace `substeps` as a musical surface with fractional-delay waveguide
+   lowering. Physical length, propagation speed, and sample rate decide delay;
+   runtime morphology controls move diameters and junction openings without
+   recompiling unless topology changes.
 3. Use the log-mel artifact loop to golf fixture-by-fixture now that the real
    tract path renders.
 

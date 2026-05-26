@@ -11,16 +11,18 @@ morphologies.
 ## Current Mechanism
 
 `tract` currently lowers into `Voice.Tract`: a voice-local scalar control bundle
-with a Faust source/filter proxy. It is useful as a playground surface and as a
-named failure against Pink Trombone, but it does not own the anatomy:
+with a Faust source/filter proxy and an early waveguide backend. It is useful as
+a playground surface and as a named failure against Pink Trombone, but the
+remaining anatomy ownership is still too discrete:
 
-- no reusable tract area function;
-- no derived area/reflection coefficient primitive;
-- no traveling-wave state owner;
-- no nasal junction primitive;
-- no waveguide-applied positioned excitation/injection events;
-- no substep/rate semantics;
-- no parity renderer/score loop against PT output.
+- authored tract shapes now own physical length and continuous interpolation,
+  and a tract voice may resample them to a chosen compiled grid;
+- `sections`, `nose_sections`, and integer junction indices still leak lowering
+  grid choices into the script surface;
+- `substeps` still exists as compatibility clock intent, but it should be
+  demoted in favor of acoustic length, propagation speed, and fractional delay;
+- topology changes can recompile, but morphology motion must remain runtime
+  control data.
 
 ## Invariants
 
@@ -28,10 +30,17 @@ named failure against Pink Trombone, but it does not own the anatomy:
 - A tract voice remains a voice. Tract primitives are treatments, sources,
   curves, junctions, and event lanes that can be combined with the rest of the
   patch graph.
-- Diameter/area functions own static or slowly moving tract shape. Tongue and
-  constriction gestures deform that shape; they do not replace the owner.
+- Diameter/area functions own continuous tract shape over normalized position,
+  physical acoustic length, derived areas, reflection coefficients, and
+  resampling. Tongue and constriction gestures deform that shape; they do not
+  replace the owner.
+- PT's 44 oral cells and 28 nasal cells are a reference discretization, not an
+  Aqua morphology model.
 - Reflection coefficients derive from adjacent areas. Caches and summaries may
   observe that derivation, but must not become independent truth.
+- Waveguide clock derives from acoustic length, propagation speed, sample rate,
+  and delay approximation. A user-facing `substeps` count is only legacy
+  pressure until the fractional-delay waveguide owns this cleanly.
 - Waveguide state owns delay-line propagation once it exists. Formant filters
   may remain cheap approximations, but they must be named as approximations.
 - Expressive parity comes before audio golf. Audio parity claims require
@@ -40,8 +49,10 @@ named failure against Pink Trombone, but it does not own the anatomy:
 ## Primitive Decomposition
 
 1. `tract_shape`: reusable section diameter/area function.
-   - Owns sampled diameters or areas over normalized tract position.
-   - Emits diameters, areas, reflection coefficients, and shape summaries.
+   - Owns sampled diameters or areas over normalized continuous tract position.
+   - Owns physical acoustic length through `length_cm`.
+   - Emits interpolated diameters, resampled grids, areas, reflection
+     coefficients, per-cell acoustic delay, and shape summaries.
    - Feeds `tract` voices and later morphology/gesture planning.
 
 2. `glottis`: reusable excitation primitive.
@@ -64,15 +75,16 @@ named failure against Pink Trombone, but it does not own the anatomy:
      when a waveguide tract references the branch.
 
 5. `waveguide_tract`: propagation primitive.
-   - Owns right/left traveling-wave state, substep rate, loss, and radiation.
+   - Owns right/left traveling-wave state, acoustic wave clock, fractional
+     delay/loss approximation, and radiation.
    - Consumes area/reflection fields and source/injection events.
    - First oral-tube lowering exists: generated right/left section equations
      consume `tract_shape` reflection coefficients and boundary reflections.
    - Waveguide lowering now derives live per-section diameter targets, areas,
      and reflection coefficients from the tract shape plus tongue, constriction,
      and lip controls before scattering.
-     Substep clock intent is represented and lowering consumes it for drive/loss
-     scaling, but exact intra-sample recursive state updates remain missing.
+     Legacy substep clock intent is represented and lowering consumes it for
+     drive/loss scaling, but exact fractional-delay propagation remains missing.
 
 6. `tract_motion`: control-rate slew and obstruction history.
    - Owns diameter/constriction/velum slew rates and obstruction threshold.
@@ -117,10 +129,20 @@ Faust. Current waveguide baseline: open vowel 0.5578, front vowel 0.5368,
 nasal 0.4299, sibilant 0.2852, closure-release 0.1147. Those are pressure
 readings, not parity, but closure-release is no longer anti-correlated.
 
-Exact Pink Trombone timing still needs pressure: the loop currently performs
-one feedback update per output sample while carrying `substeps` as drive/loss
-intent. The next backend cut is true twice-per-sample state update inside the
-Faust-friendly loop shape, not a return to named equation sprawl.
+The continuous morphology cut has started. `tract_shape length_cm=...` is now
+physical geometry, not just a list length. `TractAreaFunction` can interpolate
+diameter over normalized position, resample to an arbitrary grid, and derive
+per-cell acoustic delay. A `tract` voice may choose a different `sections=...`
+lowering grid without requiring the named shape's authoring samples to match.
+For a human-length 17 cm tract sampled at PT's 44 oral cells at 44.1 kHz, that
+delay is about 0.5 samples per cell. That makes PT's two tract updates per
+output sample look like a discretization strategy for a half-sample cell grid,
+not a reusable Aqua language concept.
+
+Exact Pink Trombone timing still needs pressure, but the next backend cut is no
+longer "add more substeps." It is a fractional-delay waveguide lowering whose
+clock comes from physical length, propagation speed, and sample rate while
+morphology moves through runtime controls without recompiling the patch.
 
 ## Cut Line
 

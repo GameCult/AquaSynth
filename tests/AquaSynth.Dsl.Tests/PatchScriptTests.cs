@@ -86,7 +86,7 @@ public sealed class PatchScriptTests
     {
         var patch = PatchScript.Parse("""
             param path=/pink/tenseness default=.6 min=0 max=1 step=.001
-            tract_shape name=human diameters=.6,.7,.9,1.1,1.3,1.5,1.4,1.2
+            tract_shape name=human length_cm=17 diameters=.6,.7,.9,1.1,1.3,1.5,1.4,1.2
             glottis name=modal intensity=.72 tenseness=@/pink/tenseness aspiration=.14 reflection=.72 skew=.5
             tract_injection name=sibilant position=6 diameter=.45 turbulence=.8 burst=.3 width=.8
             nasal_branch name=nose junction=3 velum=.2 diameters=.01,.6,1.2,1.4
@@ -97,6 +97,7 @@ public sealed class PatchScriptTests
         var shape = Assert.Single(patch.TractShapes);
         Assert.Equal("human", shape.Name);
         Assert.Equal(8, shape.AreaFunction.Sections);
+        Assert.Equal(17, shape.AreaFunction.LengthCentimeters);
         Assert.Equal(7, shape.AreaFunction.ReflectionCoefficients.Count);
         Assert.Contains(shape.AreaFunction.ReflectionCoefficients, coefficient => MathF.Abs(coefficient) > 0.01f);
         var glottis = Assert.Single(patch.GlottalSources);
@@ -149,6 +150,61 @@ public sealed class PatchScriptTests
         Assert.Contains("nose_reflect_nose", faust);
         Assert.Contains("tract_nose_waveguide", faust);
         Assert.Contains("tract_oral_waveguide", faust);
+    }
+
+    [Fact]
+    public void TractAreaFunctionOwnsContinuousMorphology()
+    {
+        var shape = new TractAreaFunction([1, 3, 1], LengthCentimeters: 18);
+
+        Assert.Equal(0.18f, shape.LengthMeters, 5);
+        Assert.Equal(2, shape.DiameterAt(.25f), 5);
+        Assert.Equal(3, shape.DiameterAt(.5f), 5);
+
+        var resampled = shape.Resample(5);
+        Assert.Equal(5, resampled.Sections);
+        Assert.Equal(18, resampled.LengthCentimeters);
+        Assert.Equal([1, 2, 3, 2, 1], resampled.Diameters.Select(value => MathF.Round(value, 5)).ToArray());
+
+        var pinkTromboneCellDelay = new TractAreaFunction(Enumerable.Repeat(1f, 44).ToArray(), LengthCentimeters: 17)
+            .CellDelaySamples(44100);
+        Assert.InRange(pinkTromboneCellDelay, .49f, .51f);
+    }
+
+    [Fact]
+    public void ParserReadsTractShapeLengthAsPhysicalGeometry()
+    {
+        var patch = PatchScript.Parse("""
+            tract_shape name=longform length_cm=24 diameters=.5,1,2,1,.5
+            nasal_branch name=side length_cm=9 diameters=.01,.4,.8,.4
+            tract shape=longform nasal_branch=side propagation=waveguide
+            """);
+
+        var shape = Assert.Single(patch.TractShapes);
+        Assert.Equal(24, shape.AreaFunction.LengthCentimeters);
+        Assert.Equal(1.5f, shape.AreaFunction.DiameterAt(.375f), 5);
+
+        var branch = Assert.Single(patch.NasalBranches);
+        Assert.Equal(9, branch.AreaFunction?.LengthCentimeters);
+        Assert.Same(shape.AreaFunction, Assert.Single(patch.Voices).Tract?.AreaFunction);
+    }
+
+    [Fact]
+    public void TractVoiceCanChooseLoweringGridWithoutChangingMorphology()
+    {
+        var patch = PatchScript.Parse("""
+            tract_shape name=curve length_cm=17 diameters=.5,1,2,1,.5
+            tract shape=curve sections=9 propagation=waveguide
+            """);
+
+        var shape = Assert.Single(patch.TractShapes);
+        var tract = Assert.Single(patch.Voices).Tract;
+
+        Assert.NotNull(tract?.AreaFunction);
+        Assert.Equal(5, shape.AreaFunction.Sections);
+        Assert.Equal(9, tract.AreaFunction.Sections);
+        Assert.Equal(17, tract.AreaFunction.LengthCentimeters);
+        Assert.Equal(shape.AreaFunction.DiameterAt(.375f), tract.AreaFunction.DiameterAt(.375f), 5);
     }
 
     [Fact]
