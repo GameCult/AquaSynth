@@ -238,6 +238,13 @@ gain did not restore oral vowel RMS. The remaining issue is oral energy: the
 side-branch law is less wrong, but the graph still needs better power/flow
 normalization before RMS parity becomes honest.
 
+Frication also had a low-level ownership bug: generated graph `TurbulenceJet`
+ports were using burst as source pressure, so sustained sibilants were choked
+by a transient control. They now use `max(turbulence, burst)` as pressure while
+keeping turbulence as the noise amount. This only nudges the current sibilant
+fixture (0.2302 cosine), but the primitive semantics are cleaner: turbulence
+owns continuous noisy pressure, burst owns transient pressure.
+
 ## Cut Line
 
 The current `Voice.Tract` scalar proxy may survive only as an adapter over real

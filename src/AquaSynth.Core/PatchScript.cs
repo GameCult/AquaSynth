@@ -1254,10 +1254,10 @@ public static class PatchScript
                     primaryPathName,
                     NormalizeTractIndex(injection.Position, tract.Sections),
                     AcousticSourceKind.TurbulenceJet,
-                    injection.Burst,
+                    Math.Max(injection.Turbulence, injection.Burst),
                     0,
                     injection.Diameter,
-                    injection.Turbulence);
+                    Math.Max(0.001f, injection.Turbulence));
                 AddAcousticSourcePortRecord(injectionSource);
                 AddAcousticTerminalRecord(new AcousticTerminal(injectionSource.Name, injectionSource.Path, injectionSource.Position, AcousticTerminalKind.Source, injectionSource.Name));
                 sourceNames.Add(injectionName);
