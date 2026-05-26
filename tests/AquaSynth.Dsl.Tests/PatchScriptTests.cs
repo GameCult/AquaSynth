@@ -251,6 +251,8 @@ public sealed class PatchScriptTests
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("humanish"));
         Assert.Contains("acoustic_graph_radiated", export.Source);
         Assert.Contains("graph_connection_pressure_velopharynx", export.Source);
+        Assert.Contains("graph_terminal_area_nasal_gate", export.Source);
+        Assert.Contains("sqrt(clip01", export.Source);
         Assert.Contains("graph_source_folds", export.Source);
         Assert.Contains("graph_next_r", export.Source);
         Assert.Contains("graph_next_l", export.Source);
