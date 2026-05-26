@@ -18,9 +18,9 @@ public sealed class PinkTromboneLogMelParityTests
     private static readonly string[] UtteranceParityIds = ["mama", "papa", "thrombosis"];
     private static readonly IReadOnlyDictionary<string, float> UtteranceGraphSmokeCosineFloors = new Dictionary<string, float>
     {
-        ["mama"] = -0.08f,
+        ["mama"] = 0.3f,
         ["papa"] = 0.8f,
-        ["thrombosis"] = 0.2f
+        ["thrombosis"] = 0.35f
     };
 
     [Fact]
@@ -213,7 +213,7 @@ public sealed class PinkTromboneLogMelParityTests
 
     private static string UtteranceGraphScript(PinkTromboneUtteranceFixture fixture) =>
         $$"""
-        patch gain=0.55 soft_clip=true
+        patch gain=0.2 soft_clip=true
 
         param name=frequency path=/pink/frequency default={{F(fixture.ControlPoints[0].Controls.Frequency)}} min=10 max=600 step=0.01 unit=Hz rate=audio
         param name=intensity path=/pink/intensity default={{F(fixture.ControlPoints[0].Controls.Intensity)}} min=0 max=1 step=0.001

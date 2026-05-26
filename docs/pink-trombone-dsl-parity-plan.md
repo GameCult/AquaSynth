@@ -214,7 +214,7 @@ question is whether graph-authored PT compatibility can beat the current weak
 
 The parity report now renders the graph lane only. The latest static fixture
 evidence is useful instead of decorative: open/front/nasal/ma/sibilant/closure
-cosine is 0.6035/0.6932/0.6814/0.6239/0.3428/0.4135. The useful levers so far
+cosine is 0.6015/0.6358/0.6851/0.5988/0.3836/0.4606. The useful levers so far
 are source semantics, radiation impedance, terminal-specific admittance,
 frication injection, and cutting stale first-frame morphology from generated
 graph paths.
@@ -227,9 +227,10 @@ junction pressure. The generated tract graph also stopped treating the first
 nasal tube diameter as the velum aperture; velum now owns branch coupling and
 aperture. Two tempting compensators were cut: raw per-port outgoing coupling
 made supposedly oral fixtures nearly silent, and lip/beak radiation gain did
-not restore oral vowel RMS. The remaining issue is moving morphology: static
-graph fixtures are plausible, but utterance `mama` still fails at -0.0657
-cosine even with correct RMS.
+not restore oral vowel RMS. The internal-node scatter fix made unconnected
+injection/source terminals transmit pressure between adjacent segments instead
+of acting as dead boundaries; latest utterance cosine is `mama` 0.3365, `papa`
+0.8264, and `thrombosis` 0.3874.
 
 Frication also had a low-level ownership bug: generated graph `TurbulenceJet`
 ports were using burst as source pressure, so sustained sibilants were choked

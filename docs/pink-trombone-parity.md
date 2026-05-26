@@ -153,13 +153,14 @@ Trombone anatomy:
   writes listening WAV/report artifacts under
   `artifacts/parity/pink-trombone-logmel/`, and reports only the graph lane.
 - Latest static graph fixture evidence after cutting the old parity lane:
-  open vowel cosine 0.6035, front vowel 0.6932, nasal 0.6814,
-  bilabial-nasal-ma 0.6239, sibilant 0.3428, closure-release 0.4135.
+  open vowel cosine 0.6015, front vowel 0.6358, nasal 0.6851,
+  bilabial-nasal-ma 0.5988, sibilant 0.3836, closure-release 0.4606.
 - Latest graph utterance smoke evidence:
-  `mama` cosine -0.0657 / RMS 1.0484, `papa` 0.8253 / 0.8651,
-  `thrombosis` 0.2533 / 3.2917 under
-  `artifacts/parity/pink-trombone-utterance-logmel/20260526T225509931`.
-  This is not good enough speech parity; it is the honest graph-only baseline.
+  `mama` cosine 0.3365 / RMS 1.2421, `papa` 0.8264 / 0.3149,
+  `thrombosis` 0.3874 / 2.0519 under
+  `artifacts/parity/pink-trombone-utterance-logmel/20260526T230028874`.
+  This is still not final speech parity; it is the first honest graph-only
+  moving-utterance rung.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
   knob-twiddling through a small WebAudio witness.
 - `PinkTromboneReferenceDeclaresMissingWaveguideAuthority` prevents graph

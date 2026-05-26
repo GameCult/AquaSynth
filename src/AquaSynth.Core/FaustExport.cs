@@ -735,7 +735,18 @@ public static class FaustEmitter
 
             var sourceInjection = NodeSourceExpression(name, node, sources);
             var reflection = $"{name}_graph_node_reflection_{node.Name}";
-            foreach (var port in ports)
+            if (ports.Count > 1)
+            {
+                var nodePressure = $"{name}_graph_node_pressure_{node.Name}";
+                source.AppendLine($"    {nodePressure} = 2.0 * ({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) / {F(ports.Count)};");
+                foreach (var port in ports)
+                {
+                    var outgoing = GraphOutgoing(name, port);
+                    var incoming = GraphIncoming(name, port);
+                    source.AppendLine($"    {outgoing} = ({nodePressure} - {incoming}) * (1.0 - min(0.98, abs({reflection}))) + {incoming} * {reflection} + ({sourceInjection}) / {F(ports.Count)};");
+                }
+            }
+            else foreach (var port in ports)
             {
                 var outgoing = GraphOutgoing(name, port);
                 var incoming = GraphIncoming(name, port);
