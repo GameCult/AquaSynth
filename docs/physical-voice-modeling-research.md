@@ -1,5 +1,11 @@
 # Physical Voice Modeling Research Pass
 
+Canonical research packet: `research/physical-voice-modeling/`.
+
+That folder contains downloaded/captured sources where possible, a source
+manifest with hashes, and the distilled implementation summary. This document
+remains the docs-facing copy of the same architectural direction.
+
 ## Objective
 
 Generalize AquaSynth voice modeling beyond Pink Trombone. The target is a
@@ -190,4 +196,3 @@ Add model records before more audio golf:
 Then lower the current PT fixtures through those records as one larynx-shaped
 configuration. A syrinx should be expressible by adding two source ports and a
 bronchial/tracheal branch topology, not by forking the tract voice.
-

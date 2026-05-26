@@ -1,0 +1,819 @@
+
+
+
+
+<!DOCTYPE html>
+<html lang="en" class="nexus-font-support">
+
+
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="google" content="nositelinkssearchbox"/>
+    <meta name="tdm-reservation" content="0">
+    <title>
+        Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays
+      -  Arizona Board of Regents</title>
+    
+    
+    
+
+
+
+<meta property="og:site_name" content="Arizona Board of Regents">
+
+
+    <meta property="og:title" content="Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays"/>
+
+
+<meta property="og:url" content="https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/">
+<meta property="og:locale" content="en_US">
+
+
+
+
+    
+        <meta property="og:image" content="https://experts.azregents.edu/skin/headerImage/">
+    
+
+
+
+
+    
+        <meta property="og:type" content="article">
+    
+
+    
+
+    
+
+
+    <link rel="stylesheet" href="/assets/application-119d61ec31b02051205711822747d1ca.css" />
+    
+    
+    <link href="/skin/css/" rel="stylesheet"/>
+    
+    <script src="/skin/script/" type="text/javascript"></script>
+    <script type="text/javascript" src="/assets/application-34cc2221eabdb23f03948cb449f4d1ca.js" ></script>
+    <!--[if lt IE 9]>
+    <script type="text/javascript" src="/assets/html5shiv.min-ca5300beead9a4a9d2c9c584a9016410.js" ></script>
+    <script type="text/javascript" src="/assets/respond.min-678d372b349e434d9923e1b591f14a1e.js" ></script>
+    <![endif]-->
+    
+        
+        
+        <meta name="citation_title" content="Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays"></meta><meta name="citation_author" content="Siddharth Mathur"></meta><meta name="citation_author_institution" content="IEEE"></meta><meta name="citation_author_institution" content="Nellymoser, Inc."></meta><meta name="citation_author" content="Brad H. Story"></meta><meta name="citation_author_institution" content="Speech Language &amp; Hearing Sci"></meta><meta name="citation_author_institution" content="Biomedical Engineering"></meta><meta name="citation_author_institution" content="Science Administration"></meta><meta name="citation_author" content="Jeffrey J. Rodríguez"></meta><meta name="citation_author_institution" content="Electrical and Computer Engr"></meta><meta name="citation_author_institution" content="Biomedical Engineering"></meta><meta name="citation_publication_date" content="2006/09"></meta><meta name="citation_doi" content="10.1109/TSA.2005.858550"></meta><meta name="citation_language" content="English (US)"></meta><meta name="citation_keywords" content="Articulatory speech synthesis; Digital waveguides; Vocal tract modeling"></meta><meta name="citation_journal_title" content="IEEE Transactions on Audio, Speech and Language Processing"></meta><meta name="citation_issn" content="1558-7916"></meta><meta name="citation_publisher" content="Institute of Electrical and Electronics Engineers Inc."></meta><meta name="citation_volume" content="14"></meta><meta name="citation_issue" content="5"></meta><meta name="citation_firstpage" content="1754"></meta><meta name="citation_lastpage" content="1762"></meta>
+        <script src="/assets/Chart.min-27bff060c3e539ceb22e763c8f2e9e10.js"></script>
+        <script src="/assets/jquery.content-chart-9c09bb79ba3fc3829b6478d0e114f737.js"></script>
+        
+    
+    
+    <!-- Google Analytics: No account ID (G) found -->
+    <script src="//assets.adobedtm.com/4a848ae9611a/ea83f870454d/launch-af020409b299.min.js" async=""></script>
+    
+    
+</head>
+
+<body class="" data-page="publications">
+
+<div id="aria-polite" aria-live="polite"></div>
+<div id="aria-assertive" aria-live="assertive"></div>
+
+<a href="#main-navigation" class="sr-only sr-only-focusable">Skip to main navigation</a>
+
+    <a href="#main-search" class="sr-only sr-only-focusable">Skip to search</a>
+
+<a href="#main-content" class="sr-only sr-only-focusable">Skip to main content</a>
+
+
+
+
+
+
+
+    <header class="header" id="page-header">
+        <div class="primary with-right-background ">
+            <div class="container">
+                
+                    <div class="primary-right-background clearfix">
+                
+                <a href="/en/" class="logo">
+                    
+                        <span class="sr-only">Arizona Board of Regents Home</span>
+                        <img src="/skin/headerImage/" alt="Arizona Board of Regents Logo"/>
+                    
+                </a>
+                
+                
+                
+                    </div>
+                
+            </div>
+        </div>
+
+        
+            <div class="header-search">
+                
+<form action="/en/searchAll/index/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/" method="get"
+      class="search-form" id="search-everything">
+
+    <div class="global-search-wrapper">
+        <div class="global-search mini">
+            <div class="field-button-wrapper">
+                <div class="search-cell search-field">
+                    <label for="main-search" class="sr-only">Search content at Arizona Board of Regents</label>
+                    <input id="main-search" class="search-field" value="" name="search"
+                           placeholder="Search"/>
+                </div>
+
+                <div class="search-submit">
+                    <button type="submit" aria-label="Search">
+                        <i class="icon icon-magnifying-glass" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+<script>
+    $(function () {
+        var searchForm = $("#search-everything");
+        var searchField = $(".search-field", searchForm);
+        searchForm.on("submit", function () {
+            var field = searchField.find("input");
+            var searchString = field.val();
+
+            // No enter key submit nothing :-)
+            if (!searchString) return false;
+
+            if (searchString.length >= 200) {
+                searchForm.attr("method", "post");
+                searchForm.attr("action", "/en/concepts/copypaste/");
+                field.attr("name", "text");
+            }
+        });
+    });
+</script>
+            </div>
+        
+
+
+        
+        
+            <div class="subMenu">
+                <div class="secondary">
+                    <div class="container">
+                        <nav id="main-navigation" aria-label="Main navigation" class="content-navigation three-third">
+                            <ul data-value="More" role="menubar" aria-label="Main navigation">
+                                <li class="" role="none">
+                                    <a href="/en/" role="menuitem" tabindex="-1">Home</a>
+                                </li>
+
+                                
+                                    <li class="" role="none">
+                                        <a class="portal_link" tabindex="-1" role="menuitem" href="/en/persons/"><span>Profiles</span></a>
+                                    </li>
+                                
+                                    <li class="" role="none">
+                                        <a class="portal_link" tabindex="-1" role="menuitem" href="/en/organisations/"><span>Departments and Centers</span></a>
+                                    </li>
+                                
+                                    <li class="selected" role="none">
+                                        <a class="portal_link" tabindex="0" role="menuitem" href="/en/publications/"><span>Scholarly Works</span></a>
+                                    </li>
+                                
+                                    <li class="" role="none">
+                                        <a class="portal_link" tabindex="-1" role="menuitem" href="/en/projects/"><span>Grants</span></a>
+                                    </li>
+                                
+                                    <li class="" role="none">
+                                        <a class="portal_link" tabindex="-1" role="menuitem" href="/en/activities/"><span>Activities</span></a>
+                                    </li>
+                                
+                                    <li class="" role="none">
+                                        <a class="portal_link" tabindex="-1" role="menuitem" href="/en/equipments/"><span>Equipment</span></a>
+                                    </li>
+                                
+                                    <li class="" role="none">
+                                        <a class="portal_link" tabindex="-1" role="menuitem" href="/en/datasets/"><span>Datasets</span></a>
+                                    </li>
+                                
+                                    <li class="" role="none">
+                                        <a class="portal_link" tabindex="-1" role="menuitem" href="/en/clippings/"><span>Press/Media</span></a>
+                                    </li>
+                                
+                                    <li class="" role="none">
+                                        <a class="portal_link" tabindex="-1" role="menuitem" href="/en/prizes/"><span>Prizes</span></a>
+                                    </li>
+                                
+                            </ul>
+                        </nav>
+
+                    </div>
+                </div>
+            </div>
+        
+    </header>
+
+    <main id="page-content">
+        
+    <div class="page-section page-section-publications page-section-publications-view ">
+
+        
+        
+        
+        
+        <section
+                class="page-section-header page-section-header-publications page-section-header-publications-view
+                 no-backdrop-image"
+                data-stickyheader=""
+                style="">
+            
+            
+        
+
+
+<div class="container">
+    <div class="row">
+        <div class="introduction no-metrics">
+            <div class="rendering"><h1><span>Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays</span></h1></div>
+            <div class="rendering rendering_researchoutput  rendering_researchoutput_associatespersonsclassifiedportal rendering_contributiontojournal rendering_associatespersonsclassifiedportal rendering_contributiontojournal_associatespersonsclassifiedportal"><ul class="relations persons"><li>Siddharth Mathur</li><li>, <a rel="Person" href="https://experts.azregents.edu/en/persons/brad-h-story/" class="link person"><span>Brad H. Story</span></a></li><li>, <a rel="Person" href="https://experts.azregents.edu/en/persons/jeffrey-j-rodriguez-2/" class="link person"><span>Jeffrey J. Rodríguez</span></a></li></div>
+            <div class="rendering rendering_researchoutput  rendering_researchoutput_associatesorganisationsportal rendering_contributiontojournal rendering_associatesorganisationsportal rendering_contributiontojournal_associatesorganisationsportal"><ul class="relations organisations"><li class="department"><a rel="Organisation" href="https://experts.azregents.edu/en/organisations/speech-language-hearing-sci/" class="link"><span>Speech Language &amp; Hearing Sci</span></a></li><li class="department"><a rel="Organisation" href="https://experts.azregents.edu/en/organisations/biomedical-engineering/" class="link"><span>Biomedical Engineering</span></a></li><li class="department"><a rel="Organisation" href="https://experts.azregents.edu/en/organisations/science-administration/" class="link"><span>Science Administration</span></a></li><li class="department"><a rel="Organisation" href="https://experts.azregents.edu/en/organisations/electrical-and-computer-engr/" class="link"><span>Electrical and Computer Engr</span></a></li></ul></div>
+            
+            <div class="rendering rendering_researchoutput  rendering_researchoutput_publicationcontenttyperendererportalng rendering_contributiontojournal rendering_publicationcontenttyperendererportalng rendering_contributiontojournal_publicationcontenttyperendererportalng"><p class="type"><span class="type_family">Research output<span class="type_family_sep">: </span></span><span class="type_classification_parent">Contribution to journal<span class="type_parent_sep"> › </span></span><span class="type_classification">Article</span><span class="type_classification"><span class="type_parent_sep"> › </span>peer-review</span></p></div>
+        </div>
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div class="publication-metrics" role="region" aria-label="Publication metrics section">
+        
+            <div class="metrics-container">
+                
+                    <div class="metrics-wrap metrics-top one">
+                        
+                            <div class="metric scopus-citations">
+                                
+                                    <a target="_blank" href="https://www.scopus.com/pages/publications/34047258319#tab=citedBy" aria-label="Source: Scopus: 20">
+                                
+                                <span class="count">20</span>
+                                
+                                    <span class="sr-only">&nbsp; Link opens in a new tab</span> </a>
+                                
+                                <span class="label">Scopus 
+ citations</span>
+                            </div>
+                        
+                        
+                    </div>
+                
+                
+                    <div class="metrics-wrap metrics-bottom ">
+                        
+                            <div class="metric metric-plum-x">
+                                <a href="https://plu.mx/plum/a/?doi=10.1109/TSA.2005.858550" class="plumx-plum-print-popup" data-on-empty="plumXError" data-on-fail="plumXError" data-on-success="plumXSuccess" data-popup="left" data-hide-when-empty="true" data-site="plum"
+                                   data-badge="false"></a>
+                            </div>
+                        
+
+                        
+                            <div class="metric metric-altmetric">
+                                
+                                    <div data-badge-popover="top" data-badge-type="donut" data-doi="10.1109/TSA.2005.858550" data-hide-no-mentions="true" data-link-target='_blank'
+                                         class="altmetric-embed"></div>
+                                
+                            </div>
+                        
+                    </div>
+                
+            </div>
+        
+    </div>
+
+
+    </div>
+
+</div>
+<div class="subMenu">
+    <div class="content-profile-navigation">
+    <div class="container">
+        <nav role="navigation">
+            <ul role="menubar">
+                <li class="selected" role="none">
+                    <a class="portal_link" role="menuitem" href="/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/"><span>
+                        <i class="icon icon-publication" aria-hidden="true"></i>
+                        <span class="label">Overview</span>
+                    </span></a>
+                </li>
+                
+                    <li class="" role="none">
+                        <a class="portal_link" role="menuitem" href="/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/fingerprints/"><span>
+                            <i class="icon icon-fingerprint" aria-hidden="true"></i>
+                            <span class="label">Fingerprint</span>
+                        </span></a>
+                    </li>
+                
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+                    
+                
+
+            </ul>
+        </nav>
+    </div>
+    </div>
+</div>
+
+    
+        </section>
+
+        <div id="main-content"
+             class="page-section-content page-section-content-publications page-section-content-publications-view   ">
+            
+        <section class="page-section content-relation-section">
+            <div class="container">
+                <div class="clearfix">
+                    <div class="content-content publication-content">
+                        
+                        
+                            <h2 class="subheader">Abstract</h2>
+                        <div class="rendering rendering_researchoutput  rendering_researchoutput_abstractportal rendering_contributiontojournal rendering_abstractportal rendering_contributiontojournal_abstractportal"><div class="textblock"><p>Digital waveguide models are commonly used for simulating vocal-tract acoustics based on physiological data. In particular, waveguide models with half-sample delays are known to be well suited for speech production research. This paper presents enhancements to such a model, aimed at improved accuracy in mapping physiological vocal-tract data (shape and length of the airway) to waveguide parameters. The enhancements allow the length of the vocal tract to be continuously varied, thus enabling more realistic synthesis. This is achieved by smoothly varying the individual segment lengths of a piecewise-cylindrical representation of ;the airway, without altering the system sampling frequency. Fractional-delay filters are used for spatial interpolation of the digital waveguide model. The algorithms are validated by modeling the protrusion of lips, lowering of larynx and lengthening of intermediate segments for a static vowel shape.</p></div></div>
+                        <div class="rendering rendering_researchoutput  rendering_researchoutput_detailsportal rendering_contributiontojournal rendering_detailsportal rendering_contributiontojournal_detailsportal"><div class="article"><table class="properties"><tbody><tr class="language"><th scope="row">Original language</th><td>English (US)</td></tr><tr><th scope="row">Pages (from-to)</th><td>1754-1762</td></tr><tr class="numberofpages"><th scope="row">Number of pages</th><td>9</td></tr><tr><th scope="row">Journal</th><td><a rel="Journal" href="#" class="link"><span>IEEE Transactions on Audio, Speech and Language Processing</span></a></td></tr><tr><th scope="row">Volume</th><td>14</td></tr><tr><th scope="row">Issue number</th><td>5</td></tr><tr class="digital_object_identifiers"><th scope="row">DOIs</th><td><ul class="relations digital_object_identifiers"><li><a onclick="window.open(this.href, '_blank','noopener,noreferrer'); return false;" href="https://doi.org/10.1109/TSA.2005.858550" class="link"><span>https://doi.org/10.1109/TSA.2005.858550</span></a> </li></ul></td></tr><tr class="status"><th scope="row">State</th><td><span class="prefix">Published - </span><span class="date">Sep 2006</span></td></tr></tbody></table></div></div>
+                        
+
+                        
+
+                        
+
+                        <div class="rendering rendering_keywordable rendering_expertkeywordgrouspbytypeportal rendering_keywordable_expertkeywordgrouspbytypeportal"><div class="keyword-group"><h2 class="subheader">Keywords</h2><ul class="relations keywords"><li class="userdefined-keyword"><span>Articulatory speech synthesis</span></li><li class="userdefined-keyword"><span>Digital waveguides</span></li><li class="userdefined-keyword"><span>Vocal tract modeling</span></li></ul></div><div class="keyword-group"><h2 class="subheader">ASJC Scopus subject areas</h2><ul class="relations keywords"><li><span>Acoustics and Ultrasonics</span></li><li><span>Electrical and Electronic Engineering</span></li></ul></div></div>
+
+                    </div>
+
+                    <div class="content-sidebar publication-sidebar">
+                        
+                            <h2 class="subheader">Access to Document</h2>
+                        <div class="rendering rendering_researchoutput  rendering_researchoutput_publicationaccessrenderer rendering_contributiontojournal rendering_publicationaccessrenderer rendering_contributiontojournal_publicationaccessrenderer"><ul class="dois"><li><div class="doi"><a onclick="window.open(this.href, '_blank','noopener,noreferrer'); return false;" href="https://doi.org/10.1109/TSA.2005.858550" class="link"><span>10.1109/TSA.2005.858550</span></a></div></li></ul></div>
+
+                        
+
+                        
+
+                        
+                            <h2 class="subheader">Other files and links</h2>
+                        <div class="rendering rendering_researchoutput  rendering_researchoutput_publicationotherfilesandlinksrenderer rendering_contributiontojournal rendering_publicationotherfilesandlinksrenderer rendering_contributiontojournal_publicationotherfilesandlinksrenderer"><ul class="links"><li><div class="link"><a onclick="window.open(this.href, '_blank','noopener,noreferrer'); return false;" href="https://www.scopus.com/pages/publications/34047258319" class="link"><span>Link to publication in Scopus</span></a></div></li><li><div class="link"><a onclick="window.open(this.href, '_blank','noopener,noreferrer'); return false;" href="https://www.scopus.com/pages/publications/34047258319#tab=citedBy" class="link"><span>Link to the citations in Scopus</span></a></div></li></ul></div>
+
+                        
+
+                        
+
+
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+            <section class="page-section content-relation-section publication-fingerprint">
+                <div class="container">
+                    <div class="header">
+                        <h2 class="section-title">
+                            <i class="icon icon-fingerprint" aria-hidden="true"></i>
+                            <span class="title">Fingerprint</span>
+                        </h2>
+                        <span class="sub-title">
+                            Dive into the research topics of 'Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays'. Together they form a unique fingerprint.
+                        </span>
+                    </div>
+
+                    <ul class="publication-top-concepts" role="menubar"  aria-label="Related fingerprints">
+                        
+                            <li class="concept-badge-large-container dropdown-overflow" role="none">
+
+    <button tabindex="0"
+            class="concept-badge-large dropdown-toggle"
+            type="button"
+            role="menuitem"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="44100799-614b-490e-804b-d3d11d9289c0"
+            data-concept-uuid="44100799-614b-490e-804b-d3d11d9289c0"
+            data-rank-size="32"
+            data-rank-thickness="8"
+            data-rank-value="1.0"
+            data-summary="true"
+            data-summary-url="/en/concepts/summary/">
+        <span class="concept-wrapper" title="100%">
+            <span class="rank"></span>
+            <span class="concept">Waveguide</span>
+            <span class="thesauri">Engineering</span>
+            <span class="value sr-only">100%</span>
+        </span>
+    </button>
+
+    <div class="dropdown-container"></div>
+
+</li>
+                        
+                            <li class="concept-badge-large-container dropdown-overflow" role="none">
+
+    <button tabindex="0"
+            class="concept-badge-large dropdown-toggle"
+            type="button"
+            role="menuitem"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="4393e377-f622-41f9-8d45-365485ee6c37"
+            data-concept-uuid="4393e377-f622-41f9-8d45-365485ee6c37"
+            data-rank-size="32"
+            data-rank-thickness="8"
+            data-rank-value="1.0"
+            data-summary="true"
+            data-summary-url="/en/concepts/summary/">
+        <span class="concept-wrapper" title="100%">
+            <span class="rank"></span>
+            <span class="concept">Segment Length</span>
+            <span class="thesauri">Engineering</span>
+            <span class="value sr-only">100%</span>
+        </span>
+    </button>
+
+    <div class="dropdown-container"></div>
+
+</li>
+                        
+                            <li class="concept-badge-large-container dropdown-overflow" role="none">
+
+    <button tabindex="0"
+            class="concept-badge-large dropdown-toggle"
+            type="button"
+            role="menuitem"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="1f1b918d-c72b-45fc-a331-a69882577c3c"
+            data-concept-uuid="1f1b918d-c72b-45fc-a331-a69882577c3c"
+            data-rank-size="32"
+            data-rank-thickness="8"
+            data-rank-value="0.25"
+            data-summary="true"
+            data-summary-url="/en/concepts/summary/">
+        <span class="concept-wrapper" title="25%">
+            <span class="rank"></span>
+            <span class="concept">Vocal Tract Acoustics</span>
+            <span class="thesauri">Keyphrases</span>
+            <span class="value sr-only">25%</span>
+        </span>
+    </button>
+
+    <div class="dropdown-container"></div>
+
+</li>
+                        
+                            <li class="concept-badge-large-container dropdown-overflow" role="none">
+
+    <button tabindex="0"
+            class="concept-badge-large dropdown-toggle"
+            type="button"
+            role="menuitem"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="4614fbd8-ba03-4d4b-8679-df8a1debe054"
+            data-concept-uuid="4614fbd8-ba03-4d4b-8679-df8a1debe054"
+            data-rank-size="32"
+            data-rank-thickness="8"
+            data-rank-value="0.2"
+            data-summary="true"
+            data-summary-url="/en/concepts/summary/">
+        <span class="concept-wrapper" title="20%">
+            <span class="rank"></span>
+            <span class="concept">Individual Segment</span>
+            <span class="thesauri">Engineering</span>
+            <span class="value sr-only">20%</span>
+        </span>
+    </button>
+
+    <div class="dropdown-container"></div>
+
+</li>
+                        
+                            <li class="concept-badge-large-container dropdown-overflow" role="none">
+
+    <button tabindex="0"
+            class="concept-badge-large dropdown-toggle"
+            type="button"
+            role="menuitem"
+            aria-haspopup="true"
+            aria-expanded="false"
+            aria-controls="7f3aa696-86a1-4bd9-ab95-1cb5163929d9"
+            data-concept-uuid="7f3aa696-86a1-4bd9-ab95-1cb5163929d9"
+            data-rank-size="32"
+            data-rank-thickness="8"
+            data-rank-value="0.2"
+            data-summary="true"
+            data-summary-url="/en/concepts/summary/">
+        <span class="concept-wrapper" title="20%">
+            <span class="rank"></span>
+            <span class="concept">Sampling Frequency</span>
+            <span class="thesauri">Engineering</span>
+            <span class="value sr-only">20%</span>
+        </span>
+    </button>
+
+    <div class="dropdown-container"></div>
+
+</li>
+                        
+                    </ul>
+                    <div class="footer">
+                        <div class="view-all align-center">
+                            <a class="portal_link btn-primary btn-large btn-content-link" href="/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/fingerprints/"><span>
+                                View full fingerprint
+                                <i class="icon icon-right-open-mini" aria-hidden="true"></i>
+                            </span></a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        
+
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+            
+        
+        <section class="page-section cite">
+            <div class="container">
+                <section class="publication-cite" aria-labelledby="publications-cite-title">
+    <h2 class="subheader" id="publications-cite-title">Cite this</h2>
+    <ul class="tabs" role="tablist" aria-label="Cite this">
+        
+            <li class="selected" role="tab" id="tab-0" aria-controls="cite-apa" tabindex="-1"  aria-selected="false" >
+                APA
+            </li>
+        
+            <li class="" role="tab" id="tab-1" aria-controls="cite-standard" tabindex="-1"  aria-selected="false" >
+                Standard
+            </li>
+        
+            <li class="" role="tab" id="tab-2" aria-controls="cite-harvard" tabindex="-1"  aria-selected="false" >
+                Harvard
+            </li>
+        
+            <li class="" role="tab" id="tab-3" aria-controls="cite-vancouver" tabindex="-1"  aria-selected="false" >
+                Vancouver
+            </li>
+        
+            <li class="" role="tab" id="tab-4" aria-controls="cite-author" tabindex="-1"  aria-selected="false" >
+                Author
+            </li>
+        
+            <li class="" role="tab" id="tab-5" aria-controls="cite-BIBTEX" tabindex="-1"  aria-selected="false" >
+                BIBTEX
+            </li>
+        
+            <li class="" role="tab" id="tab-6" aria-controls="cite-RIS" tabindex="-1"  aria-selected="false" >
+                RIS
+            </li>
+        
+    </ul>
+    <div class="tab-container">
+        
+            <div id="cite-apa" class="tab selected" role="tabpanel" aria-labelledby="tab-0" tabindex="-1" aria-hidden="true">
+                <div class="rendering rendering_researchoutput  rendering_researchoutput_apa rendering_contributiontojournal rendering_apa rendering_contributiontojournal_apa">Mathur, S.<a rel="Person" href="https://experts.azregents.edu/en/persons/brad-h-story/" class="link"><span>, Story, B. H.</span></a><a rel="Person" href="https://experts.azregents.edu/en/persons/jeffrey-j-rodriguez-2/" class="link"><span>, &amp; Rodríguez, J. J.</span></a> (2006). <a rel="ContributionToJournal" href="https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/" class="link"><span>Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays</span></a>. <span><em>IEEE Transactions on Audio, Speech and Language Processing</em></span>, <em>14</em>(5), 1754-1762. <a onclick="window.open(this.href, '_blank','noopener,noreferrer'); return false;" href="https://doi.org/10.1109/TSA.2005.858550" class="link"><span>https://doi.org/10.1109/TSA.2005.858550</span></a></div>
+            </div>
+        
+            <div id="cite-standard" class="tab " role="tabpanel" aria-labelledby="tab-1" tabindex="-1" aria-hidden="true">
+                <div class="rendering rendering_researchoutput  rendering_researchoutput_standard rendering_contributiontojournal rendering_standard rendering_contributiontojournal_standard"><a rel="ContributionToJournal" href="https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/" class="link"><span><strong>Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays.</strong></span></a> / Mathur, Siddharth<a rel="Person" href="https://experts.azregents.edu/en/persons/brad-h-story/" class="link"><span>; Story, Brad H.</span></a><a rel="Person" href="https://experts.azregents.edu/en/persons/jeffrey-j-rodriguez-2/" class="link"><span>; Rodríguez, Jeffrey J.</span></a> <br />In: <span>IEEE Transactions on Audio, Speech and Language Processing</span>, Vol. 14, No. 5, 09.2006, p. 1754-1762.<p class="type"><span class="type_family">Research output<span class="type_family_sep">: </span></span><span class="type_classification_parent">Contribution to journal<span class="type_parent_sep"> › </span></span><span class="type_classification">Article</span><span class="type_classification"><span class="type_parent_sep"> › </span>peer-review</span></p></div>
+            </div>
+        
+            <div id="cite-harvard" class="tab " role="tabpanel" aria-labelledby="tab-2" tabindex="-1" aria-hidden="true">
+                <div class="rendering rendering_researchoutput  rendering_researchoutput_harvard rendering_contributiontojournal rendering_harvard rendering_contributiontojournal_harvard">Mathur, S<a rel="Person" href="https://experts.azregents.edu/en/persons/brad-h-story/" class="link"><span>, Story, BH</span></a><a rel="Person" href="https://experts.azregents.edu/en/persons/jeffrey-j-rodriguez-2/" class="link"><span> &amp; Rodríguez, JJ</span></a> 2006, '<a rel="ContributionToJournal" href="https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/" class="link harvard_title"><span>Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays</span></a>', <span><em>IEEE Transactions on Audio, Speech and Language Processing</em></span>, vol. 14, no. 5, pp. 1754-1762. <a onclick="window.open(this.href, '_blank','noopener,noreferrer'); return false;" href="https://doi.org/10.1109/TSA.2005.858550" class="link"><span>https://doi.org/10.1109/TSA.2005.858550</span></a></div>
+            </div>
+        
+            <div id="cite-vancouver" class="tab " role="tabpanel" aria-labelledby="tab-3" tabindex="-1" aria-hidden="true">
+                <div class="rendering rendering_researchoutput  rendering_researchoutput_vancouver rendering_contributiontojournal rendering_vancouver rendering_contributiontojournal_vancouver">Mathur S<a rel="Person" href="https://experts.azregents.edu/en/persons/brad-h-story/" class="link"><span>, Story BH</span></a><a rel="Person" href="https://experts.azregents.edu/en/persons/jeffrey-j-rodriguez-2/" class="link"><span>, Rodríguez JJ</span></a>. <span class="title"><a rel="ContributionToJournal" href="https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/" class="link"><span>Vocal-tract modeling: <span class="subtitle">Fractional elongation of segment lengths in a waveguide model with half-sample delays</span></span></a></span>. <span>IEEE Transactions on Audio, Speech and Language Processing</span>. 2006 Sep;14(5):1754-1762. doi: 10.1109/TSA.2005.858550</div>
+            </div>
+        
+            <div id="cite-author" class="tab " role="tabpanel" aria-labelledby="tab-4" tabindex="-1" aria-hidden="true">
+                <div class="rendering rendering_researchoutput  rendering_researchoutput_author rendering_contributiontojournal rendering_author rendering_contributiontojournal_author">Mathur, Siddharth <a rel="Person" href="https://experts.azregents.edu/en/persons/brad-h-story/" class="link"><span> ; Story, Brad H.</span></a> <a rel="Person" href="https://experts.azregents.edu/en/persons/jeffrey-j-rodriguez-2/" class="link"><span> ; Rodríguez, Jeffrey J.</span></a> / <a rel="ContributionToJournal" href="https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/" class="link"><span><strong>Vocal-tract modeling : Fractional elongation of segment lengths in a waveguide model with half-sample delays</strong></span></a>. In: <a rel="Journal" href="#" class="link"><span>IEEE Transactions on Audio, Speech and Language Processing</span></a>. 2006 ; Vol. 14, No. 5. pp. 1754-1762.</div>
+            </div>
+        
+            <div id="cite-BIBTEX" class="tab " role="tabpanel" aria-labelledby="tab-5" tabindex="-1" aria-hidden="true">
+                <div class="rendering rendering_researchoutput  rendering_researchoutput_bibtex rendering_contributiontojournal rendering_bibtex rendering_contributiontojournal_bibtex"><div>@article{3a01ffadbd5840d6b8c942c4290212d7,</div><div>  title     = "Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays",</div><div>  abstract  = "Digital waveguide models are commonly used for simulating vocal-tract acoustics based on physiological data. In particular, waveguide models with half-sample delays are known to be well suited for speech production research. This paper presents enhancements to such a model, aimed at improved accuracy in mapping physiological vocal-tract data (shape and length of the airway) to waveguide parameters. The enhancements allow the length of the vocal tract to be continuously varied, thus enabling more realistic synthesis. This is achieved by smoothly varying the individual segment lengths of a piecewise-cylindrical representation of ;the airway, without altering the system sampling frequency. Fractional-delay filters are used for spatial interpolation of the digital waveguide model. The algorithms are validated by modeling the protrusion of lips, lowering of larynx and lengthening of intermediate segments for a static vowel shape.",</div><div>  keywords  = "Articulatory speech synthesis, Digital waveguides, Vocal tract modeling",</div><div>  author    = "Siddharth Mathur and Story, \{Brad H.\} and Rodr{\'i}guez, \{Jeffrey J.\}",</div><div>  note      = "Funding Information: Manuscript received January 27, 2004; revised April 25, 2005. This work was supported by NIDCD Grant R01-DC04789. This paper was presented in part at IEEE-ISSPIT {\textquoteright}03. The associate editor coordinating the review of this manuscript and approving it for publication was Dr. T. Dutoit. S. Mathur is with Nellymoser, Inc., Arlington, MA 02476 USA (e-mail: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="bbc895d6dacfd3cec9fbd2dedede95d4c9dc">[email&#160;protected]</a>). B. H. Story is with the Department of Speech and Hearing Sciences, University of Arizona, Tucson, AZ 85721 USA (e-mail: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="9cfeefe8f3eee5dce9b2fdeef5e6f3f2fdb2f9f8e9">[email&#160;protected]</a>). J. J. Rodr{\'i}guez is with the Department of Electrical and Computer Engineering, University of Arizona, Tucson, AZ 85721 USA (e-mail: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d8aab7bcaab1bfadbda298bdbbbdf6b9aab1a2b7b6b9f6bdbcad">[email&#160;protected]</a>). Digital Object Identifier 10.1109/TSA.2005.858550 Fig. 1. Cross-sectional areas for the 44 equal-length cylindrical segments in a neutral vowel. They are labeled A (glottal end) through A (lip end).",</div><div>  year      = "2006",</div><div>  month     = sep,</div><div>  doi       = "10.1109/TSA.2005.858550",</div><div>  language  = "English (US)",</div><div>  volume    = "14",</div><div>  pages     = "1754--1762",</div><div>  journal   = "IEEE Transactions on Audio, Speech and Language Processing",</div><div>  issn      = "1558-7916",</div><div>  publisher = "Institute of Electrical and Electronics Engineers Inc.",</div><div>  number    = "5",</div><p>}</p></div>
+            </div>
+        
+            <div id="cite-RIS" class="tab " role="tabpanel" aria-labelledby="tab-6" tabindex="-1" aria-hidden="true">
+                <div class="rendering rendering_researchoutput  rendering_researchoutput_ris rendering_contributiontojournal rendering_ris rendering_contributiontojournal_ris"><p>TY  - JOUR</p><p>T1  - Vocal-tract modeling</p><p>T2  - Fractional elongation of segment lengths in a waveguide model with half-sample delays</p><p>AU  - Mathur, Siddharth</p><p>AU  - Story, Brad H.</p><p>AU  - Rodríguez, Jeffrey J.</p><p>N1  - Funding Information: Manuscript received January 27, 2004; revised April 25, 2005. This work was supported by NIDCD Grant R01-DC04789. This paper was presented in part at IEEE-ISSPIT ’03. The associate editor coordinating the review of this manuscript and approving it for publication was Dr. T. Dutoit. S. Mathur is with Nellymoser, Inc., Arlington, MA 02476 USA (e-mail: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="91e2bffcf0e5f9e4e3d1f8f4f4f4bffee3f6">[email&#160;protected]</a>). B. H. Story is with the Department of Speech and Hearing Sciences, University of Arizona, Tucson, AZ 85721 USA (e-mail: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d9bbaaadb6aba099acf7b8abb0a3b6b7b8f7bcbdac">[email&#160;protected]</a>). J. J. Rodríguez is with the Department of Electrical and Computer Engineering, University of Arizona, Tucson, AZ 85721 USA (e-mail: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="94e6fbf0e6fdf3e1f1eed4f1f7f1baf5e6fdeefbfaf5baf1f0e1">[email&#160;protected]</a>). Digital Object Identifier 10.1109/TSA.2005.858550 Fig. 1. Cross-sectional areas for the 44 equal-length cylindrical segments in a neutral vowel. They are labeled A (glottal end) through A (lip end).</p><p>PY  - 2006/9</p><p>Y1  - 2006/9</p><p>N2  - Digital waveguide models are commonly used for simulating vocal-tract acoustics based on physiological data. In particular, waveguide models with half-sample delays are known to be well suited for speech production research. This paper presents enhancements to such a model, aimed at improved accuracy in mapping physiological vocal-tract data (shape and length of the airway) to waveguide parameters. The enhancements allow the length of the vocal tract to be continuously varied, thus enabling more realistic synthesis. This is achieved by smoothly varying the individual segment lengths of a piecewise-cylindrical representation of ;the airway, without altering the system sampling frequency. Fractional-delay filters are used for spatial interpolation of the digital waveguide model. The algorithms are validated by modeling the protrusion of lips, lowering of larynx and lengthening of intermediate segments for a static vowel shape.</p><p>AB  - Digital waveguide models are commonly used for simulating vocal-tract acoustics based on physiological data. In particular, waveguide models with half-sample delays are known to be well suited for speech production research. This paper presents enhancements to such a model, aimed at improved accuracy in mapping physiological vocal-tract data (shape and length of the airway) to waveguide parameters. The enhancements allow the length of the vocal tract to be continuously varied, thus enabling more realistic synthesis. This is achieved by smoothly varying the individual segment lengths of a piecewise-cylindrical representation of ;the airway, without altering the system sampling frequency. Fractional-delay filters are used for spatial interpolation of the digital waveguide model. The algorithms are validated by modeling the protrusion of lips, lowering of larynx and lengthening of intermediate segments for a static vowel shape.</p><p>KW  - Articulatory speech synthesis</p><p>KW  - Digital waveguides</p><p>KW  - Vocal tract modeling</p><p>UR  - https://www.scopus.com/pages/publications/34047258319</p><p>UR  - https://www.scopus.com/pages/publications/34047258319#tab=citedBy</p><p>U2  - 10.1109/TSA.2005.858550</p><p>DO  - 10.1109/TSA.2005.858550</p><p>M3  - Article</p><p>SN  - 1558-7916</p><p>VL  - 14</p><p>SP  - 1754</p><p>EP  - 1762</p><p>JO  - IEEE Transactions on Audio, Speech and Language Processing</p><p>JF  - IEEE Transactions on Audio, Speech and Language Processing</p><p>IS  - 5</p><p>ER  - </p></div>
+            </div>
+        
+
+        <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+            $(function() {
+                $(".tab-container .rendering a:not([href^='http://dx.doi.org'])").contents().unwrap();
+            });
+        </script>
+    </div>
+</section>
+
+            </div>
+        </section>
+        <script>
+    $(function () {
+        if($('.publication-sidebar').length > 0){
+            if($('a.document-link').length === 0){
+                $(".metrics-top").addClass("one");
+                $('div.metrics-downloads').remove();
+            }
+        }
+    });
+
+    function plumXError(e) {
+        $(e).closest('.metric-plum-x').closest('.metrics-bottom').addClass('one');
+        $(e).closest('.metric-plum-x').remove();
+    }
+    $('div.altmetric-embed').on('altmetric:hide', function () {
+        $(this).closest('.metric-altmetric').closest('.metrics-bottom').addClass('one');
+        $(this).closest('.metric-altmetric').remove();
+    });
+</script>
+        
+
+
+
+    
+    
+    
+    
+    
+    
+
+    
+        
+        
+        
+    
+
+    <div class="share-box">
+        <ul>
+            <li class="icon-share"></li>
+            <li><a aria-label="Share on Facebook"
+                   href="https://www.facebook.com/sharer.php?u=https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/%3Futm_source%3Dfacebook%26utm_medium%3Dsocial%26utm_campaign%3Dsharelink%26doi%3D10.1109%2FTSA.2005.858550&p[summary]=Check+out+this+research+output+at+Arizona+Board+of+Regents%3A+Vocal-tract+modeling%3A+Fractional+elongation+of+segment+lengths+in+a+waveguide+model+with+half-sample+delays"
+                   class="icon-facebook"
+                   onclick="window.location.origin('https://www.facebook.com/sharer.php?u=https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/%3Futm_source%3Dfacebook%26utm_medium%3Dsocial%26utm_campaign%3Dsharelink%26doi%3D10.1109%2FTSA.2005.858550&p[summary]=Check+out+this+research+output+at+Arizona+Board+of+Regents%3A+Vocal-tract+modeling%3A+Fractional+elongation+of+segment+lengths+in+a+waveguide+model+with+half-sample+delays', 'Facebook', 'width=600,height=600,scrollbars=no,resizable=no');
+                   return false;" target="popup"></a></li>
+            <li><a aria-label="Share on Twitter"
+                   href="https://twitter.com/intent/tweet?url=https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/%3Futm_source%3Dtwitter%26utm_medium%3Dsocial%26utm_campaign%3Dsharelink%26doi%3D10.1109%2FTSA.2005.858550&text=Check+out+this+research+output+at+Arizona+Board+of+Regents%3A+Vocal-tract+modeling%3A+Fractional+elongation+of+segment+lengths+in+a+waveguide+model+with+half-sample+delays"
+                   onclick="window.location.origin('https://twitter.com/intent/tweet?url=https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/%3Futm_source%3Dtwitter%26utm_medium%3Dsocial%26utm_campaign%3Dsharelink%26doi%3D10.1109%2FTSA.2005.858550&text=Check+out+this+research+output+at+Arizona+Board+of+Regents%3A+Vocal-tract+modeling%3A+Fractional+elongation+of+segment+lengths+in+a+waveguide+model+with+half-sample+delays doi%3A10.1109%2FTSA.2005.858550', 'Twitter', 'width=600,height=600,scrollbars=no,resizable=no');
+                   return false;" class="twitter" target="popup"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 300 271">
+                    
+                    <path d="m236 0h46l-101 115 118 156h-92.6l-72.5-94.8-83 94.8h-46l107-123-113-148h94.9l65.5 86.6zm-16.1 244h25.5l-165-218h-27.4z"></path>
+                </svg></a></li>
+            <li><a aria-label="Share on LinkedIn"
+                   href="https://www.linkedin.com/shareArticle?mini=true&url=https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/%3Futm_source%3Dlinkedin%26utm_medium%3Dsocial%26utm_campaign%3Dsharelink%26doi%3D10.1109%2FTSA.2005.858550&summary=Check+out+this+research+output+at+Arizona+Board+of+Regents%3A+Vocal-tract+modeling%3A+Fractional+elongation+of+segment+lengths+in+a+waveguide+model+with+half-sample+delays"
+                   onclick="window.location.origin('https://www.linkedin.com/shareArticle?mini=true&url=https://experts.azregents.edu/en/publications/vocal-tract-modeling-fractional-elongation-of-segment-lengths-in-/%3Futm_source%3Dlinkedin%26utm_medium%3Dsocial%26utm_campaign%3Dsharelink%26doi%3D10.1109%2FTSA.2005.858550&summary=Check+out+this+research+output+at+Arizona+Board+of+Regents%3A+Vocal-tract+modeling%3A+Fractional+elongation+of+segment+lengths+in+a+waveguide+model+with+half-sample+delays doi%3A10.1109%2FTSA.2005.858550', 'LinkedIn', 'width=600,height=600,scrollbars=no,resizable=no');
+                   return false;" class="icon-linkedin" target="popup"></a></li>
+            <li><a aria-label="Share by email" href="/cdn-cgi/l/email-protection#ac93dfd9cec6c9cfd891fac3cfcdc081d8decdcfd8899e9cc1c3c8c9c0c5c2cb899fed899e9ceadecdcfd8c5c3c2cdc0899e9cc9c0c3c2cbcdd8c5c3c2899e9cc3ca899e9cdfc9cbc1c9c2d8899e9cc0c9c2cbd8c4df899e9cc5c2899e9ccd899e9cdbcddac9cbd9c5c8c9899e9cc1c3c8c9c0899e9cdbc5d8c4899e9cc4cdc0ca81dfcdc1dcc0c9899e9cc8c9c0cdd5df8acec3c8d591efc4c9cfc7899e9cc3d9d8899e9cd8c4c5df899e9cdec9dfc9cddecfc4899e9cc3d9d8dcd9d8899e9ccdd8899e9ceddec5d6c3c2cd899e9ceec3cddec8899e9cc3ca899e9cfec9cbc9c2d8df899fed899e9cfac3cfcdc081d8decdcfd8899e9cc1c3c8c9c0c5c2cb899fed899e9ceadecdcfd8c5c3c2cdc0899e9cc9c0c3c2cbcdd8c5c3c2899e9cc3ca899e9cdfc9cbc1c9c2d8899e9cc0c9c2cbd8c4df899e9cc5c2899e9ccd899e9cdbcddac9cbd9c5c8c9899e9cc1c3c8c9c0899e9cdbc5d8c4899e9cc4cdc0ca81dfcdc1dcc0c9899e9cc8c9c0cdd5df8cd08cc4d8d8dcdf968383c9d4dcc9ded8df82cdd6dec9cbc9c2d8df82c9c8d983c9c283dcd9cec0c5cfcdd8c5c3c2df83dac3cfcdc081d8decdcfd881c1c3c8c9c0c5c2cb81cadecdcfd8c5c3c2cdc081c9c0c3c2cbcdd8c5c3c281c3ca81dfc9cbc1c9c2d881c0c9c2cbd8c4df81c5c2818393d9d8c1f3dfc3d9decfc991c9c1cdc5c08acdc1dc97d9d8c1f3c1c9c8c5d9c191c9c1cdc5c08acdc1dc97d9d8c1f3cfcdc1dccdc5cbc291dfc4cddec9c0c5c2c7" class="icon-email"></a></li>
+        </ul>
+    </div>
+
+
+
+
+    
+        </div>
+    </div>
+
+    <div id="new-modal-overlay"></div>
+    
+    </main>
+
+    <footer id="page-footer" class="main-footer">
+        <div class="container">
+            <div class="footer-wrapper">
+                <div class="content-navigation three-third">
+                    <div dir="ltr" class="footer-columns">
+                        
+                            <div class="footer-column">
+                                <div class="footer-icon">
+                                    <img src="/skin/footerIcon/" alt="Arizona Board of Regents Logo"/>
+                                </div>
+                            </div>
+                        
+                        <div class="footer-column">
+                            <p>
+                                Powered by <a href="http://www.elsevier.com/online-tools/research-intelligence/products-and-services/pure" target="_blank">Pure <span class="sr-only">Link opens in a new tab</span></a>, <a href="http://www.scopus.com/" target="_blank">Scopus <span class="sr-only">Link opens in a new tab</span></a> & <a href="https://www.elsevier.com/products/elsevier-fingerprint-engine" target="_blank">Elsevier Fingerprint Engine&trade; <span class="sr-only">Link opens in a new tab</span></a> 
+                            </p>
+
+                            <p>
+                                All content on this site: Copyright &copy; 2026 Arizona Board of Regents, its licensors, and contributors. All rights are reserved, including those for text and data mining, AI training, and similar technologies. For all open access content, the relevant licensing terms apply
+                            </p>
+
+                            <p>We use cookies to help provide and enhance our service and tailor content. By continuing you agree to the <a href="/en/about/cookies/">use of cookies</a></p>
+                            
+                            
+                            <p></p>
+                        </div>
+
+                        <div class="footer-column">
+                            
+                                <p><a href="https://azregents.edu/privacy-policy" target="_blank">Arizona Board of Regents data protection policy <span class="sr-only">&nbsp; Link opens in a new tab</span></a></p>
+                            
+                            
+                            
+                                <p><a href="/en/web-accessibility/" rel="nofollow" target="_blank">About web accessibility <span class="sr-only">&nbsp; Link opens in a new tab</span></a></p>
+                            
+
+                            <p>
+                                
+                            </p>
+
+                            <p>
+                                
+                            </p>
+
+                            <p>
+                                <a href="https://elsevier.responsibledisclosure.com/hc/en-us/requests/new" target="_blank" rel="nofollow">Report vulnerability <span class="sr-only">&nbsp; Link opens in a new tab</span></a>
+                            </p>
+                        </div>
+
+                        
+                            <div class="footer-column">
+                                
+                                    
+                                        <p>
+                                            <a href="/en/contact/index/"> Contact us</a>
+                                        </p>
+                                    
+                                
+
+                            </div>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="back-to-top">
+            <a href="#" class="back-to-top" aria-label="Go to top"><i class="icon icon-up-open"></i></a>
+        </div>
+    </footer>
+
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="//d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"></script>
+
+
+
+    
+
+    
+
+
+<script>window.appData = window.appData || [];</script><script type="text/javascript">
+try {(function() {
+appData.push({...{"page":{"businessUnit":"ELS:RP:ST","cmsName":"Pure Portal","environment":"prod","language":"en","loadTime":"262","loadTimestamp":"1779803281594","name":"pure portal:publications:view","noTracking":"false","productName":"PR","type":"CP-CA"},"visitor":{"accountId":"","accountName":"pr:Arizona Nexis System","ipAddress":"","accessType":"pr:ANON_GUEST","loginStatus":"anonymous"},"content":[{"id":"3a01ffad-bd58-40d6-b8c9-42c4290212d7","title":"Vocal-tract modeling: Fractional elongation of segment lengths in a waveguide model with half-sample delays","recordType":"researchoutput"}]}, event: "pageLoad"});})();} catch(e) {if(console) { console.log(e) } }</script>
+<script>try {(function() {
+window.appData = window.appData || [];
+})();} catch(e) {if(console) { console.log(e) } }</script>
+
+</body>
+</html>
+

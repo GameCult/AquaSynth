@@ -45,6 +45,7 @@ current_mechanism:
   pink_trombone_parity: docs/pink-trombone-parity.md
   pink_trombone_dsl_parity_plan: docs/pink-trombone-dsl-parity-plan.md
   physical_voice_modeling_research: docs/physical-voice-modeling-research.md
+  physical_voice_modeling_packet: research/physical-voice-modeling
   parameter_contracts: src/AquaSynth.Core/Model.cs
 
 live_invariants:
