@@ -400,6 +400,7 @@ public static class FaustEmitter
         var radiation = patch.AcousticRadiationPorts.ToDictionary(port => port.Name, StringComparer.OrdinalIgnoreCase);
         var terminals = patch.AcousticTerminals.ToDictionary(terminal => terminal.Name, StringComparer.OrdinalIgnoreCase);
         var connections = patch.AcousticConnections.ToDictionary(connection => connection.Name, StringComparer.OrdinalIgnoreCase);
+        var waveClocks = patch.WaveClocks.ToDictionary(clock => clock.Name, StringComparer.OrdinalIgnoreCase);
         if (!paths.TryGetValue(network.PrimaryPath, out var primaryPath))
         {
             warnings.Add($"{name}: acoustic network `{network.Name}` has unknown primary path `{network.PrimaryPath}`");
@@ -408,7 +409,7 @@ public static class FaustEmitter
 
         if (network.Terminals.Count > 0)
         {
-            var graph = AcousticGraphExpression(source, patch, network, name, frequency, parameters, warnings, paths, sources, radiation, terminals, connections);
+            var graph = AcousticGraphExpression(source, patch, network, name, frequency, parameters, warnings, paths, sources, radiation, terminals, connections, waveClocks);
             if (graph.Length > 0)
             {
                 return graph;
@@ -514,8 +515,10 @@ public static class FaustEmitter
         IReadOnlyDictionary<string, AcousticSourcePort> sources,
         IReadOnlyDictionary<string, AcousticRadiationPort> radiation,
         IReadOnlyDictionary<string, AcousticTerminal> terminals,
-        IReadOnlyDictionary<string, AcousticConnection> connections)
+        IReadOnlyDictionary<string, AcousticConnection> connections,
+        IReadOnlyDictionary<string, WaveClockPolicy> waveClocks)
     {
+        var waveClock = ResolveWaveClock(network, waveClocks, warnings, name);
         var networkTerminals = new List<AcousticTerminal>();
         foreach (var terminalName in network.Terminals)
         {
@@ -537,6 +540,8 @@ public static class FaustEmitter
         var terminalIndexes = networkTerminals
             .Select((terminal, index) => (terminal.Name, index))
             .ToDictionary(item => item.Name, item => item.index, StringComparer.OrdinalIgnoreCase);
+        var terminalNodes = new Dictionary<string, AcousticGraphNode>(StringComparer.OrdinalIgnoreCase);
+        var graphNodes = new List<AcousticGraphNode>();
         var segments = new List<AcousticGraphSegment>();
         foreach (var group in networkTerminals.GroupBy(terminal => terminal.Path, StringComparer.OrdinalIgnoreCase))
         {
@@ -547,17 +552,27 @@ public static class FaustEmitter
             }
 
             var ordered = group
-                .OrderBy(terminal => Math.Clamp(terminal.Position, 0, 1))
-                .ThenBy(terminal => terminal.Name, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var duplicatePosition = ordered
                 .GroupBy(terminal => MathF.Round(Math.Clamp(terminal.Position, 0, 1), 4))
-                .FirstOrDefault(positionGroup => positionGroup.Count() > 1);
-            if (duplicatePosition is not null)
-            {
-                warnings.Add($"{name}: acoustic graph `{network.Name}` has co-located terminals on path `{group.Key}`; using response proxy until same-node terminal aggregation is implemented");
-                return "";
-            }
+                .OrderBy(positionGroup => positionGroup.Key)
+                .ThenBy(positionGroup => positionGroup.Select(terminal => terminal.Name).Order(StringComparer.OrdinalIgnoreCase).First())
+                .Select(positionGroup =>
+                {
+                    var nodeTerminals = positionGroup
+                        .OrderBy(terminal => terminal.Name, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    var node = new AcousticGraphNode(
+                        string.Join("_", nodeTerminals.Select(terminal => SafeIdentifier(terminal.Name))),
+                        group.Key,
+                        positionGroup.Key,
+                        nodeTerminals);
+                    graphNodes.Add(node);
+                    foreach (var terminal in nodeTerminals)
+                    {
+                        terminalNodes[terminal.Name] = node;
+                    }
+                    return node;
+                })
+                .ToList();
 
             for (var i = 0; i < ordered.Count - 1; i++)
             {
@@ -571,8 +586,8 @@ public static class FaustEmitter
                     path,
                     ordered[i],
                     ordered[i + 1],
-                    Math.Clamp(ordered[i].Position, 0, 1),
-                    Math.Clamp(ordered[i + 1].Position, 0, 1)));
+                    ordered[i].Position,
+                    ordered[i + 1].Position));
             }
         }
 
@@ -582,7 +597,7 @@ public static class FaustEmitter
             return "";
         }
 
-        var incident = networkTerminals.ToDictionary(terminal => terminal.Name, _ => new List<AcousticGraphPort>(), StringComparer.OrdinalIgnoreCase);
+        var incident = graphNodes.ToDictionary(node => node.Name, _ => new List<AcousticGraphPort>(), StringComparer.OrdinalIgnoreCase);
         foreach (var segment in segments)
         {
             incident[segment.Start.Name].Add(new AcousticGraphPort(segment, true));
@@ -590,6 +605,7 @@ public static class FaustEmitter
         }
 
         var terminalConnection = new Dictionary<string, AcousticConnection>(StringComparer.OrdinalIgnoreCase);
+        var nodeConnection = new Dictionary<string, AcousticConnection>(StringComparer.OrdinalIgnoreCase);
         foreach (var connectionName in network.Connections)
         {
             if (!connections.TryGetValue(connectionName, out var connection))
@@ -602,6 +618,10 @@ public static class FaustEmitter
                 if (terminalIndexes.ContainsKey(terminalName))
                 {
                     terminalConnection[terminalName] = connection;
+                    if (terminalNodes.TryGetValue(terminalName, out var node))
+                    {
+                        nodeConnection[node.Name] = connection;
+                    }
                 }
             }
         }
@@ -613,6 +633,11 @@ public static class FaustEmitter
             var terminalPath = $"/acoustic/terminals/{terminalIndex}";
             source.AppendLine($"{name}_graph_terminal_area_{SafeIdentifier(terminal.Name)} = max(0.000001, {F(TerminalArea(paths, terminal))} * max(0.0, {parameters.Expression(OwnerField(terminalPath, "area_scale"), terminal.AreaScale)}));");
             source.AppendLine($"{name}_graph_terminal_reflection_{SafeIdentifier(terminal.Name)} = {parameters.Expression(OwnerField(terminalPath, "reflection"), terminal.Reflection)};");
+        }
+        foreach (var node in graphNodes)
+        {
+            source.AppendLine($"{name}_graph_node_area_{node.Name} = max(0.000001, {string.Join(" + ", node.Terminals.Select(terminal => $"{name}_graph_terminal_area_{SafeIdentifier(terminal.Name)}"))});");
+            source.AppendLine($"{name}_graph_node_reflection_{node.Name} = ({string.Join(" + ", node.Terminals.Select(terminal => $"{name}_graph_terminal_reflection_{SafeIdentifier(terminal.Name)}"))}) / {F(Math.Max(1, node.Terminals.Count))};");
         }
 
         foreach (var connectionName in network.Connections)
@@ -656,12 +681,13 @@ public static class FaustEmitter
             .ToList();
         foreach (var connection in connectionGroups)
         {
-            var connectionTerminals = connection.Terminals
-                .Where(terminalIndexes.ContainsKey)
-                .Select(terminalName => terminals[terminalName])
+            var connectionNodes = connection.Terminals
+                .Where(terminalNodes.ContainsKey)
+                .Select(terminalName => terminalNodes[terminalName])
+                .DistinctBy(node => node.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            var ports = connectionTerminals
-                .SelectMany(terminal => incident[terminal.Name].Select(port => (terminal, port)))
+            var ports = connectionNodes
+                .SelectMany(node => incident[node.Name].Select(port => (node, port)))
                 .ToList();
             if (ports.Count < 2)
             {
@@ -669,36 +695,38 @@ public static class FaustEmitter
             }
 
             var safeConnection = SafeIdentifier(connection.Name);
-            var weightedIncoming = ports
-                .Select(item => $"{name}_graph_terminal_area_{SafeIdentifier(item.terminal.Name)} * {GraphIncoming(name, item.port)}");
-            var areaSum = ports.Select(item => $"{name}_graph_terminal_area_{SafeIdentifier(item.terminal.Name)}");
-            source.AppendLine($"    {name}_graph_connection_pressure_{safeConnection} = 2.0 * ({string.Join(" + ", weightedIncoming)}) / max(0.000001, {string.Join(" + ", areaSum)});");
-            foreach (var (terminal, port) in ports)
+            var connectionPressure = ConnectionPressureExpression(name, connection, ports);
+            source.AppendLine($"    {name}_graph_connection_pressure_{safeConnection} = {connectionPressure};");
+            foreach (var (node, port) in ports)
             {
                 var incoming = GraphIncoming(name, port);
                 var outgoing = GraphOutgoing(name, port);
-                source.AppendLine($"    {outgoing} = (({name}_graph_connection_pressure_{safeConnection} - {incoming}) * {name}_graph_connection_coupling_{safeConnection} + {incoming} * (1.0 - {name}_graph_connection_coupling_{safeConnection})) * {name}_graph_connection_loss_{safeConnection};");
+                var sourceInjection = NodeSourceExpression(name, node, sources);
+                var bypassInput = ports.Count == 1
+                    ? incoming
+                    : $"(({string.Join(" + ", ports.Where(item => item.port != port).Select(item => GraphIncoming(name, item.port)))}) / {F(ports.Count - 1)})";
+                var scattered = connection.Law == AcousticConnectionLaw.Bypass
+                    ? bypassInput
+                    : $"({name}_graph_connection_pressure_{safeConnection} - {incoming})";
+                source.AppendLine($"    {outgoing} = (({scattered}) * {name}_graph_connection_coupling_{safeConnection} + {incoming} * (1.0 - {name}_graph_connection_coupling_{safeConnection}) + ({sourceInjection}) / {F(Math.Max(1, incident[node.Name].Count))}) * {name}_graph_connection_loss_{safeConnection};");
             }
         }
 
         var radiated = new List<string>();
-        foreach (var terminal in networkTerminals)
+        foreach (var node in graphNodes)
         {
-            var ports = incident[terminal.Name];
+            var ports = incident[node.Name];
             if (ports.Count == 0)
             {
                 continue;
             }
-            if (terminalConnection.ContainsKey(terminal.Name))
+            if (nodeConnection.ContainsKey(node.Name))
             {
                 continue;
             }
 
-            var safeTerminal = SafeIdentifier(terminal.Name);
-            var sourceInjection = terminal.Kind == AcousticTerminalKind.Source && sources.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port)
-                ? $"{name}_graph_source_{SafeIdentifier(terminal.Port.Length == 0 ? terminal.Name : terminal.Port)}"
-                : "0.0";
-            var reflection = $"{name}_graph_terminal_reflection_{safeTerminal}";
+            var sourceInjection = NodeSourceExpression(name, node, sources);
+            var reflection = $"{name}_graph_node_reflection_{node.Name}";
             foreach (var port in ports)
             {
                 var outgoing = GraphOutgoing(name, port);
@@ -706,7 +734,7 @@ public static class FaustEmitter
                 source.AppendLine($"    {outgoing} = {incoming} * {reflection} + ({sourceInjection}) / {F(Math.Max(1, ports.Count))};");
             }
 
-            if (terminal.Kind == AcousticTerminalKind.Radiation && radiation.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port))
+            foreach (var terminal in node.Terminals.Where(terminal => terminal.Kind == AcousticTerminalKind.Radiation && radiation.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port)))
             {
                 var radiationPort = radiation[terminal.Port.Length == 0 ? terminal.Name : terminal.Port];
                 var radiationIndex = AcousticRadiationPortIndex(patch, radiationPort);
@@ -719,10 +747,12 @@ public static class FaustEmitter
 
         foreach (var segment in segments)
         {
-            var delaySamples = Math.Max(1, (int)MathF.Round((segment.EndPosition - segment.StartPosition) * segment.Path.AreaFunction.LengthMeters / segment.Path.PropagationSpeedMetersPerSecond * 44100));
             var loss = F(Math.Clamp(segment.Path.Loss, 0, 1));
-            source.AppendLine($"    {name}_graph_next_r{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, true))} : de.delay({delaySamples}, {delaySamples}) * {loss};");
-            source.AppendLine($"    {name}_graph_next_l{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, false))} : de.delay({delaySamples}, {delaySamples}) * {loss};");
+            var delayExpression = SegmentDelayExpression(segment);
+            var maxDelay = SegmentMaxDelay(segment, waveClock);
+            source.AppendLine($"    {name}_graph_delay_{segment.Index} = {delayExpression};");
+            source.AppendLine($"    {name}_graph_next_r{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, true))} : {WaveClockDelayExpression(waveClock, maxDelay, $"{name}_graph_delay_{segment.Index}")} * {loss};");
+            source.AppendLine($"    {name}_graph_next_l{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, false))} : {WaveClockDelayExpression(waveClock, maxDelay, $"{name}_graph_delay_{segment.Index}")} * {loss};");
             nextStates.Add($"{name}_graph_next_r{segment.Index}");
         }
         nextStates.AddRange(segments.Select(segment => $"{name}_graph_next_l{segment.Index}"));
@@ -1311,6 +1341,80 @@ public static class FaustEmitter
         return Math.Max(0.000001f, diameter * diameter);
     }
 
+    private static WaveClockPolicy ResolveWaveClock(
+        AcousticPortNetwork network,
+        IReadOnlyDictionary<string, WaveClockPolicy> waveClocks,
+        List<string> warnings,
+        string voiceName)
+    {
+        if (network.WaveClock.Length == 0)
+        {
+            return new WaveClockPolicy("__default", WaveClockDelayStrategy.FractionalLinear, 1, 4096, 0);
+        }
+
+        if (waveClocks.TryGetValue(network.WaveClock, out var waveClock))
+        {
+            return waveClock;
+        }
+
+        warnings.Add($"{voiceName}: acoustic network `{network.Name}` references missing wave clock `{network.WaveClock}`; using fractional linear delay");
+        return new WaveClockPolicy("__missing", WaveClockDelayStrategy.FractionalLinear, 1, 4096, 0);
+    }
+
+    private static string SegmentDelayExpression(AcousticGraphSegment segment)
+    {
+        var segmentLengthMeters = Math.Max(0.000001f, (segment.EndPosition - segment.StartPosition) * segment.Path.AreaFunction.LengthMeters);
+        return $"max(1.0, {F(segmentLengthMeters / segment.Path.PropagationSpeedMetersPerSecond)} * ma.SR)";
+    }
+
+    private static int SegmentMaxDelay(AcousticGraphSegment segment, WaveClockPolicy waveClock)
+    {
+        var maxAt44k = (int)MathF.Ceiling(Math.Max(1, (segment.EndPosition - segment.StartPosition) * segment.Path.AreaFunction.LengthMeters / segment.Path.PropagationSpeedMetersPerSecond * 44100) + 4);
+        return Math.Max(maxAt44k, Math.Max(1, waveClock.MaxDelaySamples));
+    }
+
+    private static string WaveClockDelayExpression(WaveClockPolicy waveClock, int maxDelay, string delayExpression)
+    {
+        var delay = $"min({F(maxDelay - 1)}, max(1.0, {delayExpression}))";
+        return waveClock.Strategy switch
+        {
+            WaveClockDelayStrategy.UnitGrid => $"de.delay({maxDelay}, int({delay}))",
+            WaveClockDelayStrategy.HalfSampleGrid => $"de.fdelay({maxDelay}, round({delay} * 2.0) * 0.5)",
+            WaveClockDelayStrategy.FractionalLagrange => $"de.fdelayltv({Math.Clamp(waveClock.FractionalOrder, 1, 5)}, {maxDelay}, {delay})",
+            WaveClockDelayStrategy.FractionalThiran => $"de.fdelay{Math.Clamp(waveClock.FractionalOrder, 1, 4)}a({maxDelay}, {delay})",
+            WaveClockDelayStrategy.CrossfadedVariable => $"de.fdelayltv({Math.Clamp(waveClock.FractionalOrder, 1, 5)}, {maxDelay}, {delay})",
+            _ => $"de.fdelay({maxDelay}, {delay})"
+        };
+    }
+
+    private static string ConnectionPressureExpression(
+        string voiceName,
+        AcousticConnection connection,
+        IReadOnlyList<(AcousticGraphNode node, AcousticGraphPort port)> ports)
+    {
+        if (connection.Law == AcousticConnectionLaw.PressureContinuity)
+        {
+            return $"2.0 * ({string.Join(" + ", ports.Select(item => GraphIncoming(voiceName, item.port)))}) / {F(Math.Max(1, ports.Count))}";
+        }
+
+        var weightedIncoming = ports
+            .Select(item => $"{voiceName}_graph_node_area_{item.node.Name} * {GraphIncoming(voiceName, item.port)}");
+        var areaSum = ports.Select(item => $"{voiceName}_graph_node_area_{item.node.Name}");
+        return $"2.0 * ({string.Join(" + ", weightedIncoming)}) / max(0.000001, {string.Join(" + ", areaSum)})";
+    }
+
+    private static string NodeSourceExpression(
+        string voiceName,
+        AcousticGraphNode node,
+        IReadOnlyDictionary<string, AcousticSourcePort> sources)
+    {
+        var sourceTerms = node.Terminals
+            .Where(terminal => terminal.Kind == AcousticTerminalKind.Source && sources.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port))
+            .Select(terminal => $"{voiceName}_graph_source_{SafeIdentifier(terminal.Port.Length == 0 ? terminal.Name : terminal.Port)}")
+            .ToList();
+        return sourceTerms.Count == 0 ? "0.0" : string.Join(" + ", sourceTerms);
+    }
+
     private static string GraphIncoming(string voiceName, AcousticGraphPort port) =>
         port.AtStart
             ? $"{voiceName}_graph_in_{port.Segment.Index}_start"
@@ -1410,10 +1514,16 @@ public static class FaustEmitter
     private sealed record AcousticGraphSegment(
         int Index,
         AcousticPath Path,
-        AcousticTerminal Start,
-        AcousticTerminal End,
+        AcousticGraphNode Start,
+        AcousticGraphNode End,
         float StartPosition,
         float EndPosition);
+
+    private sealed record AcousticGraphNode(
+        string Name,
+        string Path,
+        float Position,
+        IReadOnlyList<AcousticTerminal> Terminals);
 
     private sealed record AcousticGraphPort(AcousticGraphSegment Segment, bool AtStart);
 

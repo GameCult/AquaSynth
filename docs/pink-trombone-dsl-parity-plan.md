@@ -173,10 +173,16 @@ ports deterministically, scatters connection groups with area-weighted pressure
 continuity, injects source terminals, and sums radiation terminals. Faust
 validation passes on a three-path trachea/oral/nasal graph.
 
-The remaining implementation pressure is now narrower: replace integer segment
-delays with wave-clock-driven fractional delays, add explicit same-node
-terminal aggregation for co-located sources/junctions, and broaden connection
-laws beyond the first area-scattering form.
+The graph compiler now also honors `wave_clock` delay strategy. Segment delay
+comes from physical segment length, propagation speed, and `ma.SR`, then lowers
+through unit-grid, half-sample, linear fractional, Lagrange, or Thiran/allpass
+Faust delay primitives. Co-located terminals on one path now aggregate into a
+single graph node, so a source can share an anatomical point with a junction or
+boundary without disappearing.
+
+The remaining implementation pressure is now narrower: broaden connection laws
+with sharper physical semantics, demote PT-shaped `Voice.Tract` into graph
+authoring sugar, and run the log-mel parity loop against the graph renderer.
 
 Authority map for the required rebuild:
 
@@ -200,11 +206,10 @@ Authority map for the required rebuild:
   `branch` can remain only as shorthand that emits those records.
 
 Exact Pink Trombone timing still needs pressure, but the next backend cut is no
-longer "add more substeps." The current Faust-friendly compromise chooses a
-unit-delay scattering grid from physical length. The deeper target remains
-fractional-delay waveguide lowering whose clock comes from physical length,
-propagation speed, and sample rate while morphology moves through runtime
-controls without recompiling the patch.
+longer "add more substeps." The graph renderer now has fractional-delay clock
+semantics; the remaining parity question is whether PT compatibility commands
+can be lowered into the graph closely enough to beat the current weak
+`Voice.Tract` baseline.
 
 ## Cut Line
 

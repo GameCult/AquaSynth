@@ -170,7 +170,7 @@ public sealed class PatchScriptTests
             path name=trachea length_cm=12 diameters=.4,.7,1,1
             path name=oral length_cm=17 diameters=.6,1.1,1.6,1.2,.8
             source_port name=left_labium path=trachea kind=labial position=.1 pressure=@/voice/left_pressure tension=.55 opening=.4 noise=.02
-            source_port name=right_labium path=trachea kind=labial position=.12 pressure=.65 tension=.5 opening=.45 noise=.03 balance=.8
+            source_port name=right_labium path=trachea kind=labial position=.1 pressure=.65 tension=.5 opening=.45 noise=.03 balance=.8
             branch name=throat from_path=trachea from_position=.9 to_path=oral kind=bronchial opening=@/voice/throat_opening coupling=.7
             radiation_port name=mouth path=oral kind=lip position=1 opening=@/voice/mouth_opening reflection=-.82
             wave_clock name=continuous strategy=thiran order=1 max_delay=4096 smoothing_ms=3
@@ -209,6 +209,9 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_loop", export.Source);
         Assert.Contains("graph_connection_pressure_throat_connection", export.Source);
         Assert.Contains("graph_terminal_area_throat_from", export.Source);
+        Assert.Contains("graph_node_area_left_labium_right_labium", export.Source);
+        Assert.Contains("graph_source_right_labium", export.Source);
+        Assert.Contains("de.fdelay1a", export.Source);
         Assert.Contains("patch_param_0", export.Source);
         Assert.Contains("patch_param_1", export.Source);
         Assert.Contains("patch_param_2", export.Source);
@@ -222,34 +225,36 @@ public sealed class PatchScriptTests
             path name=trachea length_cm=12 diameters=.4,.7,1,1
             path name=oral length_cm=17 diameters=.6,1.1,1.6,1.2,.8
             path name=nasal length_cm=10 diameters=.05,.3,.8,.5
-            source_port name=folds path=trachea kind=glottal position=0 pressure=.7 tension=.55 opening=.45
+            source_port name=folds path=trachea kind=glottal position=1 pressure=.7 tension=.55 opening=.45
             radiation_port name=mouth path=oral kind=lip position=1 opening=1.4 reflection=-.82
             radiation_port name=nostril path=nasal kind=nostril position=1 opening=.5 reflection=-.45
-            terminal name=trachea_top path=trachea position=1 kind=junction area_scale=1
+            terminal name=trachea_bottom path=trachea position=0 kind=closed reflection=.75
             terminal name=oral_back path=oral position=0 kind=junction area_scale=1
             terminal name=nasal_gate path=nasal position=0 kind=junction area_scale=@/voice/velopharynx
-            connect name=velopharynx terminals=trachea_top,oral_back,nasal_gate law=area_scatter coupling=@/voice/velopharynx
-            acoustic_network name=humanish path=oral sources=folds radiation=mouth,nostril terminals=trachea_top,oral_back,nasal_gate connections=velopharynx
+            connect name=velopharynx terminals=folds,oral_back,nasal_gate law=area_scatter coupling=@/voice/velopharynx
+            acoustic_network name=humanish path=oral sources=folds radiation=mouth,nostril terminals=trachea_bottom,oral_back,nasal_gate connections=velopharynx
             acoustic network=humanish freq=130 gain=.1
             """);
 
         var network = Assert.Single(patch.AcousticNetworks);
         Assert.Equal(["folds"], network.SourcePorts);
         Assert.Equal(["mouth", "nostril"], network.RadiationPorts);
-        Assert.Equal(["trachea_top", "oral_back", "nasal_gate", "folds", "mouth", "nostril"], network.Terminals);
+        Assert.Equal(["trachea_bottom", "oral_back", "nasal_gate", "folds", "mouth", "nostril"], network.Terminals);
         Assert.Equal(["velopharynx"], network.Connections);
 
         var connection = Assert.Single(patch.AcousticConnections);
         Assert.Equal(AcousticConnectionLaw.AreaScattering, connection.Law);
-        Assert.Equal(["trachea_top", "oral_back", "nasal_gate"], connection.Terminals);
+        Assert.Equal(["folds", "oral_back", "nasal_gate"], connection.Terminals);
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/terminals/5/area_scale");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/connections/0/coupling");
 
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("humanish"));
         Assert.Contains("acoustic_graph_radiated", export.Source);
         Assert.Contains("graph_connection_pressure_velopharynx", export.Source);
+        Assert.Contains("graph_source_folds", export.Source);
         Assert.Contains("graph_next_r", export.Source);
         Assert.Contains("graph_next_l", export.Source);
+        Assert.Contains("de.fdelay", export.Source);
         Assert.Contains("patch_param_0", export.Source);
     }
 
@@ -1161,14 +1166,15 @@ public sealed class PatchScriptTests
             path name=trachea length_cm=12 diameters=.4,.7,1,1
             path name=oral length_cm=17 diameters=.6,1.1,1.6,1.2,.8
             path name=nasal length_cm=10 diameters=.05,.3,.8,.5
-            source_port name=folds path=trachea kind=glottal position=0 pressure=.7 tension=.55 opening=.45
+            source_port name=folds path=trachea kind=glottal position=1 pressure=.7 tension=.55 opening=.45
             radiation_port name=mouth path=oral kind=lip position=1 opening=1.4 reflection=-.82
             radiation_port name=nostril path=nasal kind=nostril position=1 opening=.5 reflection=-.45
-            terminal name=trachea_top path=trachea position=1 kind=junction area_scale=1
+            terminal name=trachea_bottom path=trachea position=0 kind=closed reflection=.75
             terminal name=oral_back path=oral position=0 kind=junction area_scale=1
             terminal name=nasal_gate path=nasal position=0 kind=junction area_scale=.18
-            connect name=velopharynx terminals=trachea_top,oral_back,nasal_gate law=area_scatter coupling=.18
-            acoustic_network name=humanish path=oral sources=folds radiation=mouth,nostril terminals=trachea_top,oral_back,nasal_gate connections=velopharynx
+            connect name=velopharynx terminals=folds,oral_back,nasal_gate law=area_scatter coupling=.18
+            wave_clock name=continuous strategy=thiran order=1 max_delay=4096 smoothing_ms=3
+            acoustic_network name=humanish path=oral wave_clock=continuous sources=folds radiation=mouth,nostril terminals=trachea_bottom,oral_back,nasal_gate connections=velopharynx
             acoustic network=humanish freq=130 gain=.1
             """, new FaustExportOptions("acoustic_graph_validation"));
         var validation = await FaustCompiler.ValidateAsync(export.Source);

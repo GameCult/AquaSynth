@@ -255,8 +255,12 @@ The first graph compiler cut now exists. It splits paths at terminal positions,
 creates bidirectional segment state in Faust, scatters connected terminals by
 area-weighted pressure continuity, injects declared source ports at source
 terminals, and radiates declared radiation ports. Faust validation passes for a
-three-path trachea/oral/nasal graph. The remaining limits are named rather than
-hidden: segment delays are currently integer sample delays at the 44.1 kHz
-target, co-located terminals fall back to the response proxy until same-node
-aggregation is explicit, and the connection laws are compiled only as the first
-area-scattering form.
+three-path trachea/oral/nasal graph. The next cut added wave-clock lowering and
+same-node aggregation: segment delay now follows the network's `wave_clock`
+strategy (`unit`, half-sample, linear fractional, Lagrange, or Thiran/allpass),
+and co-located terminals on one path become a shared graph node so source,
+junction, boundary, and radiation roles can inhabit the same anatomical point.
+The remaining limits are now parity and law depth rather than graph ownership:
+connection laws beyond area/pressure/bypass need sharper physical semantics,
+runtime morphology changes still require care around recompilation boundaries,
+and PT-shaped `Voice.Tract` has not yet been demoted to graph sugar.
