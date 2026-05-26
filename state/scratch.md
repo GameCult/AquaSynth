@@ -2,6 +2,35 @@
 
 Current slice:
 
+- Golfed the actual graph tract path against the PT log-mel harness after the
+  playground `Ma` preset sounded like amplified buzzing. The failure was not a
+  playground-only gain problem: generated graph topology reused velum as both
+  branch valve and nostril aperture, while closed-nose leakage was carrying too
+  much oral loudness.
+- `EnsureTractAcousticNetwork` now treats velum as branch entrance area
+  control by squaring the nasal branch terminal opening, while nostril radiation
+  remains an independent aperture. Graph radiation was then cut from `24.0` to
+  `3.0` because the previous value was a compensator for the leaky topology and
+  drove the corrected graph into soft clipping.
+- Added a `bilabial-nasal-ma` PT fixture using the playground `Ma` controls, and
+  fixed PT fixture script generation so intensity/tenseness/glottal reflection
+  actually reach both `glottis` and `tract`.
+- The playground renderer patch gain is now `0.48`, keeping audition renders out
+  of the clipped-buzz regime while still rendering the actual Aqua DSL/Faust
+  graph.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --no-restore --filter "PinkTromboneFixturesReportLogMelParityWhenFaustIsInstalled" --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false -v minimal`
+  passed. Latest graph reports:
+  `open-vowel` cosine `0.6219` RMS ratio `0.9743`;
+  `front-vowel` `0.6407` / `1.0024`;
+  `nasal-vowel` `0.5375` / `1.1476`;
+  `bilabial-nasal-ma` `0.4743` / `1.2206`;
+  `sibilant` `0.3233` / `1.0008`;
+  `closure-release` `0.0817` / `1.5534`.
+  Focused graph/parser tests and `tools\TractGraphRenderer` build also passed.
+  Live playground render check after this pass: Open peak/RMS about
+  `0.498/0.257`; Ma about `0.480/0.243`.
+
 - Replaced the vocal tract playground's browser-native source/filter witness
   with actual Aqua DSL graph rendering. The page now posts the visible controls
   to `/render`; `tools/TractGraphRenderer` emits `tract propagation=graph`,

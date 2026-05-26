@@ -1291,7 +1291,7 @@ public static class PatchScript
                     branch.ToPosition,
                     AcousticTerminalKind.Junction,
                     branch.Name,
-                    Math.Max(0, branch.Opening)));
+                    MathF.Pow(Math.Max(0, branch.Opening), 2)));
                 AddAcousticConnectionRecord(new AcousticConnection(
                     BranchConnectionName(branch),
                     [BranchFromTerminalName(branch), BranchToTerminalName(branch)],
@@ -1302,7 +1302,7 @@ public static class PatchScript
                     nasalPathName,
                     1,
                     AcousticRadiationKind.Nostril,
-                    nasal.Velum,
+                    1,
                     nasal.Reflection,
                     nasal.Loss);
                 AddAcousticRadiationPortRecord(nasalRadiation);

@@ -49,7 +49,7 @@ return 0;
 
 static string Script(RenderRequest controls) =>
     $$"""
-    patch gain=0.82 soft_clip=true
+    patch gain=0.48 soft_clip=true
 
     tract_shape
         name=human

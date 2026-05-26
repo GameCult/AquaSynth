@@ -15,6 +15,7 @@ public sealed class PinkTromboneLogMelParityTests
         ["open-vowel"] = 0.55f,
         ["front-vowel"] = 0.57f,
         ["nasal-vowel"] = 0.48f,
+        ["bilabial-nasal-ma"] = 0.47f,
         ["sibilant"] = 0.18f,
         ["closure-release"] = 0.05f
     };

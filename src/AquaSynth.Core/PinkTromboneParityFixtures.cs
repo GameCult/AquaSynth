@@ -65,6 +65,24 @@ public static class PinkTromboneParityFixtures
                 LipOpening: 1.35f),
             ["nose_waveguide_cells", "nose_junction"]),
         Fixture(
+            "bilabial-nasal-ma",
+            "Playground `ma` pressure: velum-open voiced nasal control set without nasal-path overdrive.",
+            new PinkTromboneFixtureControls(
+                Frequency: 132,
+                Intensity: 0.66f,
+                Tenseness: 0.52f,
+                TongueIndex: 14,
+                TongueDiameter: 2.2f,
+                ConstrictionIndex: 18,
+                ConstrictionDiameter: 0.8f,
+                Turbulence: 0.12f,
+                Velum: 0.33f,
+                LipOpening: 1.35f,
+                GlottalReflection: 0.78f,
+                LipReflection: -0.84f,
+                Gain: 0.72f),
+            ["nose_waveguide_cells", "nose_junction", "playground_ma_level_balance"]),
+        Fixture(
             "sibilant",
             "High-turbulence front constriction with positioned waveguide injection.",
             new PinkTromboneFixtureControls(
@@ -109,12 +127,12 @@ public static class PinkTromboneParityFixtures
             name=human
             diameters=0.6,0.6,0.6,0.6,0.6,0.7,0.8,1.0,1.1,1.1,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.5,1.4,1.3,1.2,1.15,1.5
 
-        glottis name=modal intensity=.72 tenseness=.6 aspiration=.12 reflection=.75 skew=.42
+        glottis name=modal intensity={{F(controls.Intensity)}} tenseness={{F(controls.Tenseness)}} aspiration=.12 reflection={{F(controls.GlottalReflection)}} skew=.42
         tract_injection name=inj position=32 diameter=1 turbulence=.1 burst=.25 width=1
         nasal_branch name=nose junction=17 velum=.01 reflection=-.85 loss=.999 diameters=0.01,0.35,0.5,0.65,0.8,0.95,1.1,1.25,1.4,1.55,1.7,1.8,1.9,1.9,1.85,1.75,1.65,1.55,1.45,1.35,1.25,1.15,1.05,0.95,0.85,0.75,0.65,0.55
         tract_motion name=motion diameter_slew=18 shape_return=8 constriction_slew=24 velum_slew=16 obstruction_threshold=.05
 
-        tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation={{propagation}} waveguide_loss=.999 freq={{F(controls.Frequency)}} gain={{F(controls.Gain)}} sustain=.45 decay=.12 tongue_index={{F(controls.TongueIndex)}} tongue_diameter={{F(controls.TongueDiameter)}} constriction_index={{F(controls.ConstrictionIndex)}} constriction_diameter={{F(controls.ConstrictionDiameter)}} turbulence={{F(controls.Turbulence)}} velum={{F(controls.Velum)}} lip={{F(controls.LipOpening)}} burst={{F(controls.Burst)}} glottal_reflection={{F(controls.GlottalReflection)}} lip_reflection={{F(controls.LipReflection)}}
+        tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation={{propagation}} waveguide_loss=.999 freq={{F(controls.Frequency)}} gain={{F(controls.Gain)}} intensity={{F(controls.Intensity)}} tenseness={{F(controls.Tenseness)}} sustain=.45 decay=.12 tongue_index={{F(controls.TongueIndex)}} tongue_diameter={{F(controls.TongueDiameter)}} constriction_index={{F(controls.ConstrictionIndex)}} constriction_diameter={{F(controls.ConstrictionDiameter)}} turbulence={{F(controls.Turbulence)}} velum={{F(controls.Velum)}} lip={{F(controls.LipOpening)}} burst={{F(controls.Burst)}} glottal_reflection={{F(controls.GlottalReflection)}} lip_reflection={{F(controls.LipReflection)}}
         """;
 
     private static string F(float value) =>

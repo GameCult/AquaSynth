@@ -653,7 +653,7 @@ public static class FaustEmitter
             source.AppendLine($"{name}_graph_connection_coupling_{SafeIdentifier(connection.Name)} = clip01({parameters.Expression(OwnerField(connectionPath, "coupling"), connection.Coupling)});");
             source.AppendLine($"{name}_graph_connection_loss_{SafeIdentifier(connection.Name)} = clip01({parameters.Expression(OwnerField(connectionPath, "loss"), connection.Loss)});");
         }
-        source.AppendLine($"{name}_graph_radiation_gain = 24.0;");
+        source.AppendLine($"{name}_graph_radiation_gain = 3.0;");
 
         foreach (var sourceName in network.SourcePorts)
         {
@@ -754,7 +754,9 @@ public static class FaustEmitter
                     : radiationPort.Kind == AcousticRadiationKind.Nostril
                         ? "40.0"
                         : "20.0";
-                radiated.Add($"((({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) : fi.highpass(1, {highpass})) * {opening} * {loss})");
+                var filter = $"fi.highpass(1, {highpass})";
+                var kindGain = radiationPort.Kind == AcousticRadiationKind.Nostril ? "0.75" : "1.55";
+                radiated.Add($"((({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) : {filter}) * {opening} * {loss} * {kindGain})");
             }
         }
 
