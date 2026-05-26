@@ -744,7 +744,12 @@ public static class FaustEmitter
                 var radiationPath = $"/acoustic/radiation/{radiationIndex}";
                 var opening = $"max(0.0, {parameters.Expression(OwnerField(radiationPath, "opening"), radiationPort.Opening)})";
                 var loss = $"clip01({parameters.Expression(OwnerField(radiationPath, "loss"), radiationPort.Loss)})";
-                radiated.Add($"(({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) * {opening} * {loss})");
+                var highpass = radiationPort.Kind is AcousticRadiationKind.Lip or AcousticRadiationKind.Beak
+                    ? "80.0"
+                    : radiationPort.Kind == AcousticRadiationKind.Nostril
+                        ? "40.0"
+                        : "20.0";
+                radiated.Add($"((({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) : fi.highpass(1, {highpass})) * {opening} * {loss})");
             }
         }
 
@@ -784,12 +789,14 @@ public static class FaustEmitter
         var phase = $"os.phasor(1.0, {frequency}{detune})";
         return port.Kind switch
         {
-            AcousticSourceKind.Glottal or AcousticSourceKind.Labial =>
+            AcousticSourceKind.Glottal =>
+                $"((select2({phase} < (0.42 + clip01({opening}) * 0.36), -0.28 * sin(ma.PI * ({phase} - (0.42 + clip01({opening}) * 0.36)) / max(0.001, 1.0 - (0.42 + clip01({opening}) * 0.36))), sin(ma.PI * {phase} / max(0.001, 0.42 + clip01({opening}) * 0.36))) - (0.12 + {tension} * 0.62) * sin(4.0 * ma.PI * {phase}) + 0.18 * (sin(2.0 * ma.PI * {phase}) - {tension} * 0.35 * sin(4.0 * ma.PI * {phase}))) * {pressure} * (0.45 + 0.75 * pow(max(0.0, {tension}), 0.35)) + no.noise * {noise} * {pressure} * (1.0 - sqrt(max(0.0, {tension})))) * {balance}",
+            AcousticSourceKind.Labial =>
                 $"((sin(2.0 * ma.PI * {phase}) - {tension} * 0.35 * sin(4.0 * ma.PI * {phase})) * {pressure} * {opening} + no.noise * {noise} * {pressure} * (1.0 - {tension})) * {balance}",
             AcousticSourceKind.Reed =>
                 $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
             AcousticSourceKind.TurbulenceJet =>
-                $"no.noise * {noise} * {pressure} * {opening} * {balance}",
+                $"(no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening}))) * {noise} * {pressure} * clip01((0.8 - {opening}) / 0.8) * {balance}",
             AcousticSourceKind.Click =>
                 $"no.noise * {pressure} * {opening} * exp(0.0 - age * 120.0) * {balance}",
             AcousticSourceKind.Synthetic =>

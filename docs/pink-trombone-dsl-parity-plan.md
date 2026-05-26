@@ -213,14 +213,18 @@ semantics and a `tract propagation=graph` entry point; the remaining parity
 question is whether graph-authored PT compatibility can beat the current weak
 `Voice.Tract` baseline.
 
-The parity report now renders both lanes. Current graph evidence is mixed:
-nasal, sibilant, and closure-release scores improved in some proxy metrics, but
-open/front vowel log-mel cosine remains far below the legacy waveguide lane and
-the graph lane needed explicit radiation gain to escape underpowered output.
-Baking static tongue/constriction/lip shape into the generated graph path did
-not materially move the report, so the next useful pressure is lower-level
-source, scattering, radiation, and transient behavior rather than more contour
-paperwork.
+The parity report now renders both lanes. The latest graph evidence is finally
+useful instead of decorative: LF-style glottal shaping plus radiation high-pass
+leakage and aperture-weighted turbulence jets raise graph open/front vowel
+cosine to 0.6393/0.6596, beating the current legacy waveguide lane at
+0.6143/0.6349. Nasal graph cosine is still lower at 0.4607 and its RMS ratio is
+too loud at 1.6914, so nasal branch/radiation gain or junction coupling remains
+active pressure. Sibilant graph cosine is still weak at 0.2320, but
+closure-release graph cosine is now positive at 0.1170 instead of the old
+negative waveguide baseline. Baking static tongue/constriction/lip shape into
+the generated graph path did not materially move the report; the useful levers
+so far are source semantics, radiation impedance, and transient/frication
+injection.
 
 ## Cut Line
 
