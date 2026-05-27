@@ -171,7 +171,10 @@ the layer where tract resonances should actually form.
 By default those probes remain ordinary named Faust locals. When
 `FaustExportOptions.DebugProbeUi` is enabled, the same signals are wrapped in
 Faust `vbargraph` UI probes under `/debug/...`, exposing passivity and radiation
-telemetry without changing the patch's audio output arity.
+telemetry without changing the patch's audio output arity. Native streaming
+patches can read those bargraph zones after processing blocks, so passivity
+checks can sample probe values over time without turning probes into audio
+channels.
 
 The next coherent implementation target is to make that law passive and
 radiation-aware:

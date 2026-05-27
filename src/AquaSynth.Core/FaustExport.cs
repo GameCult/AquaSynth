@@ -1714,7 +1714,7 @@ public static class FaustEmitter
 
     private static string ProbeSignal(FaustExportOptions options, string label, string expression, float min, float max) =>
         options.DebugProbeUi
-            ? $"(({expression}) : vbargraph(\"{Escape(label)}\", {F(min)}, {F(max)}))"
+            ? $"attach(({expression}), ({expression}) : vbargraph(\"{Escape(label)}\", {F(min)}, {F(max)}))"
             : expression;
 
     private static string MaxExpression(IEnumerable<string> expressions)

@@ -47,17 +47,21 @@ public sealed class AquaSynthCompiledPatch : IDisposable
         FaustNativeToolchain toolchain,
         IntPtr factory,
         AquaSynthNativeManifest manifest,
-        IReadOnlyList<string> controlPaths)
+        IReadOnlyList<string> controlPaths,
+        IReadOnlyList<string> probePaths)
     {
         this.toolchain = toolchain;
         this.factory = factory;
         Manifest = manifest;
         ControlPaths = controlPaths;
+        ProbePaths = probePaths;
     }
 
     public AquaSynthNativeManifest Manifest { get; }
 
     public IReadOnlyList<string> ControlPaths { get; }
+
+    public IReadOnlyList<string> ProbePaths { get; }
 
     public float[] Render(float gain = 1.0f) => Render(null, gain);
 
@@ -149,6 +153,7 @@ public sealed class AquaSynthStreamingPatch : IDisposable
     private readonly FaustNativeToolchain toolchain;
     private readonly IntPtr dsp;
     private readonly Dictionary<string, IntPtr> controlZones;
+    private readonly Dictionary<string, IntPtr> probeZones;
     private bool disposed;
 
     internal AquaSynthStreamingPatch(
@@ -162,7 +167,9 @@ public sealed class AquaSynthStreamingPatch : IDisposable
         try
         {
             toolchain.InitInstance(dsp, Manifest.SampleRate);
-            controlZones = toolchain.ControlZones(dsp);
+            var uiMap = toolchain.UiZones(dsp);
+            controlZones = uiMap.Controls;
+            probeZones = uiMap.Probes;
         }
         catch
         {
@@ -177,10 +184,39 @@ public sealed class AquaSynthStreamingPatch : IDisposable
 
     public int OutputCount => Manifest.OutputCount;
 
+    public IReadOnlyList<string> ProbePaths => probeZones.Keys.Order(StringComparer.Ordinal).ToArray();
+
     public void SetControls(IReadOnlyDictionary<string, float> controls)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         toolchain.SetControls(dsp, controls, controlZones);
+    }
+
+    public float ReadProbe(string path)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (!probeZones.TryGetValue(path, out var zone) &&
+            !probeZones.TryGetValue(path.TrimStart('/'), out zone))
+        {
+            throw new ArgumentException($"Faust probe `{path}` was not exported by the compiled patch.", nameof(path));
+        }
+
+        var value = new float[1];
+        Marshal.Copy(zone, value, 0, 1);
+        return value[0];
+    }
+
+    public IReadOnlyDictionary<string, float> SnapshotProbes()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        return probeZones
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .ToDictionary(pair => pair.Key, pair =>
+            {
+                var value = new float[1];
+                Marshal.Copy(pair.Value, value, 0, 1);
+                return value[0];
+            }, StringComparer.Ordinal);
     }
 
     public void ProcessBlock(int frameCount, IntPtr inputChannelPointers, IntPtr outputChannelPointers, IReadOnlyDictionary<string, float>? controls = null)
@@ -512,7 +548,9 @@ public sealed class AquaSynthNativeCompiler : IDisposable
                 var inputs = Math.Max(toolchain.GetNumInputs(probe), 0);
                 var outputs = Math.Max(toolchain.GetNumOutputs(probe), 1);
                 var frames = Math.Max(1, (int)MathF.Ceiling(durationSeconds * options.SampleRate));
-                var controlPaths = toolchain.ControlPaths(probe);
+                var uiMap = toolchain.UiZones(probe);
+                var controlPaths = uiMap.Controls.Keys.Order(StringComparer.Ordinal).ToArray();
+                var probePaths = uiMap.Probes.Keys.Order(StringComparer.Ordinal).ToArray();
                 stopwatch.Stop();
                 var manifest = new AquaSynthNativeManifest(
                     identity.Id,
@@ -528,7 +566,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
                     toolchain.Version,
                     toolchain.Home,
                     dspSourcePath);
-                return new AquaSynthCompiledPatch(toolchain, factory, manifest, controlPaths);
+                return new AquaSynthCompiledPatch(toolchain, factory, manifest, controlPaths, probePaths);
             }
             finally
             {
@@ -734,9 +772,11 @@ internal sealed class FaustNativeToolchain : IDisposable
     public int GetNumOutputs(IntPtr dsp) => getNumOutputs(dsp);
 
     public IReadOnlyList<string> ControlPaths(IntPtr dsp) =>
-        ControlZones(dsp).Keys.Order(StringComparer.Ordinal).ToArray();
+        UiZones(dsp).Controls.Keys.Order(StringComparer.Ordinal).ToArray();
 
-    public Dictionary<string, IntPtr> ControlZones(IntPtr dsp) => BuildControlMap(dsp);
+    public FaustUiZoneMap UiZones(IntPtr dsp) => BuildUiZoneMap(dsp);
+
+    public Dictionary<string, IntPtr> ControlZones(IntPtr dsp) => UiZones(dsp).Controls;
 
     public void SetControls(IntPtr dsp, IReadOnlyDictionary<string, float> controls)
     {
@@ -775,7 +815,7 @@ internal sealed class FaustNativeToolchain : IDisposable
         return Marshal.GetDelegateForFunctionPointer<T>(NativeLibrary.GetExport(library, name));
     }
 
-    private Dictionary<string, IntPtr> BuildControlMap(IntPtr dsp)
+    private FaustUiZoneMap BuildUiZoneMap(IntPtr dsp)
     {
         var collector = new FaustControlCollector();
         var handle = GCHandle.Alloc(collector);
@@ -783,7 +823,7 @@ internal sealed class FaustNativeToolchain : IDisposable
         {
             var glue = FaustUiGlue.Create(GCHandle.ToIntPtr(handle));
             buildUserInterface(dsp, ref glue);
-            return collector.Zones;
+            return new FaustUiZoneMap(collector.Controls, collector.Probes);
         }
         finally
         {
@@ -879,8 +919,8 @@ internal sealed class FaustNativeToolchain : IDisposable
                 AddVerticalSlider = AddControl,
                 AddHorizontalSlider = AddControl,
                 AddNumEntry = AddControl,
-                AddHorizontalBargraph = NoBargraph,
-                AddVerticalBargraph = NoBargraph,
+                AddHorizontalBargraph = AddProbe,
+                AddVerticalBargraph = AddProbe,
                 AddSoundfile = NoSoundfile,
                 Declare = NoDeclare
             };
@@ -888,26 +928,34 @@ internal sealed class FaustNativeToolchain : IDisposable
 
     private sealed class FaustControlCollector
     {
-        public Dictionary<string, IntPtr> Zones { get; } = new(StringComparer.Ordinal);
+        public Dictionary<string, IntPtr> Controls { get; } = new(StringComparer.Ordinal);
 
-        public void Add(IntPtr label, IntPtr zone)
+        public Dictionary<string, IntPtr> Probes { get; } = new(StringComparer.Ordinal);
+
+        public void AddControl(IntPtr label, IntPtr zone) => Add(Controls, label, zone);
+
+        public void AddProbe(IntPtr label, IntPtr zone) => Add(Probes, label, zone);
+
+        private static void Add(Dictionary<string, IntPtr> zones, IntPtr label, IntPtr zone)
         {
             var path = Marshal.PtrToStringUTF8(label);
             if (!string.IsNullOrWhiteSpace(path))
             {
-                Zones[path] = zone;
+                zones[path] = zone;
             }
         }
     }
+
+    public sealed record FaustUiZoneMap(Dictionary<string, IntPtr> Controls, Dictionary<string, IntPtr> Probes);
 
     private static FaustControlCollector Collector(IntPtr ui) =>
         (FaustControlCollector)GCHandle.FromIntPtr(ui).Target!;
 
     private static void NoOpenBox(IntPtr ui, IntPtr label) { }
     private static void NoCloseBox(IntPtr ui) { }
-    private static void AddControl(IntPtr ui, IntPtr label, IntPtr zone) => Collector(ui).Add(label, zone);
-    private static void AddControl(IntPtr ui, IntPtr label, IntPtr zone, float init, float min, float max, float step) => Collector(ui).Add(label, zone);
-    private static void NoBargraph(IntPtr ui, IntPtr label, IntPtr zone, float min, float max) { }
+    private static void AddControl(IntPtr ui, IntPtr label, IntPtr zone) => Collector(ui).AddControl(label, zone);
+    private static void AddControl(IntPtr ui, IntPtr label, IntPtr zone, float init, float min, float max, float step) => Collector(ui).AddControl(label, zone);
+    private static void AddProbe(IntPtr ui, IntPtr label, IntPtr zone, float min, float max) => Collector(ui).AddProbe(label, zone);
     private static void NoSoundfile(IntPtr ui, IntPtr label, IntPtr url, IntPtr sfZone) { }
     private static void NoDeclare(IntPtr ui, IntPtr zone, IntPtr key, IntPtr value) { }
 }

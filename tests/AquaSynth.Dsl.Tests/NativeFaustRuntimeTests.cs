@@ -92,4 +92,45 @@ public sealed class NativeFaustRuntimeTests
             Assert.All(output[0], sample => Assert.InRange(sample, 0.124f, 0.126f));
         }
     }
+
+    [Fact]
+    public void NativeFaustStreamingPatchReadsDebugProbeBargraphsWhenToolchainIsAvailable()
+    {
+        const string source = """
+            import("stdfaust.lib");
+            tone = os.osc(440);
+            process = attach(tone * 0.1, abs(tone) : vbargraph("/debug/level", 0.0, 1.0));
+            """;
+
+        using var compiler = new AquaSynthPatchCompiler();
+        if (!compiler.TryCompileSource(
+            new AquaSynthCompileIdentity("native_probe_smoke", "native_probe_smoke", source),
+            source,
+            0.05f,
+            out var patch,
+            out var error))
+        {
+            if (error?.Contains("Faust toolchain not found", StringComparison.OrdinalIgnoreCase) == true ||
+                error?.Contains("Faust DLL not found", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return;
+            }
+
+            Assert.Fail($"AquaSynth native Faust probe compile failed: {error}");
+        }
+
+        using (patch)
+        using (var stream = patch!.CreateStreamingPatch())
+        {
+            Assert.Contains("debug/level", patch.ProbePaths);
+            Assert.Contains("debug/level", stream.ProbePaths);
+
+            var output = new[] { new float[256] };
+            stream.ProcessBlock([], output, 256);
+
+            var level = stream.ReadProbe("/debug/level");
+            Assert.InRange(level, 0.0f, 1.0f);
+            Assert.Contains(stream.SnapshotProbes(), pair => pair.Key == "debug/level" && pair.Value >= 0.0f);
+        }
+    }
 }
