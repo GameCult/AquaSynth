@@ -807,7 +807,11 @@ public static class PatchScript
             _acousticTerminalsByName[terminal.Name] = terminal;
         }
 
-        private void MirrorParameterBinding(string sourceFieldPath, string targetFieldPath)
+        private void MirrorParameterBinding(
+            string sourceFieldPath,
+            string targetFieldPath,
+            ParameterBindingTransform transform = ParameterBindingTransform.Identity,
+            float scale = 1)
         {
             if (_parameterBindings.Any(binding => binding.FieldPath.Equals(targetFieldPath, StringComparison.OrdinalIgnoreCase)))
             {
@@ -820,7 +824,7 @@ public static class PatchScript
                 return;
             }
 
-            _parameterBindings.Add(new ParameterBinding(targetFieldPath, source.ParameterPath));
+            _parameterBindings.Add(new ParameterBinding(targetFieldPath, source.ParameterPath, transform, scale));
         }
 
         private void AddAcousticConnectionRecord(AcousticConnection connection)
@@ -1434,6 +1438,11 @@ public static class PatchScript
                     AcousticTerminalKind.Junction,
                     branch.Name,
                     0.15f * MathF.Pow(Math.Max(0, branch.Opening), 2) / Math.Max(0.000001f, nasalArea.Diameters[0] * nasalArea.Diameters[0])));
+                MirrorParameterBinding(
+                    OwnerField(tractPath, "velum"),
+                    $"/acoustic/terminals/{_acousticTerminals.Count - 1}/area_scale",
+                    ParameterBindingTransform.Square,
+                    0.15f / Math.Max(0.000001f, nasalArea.Diameters[0] * nasalArea.Diameters[0]));
                 AddAcousticConnectionRecord(new AcousticConnection(
                     BranchConnectionName(branch),
                     [BranchFromTerminalName(branch), BranchToTerminalName(branch)],
@@ -1449,7 +1458,6 @@ public static class PatchScript
                     nasal.Loss);
                 var nasalRadiationIndex = _acousticRadiationPorts.Count;
                 AddAcousticRadiationPortRecord(nasalRadiation);
-                MirrorParameterBinding(OwnerField(tractPath, "velum"), $"/acoustic/radiation/{nasalRadiationIndex}/opening");
                 MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/radiation/{nasalRadiationIndex}/reflection");
                 AddAcousticTerminalRecord(new AcousticTerminal(
                     nasalRadiation.Name,
@@ -1459,7 +1467,6 @@ public static class PatchScript
                     nasalRadiation.Name,
                     Math.Max(0, nasalRadiation.Opening),
                     nasalRadiation.Reflection));
-                MirrorParameterBinding(OwnerField(tractPath, "velum"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/area_scale");
                 MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/reflection");
                 branchNames.Add(nasalPathName);
                 radiationNames.Add($"{nasalPathName}_radiation");
@@ -1486,7 +1493,6 @@ public static class PatchScript
                 lip.Name,
                 Math.Max(0, lip.Opening),
                 lip.Reflection));
-            MirrorParameterBinding(OwnerField(tractPath, "lip_opening"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/area_scale");
             MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/reflection");
             radiationNames.Add(lipName);
 

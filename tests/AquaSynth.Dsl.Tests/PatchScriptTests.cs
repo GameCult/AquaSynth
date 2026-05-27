@@ -286,6 +286,46 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void GeneratedTractGraphKeepsBoundaryDimensionsSeparate()
+    {
+        var patch = PatchScript.Parse("""
+            param path=/pink/velum default=.25 min=0 max=1 step=.001
+            param path=/pink/lip/opening default=1.4 min=0 max=2 step=.001
+            param path=/pink/lip/reflection default=-.82 min=-1 max=0 step=.001
+            tract_shape name=human length_cm=17 diameters=.6,.8,1.2,1.5,1.2,.8
+            nasal_branch name=nose length_cm=12 junction=3 velum=@/pink/velum diameters=.01,.35,.6,.8
+            tract shape=human nasal_branch=nose propagation=graph freq=140 gain=.1 sustain=.2 velum=@/pink/velum lip_opening=@/pink/lip/opening lip_reflection=@/pink/lip/reflection
+            """);
+
+        Assert.Contains(patch.AcousticConnections, connection =>
+            connection.Name.Contains("_nose_connection", StringComparison.Ordinal) &&
+            MathF.Abs(connection.Coupling - 1f) < 0.0001f);
+        Assert.DoesNotContain(patch.ParameterBindings, binding =>
+            binding.FieldPath.StartsWith("/acoustic/connections/", StringComparison.OrdinalIgnoreCase) &&
+            binding.FieldPath.EndsWith("/coupling", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(patch.ParameterBindings, binding =>
+            binding.FieldPath.StartsWith("/acoustic/terminals/", StringComparison.OrdinalIgnoreCase) &&
+            binding.FieldPath.EndsWith("/area_scale", StringComparison.OrdinalIgnoreCase) &&
+            binding.ParameterPath == "/pink/velum" &&
+            binding.Transform == ParameterBindingTransform.Square &&
+            binding.Scale > 1000f);
+        Assert.DoesNotContain(patch.ParameterBindings, binding =>
+            binding.FieldPath.StartsWith("/acoustic/radiation/", StringComparison.OrdinalIgnoreCase) &&
+            binding.FieldPath.EndsWith("/opening", StringComparison.OrdinalIgnoreCase) &&
+            binding.ParameterPath == "/pink/velum");
+        Assert.DoesNotContain(patch.ParameterBindings, binding =>
+            binding.FieldPath.StartsWith("/acoustic/terminals/", StringComparison.OrdinalIgnoreCase) &&
+            binding.FieldPath.EndsWith("/area_scale", StringComparison.OrdinalIgnoreCase) &&
+            binding.ParameterPath == "/pink/lip/opening");
+
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph_boundaries"));
+        Assert.Contains("graph_connection_pressure_voices_0_nose_connection", export.Source);
+        Assert.Contains("graph_radiation_admittance_voices_0_lip", export.Source);
+        Assert.Contains("graph_radiation_flow_voices_0_lip", export.Source);
+        Assert.Contains("patch_param_0) * (patch_param_0", export.Source);
+    }
+
+    [Fact]
     public void TractAreaFunctionOwnsContinuousMorphology()
     {
         var shape = new TractAreaFunction([1, 3, 1], LengthCentimeters: 18);

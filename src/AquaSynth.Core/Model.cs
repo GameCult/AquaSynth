@@ -495,7 +495,17 @@ public sealed record PatchParameter(
     string AutomationRate = "control",
     string Notes = "");
 
-public sealed record ParameterBinding(string FieldPath, string ParameterPath);
+public enum ParameterBindingTransform
+{
+    Identity,
+    Square
+}
+
+public sealed record ParameterBinding(
+    string FieldPath,
+    string ParameterPath,
+    ParameterBindingTransform Transform = ParameterBindingTransform.Identity,
+    float Scale = 1);
 
 public sealed record ReferenceSource(
     string Kind,

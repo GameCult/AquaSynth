@@ -664,7 +664,7 @@ public static class FaustEmitter
             source.AppendLine($"{name}_graph_connection_coupling_{SafeIdentifier(connection.Name)} = clip01({parameters.Expression(OwnerField(connectionPath, "coupling"), connection.Coupling)});");
             source.AppendLine($"{name}_graph_connection_loss_{SafeIdentifier(connection.Name)} = clip01({parameters.Expression(OwnerField(connectionPath, "loss"), connection.Loss)});");
         }
-        source.AppendLine($"{name}_graph_radiation_gain = 4.0;");
+        source.AppendLine($"{name}_graph_radiation_gain = 1.0;");
 
         foreach (var sourceName in network.SourcePorts)
         {
@@ -786,9 +786,14 @@ public static class FaustEmitter
                         ? "90.0"
                         : "20.0";
                 var filter = $"fi.highpass(1, {highpass})";
-                var kindGain = radiationPort.Kind == AcousticRadiationKind.Nostril ? "0.75" : "1.55";
+                var safeTerminal = SafeIdentifier(terminal.Name);
+                var terminalArea = $"{name}_graph_terminal_area_{safeTerminal}";
+                var admittance = $"{name}_graph_radiation_admittance_{safeTerminal}";
                 var flow = $"({string.Join(" + ", ports.Select(port => $"({GraphIncoming(name, port)} - {GraphOutgoing(name, port)})"))})";
-                radiated.Add($"(({flow} * 0.15 + ({flow} : {filter}) * 0.85) * {opening} * {loss} * {kindGain})");
+                var flowName = $"{name}_graph_radiation_flow_{safeTerminal}";
+                source.AppendLine($"    {admittance} = sqrt(clip01(({terminalArea}) / max(0.000001, ({terminalArea}) + 1.0)));");
+                source.AppendLine($"    {flowName} = {flow};");
+                radiated.Add($"(({flowName} * 0.15 + ({flowName} : {filter}) * 0.85) * {opening} * {loss} * {admittance})");
             }
         }
 
@@ -1839,7 +1844,7 @@ public static class FaustEmitter
     private sealed class ParameterMap
     {
         private readonly Dictionary<string, int> _parameterIndexes = new(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<string, string> _bindings = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, ParameterBinding> _bindings = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _boundParameterPaths = new(StringComparer.OrdinalIgnoreCase);
 
         public ParameterMap(SynthPatch patch, List<string> warnings)
@@ -1857,7 +1862,7 @@ public static class FaustEmitter
                     continue;
                 }
 
-                _bindings[binding.FieldPath] = binding.ParameterPath;
+                _bindings[binding.FieldPath] = binding;
                 _boundParameterPaths.Add(binding.ParameterPath);
             }
 
@@ -1874,12 +1879,18 @@ public static class FaustEmitter
 
         public string Expression(string fieldPath, float fallback)
         {
-            if (!_bindings.TryGetValue(fieldPath, out var parameterPath))
+            if (!_bindings.TryGetValue(fieldPath, out var binding))
             {
                 return F(fallback);
             }
 
-            return ParameterIdentifier(_parameterIndexes[parameterPath]);
+            var parameter = ParameterIdentifier(_parameterIndexes[binding.ParameterPath]);
+            var transformed = binding.Transform switch
+            {
+                ParameterBindingTransform.Square => $"(({parameter}) * ({parameter}))",
+                _ => parameter
+            };
+            return binding.Scale == 1 ? transformed : $"({F(binding.Scale)} * ({transformed}))";
         }
 
         public IEnumerable<string> UnboundParameterIds()

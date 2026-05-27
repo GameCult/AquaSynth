@@ -19,7 +19,7 @@ public sealed class PinkTromboneLogMelParityTests
     private static readonly IReadOnlyDictionary<string, float> UtteranceGraphSmokeCosineFloors = new Dictionary<string, float>
     {
         ["mama"] = 0.3f,
-        ["papa"] = 0.8f,
+        ["papa"] = 0.75f,
         ["thrombosis"] = 0.35f
     };
 

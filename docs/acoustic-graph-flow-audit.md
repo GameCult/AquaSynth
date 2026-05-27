@@ -90,15 +90,16 @@ Several physical controls need transforms before reaching graph fields:
 - branch opening to side-port admittance;
 - normalized articulator position to emitted graph position.
 
-`ParameterBinding` currently mirrors a parameter path into a field path without
-a transform. That works for simple scalar fields, but it cannot express
-`area = velum^2 / referenceArea` or a bounded softplus-style admittance. Some
-generated records therefore bake a useful initial scale and then lose that
-scale when a live parameter binding replaces it.
+`ParameterBinding` now carries a small typed transform and scale. The first
+kept transform is `Square`, used by generated tract graphs to map live velum
+diameter into nasal side-port admittance (`area = k * velum^2 / referenceArea`)
+without also damping the whole branch connection.
 
-Required cut: either add typed transformed controls for graph fields, or move
-these transforms into the lowering functions that already know terminal kind
-and generated role.
+That is enough to stop one class of sample-flow corruption: a scalar gesture no
+longer has to pretend that branch admittance, radiation aperture, and raw
+control value have the same dimension. Future transforms should remain typed
+and local to field ownership. If a transform cannot state the physical quantity
+it converts from and to, it is probably a compensator.
 
 ### Closure Pressure Storage
 
@@ -124,9 +125,15 @@ direction, but output level remains sensitive to whether a branch junction is
 being damped by the global connection scalar. That means radiation gain is
 partly compensating for connection-law behavior.
 
-Required cut: radiation should be normalized against local port admittance and
-boundary aperture, not against whatever gain happens to survive connection
-scattering.
+The current graph now names each radiation terminal's boundary flow and applies
+a bounded local admittance term derived from that terminal area. This reduces
+the worst over-radiation exposed by the side-branch fix, but it also makes the
+remaining failure clearer: speech-band articulation is still weak, especially
+for utterances. The graph is less loud and still not speaking.
+
+Required cut: keep moving radiation toward local port admittance and aperture
+physics, but the next audible articulation work probably belongs in pressure
+storage/release and passive multi-port scattering rather than output gain.
 
 ## Current Invariants
 
@@ -135,6 +142,8 @@ scattering.
 - Source ports inject energy; they do not secretly decide topology.
 - Radiation ports read boundary flow; they do not own tract filtering.
 - Branch opening belongs on side-port admittance, not on the whole connection.
+- Live parameter bindings may transform dimensions, but only at field owners
+  that can explain the conversion.
 - Metrics can expose regressions, but listening and physical plausibility are
   the authority.
 
@@ -153,8 +162,8 @@ radiation-aware:
 2. Keep the main path continuous when side admittance approaches zero.
 3. Normalize radiation against local aperture/admittance so removing a damper
    does not become raw loudness.
-4. Add graph-level probes for per-port incoming/outgoing flow before further
-   PT audio golf.
+4. Extend the new named radiation flow/admittance probes toward connection
+   energy probes before further PT audio golf.
 
 If that law still floods, radiation normalization should be audited at the same
 layer. Do not fix this with another global gain.
