@@ -170,7 +170,7 @@ public sealed class PatchScriptTests
             path name=trachea length_cm=12 diameters=.4,.7,1,1
             path name=oral length_cm=17 diameters=.6,1.1,1.6,1.2,.8
             source_port name=left_labium path=trachea kind=labial position=.1 pressure=@/voice/left_pressure tension=.55 opening=.4 noise=.02
-            source_port name=right_labium path=trachea kind=labial position=.1 pressure=.65 tension=.5 opening=.45 noise=.03 balance=.8
+            source_port name=right_labium path=trachea kind=labial position=.1 pressure=.65 tension=.5 opening=.45 noise=.03 balance=.8 position_index=.12 position_width=.05 position_index_scale=1
             branch name=throat from_path=trachea from_position=.9 to_path=oral kind=bronchial opening=@/voice/throat_opening coupling=.7
             radiation_port name=mouth path=oral kind=lip position=1 opening=@/voice/mouth_opening reflection=-.82
             wave_clock name=continuous strategy=thiran order=1 max_delay=4096 smoothing_ms=3
@@ -194,6 +194,7 @@ public sealed class PatchScriptTests
         Assert.Equal(5, patch.AcousticTerminals.Count);
         Assert.Single(patch.AcousticConnections);
         Assert.All(patch.AcousticSourcePorts, port => Assert.Equal(AcousticSourceKind.Labial, port.Kind));
+        Assert.NotNull(patch.AcousticSourcePorts[1].PositionControl);
         Assert.Equal(AcousticBranchKind.Bronchial, Assert.Single(patch.AcousticBranches).Kind);
         Assert.Equal(AcousticRadiationKind.Lip, Assert.Single(patch.AcousticRadiationPorts).Kind);
         Assert.Equal(WaveClockDelayStrategy.FractionalThiran, Assert.Single(patch.WaveClocks).Strategy);
@@ -629,7 +630,7 @@ public sealed class PatchScriptTests
             Assert.NotEmpty(patch.TractMotions);
             Assert.Equal(TractPropagationMode.Graph, voice.Tract.Propagation);
             Assert.Contains(patch.AcousticPaths, path => path.Name == "voices_0_oral" && path.AreaControl is not null);
-            Assert.Contains(patch.AcousticSourcePorts, port => port.Name == "voices_0_inj" && port.Transient > 0);
+            Assert.Contains(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal) && port.Transient > 0 && port.PositionControl is not null);
             Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
             Assert.Contains("acoustic_graph_radiated", export.Source);
             Assert.Contains("graph_terminal_area_voices_0_area_", export.Source);

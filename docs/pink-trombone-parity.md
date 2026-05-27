@@ -83,6 +83,8 @@ Current AquaSynth can express:
 - aperture-normalized turbulent source lowering, where sustained jet noise is
   allowed only through a narrow-open constriction and closure release remains
   owned by the transient path;
+- source-port `PositionControl`, which lets a bank of fixed graph terminals
+  share one moving source gesture through differentiable runtime weights;
 - graph lowering that splits paths at terminals, injects typed sources, scatters
   connection groups, and radiates from typed terminal ports;
 - oscillator/noise sources;
@@ -148,6 +150,9 @@ Trombone anatomy:
 - generated graph records mirror live `tract` parameter bindings into acoustic
   source, terminal, connection, radiation, and path-area fields so `/pink/...`
   controls exercise the actual graph.
+- generated graph tract injection now emits a source-port bank along the oral
+  tract; `/pink/constriction/index` weights those ordinary source ports instead
+  of leaving later bursts stuck at the first-frame constriction location.
 - accepted utterance parity lowers the surviving PT control-point sketches into
   Faust `age` curves over ordinary `/pink/...` parameters and compares the
   Aqua graph render against the source-ported PT renderer.
@@ -160,12 +165,12 @@ Trombone anatomy:
   writes listening WAV/report artifacts under
   `artifacts/parity/pink-trombone-logmel/`, and reports only the graph lane.
 - Latest static graph fixture evidence after cutting the old parity lane:
-  open vowel cosine 0.6252, front vowel 0.6576, nasal 0.6893,
-  bilabial-nasal-ma 0.6550, sibilant 0.4389, closure-release 0.5993.
+  open vowel cosine 0.5870, front vowel 0.6632, nasal 0.6965,
+  bilabial-nasal-ma 0.6598, sibilant 0.4053, closure-release 0.6137.
 - Latest graph utterance smoke evidence:
-  `mama` cosine 0.3339 / RMS 1.0698, `papa` 0.8320 / 0.1806,
-  `thrombosis` 0.3957 / 1.6144 under
-  `artifacts/parity/pink-trombone-utterance-logmel/20260527T110608640`.
+  `mama` cosine 0.3418 / RMS 1.0295, `papa` 0.8318 / 0.1806,
+  `thrombosis` 0.4521 / 1.2855 under
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T111349174`.
   This is still not final speech parity; it is the first honest graph-only
   moving-utterance rung.
 - `tools/vocal-tract-playground` exposes the same control surface for fast

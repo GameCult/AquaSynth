@@ -309,7 +309,13 @@ public sealed record AcousticSourcePort(
     float Noise = 0.08f,
     float Transient = 0,
     float Balance = 1,
-    bool Active = true);
+    bool Active = true,
+    AcousticSourcePositionControl? PositionControl = null);
+
+public sealed record AcousticSourcePositionControl(
+    float Index = 0,
+    float Width = 1,
+    float IndexScale = 1);
 
 public sealed record AcousticBranch(
     string Name,

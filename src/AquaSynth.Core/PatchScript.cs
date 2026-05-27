@@ -575,7 +575,8 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.08f, $"/acoustic/sources/{_acousticSourcePorts.Count}/noise", "noise", "aspiration"),
                 GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/transient", "transient", "burst"),
                 GetBoundFloat(fields, line, 1, $"/acoustic/sources/{_acousticSourcePorts.Count}/balance", "balance"),
-                TryGetAny(fields, ["active"], out var active) ? ParseBool(active, line) : true);
+                TryGetAny(fields, ["active"], out var active) ? ParseBool(active, line) : true,
+                ParseAcousticSourcePositionControl(fields, line, _acousticSourcePorts.Count));
             AddAcousticSourcePortRecord(port);
             AddAcousticTerminalRecord(new AcousticTerminal(
                 port.Name,
@@ -583,6 +584,22 @@ public static class PatchScript
                 port.Position,
                 AcousticTerminalKind.Source,
                 port.Name));
+        }
+
+        private static bool HasAcousticSourcePositionControl(IReadOnlyDictionary<string, string> fields) =>
+            HasAny(fields, "position_control", "follow_position", "position_index", "source_index", "follow_index", "position_width", "position_index_scale");
+
+        private AcousticSourcePositionControl? ParseAcousticSourcePositionControl(IReadOnlyDictionary<string, string> fields, int line, int sourceIndex)
+        {
+            if (!HasAcousticSourcePositionControl(fields))
+            {
+                return null;
+            }
+
+            return new AcousticSourcePositionControl(
+                GetBoundFloat(fields, line, 0, $"/acoustic/sources/{sourceIndex}/position/index", "position_index", "source_index", "follow_index"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/sources/{sourceIndex}/position/width", "position_width", "follow_width"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/sources/{sourceIndex}/position/index_scale", "position_index_scale", "follow_index_scale"));
         }
 
         private void AddAcousticBranch(IReadOnlyDictionary<string, string> fields, int line)
@@ -1344,24 +1361,48 @@ public static class PatchScript
             if (tract.Injection is { } injection)
             {
                 var injectionName = string.IsNullOrWhiteSpace(injection.Name) ? $"{prefix}_injection" : $"{prefix}_{injection.Name}";
-                var injectionSource = new AcousticSourcePort(
-                    injectionName,
-                    primaryPathName,
-                    NormalizeTractIndex(injection.Position, tract.Sections),
-                    AcousticSourceKind.TurbulenceJet,
-                    Math.Max(injection.Turbulence, injection.Burst),
-                    0,
-                    injection.Diameter,
-                    Math.Max(0.001f, injection.Turbulence),
-                    injection.Burst);
-                var injectionSourceIndex = _acousticSourcePorts.Count;
-                AddAcousticSourcePortRecord(injectionSource);
-                MirrorParameterBinding(OwnerField(tractPath, "turbulence"), $"/acoustic/sources/{injectionSourceIndex}/pressure");
-                MirrorParameterBinding(OwnerField(tractPath, "constriction_diameter"), $"/acoustic/sources/{injectionSourceIndex}/opening");
-                MirrorParameterBinding(OwnerField(tractPath, "turbulence"), $"/acoustic/sources/{injectionSourceIndex}/noise");
-                MirrorParameterBinding(OwnerField(tractPath, "injection/burst"), $"/acoustic/sources/{injectionSourceIndex}/transient");
-                AddAcousticTerminalRecord(new AcousticTerminal(injectionSource.Name, injectionSource.Path, injectionSource.Position, AcousticTerminalKind.Source, injectionSource.Name));
-                sourceNames.Add(injectionName);
+                if (tract.Propagation == TractPropagationMode.Graph)
+                {
+                    var sourceWidth = Math.Max(0.25f, injection.Width);
+                    var sourceIndexScale = tract.IndexScale / Math.Max(1, tract.Sections - 1);
+                    for (var section = 2; section < tract.Sections; section++)
+                    {
+                        AddTractInjectionSource(
+                            $"{injectionName}_{section}",
+                            section / (float)Math.Max(1, tract.Sections - 1),
+                            new AcousticSourcePositionControl(tract.ConstrictionIndex, sourceWidth, sourceIndexScale));
+                    }
+                }
+                else
+                {
+                    AddTractInjectionSource(injectionName, NormalizeTractIndex(injection.Position, tract.Sections), null);
+                }
+
+                void AddTractInjectionSource(string name, float position, AcousticSourcePositionControl? positionControl)
+                {
+                    var injectionSource = new AcousticSourcePort(
+                        name,
+                        primaryPathName,
+                        position,
+                        AcousticSourceKind.TurbulenceJet,
+                        Math.Max(injection.Turbulence, injection.Burst),
+                        0,
+                        injection.Diameter,
+                        Math.Max(0.001f, injection.Turbulence),
+                        injection.Burst,
+                        1,
+                        true,
+                        positionControl);
+                    var injectionSourceIndex = _acousticSourcePorts.Count;
+                    AddAcousticSourcePortRecord(injectionSource);
+                    MirrorParameterBinding(OwnerField(tractPath, "turbulence"), $"/acoustic/sources/{injectionSourceIndex}/pressure");
+                    MirrorParameterBinding(OwnerField(tractPath, "constriction_diameter"), $"/acoustic/sources/{injectionSourceIndex}/opening");
+                    MirrorParameterBinding(OwnerField(tractPath, "turbulence"), $"/acoustic/sources/{injectionSourceIndex}/noise");
+                    MirrorParameterBinding(OwnerField(tractPath, "injection/burst"), $"/acoustic/sources/{injectionSourceIndex}/transient");
+                    MirrorParameterBinding(OwnerField(tractPath, "constriction_index"), $"/acoustic/sources/{injectionSourceIndex}/position/index");
+                    AddAcousticTerminalRecord(new AcousticTerminal(injectionSource.Name, injectionSource.Path, injectionSource.Position, AcousticTerminalKind.Source, injectionSource.Name));
+                    sourceNames.Add(name);
+                }
             }
 
             if (tract.Nasal is { AreaFunction: { } nasalArea } nasal)

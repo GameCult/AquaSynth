@@ -214,7 +214,7 @@ question is whether graph-authored PT compatibility can beat the current weak
 
 The parity report now renders the graph lane only. The latest static fixture
 evidence is useful instead of decorative: open/front/nasal/ma/sibilant/closure
-cosine is 0.6252/0.6576/0.6893/0.6550/0.4389/0.5993. The useful levers so far
+cosine is 0.5870/0.6632/0.6965/0.6598/0.4053/0.6137. The useful levers so far
 are source semantics, radiation impedance, terminal-specific admittance,
 frication injection, cutting stale first-frame morphology from generated graph
 paths, and live path-area control at graph sample points.
@@ -253,6 +253,15 @@ cap and a narrow-open aperture window. Closed constrictions no longer hiss just
 because they are closed. Latest accepted utterance graph smoke is `mama` 0.3339,
 `papa` 0.8320, and `thrombosis` 0.3957 under
 `artifacts/parity/pink-trombone-utterance-logmel/20260527T110608640`.
+
+Moving source position is now graph-native too. `AcousticSourcePositionControl`
+weights fixed source terminals from a live index/width/scale expression, and
+generated `tract propagation=graph` injection emits an oral source-port bank
+instead of one stale terminal. This keeps the graph topology Faust-friendly
+while letting frication and release energy follow the articulator. Latest
+accepted utterance graph smoke is `mama` 0.3418, `papa` 0.8318, and
+`thrombosis` 0.4521 under
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T111349174`.
 
 ## Cut Line
 

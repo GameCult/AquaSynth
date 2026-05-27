@@ -804,7 +804,7 @@ public static class FaustEmitter
         var opening = $"max(0.0, {parameters.Expression(OwnerField(path, "opening"), port.Opening)})";
         var noise = $"clip01({parameters.Expression(OwnerField(path, "noise"), port.Noise)})";
         var transient = $"clip01({parameters.Expression(OwnerField(path, "transient"), port.Transient)})";
-        var balance = parameters.Expression(OwnerField(path, "balance"), port.Balance);
+        var balance = $"({parameters.Expression(OwnerField(path, "balance"), port.Balance)}) * ({SourcePositionWeightExpression(port, path, parameters)})";
         var detune = port.Kind == AcousticSourceKind.Labial ? $" * (1.0 + ({balance} - 0.5) * 0.018)" : "";
         var phase = $"os.phasor(1.0, {frequency}{detune})";
         var closure = $"clip01((0.12 - ({opening})) / 0.12)";
@@ -825,6 +825,24 @@ public static class FaustEmitter
                 $"sin(2.0 * ma.PI * {phase}) * {pressure} * {opening} * {balance}",
             _ => "0.0"
         };
+    }
+
+    private static string SourcePositionWeightExpression(
+        AcousticSourcePort port,
+        string path,
+        ParameterMap parameters)
+    {
+        if (port.PositionControl is not { } control)
+        {
+            return "1.0";
+        }
+
+        var index = parameters.Expression(OwnerField(path, "position/index"), control.Index);
+        var width = parameters.Expression(OwnerField(path, "position/width"), control.Width);
+        var indexScale = parameters.Expression(OwnerField(path, "position/index_scale"), control.IndexScale);
+        var target = $"clip01(({index}) * max(0.0, {indexScale}))";
+        var radius = $"max(0.000001, ({width}) * max(0.0, {indexScale}))";
+        return $"clip01(1.0 - abs({F(port.Position)} - ({target})) / ({radius}))";
     }
 
     private static string TractExpression(
