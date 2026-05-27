@@ -710,6 +710,11 @@ public static class FaustEmitter
             }
 
             var safeConnection = SafeIdentifier(connection.Name);
+            if (TryEmitThreePortBranchScatter(source, name, connection, safeConnection, ports, sources))
+            {
+                continue;
+            }
+
             var connectionPressure = ConnectionPressureExpression(name, connection, ports);
             var connectionMaxArea = MaxExpression(ports.Select(item => ConnectionPortAreaExpression(name, item.terminal, item.nodePortCount)));
             source.AppendLine($"    {name}_graph_connection_pressure_{safeConnection} = {connectionPressure};");
@@ -1588,6 +1593,60 @@ public static class FaustEmitter
 
     private static string ConnectionPortAreaExpression(string voiceName, AcousticTerminal terminal, int nodePortCount) =>
         $"({voiceName}_graph_terminal_area_{SafeIdentifier(terminal.Name)} / {F(Math.Max(1, nodePortCount))})";
+
+    private static bool TryEmitThreePortBranchScatter(
+        StringBuilder source,
+        string voiceName,
+        AcousticConnection connection,
+        string safeConnection,
+        IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports,
+        IReadOnlyDictionary<string, AcousticSourcePort> sources)
+    {
+        if (ports.Count != 3 || connection.Law != AcousticConnectionLaw.AreaScattering)
+        {
+            return false;
+        }
+
+        var pathGroups = ports
+            .GroupBy(item => item.port.Segment.Path.Name, StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(group => group.Count())
+            .ToList();
+        if (pathGroups.Count != 2 || pathGroups[0].Count() != 2 || pathGroups[1].Count() != 1)
+        {
+            return false;
+        }
+
+        var through = pathGroups[0].ToList();
+        if (!through[0].node.Name.Equals(through[1].node.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var side = pathGroups[1].Single();
+        var portItems = new List<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)>(through)
+        {
+            side
+        };
+        var areaExpressions = new Dictionary<AcousticGraphPort, string>();
+        foreach (var item in through)
+        {
+            areaExpressions[item.port] = GraphPortArea(voiceName, item.port);
+        }
+        areaExpressions[side.port] = ConnectionPortAreaExpression(voiceName, side.terminal, side.nodePortCount);
+
+        var areaSum = string.Join(" + ", portItems.Select(item => areaExpressions[item.port]));
+        var weightedIncoming = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * {GraphIncoming(voiceName, item.port)}"));
+        source.AppendLine($"    {voiceName}_graph_connection_pressure_{safeConnection} = 2.0 * ({weightedIncoming}) / max(0.000001, {areaSum});");
+        foreach (var item in portItems)
+        {
+            var incoming = GraphIncoming(voiceName, item.port);
+            var outgoing = GraphOutgoing(voiceName, item.port);
+            var sourceInjection = NodeSourceExpression(voiceName, item.node, sources);
+            source.AppendLine($"    {outgoing} = ({voiceName}_graph_connection_pressure_{safeConnection} - {incoming} + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {voiceName}_graph_connection_loss_{safeConnection};");
+        }
+
+        return true;
+    }
 
     private static bool TryEmitTwoPortPathScatter(
         StringBuilder source,

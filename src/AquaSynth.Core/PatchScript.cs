@@ -1417,7 +1417,7 @@ public static class PatchScript
                     0,
                     AcousticBranchKind.Nasal,
                     nasal.Velum,
-                    0.15f,
+                    1,
                     true);
                 AddAcousticBranchRecord(branch);
                 AddAcousticTerminalRecord(new AcousticTerminal(
@@ -1433,7 +1433,7 @@ public static class PatchScript
                     branch.ToPosition,
                     AcousticTerminalKind.Junction,
                     branch.Name,
-                    MathF.Pow(Math.Max(0, branch.Opening), 2) / Math.Max(0.000001f, nasalArea.Diameters[0] * nasalArea.Diameters[0])));
+                    0.15f * MathF.Pow(Math.Max(0, branch.Opening), 2) / Math.Max(0.000001f, nasalArea.Diameters[0] * nasalArea.Diameters[0])));
                 AddAcousticConnectionRecord(new AcousticConnection(
                     BranchConnectionName(branch),
                     [BranchFromTerminalName(branch), BranchToTerminalName(branch)],

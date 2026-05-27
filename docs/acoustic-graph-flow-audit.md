@@ -67,21 +67,18 @@ For a research-backed waveguide junction, nasal opening should affect the side
 port admittance. The two oral traveling-wave ports should keep clean continuity
 through the main tube while the nasal port steals energy according to its area.
 
-The current generated PT graph still uses `AcousticConnection.Coupling` as a
-global connection scalar. That scalar damps every port in the connection,
-including the main oral path. It accidentally prevents flooding, but it also
-means velopharyngeal coupling is partly acting as a main-airway clamp.
+Generated PT graphs now move the nasal limit onto the nasal terminal and keep
+the connection itself fully coupled. This preserves the physical ownership:
+velopharyngeal opening is side-port admittance, not a main-airway clamp.
 
-A test cut moved the limit onto the nasal terminal and restored full connection
-coupling. That is closer to the research shape, but the current connection law
-then over-radiated the body by roughly 3-5x RMS on the utterance fixtures. Even
-shrinking nasal admittance did not fix it. The failure is therefore in the
-multi-port lowering/radiation normalization, not in the DSL's ability to name
-the anatomy.
+That change makes the broken downstream law louder. Current utterance fixtures
+over-radiate by roughly 3-5x RMS and articulation worsens. This is not evidence
+that side-port admittance is wrong; it is evidence that connection scattering
+and radiation normalization were relying on the old global damper.
 
-Required cut: connection scattering needs per-port admittance authority and
-passivity checks. Generated nasal branches should not rely on global connection
-coupling as a gain patch.
+Required cut: connection scattering needs passivity checks and radiation needs
+normalization against local port admittance/boundary aperture. Generated nasal
+branches must not rely on global connection coupling as a gain patch.
 
 ### Transformed Control Bindings
 
@@ -143,16 +140,21 @@ scattering.
 
 ## Next Cut
 
-The next coherent implementation target is a passive three-port branch law:
+The live implementation now has a named three-port branch law for connection
+groups with two same-path ports plus one side-branch port. It is intentionally
+kept even though it exposes over-radiation, because it moves ownership to the
+physically correct port.
 
-1. Build a named lowering path for connection groups with two same-path ports
-   plus one branch port.
-2. Use segment areas for the two through-path ports and terminal area for the
-   side port.
-3. Apply branch opening/coupling to the side-port admittance only.
-4. Keep the main path continuous when side admittance approaches zero.
-5. Assert this with generated Faust structure tests before re-golfing PT
-   utterances.
+The next coherent implementation target is to make that law passive and
+radiation-aware:
+
+1. Normalize branch scattering by power/admittance, not by a global damping
+   scalar.
+2. Keep the main path continuous when side admittance approaches zero.
+3. Normalize radiation against local aperture/admittance so removing a damper
+   does not become raw loudness.
+4. Add graph-level probes for per-port incoming/outgoing flow before further
+   PT audio golf.
 
 If that law still floods, radiation normalization should be audited at the same
 layer. Do not fix this with another global gain.
