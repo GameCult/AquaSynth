@@ -286,6 +286,20 @@ band instead of mostly 80-200 Hz vibration. `mama` still lacks enough
 500-1000 Hz vowel body, so nasal/oral coupling and radiation remain live
 pressure.
 
+The next radiation cut moved aperture out of the output-only lane. Lip/beak
+opening now blends graph boundary reflection between a near-closed termination
+and the declared open-end reflection. Radiation reads boundary flow
+(`incoming - outgoing`) rather than raw incoming pressure, then applies a
+stronger radiation slope. Latest accepted utterance smoke is `mama` 0.5650,
+`papa` 0.8613, and `thrombosis` 0.4347 under
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T122757617`; latest
+static smoke is open/front/nasal/ma/sibilant/closure
+0.6088/0.6826/0.6468/0.6153/0.4158/0.6198 under
+`artifacts/parity/pink-trombone-logmel/20260527T123141625`. This is a real
+authority fix, not the final mouth. The remaining articulation failure points
+at pressure storage/release around severe constrictions and better nasal/oral
+coupling, not another output color patch.
+
 ## Cut Line
 
 The current `Voice.Tract` scalar proxy may survive only as an adapter over real

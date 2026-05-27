@@ -181,8 +181,12 @@ Trombone anatomy:
 - Listening pressure remains active, but the smartphone-vibration failure has a
   named tract owner now. The signed two-port scatter moved `papa` into a
   PT-like 500-1000 Hz body band and pulled `thrombosis` RMS under reference
-  level. `mama` still under-radiates the 500-1000 Hz vowel body, so nasal/oral
-  branch and radiation behavior remain pressure.
+  level. Radiation aperture now also owns boundary reflection, and graph
+  radiation reads boundary flow (`incoming - outgoing`) through a stronger
+  radiation high-pass slope instead of acting as a raw pressure tap. That
+  reduces pressure-tap vocoder behavior and gives `mama`/`papa` better
+  500-1000 Hz body, but `thrombosis` still loses too much voiced body during
+  articulation. Pressure storage/release remains the next live cut.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
   knob-twiddling through a small WebAudio witness.
 - `PinkTromboneReferenceDeclaresMissingWaveguideAuthority` prevents graph
@@ -198,9 +202,8 @@ sound like an actual mouth.
 Do not add another formant workaround. The next coherent implementation is one
 of these:
 
-1. Improve graph source/radiation impedance normalization so source injection
-   and radiation read/write pressure through path admittance rather than raw
-   per-node gain.
+1. Add graph-native pressure storage/release around severe constrictions so
+   stops are released by the acoustic graph instead of only by a source burst.
 2. Improve nasal/oral branch and radiation behavior so `mama` gets vowel body
    without reverting to low-band motor buzz.
 3. Use the log-mel artifact loop to golf `mama`, `papa`, and `thrombosis`

@@ -2,6 +2,27 @@
 
 Current slice:
 
+- Latest graph radiation pass moved articulation authority into the acoustic
+  boundary instead of the output tap. `AcousticRadiationPort` aperture now
+  blends boundary reflection between near-closed termination and declared
+  open-end reflection. Radiation reads boundary flow (`incoming - outgoing`)
+  and applies a stronger high-pass radiation slope, instead of reading raw
+  incoming pressure and painting it after the fact.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter "PinkTromboneAcceptedUtterancesReportGraphLogMelParityWhenFaustIsInstalled" -v minimal`
+  passed. Latest utterance artifact:
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T122757617`;
+  `mama` cosine `0.5650` RMS `0.3297`, `papa` `0.8613` / `0.1282`,
+  `thrombosis` `0.4347` / `0.2502`.
+- Static parity also passed:
+  `artifacts/parity/pink-trombone-logmel/20260527T123141625`;
+  open/front/nasal/ma/sibilant/closure cosine
+  `0.6088/0.6826/0.6468/0.6153/0.4158/0.6198`.
+- The pass improved `mama`/`papa` band shape and made aperture a real graph
+  impedance control, but `thrombosis` still loses voiced body and stops remain
+  underpowered. Next pressure is graph-native pressure storage/release around
+  severe constrictions and nasal/oral branch coupling, not more output color.
+
 - Added time-varying Pink Trombone utterance reference fixtures before any Aqua
   utterance metric golf. `PinkTromboneReferenceRenderer.RenderUtterance`
   interpolates timestamped `PinkTromboneControlPoint` curves sample by sample,
