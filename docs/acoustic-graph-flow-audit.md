@@ -232,6 +232,25 @@ wave-convention fix, `papa` rose to cosine `0.8828` with near-unity RMS, while
 `thrombosis` still fails because it goes too silent even though speech-band
 ratio is finally present.
 
+The user-listening report after that pass overruled the flattering metric:
+`mama` and `papa` are still nearly the same vibrating-phone sound. The harness
+now writes utterance separability evidence and fails when candidate utterances
+are more mutually similar than the PT references by a wide log-mel margin.
+Latest collapse artifact:
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T225833392`.
+It reports `mama/papa` reference log-mel similarity `0.3791` versus candidate
+similarity `0.6069`, with candidate envelope similarity `0.8885`. That is not
+speech parity; it is spectral collapse with a nice report.
+
+Source terminals are also no longer topology owners unless they sit on a path
+boundary. Interior source ports now attach to the nearest existing graph node
+and inject energy there, while non-source terminals own node area/reflection.
+This is the right ownership cut: geometry creates junctions; source ports add
+energy to traveling waves. The change worsened some output levels because it
+removed fake source-created impedance slices, but that is a downstream source,
+closure, and radiation problem, not grounds to let source placement mutate the
+tract.
+
 The next coherent implementation target is source/boundary coupling, not more
 global gain:
 

@@ -557,7 +557,12 @@ public static class FaustEmitter
                 continue;
             }
 
-            var ordered = group
+            var groupTerminals = group.ToList();
+            var topologyTerminals = groupTerminals
+                .Where(terminal => terminal.Kind != AcousticTerminalKind.Source || terminal.Position <= 0.0001f || terminal.Position >= 0.9999f)
+                .ToList();
+
+            var ordered = topologyTerminals
                 .GroupBy(terminal => MathF.Round(Math.Clamp(terminal.Position, 0, 1), 4))
                 .OrderBy(positionGroup => positionGroup.Key)
                 .ThenBy(positionGroup => positionGroup.Select(terminal => terminal.Name).Order(StringComparer.OrdinalIgnoreCase).First())
@@ -579,6 +584,19 @@ public static class FaustEmitter
                     return node;
                 })
                 .ToList();
+
+            foreach (var terminal in groupTerminals.Except(topologyTerminals))
+            {
+                var nearest = ordered
+                    .OrderBy(node => MathF.Abs(node.Position - Math.Clamp(terminal.Position, 0, 1)))
+                    .ThenBy(node => node.Name, StringComparer.OrdinalIgnoreCase)
+                    .FirstOrDefault();
+                if (nearest is not null)
+                {
+                    ((List<AcousticTerminal>)nearest.Terminals).Add(terminal);
+                    terminalNodes[terminal.Name] = nearest;
+                }
+            }
 
             for (var i = 0; i < ordered.Count - 1; i++)
             {
@@ -649,8 +667,13 @@ public static class FaustEmitter
         }
         foreach (var node in graphNodes)
         {
-            source.AppendLine($"{name}_graph_node_area_{node.Name} = max(0.000001, {string.Join(" + ", node.Terminals.Select(terminal => $"{name}_graph_terminal_area_{SafeIdentifier(terminal.Name)}"))});");
-            source.AppendLine($"{name}_graph_node_reflection_{node.Name} = ({string.Join(" + ", node.Terminals.Select(terminal => $"{name}_graph_terminal_reflection_{SafeIdentifier(terminal.Name)}"))}) / {F(Math.Max(1, node.Terminals.Count))};");
+            var areaTerminals = node.Terminals.Where(terminal => terminal.Kind != AcousticTerminalKind.Source).ToList();
+            if (areaTerminals.Count == 0)
+            {
+                areaTerminals = node.Terminals.ToList();
+            }
+            source.AppendLine($"{name}_graph_node_area_{node.Name} = max(0.000001, {string.Join(" + ", areaTerminals.Select(terminal => $"{name}_graph_terminal_area_{SafeIdentifier(terminal.Name)}"))});");
+            source.AppendLine($"{name}_graph_node_reflection_{node.Name} = ({string.Join(" + ", areaTerminals.Select(terminal => $"{name}_graph_terminal_reflection_{SafeIdentifier(terminal.Name)}"))}) / {F(Math.Max(1, areaTerminals.Count))};");
         }
         foreach (var segment in segments)
         {

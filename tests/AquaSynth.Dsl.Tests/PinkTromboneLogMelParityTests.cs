@@ -96,6 +96,8 @@ public sealed class PinkTromboneLogMelParityTests
         var artifactDir = ArtifactPath("parity", "pink-trombone-utterance-logmel", DateTimeOffset.UtcNow.ToString("yyyyMMddTHHmmssfff", CultureInfo.InvariantCulture));
         var analyzer = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: 44100));
         var reports = new List<string>();
+        var rendered = new List<RenderedUtterance>();
+        var smokeFailures = new List<string>();
 
         foreach (var fixture in PinkTromboneUtteranceFixtures.All.Where(fixture => UtteranceParityIds.Contains(fixture.Id)))
         {
@@ -110,6 +112,7 @@ public sealed class PinkTromboneLogMelParityTests
             Assert.True(candidate.Samples.Max(MathF.Abs) > 0.00001f, candidate.Stderr);
 
             var comparison = analyzer.Compare(reference.Samples, candidate.Samples);
+            rendered.Add(new RenderedUtterance(fixture.Id, reference.Samples, candidate.Samples));
             var report = UtteranceReport(fixture, comparison);
             reports.Add(report);
 
@@ -121,13 +124,22 @@ public sealed class PinkTromboneLogMelParityTests
             File.WriteAllText(Path.Combine(fixtureDir, "report.txt"), report);
             File.WriteAllText(Path.Combine(fixtureDir, "controls.csv"), UtteranceControlCsv(fixture));
 
-            Assert.True(
-                comparison.LogMelCosineSimilarity >= UtteranceGraphSmokeCosineFloors.GetValueOrDefault(fixture.Id, 0.1f),
-                $"{report}{Environment.NewLine}artifacts: {artifactDir}");
+            if (comparison.LogMelCosineSimilarity < UtteranceGraphSmokeCosineFloors.GetValueOrDefault(fixture.Id, 0.1f))
+            {
+                smokeFailures.Add(report);
+            }
         }
 
         Directory.CreateDirectory(artifactDir);
         File.WriteAllText(Path.Combine(artifactDir, "summary.txt"), string.Join(Environment.NewLine + Environment.NewLine, reports));
+        var separability = UtteranceSeparability(analyzer, rendered);
+        File.WriteAllLines(Path.Combine(artifactDir, "separability.txt"), separability.Select(item => item.Report));
+        var collapseFailures = separability
+            .Where(item => item.CandidateLogMelSimilarity > item.ReferenceLogMelSimilarity + 0.20f)
+            .Select(item => $"candidate collapse: {item.Report}")
+            .ToArray();
+        var failures = smokeFailures.Concat(collapseFailures).ToArray();
+        Assert.True(failures.Length == 0, $"{string.Join(Environment.NewLine, failures)}{Environment.NewLine}artifacts: {artifactDir}");
     }
 
     [Fact]
@@ -293,6 +305,36 @@ public sealed class PinkTromboneLogMelParityTests
             CultureInfo.InvariantCulture,
             $"{fixture.Id}/graph-utterance: verdict={verdict} cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000} articulation={comparison.Articulation.ArticulationScore:0.0000} envCos={comparison.Articulation.EnvelopeCosineSimilarity:0.0000} activeRatio={comparison.Articulation.ActiveFrameRatio:0.0000} silenceMismatch={comparison.Articulation.SilenceMismatch:0.0000} envelopeFluxRatio={comparison.Articulation.EnvelopeFluxRatio:0.0000} spectralFluxRatio={comparison.Articulation.SpectralFluxRatio:0.0000} motorBandRatio={comparison.Articulation.MotorBandRatio:0.0000} speechBandRatio={comparison.Articulation.SpeechBandRatio:0.0000}");
     }
+
+    private static IReadOnlyList<UtteranceSeparabilityRow> UtteranceSeparability(AudioAnalyzer analyzer, IReadOnlyList<RenderedUtterance> utterances)
+    {
+        var rows = new List<UtteranceSeparabilityRow>();
+        for (var i = 0; i < utterances.Count; i++)
+        {
+            for (var j = i + 1; j < utterances.Count; j++)
+            {
+                var left = utterances[i];
+                var right = utterances[j];
+                var reference = analyzer.Compare(left.ReferenceSamples, right.ReferenceSamples);
+                var candidate = analyzer.Compare(left.CandidateSamples, right.CandidateSamples);
+                var report = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"{left.Id}/{right.Id}: referenceLogMel={reference.LogMelCosineSimilarity:0.0000} candidateLogMel={candidate.LogMelCosineSimilarity:0.0000} referenceEnvelope={reference.Articulation.EnvelopeCosineSimilarity:0.0000} candidateEnvelope={candidate.Articulation.EnvelopeCosineSimilarity:0.0000} referenceArticulation={reference.Articulation.ArticulationScore:0.0000} candidateArticulation={candidate.Articulation.ArticulationScore:0.0000}");
+                rows.Add(new UtteranceSeparabilityRow(
+                    left.Id,
+                    right.Id,
+                    reference.LogMelCosineSimilarity,
+                    candidate.LogMelCosineSimilarity,
+                    report));
+            }
+        }
+
+        return rows;
+    }
+
+    private sealed record UtteranceSeparabilityRow(string LeftId, string RightId, float ReferenceLogMelSimilarity, float CandidateLogMelSimilarity, string Report);
+
+    private sealed record RenderedUtterance(string Id, float[] ReferenceSamples, float[] CandidateSamples);
 
     private static string ArticulationVerdict(AudioComparison comparison)
     {
