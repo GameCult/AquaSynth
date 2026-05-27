@@ -163,6 +163,15 @@ For very short sections below a stable allpass delay bound, either:
 - use a half-sample KL structure where the delay model is explicitly designed
   for that regime.
 
+The graph lowering now follows that rule. Segment delay is derived from
+physical length without forcing a one-sample minimum; the wave-clock strategy
+owns the legal lower bound. Generated graph tracts use `HalfSampleGrid`, which
+matches the PT/Kelly-Lochbaum half-sample regime for roughly 44 oral samples
+over a 17 cm tract. A canonical reflection-sign retest was rejected because
+Aqua's current right/left port ordering already encodes the opposite local
+orientation; changing the sign made `thrombosis` unstable/loud instead of more
+speech-like.
+
 ### Separate Fast Training From Final Rendering
 
 Aqua should support at least two lowerings from the same acoustic morphology:

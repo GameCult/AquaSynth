@@ -322,6 +322,19 @@ and an articulation score. The utterance report prints a verdict. Latest run:
 `artifacts/parity/pink-trombone-utterance-logmel/20260527T130026316`, despite
 their old cosine values. That is the harness telling the truth again.
 
+The next physically grounded cut fixed graph tract timing. Segment delay is no
+longer clamped to a full sample before wave-clock lowering; the wave-clock
+strategy owns the minimum legal delay. Generated `tract propagation=graph`
+patches now use `HalfSampleGrid`, matching the half-sample Kelly-Lochbaum
+regime that PT approximates by updating the tract twice per audio sample. This
+removed an accidental overlong-tract crutch and improved several witnesses,
+especially `thrombosis` motor-band ratio. Latest accepted utterance smoke is
+`mama` 0.5982 / articulation 0.1952, `papa` 0.8615 / 0.1979, and `thrombosis`
+0.5217 / 0.2640 under
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T133539554`. The
+voice is still not accepted; the remaining failure is body/radiation and
+pressure-release behavior, not tract length.
+
 ## Cut Line
 
 The current `Voice.Tract` scalar proxy may survive only as an adapter over real

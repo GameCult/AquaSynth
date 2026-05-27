@@ -2,6 +2,26 @@
 
 Current slice:
 
+- Research-guided machine cut: graph segment delay no longer clamps physical
+  segment delay to a full sample. `WaveClockPolicy` now owns the minimum legal
+  delay: unit grid stays at 1 sample, half-sample grid and first-order Thiran
+  bottom at 0.5, and Lagrange/crossfaded policies use their documented lower
+  bound. Generated `tract propagation=graph` now uses `HalfSampleGrid` to match
+  PT's half-sample Kelly-Lochbaum regime instead of first-order Thiran.
+- Rejected experiments in this pass:
+  - Flipping area-scatter reflection to the literal SndKit/PT sign made
+    `thrombosis` loud/unstable under Aqua's current port orientation, so the
+    previous local sign convention remains.
+  - Adding more high glottal harmonics worsened voiced-band behavior; the
+    failure is not a missing sparkle source.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter "TractVoiceCanLowerThroughAcousticGraph|ParserSupportsTypedAcousticPathGraph|FaustCompilerValidatesAcousticPathGraphWhenInstalled|PinkTromboneAcceptedUtterancesReportGraphLogMelParityWhenFaustIsInstalled|PinkTromboneFixturesReportLogMelParityWhenFaustIsInstalled" -v minimal`
+  passed. Latest utterance artifact:
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T133539554`;
+  `mama` cosine/articulation `0.5982/0.1952`, `papa` `0.8615/0.1979`,
+  `thrombosis` `0.5217/0.2640`. Latest static artifact:
+  `artifacts/parity/pink-trombone-logmel/20260527T133424894`.
+
 - User listening correctly rejected the log-mel witness: `thrombosis` was
   mostly silence plus breathy/squeaky bursts, and `papa`/`mama` still read as
   phone-vibration buzz. `AudioComparison` now includes articulation diagnostics

@@ -101,12 +101,16 @@ Current AquaSynth can express:
 
 Current AquaSynth cannot exactly express:
 
-- exact Pink Trombone wall update timing and obstruction history;
+- exact Pink Trombone obstruction history;
 - fully continuous area modulation inside a delay segment between graph sample
   points. Generated tract graphs now sample live area along the path, but the
   delay segment between two sampled nodes remains uniform.
 - exact Pink Trombone block timing and source/noise/transient behavior inside
   the Faust-lowered Aqua graph.
+
+Graph tract timing is no longer intentionally overlong: physical segment delay
+can be sub-sample, and generated graph tracts use a half-sample clock rather
+than clamping every segment to one sample.
 
 ## Reference Renderer Authority
 

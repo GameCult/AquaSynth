@@ -1536,7 +1536,7 @@ public static class FaustEmitter
     private static string SegmentDelayExpression(AcousticGraphSegment segment)
     {
         var segmentLengthMeters = Math.Max(0.000001f, (segment.EndPosition - segment.StartPosition) * segment.Path.AreaFunction.LengthMeters);
-        return $"max(1.0, {F(segmentLengthMeters / segment.Path.PropagationSpeedMetersPerSecond)} * ma.SR)";
+        return $"max(0.000001, {F(segmentLengthMeters / segment.Path.PropagationSpeedMetersPerSecond)} * ma.SR)";
     }
 
     private static int SegmentMaxDelay(AcousticGraphSegment segment, WaveClockPolicy waveClock)
@@ -1547,7 +1547,7 @@ public static class FaustEmitter
 
     private static string WaveClockDelayExpression(WaveClockPolicy waveClock, int maxDelay, string delayExpression)
     {
-        var delay = $"min({F(maxDelay - 1)}, max(1.0, {delayExpression}))";
+        var delay = $"min({F(maxDelay - 1)}, max({F(WaveClockMinimumDelay(waveClock))}, {delayExpression}))";
         return waveClock.Strategy switch
         {
             WaveClockDelayStrategy.UnitGrid => $"de.delay({maxDelay}, int({delay}))",
@@ -1558,6 +1558,17 @@ public static class FaustEmitter
             _ => $"de.fdelay({maxDelay}, {delay})"
         };
     }
+
+    private static float WaveClockMinimumDelay(WaveClockPolicy waveClock) =>
+        waveClock.Strategy switch
+        {
+            WaveClockDelayStrategy.UnitGrid => 1.0f,
+            WaveClockDelayStrategy.HalfSampleGrid => 0.5f,
+            WaveClockDelayStrategy.FractionalThiran => Math.Clamp(waveClock.FractionalOrder, 1, 4) - 0.5f,
+            WaveClockDelayStrategy.FractionalLagrange => (Math.Clamp(waveClock.FractionalOrder, 1, 5) - 1) * 0.5f,
+            WaveClockDelayStrategy.CrossfadedVariable => (Math.Clamp(waveClock.FractionalOrder, 1, 5) - 1) * 0.5f,
+            _ => 0.000001f
+        };
 
     private static string ConnectionPressureExpression(
         string voiceName,
