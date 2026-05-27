@@ -687,6 +687,15 @@ public static class FaustEmitter
             source.AppendLine($"    {name}_graph_in_{segment.Index}_start = l{segment.Index};");
             source.AppendLine($"    {name}_graph_in_{segment.Index}_end = r{segment.Index};");
         }
+        foreach (var node in graphNodes)
+        {
+            var ports = incident[node.Name];
+            var incidentPressure = ports.Count == 0
+                ? "0.0"
+                : $"({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) / {F(ports.Count)}";
+            source.AppendLine($"    {name}_graph_node_incident_pressure_{node.Name} = {incidentPressure};");
+            source.AppendLine($"    {NodeSourceIdentifier(name, node)} = {NodeSourceExpression(patch, name, node, sources, frequency, parameters)};");
+        }
 
         var connectionGroups = network.Connections
             .Select(connectionName => connections.TryGetValue(connectionName, out var connection) ? connection : null)
@@ -710,7 +719,7 @@ public static class FaustEmitter
             }
 
             var safeConnection = SafeIdentifier(connection.Name);
-            if (TryEmitThreePortBranchScatter(source, name, connection, safeConnection, ports, sources))
+            if (TryEmitThreePortBranchScatter(source, name, connection, safeConnection, ports))
             {
                 continue;
             }
@@ -722,7 +731,7 @@ public static class FaustEmitter
             {
                 var incoming = GraphIncoming(name, port);
                 var outgoing = GraphOutgoing(name, port);
-                var sourceInjection = NodeSourceExpression(name, node, sources);
+                var sourceInjection = NodeSourceIdentifier(name, node);
                 var portCoupling = $"{name}_graph_connection_coupling_{safeConnection}";
                 var portArea = ConnectionPortAreaExpression(name, terminal, nodePortCount);
                 var portAdmittance = $"(0.6 + 0.4 * sqrt(clip01({portArea} / max(0.000001, {connectionMaxArea}))))";
@@ -749,7 +758,7 @@ public static class FaustEmitter
                 continue;
             }
 
-            var sourceInjection = NodeSourceExpression(name, node, sources);
+            var sourceInjection = NodeSourceIdentifier(name, node);
             var reflection = $"{name}_graph_node_reflection_{node.Name}";
             if (TryEmitTwoPortPathScatter(source, name, node, ports, sourceInjection))
             {
@@ -846,7 +855,8 @@ public static class FaustEmitter
         SynthPatch patch,
         AcousticSourcePort port,
         string frequency,
-        ParameterMap parameters)
+        ParameterMap parameters,
+        string? localPressure = null)
     {
         var index = AcousticSourcePortIndex(patch, port);
         var path = $"/acoustic/sources/{index}";
@@ -860,6 +870,9 @@ public static class FaustEmitter
         var phase = $"os.phasor(1.0, {frequency}{detune})";
         var closure = $"clip01((0.12 - ({opening})) / 0.12)";
         var release = $"(max(0.0, (({closure}) : mem) - ({closure})) : + ~ *(0.995))";
+        var releasePressure = localPressure is null
+            ? "1.0"
+            : $"(0.20 + 2.80 * clip01((abs({localPressure}) * ({closure})) : + ~ *(0.992)))";
         return port.Kind switch
         {
             AcousticSourceKind.Glottal =>
@@ -869,7 +882,7 @@ public static class FaustEmitter
             AcousticSourceKind.Reed =>
                 $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
             AcousticSourceKind.TurbulenceJet =>
-                $"((no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening}))) * {noise} * {pressure} * min(clip01((0.8 - {opening}) / 0.8), clip01(8.0 * (0.7 - {opening})) * clip01(30.0 * ({opening} - 0.3))) * 0.62 + {transient} * {pressure} * {release} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
+                $"((no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening}))) * {noise} * {pressure} * min(clip01((0.8 - {opening}) / 0.8), clip01(8.0 * (0.7 - {opening})) * clip01(30.0 * ({opening} - 0.3))) * 0.62 + {transient} * {pressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
             AcousticSourceKind.Click =>
                 $"no.noise * {pressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance}",
             AcousticSourceKind.Synthetic =>
@@ -1604,8 +1617,7 @@ public static class FaustEmitter
         string voiceName,
         AcousticConnection connection,
         string safeConnection,
-        IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports,
-        IReadOnlyDictionary<string, AcousticSourcePort> sources)
+        IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports)
     {
         if (ports.Count != 3 || connection.Law != AcousticConnectionLaw.AreaScattering)
         {
@@ -1646,7 +1658,7 @@ public static class FaustEmitter
         {
             var incoming = GraphIncoming(voiceName, item.port);
             var outgoing = GraphOutgoing(voiceName, item.port);
-            var sourceInjection = NodeSourceExpression(voiceName, item.node, sources);
+            var sourceInjection = NodeSourceIdentifier(voiceName, item.node);
             source.AppendLine($"    {outgoing} = ({voiceName}_graph_connection_pressure_{safeConnection} - {incoming} + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {voiceName}_graph_connection_loss_{safeConnection};");
         }
         source.AppendLine($"    {voiceName}_graph_connection_energy_in_{safeConnection} = {string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphIncoming(voiceName, item.port)}, 2.0)"))};");
@@ -1702,14 +1714,27 @@ public static class FaustEmitter
         return expression;
     }
 
+    private static string NodeSourceIdentifier(string voiceName, AcousticGraphNode node) =>
+        $"{voiceName}_graph_node_source_{node.Name}";
+
     private static string NodeSourceExpression(
+        SynthPatch patch,
         string voiceName,
         AcousticGraphNode node,
-        IReadOnlyDictionary<string, AcousticSourcePort> sources)
+        IReadOnlyDictionary<string, AcousticSourcePort> sources,
+        string frequency,
+        ParameterMap parameters)
     {
         var sourceTerms = node.Terminals
             .Where(terminal => terminal.Kind == AcousticTerminalKind.Source && sources.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port))
-            .Select(terminal => $"{voiceName}_graph_source_{SafeIdentifier(terminal.Port.Length == 0 ? terminal.Name : terminal.Port)}")
+            .Select(terminal =>
+            {
+                var sourceName = terminal.Port.Length == 0 ? terminal.Name : terminal.Port;
+                var port = sources[sourceName];
+                return port.Kind == AcousticSourceKind.TurbulenceJet
+                    ? AcousticSourceExpression(patch, port, frequency, parameters, $"{voiceName}_graph_node_incident_pressure_{node.Name}")
+                    : $"{voiceName}_graph_source_{SafeIdentifier(sourceName)}";
+            })
             .ToList();
         return sourceTerms.Count == 0 ? "0.0" : string.Join(" + ", sourceTerms);
     }

@@ -110,9 +110,15 @@ and pressure events, not decorative source clicks.
 
 Current `AcousticSourcePort.Transient` can emit a short pressure-shaped pulse,
 but it is still a local source-port expression. It does not own upstream
-pressure storage in the graph state. A post-commit reservoir experiment was
-stable but inaudible because it lived outside the actual wave variables and did
-not change the local boundary state.
+pressure storage in the graph state. Graph source evaluation has started moving
+into node context: each node now names incident pressure and a node-local source
+sum, and generated tract injection source banks are placed at cell centers
+rather than directly on graph/radiation nodes. That matches the waveguide-cell
+mental model better than terminal-born clicks.
+
+This still is not full pressure storage. A first node-pressure-informed
+turbulence release only moved metrics slightly, which says the release source is
+now closer to the right layer but still lacks an actual upstream reservoir.
 
 Required cut: graph lowering needs a closure/reservoir primitive that can
 store pressure on one side of a severe constriction and release it through the

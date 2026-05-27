@@ -322,9 +322,35 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_connection_pressure_voices_0_nose_connection", export.Source);
         Assert.Contains("graph_connection_energy_in_voices_0_nose_connection", export.Source);
         Assert.Contains("graph_connection_energy_out_voices_0_nose_connection", export.Source);
+        Assert.Contains("graph_node_incident_pressure_", export.Source);
+        Assert.Contains("graph_node_source_", export.Source);
         Assert.Contains("graph_radiation_admittance_voices_0_lip", export.Source);
         Assert.Contains("graph_radiation_flow_voices_0_lip", export.Source);
         Assert.Contains("patch_param_0) * (patch_param_0", export.Source);
+    }
+
+    [Fact]
+    public void GeneratedGraphInjectionSourcesOccupyCellCenters()
+    {
+        var patch = PatchScript.Parse("""
+            tract_shape name=human length_cm=17 diameters=.6,.8,1.2,1.5,1.2,.8
+            tract_injection name=inj position=5 width=1 turbulence=.5 burst=.8
+            tract shape=human injection=inj propagation=graph sections=6 constriction_index=5
+            """);
+
+        var injectionSources = patch.AcousticSourcePorts
+            .Where(port => port.Kind == AcousticSourceKind.TurbulenceJet)
+            .OrderBy(port => port.Position)
+            .ToArray();
+
+        Assert.Equal(5, injectionSources.Length);
+        Assert.Equal(0.25f, injectionSources[0].Position, 3);
+        Assert.Equal(0.9167f, injectionSources[^1].Position, 3);
+        Assert.All(injectionSources, source =>
+        {
+            Assert.NotNull(source.PositionControl);
+            Assert.Equal(1f / 6f, source.PositionControl!.IndexScale, 4);
+        });
     }
 
     [Fact]

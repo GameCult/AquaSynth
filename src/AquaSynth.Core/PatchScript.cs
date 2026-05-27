@@ -1368,12 +1368,12 @@ public static class PatchScript
                 if (tract.Propagation == TractPropagationMode.Graph)
                 {
                     var sourceWidth = Math.Max(0.25f, injection.Width);
-                    var sourceIndexScale = tract.IndexScale / Math.Max(1, tract.Sections - 1);
-                    for (var section = 2; section < tract.Sections; section++)
+                    var sourceIndexScale = tract.IndexScale / Math.Max(1, tract.Sections);
+                    for (var section = 1; section < tract.Sections; section++)
                     {
                         AddTractInjectionSource(
                             $"{injectionName}_{section}",
-                            section / (float)Math.Max(1, tract.Sections - 1),
+                            (section + 0.5f) / Math.Max(1, tract.Sections),
                             new AcousticSourcePositionControl(tract.ConstrictionIndex, sourceWidth, sourceIndexScale));
                     }
                 }
