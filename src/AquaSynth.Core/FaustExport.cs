@@ -803,9 +803,12 @@ public static class FaustEmitter
         var tension = $"clip01({parameters.Expression(OwnerField(path, "tension"), port.Tension)})";
         var opening = $"max(0.0, {parameters.Expression(OwnerField(path, "opening"), port.Opening)})";
         var noise = $"clip01({parameters.Expression(OwnerField(path, "noise"), port.Noise)})";
+        var transient = $"clip01({parameters.Expression(OwnerField(path, "transient"), port.Transient)})";
         var balance = parameters.Expression(OwnerField(path, "balance"), port.Balance);
         var detune = port.Kind == AcousticSourceKind.Labial ? $" * (1.0 + ({balance} - 0.5) * 0.018)" : "";
         var phase = $"os.phasor(1.0, {frequency}{detune})";
+        var closure = $"clip01((0.12 - ({opening})) / 0.12)";
+        var release = $"(max(0.0, (({closure}) : mem) - ({closure})) : + ~ *(0.90))";
         return port.Kind switch
         {
             AcousticSourceKind.Glottal =>
@@ -815,9 +818,9 @@ public static class FaustEmitter
             AcousticSourceKind.Reed =>
                 $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
             AcousticSourceKind.TurbulenceJet =>
-                $"(no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening}))) * {noise} * {pressure} * clip01((0.8 - {opening}) / 0.8) * {balance}",
+                $"((no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening}))) * {noise} * {pressure} * clip01((0.8 - {opening}) / 0.8) + (no.noise : fi.highpass(1, 450.0)) * {transient} * {pressure} * {release} * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
             AcousticSourceKind.Click =>
-                $"no.noise * {pressure} * {opening} * exp(0.0 - age * 120.0) * {balance}",
+                $"no.noise * {pressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance}",
             AcousticSourceKind.Synthetic =>
                 $"sin(2.0 * ma.PI * {phase}) * {pressure} * {opening} * {balance}",
             _ => "0.0"

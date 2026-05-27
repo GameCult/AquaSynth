@@ -307,6 +307,7 @@ public sealed record AcousticSourcePort(
     float Tension = 0.6f,
     float Opening = 0.5f,
     float Noise = 0.08f,
+    float Transient = 0,
     float Balance = 1,
     bool Active = true);
 

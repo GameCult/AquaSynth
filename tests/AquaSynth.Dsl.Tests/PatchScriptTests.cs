@@ -629,6 +629,7 @@ public sealed class PatchScriptTests
             Assert.NotEmpty(patch.TractMotions);
             Assert.Equal(TractPropagationMode.Graph, voice.Tract.Propagation);
             Assert.Contains(patch.AcousticPaths, path => path.Name == "voices_0_oral" && path.AreaControl is not null);
+            Assert.Contains(patch.AcousticSourcePorts, port => port.Name == "voices_0_inj" && port.Transient > 0);
             Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
             Assert.Contains("acoustic_graph_radiated", export.Source);
             Assert.Contains("graph_terminal_area_voices_0_area_", export.Source);

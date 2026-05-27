@@ -78,6 +78,8 @@ Current AquaSynth can express:
   ports, and wave-clock policies;
 - optional acoustic path `AreaControl` fields that turn tongue, constriction,
   and lip gestures into live diameter/area expressions at graph sample points;
+- source-port `transient` control for graph-native release bursts on turbulent
+  or click-like sources;
 - graph lowering that splits paths at terminals, injects typed sources, scatters
   connection groups, and radiates from typed terminal ports;
 - oscillator/noise sources;
@@ -135,7 +137,8 @@ Trombone anatomy:
   graph paths now attach `AcousticAreaControl`, so tongue, constriction, and lip
   gestures alter live node areas and therefore scattering along the oral tract.
 - `glottis` and `tract_injection` own excitation and positioned noise/burst
-  controls consumed by tract voices.
+  controls consumed by tract voices; graph injection maps burst into source
+  `transient` rather than a PT-specific side path.
 - `nasal_branch` adds a second diameter/area tube and generated oral/nasal
   connection terminals. Velum owns branch coupling and nasal aperture; the first
   nasal tube sample is not allowed to masquerade as the velum opening.
