@@ -641,6 +641,10 @@ public static class FaustEmitter
             source.AppendLine($"{name}_graph_node_area_{node.Name} = max(0.000001, {string.Join(" + ", node.Terminals.Select(terminal => $"{name}_graph_terminal_area_{SafeIdentifier(terminal.Name)}"))});");
             source.AppendLine($"{name}_graph_node_reflection_{node.Name} = ({string.Join(" + ", node.Terminals.Select(terminal => $"{name}_graph_terminal_reflection_{SafeIdentifier(terminal.Name)}"))}) / {F(Math.Max(1, node.Terminals.Count))};");
         }
+        foreach (var segment in segments)
+        {
+            source.AppendLine($"{name}_graph_segment_area_{segment.Index} = max(0.000001, {SegmentAreaExpression(patch, parameters, segment)});");
+        }
 
         foreach (var connectionName in network.Connections)
         {
@@ -735,7 +739,11 @@ public static class FaustEmitter
 
             var sourceInjection = NodeSourceExpression(name, node, sources);
             var reflection = $"{name}_graph_node_reflection_{node.Name}";
-            if (ports.Count > 1)
+            if (TryEmitTwoPortPathScatter(source, name, node, ports, sourceInjection))
+            {
+                // Emitted as a local area-discontinuity junction.
+            }
+            else if (ports.Count > 1)
             {
                 var nodePressure = $"{name}_graph_node_pressure_{node.Name}";
                 source.AppendLine($"    {nodePressure} = 2.0 * ({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) / {F(ports.Count)};");
@@ -1437,6 +1445,40 @@ public static class FaustEmitter
             scale == 1 ? expression : $"(({expression}) * {F(scale)})";
     }
 
+    private static string SegmentAreaExpression(
+        SynthPatch patch,
+        ParameterMap parameters,
+        AcousticGraphSegment segment)
+    {
+        var position = (segment.StartPosition + segment.EndPosition) * 0.5f;
+        var restDiameter = segment.Path.AreaFunction.DiameterAt(position);
+        if (segment.Path.AreaControl is not { } area)
+        {
+            return F(Math.Max(0.000001f, restDiameter * restDiameter));
+        }
+
+        var pathIndex = AcousticPathIndex(patch, segment.Path);
+        var areaPath = $"/acoustic/paths/{pathIndex}/area";
+        var sections = Math.Max(2, segment.Path.AreaFunction.Sections);
+        var index = F(position * (sections - 1));
+        var tongueIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "tongue_index"), area.TongueIndex), area.IndexScale);
+        var tongueDiameter = parameters.Expression(OwnerField(areaPath, "tongue_diameter"), area.TongueDiameter);
+        var tongueWidth = $"max(0.001, {F(area.TongueWidth)} * {F(sections)})";
+        var constrictionIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "constriction_index"), area.ConstrictionIndex), area.IndexScale);
+        var constrictionDiameter = parameters.Expression(OwnerField(areaPath, "constriction_diameter"), area.ConstrictionDiameter);
+        var constrictionWidth = $"max(0.001, {F(area.ConstrictionWidth)} * {F(sections)})";
+        var lipOpening = parameters.Expression(OwnerField(areaPath, "lip_opening"), area.LipOpening);
+        var lipWeight = MathF.Exp(0 - MathF.Pow((1 - position) / Math.Max(0.001f, area.LipWidth), 2));
+        var tongueWeight = $"exp(0.0 - pow(({index} - ({tongueIndex})) / ({tongueWidth}), 2.0))";
+        var constrictionWeight = $"exp(0.0 - pow(({index} - ({constrictionIndex})) / ({constrictionWidth}), 2.0))";
+        var baseDiameter = $"({F(restDiameter)} + (({tongueDiameter}) - {F(restDiameter)}) * ({tongueWeight}) + (({lipOpening}) - {F(restDiameter)}) * {F(lipWeight)})";
+        var diameter = $"max(0.0, min({baseDiameter}, ({constrictionDiameter}) + max(0.0, ({baseDiameter}) - ({constrictionDiameter})) * (1.0 - ({constrictionWeight}))))";
+        return $"(({diameter}) * ({diameter}))";
+
+        static string ScaledAreaIndex(string expression, float scale) =>
+            scale == 1 ? expression : $"(({expression}) * {F(scale)})";
+    }
+
     private static WaveClockPolicy ResolveWaveClock(
         AcousticPortNetwork network,
         IReadOnlyDictionary<string, WaveClockPolicy> waveClocks,
@@ -1502,6 +1544,36 @@ public static class FaustEmitter
     private static string ConnectionPortAreaExpression(string voiceName, AcousticTerminal terminal, int nodePortCount) =>
         $"({voiceName}_graph_terminal_area_{SafeIdentifier(terminal.Name)} / {F(Math.Max(1, nodePortCount))})";
 
+    private static bool TryEmitTwoPortPathScatter(
+        StringBuilder source,
+        string voiceName,
+        AcousticGraphNode node,
+        IReadOnlyList<AcousticGraphPort> ports,
+        string sourceInjection)
+    {
+        if (ports.Count != 2 ||
+            !ports[0].Segment.Path.Name.Equals(ports[1].Segment.Path.Name, StringComparison.OrdinalIgnoreCase) ||
+            node.Terminals.Any(terminal => terminal.Kind != AcousticTerminalKind.Junction && terminal.Kind != AcousticTerminalKind.Source))
+        {
+            return false;
+        }
+
+        var first = ports[0];
+        var second = ports[1];
+        var firstArea = GraphPortArea(voiceName, first);
+        var secondArea = GraphPortArea(voiceName, second);
+        var reflection = $"(({secondArea}) - ({firstArea})) / max(0.000001, ({firstArea}) + ({secondArea}))";
+        var firstIncoming = GraphIncoming(voiceName, first);
+        var secondIncoming = GraphIncoming(voiceName, second);
+        var firstOutgoing = GraphOutgoing(voiceName, first);
+        var secondOutgoing = GraphOutgoing(voiceName, second);
+
+        source.AppendLine($"    {voiceName}_graph_area_reflection_{node.Name} = {reflection};");
+        source.AppendLine($"    {firstOutgoing} = {secondIncoming} + {voiceName}_graph_area_reflection_{node.Name} * ({firstIncoming} + {secondIncoming}) + ({sourceInjection}) / 2;");
+        source.AppendLine($"    {secondOutgoing} = {firstIncoming} - {voiceName}_graph_area_reflection_{node.Name} * ({firstIncoming} + {secondIncoming}) + ({sourceInjection}) / 2;");
+        return true;
+    }
+
     private static string MaxExpression(IEnumerable<string> expressions)
     {
         using var enumerator = expressions.GetEnumerator();
@@ -1540,6 +1612,9 @@ public static class FaustEmitter
         port.AtStart
             ? $"{voiceName}_graph_out_{port.Segment.Index}_start"
             : $"{voiceName}_graph_out_{port.Segment.Index}_end";
+
+    private static string GraphPortArea(string voiceName, AcousticGraphPort port) =>
+        $"{voiceName}_graph_segment_area_{port.Segment.Index}";
 
     private static IEnumerable<string> NextStatesPlaceholder(int count) =>
         Enumerable.Range(0, count).Select(i => $"__graph_next_state_{i}__");
