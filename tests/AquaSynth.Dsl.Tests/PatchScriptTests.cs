@@ -276,12 +276,12 @@ public sealed class PatchScriptTests
         Assert.NotEmpty(network.Terminals);
         Assert.Contains("voices_0_source", network.Terminals);
         Assert.Contains("voices_0_lip", network.Terminals);
-        Assert.Equal(WaveClockDelayStrategy.HalfSampleGrid, Assert.Single(patch.WaveClocks).Strategy);
+        Assert.Equal(WaveClockDelayStrategy.FractionalLinear, Assert.Single(patch.WaveClocks).Strategy);
 
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph"));
         Assert.Contains("acoustic_graph_radiated", export.Source);
         Assert.Contains("de.fdelay", export.Source);
-        Assert.Contains("max(0.5,", export.Source);
+        Assert.Contains("max(0.000001,", export.Source);
         Assert.DoesNotContain("tract_lf", export.Source);
     }
 
@@ -324,6 +324,7 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_connection_energy_out_voices_0_nose_connection", export.Source);
         Assert.Contains("graph_node_incident_pressure_", export.Source);
         Assert.Contains("graph_node_source_", export.Source);
+        Assert.Contains("graph_area_pressure_", export.Source);
         Assert.Contains("graph_area_energy_in_", export.Source);
         Assert.Contains("graph_area_energy_out_", export.Source);
         Assert.Contains("graph_radiation_admittance_voices_0_lip", export.Source);

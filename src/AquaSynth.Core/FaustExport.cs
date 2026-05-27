@@ -884,7 +884,7 @@ public static class FaustEmitter
             ? "1.0"
             : $"(0.20 + 2.80 * clip01((abs({localPressure}) * ({closure})) : + ~ *(0.992)))";
         var turbulence = $"(no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening})))";
-        var apertureNoiseGate = $"min(clip01((0.8 - {opening}) / 0.8), clip01(8.0 * (0.7 - {opening})) * clip01(30.0 * ({opening} - 0.3)))";
+        var apertureNoiseGate = $"min(clip01((0.85 - {opening}) / 0.85), clip01(25.0 * ({opening} - 0.04)))";
         var releaseBurstGate = $"clip01({opening} / 0.8) * {release}";
         return port.Kind switch
         {
@@ -1706,15 +1706,16 @@ public static class FaustEmitter
         var second = ports[1];
         var firstArea = GraphPortArea(voiceName, first);
         var secondArea = GraphPortArea(voiceName, second);
-        var reflection = $"(({secondArea}) - ({firstArea})) / max(0.000001, ({firstArea}) + ({secondArea}))";
         var firstIncoming = GraphIncoming(voiceName, first);
         var secondIncoming = GraphIncoming(voiceName, second);
         var firstOutgoing = GraphOutgoing(voiceName, first);
         var secondOutgoing = GraphOutgoing(voiceName, second);
+        var areaSum = $"max(0.000001, ({firstArea}) + ({secondArea}))";
+        var pressure = $"{voiceName}_graph_area_pressure_{node.Name}";
 
-        source.AppendLine($"    {voiceName}_graph_area_reflection_{node.Name} = {reflection};");
-        source.AppendLine($"    {firstOutgoing} = {secondIncoming} + {voiceName}_graph_area_reflection_{node.Name} * ({firstIncoming} + {secondIncoming}) + ({sourceInjection}) / 2;");
-        source.AppendLine($"    {secondOutgoing} = {firstIncoming} - {voiceName}_graph_area_reflection_{node.Name} * ({firstIncoming} + {secondIncoming}) + ({sourceInjection}) / 2;");
+        source.AppendLine($"    {pressure} = 2.0 * (({firstArea}) * {firstIncoming} + ({secondArea}) * {secondIncoming}) / {areaSum};");
+        source.AppendLine($"    {firstOutgoing} = {pressure} - {firstIncoming} + ({sourceInjection}) / 2;");
+        source.AppendLine($"    {secondOutgoing} = {pressure} - {secondIncoming} + ({sourceInjection}) / 2;");
         var energyIn = $"({firstArea}) * pow({firstIncoming}, 2.0) + ({secondArea}) * pow({secondIncoming}, 2.0)";
         var energyOut = $"({firstArea}) * pow({firstOutgoing}, 2.0) + ({secondArea}) * pow({secondOutgoing}, 2.0)";
         source.AppendLine($"    {voiceName}_graph_area_energy_in_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/area/{node.Name}/energy_in", energyIn, 0, 4)};");

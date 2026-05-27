@@ -1502,7 +1502,7 @@ public static class PatchScript
                 tract.Propagation == TractPropagationMode.Waveguide
                     ? WaveClockDelayStrategy.UnitGrid
                     : tract.Propagation == TractPropagationMode.Graph
-                    ? WaveClockDelayStrategy.HalfSampleGrid
+                    ? WaveClockDelayStrategy.FractionalLinear
                     : WaveClockDelayStrategy.FractionalLinear));
 
             var network = new AcousticPortNetwork(

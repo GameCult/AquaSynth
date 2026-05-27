@@ -176,22 +176,55 @@ patches can read those bargraph zones after processing blocks, so passivity
 checks can sample probe values over time without turning probes into audio
 channels.
 
-The first native probe report on the nasal-vowel graph shows same-path and
-nasal branch energy ratios essentially at 1.0. That is useful: the current
-tract does not appear to be exploding at the basic scatter sites. The audible
-failure is more likely missing frequency-dependent tract losses/radiation color
-and closure pressure storage than a gross non-passive junction.
+The first native probe report on the nasal-vowel graph showed same-path and
+nasal branch energy ratios essentially at 1.0. That was useful but incomplete:
+the original two-port same-path area law was passive while still carrying the
+wrong pressure relation for unequal areas. It could conserve a local energy
+proxy and still phase-mangle the tract.
 
-The next coherent implementation target is to make that law passive and
-radiation-aware:
+Same-path two-port area discontinuities now use the same pressure-continuity
+shape as the branch law: compute admittance-weighted junction pressure, then
+emit each outgoing wave as `pressure - incoming`. This is a structural fix even
+where PT log-mel worsens, because matching a reference through a sign error is
+not an acoustic model.
 
-1. Normalize branch scattering by power/admittance, not by a global damping
-   scalar.
-2. Keep the main path continuous when side admittance approaches zero.
-3. Normalize radiation against local aperture/admittance so removing a damper
-   does not become raw loudness.
-4. Extend the new named radiation flow/admittance probes toward connection
-   energy probes before further PT audio golf.
+The generated graph clock also now defaults to continuous fractional delay for
+`propagation=graph`. Cell-centered source terminals had doubled the segment
+count; keeping a half-sample floor silently lengthened the tube. Fractional
+delay keeps terminal density from changing morphology, which is the invariant
+we need for differentiable tract graphs.
 
-If that law still floods, radiation normalization should be audited at the same
-layer. Do not fix this with another global gain.
+A per-segment Faust low-pass loss experiment was cut. Frequency-dependent wall
+loss remains a real missing feature, but one `fi.lowpass` per tiny segment made
+parity runs slow and collapsed body energy without improving articulation. A
+softer radiation-color experiment was also cut after it worsened `papa`. Those
+lessons belong here, not as dead compensators in the emitter.
+
+The latest pressure-law/fractional-clock evidence is:
+
+- static PT graph artifact
+  `artifacts/parity/pink-trombone-logmel/20260527T204022933`;
+- utterance artifact
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T203950790`;
+- probe artifact
+  `artifacts/parity/pink-trombone-graph-probes/20260527T203414610`.
+
+The remaining audible failure is still speech-band articulation: `mama` and
+`papa` have weak 500-2500 Hz energy and plosive motion, while closure/release
+still lacks a true upstream pressure reservoir.
+
+The next coherent implementation target is source/boundary coupling, not more
+global gain:
+
+1. Add graph-native closure/reservoir state so a sealed constriction stores
+   upstream pressure and releases through the same path when opening returns.
+2. Audit glottal/source impedance against the corrected pressure law so source
+   ports inject flow/pressure into the correct wave variables.
+3. Revisit frequency-dependent tract loss with a Faust-friendly formulation
+   that does not cascade heavyweight filters across every tiny segment.
+4. Keep radiation local to aperture/admittance and boundary flow; do not
+   restore a global output scalar as a speech-band patch.
+
+If the graph remains under-articulated after closure storage exists, inspect
+the source and boundary probes at the same layer. Do not fix this with another
+global gain.
