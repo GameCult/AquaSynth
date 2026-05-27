@@ -332,6 +332,7 @@ public sealed class PatchScriptTests
         Assert.Contains("patch_param_0) * (patch_param_0", export.Source);
 
         var debugExport = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph_boundaries_debug", DebugProbeUi: true));
+        Assert.Contains("vbargraph(\"/debug/voice_0/node/", debugExport.Source);
         Assert.Contains("vbargraph(\"/debug/voice_0/connection/voices_0_nose_connection/energy_in\"", debugExport.Source);
         Assert.Contains("vbargraph(\"/debug/voice_0/radiation/voices_0_lip/flow\"", debugExport.Source);
         Assert.Contains("process = ", debugExport.Source);

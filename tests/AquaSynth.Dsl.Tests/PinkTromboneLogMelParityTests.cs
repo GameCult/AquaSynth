@@ -165,8 +165,10 @@ public sealed class PinkTromboneLogMelParityTests
             Assert.Contains(stream.ProbePaths, path => path.Contains("/energy_in", StringComparison.OrdinalIgnoreCase));
             Assert.Contains(stream.ProbePaths, path => path.Contains("/energy_out", StringComparison.OrdinalIgnoreCase));
             Assert.Contains(stream.ProbePaths, path => path.Contains("/radiation/", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(stream.ProbePaths, path => path.Contains("/node/", StringComparison.OrdinalIgnoreCase));
 
             var peaks = new Dictionary<string, ProbePeak>(StringComparer.Ordinal);
+            var probePeaks = new Dictionary<string, float>(StringComparer.Ordinal);
             var blockSize = 128;
             var frames = Math.Max(1, (int)MathF.Ceiling(0.57f * patch.Manifest.SampleRate));
             var inputs = Enumerable.Range(0, stream.InputCount).Select(_ => new float[blockSize]).ToArray();
@@ -177,6 +179,7 @@ public sealed class PinkTromboneLogMelParityTests
                 stream.ProcessBlock(inputs, outputs, count);
                 foreach (var (path, value) in stream.SnapshotProbes())
                 {
+                    probePeaks[path] = Math.Max(probePeaks.GetValueOrDefault(path), MathF.Abs(value));
                     if (!TryProbeBase(path, out var basePath, out var kind))
                     {
                         continue;
@@ -201,10 +204,80 @@ public sealed class PinkTromboneLogMelParityTests
                 })
                 .ToArray();
             File.WriteAllLines(Path.Combine(artifactDir, "passivity-report.txt"), lines);
+            File.WriteAllLines(
+                Path.Combine(artifactDir, "probe-peaks.txt"),
+                probePeaks
+                    .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                    .Select(pair => string.Create(CultureInfo.InvariantCulture, $"{pair.Key},peak={pair.Value:0.000000}")));
 
             Assert.NotEmpty(lines);
             Assert.Contains(lines, line => line.Contains("/connection/", StringComparison.OrdinalIgnoreCase));
             Assert.Contains(lines, line => line.Contains("/area/", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(probePeaks.Keys, path => path.Contains("/node/", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    [Fact]
+    public void PinkTrombonePapaGraphDebugProbesWriteSourceReportWhenNativeFaustIsInstalled()
+    {
+        var fixture = PinkTromboneUtteranceFixtures.ById("papa");
+        var source = AutomatedGraphSource(fixture, DebugProbeUi: true);
+        var artifactDir = ArtifactPath("parity", "pink-trombone-graph-source-probes", DateTimeOffset.UtcNow.ToString("yyyyMMddTHHmmssfff", CultureInfo.InvariantCulture));
+
+        using var compiler = new AquaSynthPatchCompiler();
+        if (!compiler.TryCompileSource(
+            new AquaSynthCompileIdentity("pt_probe_papa", "pt_probe_papa", source),
+            source,
+            fixture.DurationSeconds,
+            out var patch,
+            out var error))
+        {
+            if (error?.Contains("Faust toolchain not found", StringComparison.OrdinalIgnoreCase) == true ||
+                error?.Contains("Faust DLL not found", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return;
+            }
+
+            Assert.Fail($"Native Faust graph source probe compile failed: {error}{Environment.NewLine}artifacts: {artifactDir}");
+        }
+
+        Directory.CreateDirectory(artifactDir);
+        File.WriteAllText(Path.Combine(artifactDir, "candidate-debug.dsp"), source);
+
+        using (patch)
+        using (var stream = patch!.CreateStreamingPatch())
+        {
+            Assert.Contains(stream.ProbePaths, path => path.Contains("/node/", StringComparison.OrdinalIgnoreCase));
+
+            var probePeaks = new Dictionary<string, float>(StringComparer.Ordinal);
+            var blockSize = 128;
+            var frames = Math.Max(1, (int)MathF.Ceiling(fixture.DurationSeconds * patch.Manifest.SampleRate));
+            var inputs = Enumerable.Range(0, stream.InputCount).Select(_ => new float[blockSize]).ToArray();
+            var outputs = Enumerable.Range(0, stream.OutputCount).Select(_ => new float[blockSize]).ToArray();
+            for (var offset = 0; offset < frames; offset += blockSize)
+            {
+                var count = Math.Min(blockSize, frames - offset);
+                stream.ProcessBlock(inputs, outputs, count);
+                foreach (var (path, value) in stream.SnapshotProbes())
+                {
+                    if (!path.Contains("/node/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    probePeaks[path] = Math.Max(probePeaks.GetValueOrDefault(path), MathF.Abs(value));
+                }
+            }
+
+            var lines = probePeaks
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => string.Create(CultureInfo.InvariantCulture, $"{pair.Key},peak={pair.Value:0.000000}"))
+                .ToArray();
+            File.WriteAllLines(Path.Combine(artifactDir, "source-report.txt"), lines);
+
+            Assert.Contains(lines, line => line.Contains("/source", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(lines, line => line.Contains("/incident_pressure", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(lines, line => line.Contains("/source", StringComparison.OrdinalIgnoreCase) && !line.EndsWith("peak=0.000000", StringComparison.Ordinal));
         }
     }
 
@@ -256,9 +329,9 @@ public sealed class PinkTromboneLogMelParityTests
 
     private readonly record struct ProbePeak(float EnergyIn, float EnergyOut);
 
-    private static string AutomatedGraphSource(PinkTromboneUtteranceFixture fixture)
+    private static string AutomatedGraphSource(PinkTromboneUtteranceFixture fixture, bool DebugProbeUi = false)
     {
-        var source = FaustEmitter.EmitScript(UtteranceGraphScript(fixture), new FaustExportOptions($"pt_utterance_{fixture.Id}")).Source;
+        var source = FaustEmitter.EmitScript(UtteranceGraphScript(fixture), new FaustExportOptions($"pt_utterance_{fixture.Id}", DebugProbeUi: DebugProbeUi)).Source;
         var controls = ControlCurves(fixture.ControlPoints);
         for (var index = 0; index < controls.Count; index++)
         {

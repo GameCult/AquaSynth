@@ -203,15 +203,23 @@ lessons belong here, not as dead compensators in the emitter.
 The latest pressure-law/fractional-clock evidence is:
 
 - static PT graph artifact
-  `artifacts/parity/pink-trombone-logmel/20260527T204022933`;
+  `artifacts/parity/pink-trombone-logmel/20260527T205043576`;
 - utterance artifact
-  `artifacts/parity/pink-trombone-utterance-logmel/20260527T203950790`;
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T205009225`;
 - probe artifact
-  `artifacts/parity/pink-trombone-graph-probes/20260527T203414610`.
+  `artifacts/parity/pink-trombone-graph-probes/20260527T204610846`;
+- plosive source probe artifact
+  `artifacts/parity/pink-trombone-graph-source-probes/20260527T204918624`.
 
 The remaining audible failure is still speech-band articulation: `mama` and
 `papa` have weak 500-2500 Hz energy and plosive motion, while closure/release
-still lacks a true upstream pressure reservoir.
+still lacks a true upstream pressure reservoir. The first `papa` source probe
+showed the lip-adjacent plosive source at only about `0.09` peak while the
+glottal source was about `3.7`. Raising release-reservoir coupling moved that
+plosive source peak to about `0.43`, but the utterance metric barely improved.
+That means the release now exists at the source layer; the next failure is how
+that stored pressure is shaped by source impedance, constriction filtering, and
+radiation.
 
 The next coherent implementation target is source/boundary coupling, not more
 global gain:

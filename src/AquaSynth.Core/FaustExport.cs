@@ -698,8 +698,12 @@ public static class FaustEmitter
             var incidentPressure = ports.Count == 0
                 ? "0.0"
                 : $"({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) / {F(ports.Count)}";
-            source.AppendLine($"    {name}_graph_node_incident_pressure_{node.Name} = {incidentPressure};");
-            source.AppendLine($"    {NodeSourceIdentifier(name, node)} = {NodeSourceExpression(patch, name, node, sources, frequency, parameters)};");
+            var incidentName = $"{name}_graph_node_incident_pressure_{node.Name}";
+            var nodeSourceName = NodeSourceIdentifier(name, node);
+            source.AppendLine($"    {incidentName} = {ProbeSignal(options, $"/debug/{name}/node/{node.Name}/incident_pressure", incidentPressure, -2, 2)};");
+            source.AppendLine($"    {nodeSourceName} = {ProbeSignal(options, $"/debug/{name}/node/{node.Name}/source", NodeSourceExpression(patch, name, node, sources, frequency, parameters), -2, 2)};");
+            debugProbeKeepAlive.Add(incidentName);
+            debugProbeKeepAlive.Add(nodeSourceName);
         }
 
         var connectionGroups = network.Connections
@@ -882,7 +886,7 @@ public static class FaustEmitter
         var release = $"(max(0.0, (({closure}) : mem) - ({closure})) : + ~ *(0.995))";
         var releasePressure = localPressure is null
             ? "1.0"
-            : $"(0.20 + 2.80 * clip01((abs({localPressure}) * ({closure})) : + ~ *(0.992)))";
+            : $"(0.35 + 6.00 * clip01((abs({localPressure}) * ({closure})) : + ~ *(0.992)))";
         var turbulence = $"(no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening})))";
         var apertureNoiseGate = $"min(clip01((0.85 - {opening}) / 0.85), clip01(25.0 * ({opening} - 0.04)))";
         var releaseBurstGate = $"clip01({opening} / 0.8) * {release}";
@@ -895,7 +899,7 @@ public static class FaustEmitter
             AcousticSourceKind.Reed =>
                 $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
             AcousticSourceKind.TurbulenceJet =>
-                $"(({turbulence}) * {noise} * {pressure} * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({releaseBurstGate}) * 1.2 + {transient} * {pressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
+                $"(({turbulence}) * {noise} * {pressure} * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({releaseBurstGate}) * 2.4 + {transient} * {pressure} * {release} * {releasePressure} * 2.2 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
             AcousticSourceKind.Click =>
                 $"no.noise * {pressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance}",
             AcousticSourceKind.Synthetic =>
