@@ -49,4 +49,47 @@ public sealed class NativeFaustRuntimeTests
             Assert.InRange(samples.Max(sample => MathF.Abs(sample)), 0.001f, 1.0f);
         }
     }
+
+    [Fact]
+    public void NativeFaustStreamingPatchProcessesInputBlocksWhenToolchainIsAvailable()
+    {
+        const string source = """
+            import("stdfaust.lib");
+            gain = hslider("gain", 1.0, 0.0, 2.0, 0.001);
+            process = _ * gain;
+            """;
+
+        using var compiler = new AquaSynthPatchCompiler();
+        if (!compiler.TryCompileSource(
+            new AquaSynthCompileIdentity("native_streaming_smoke", "native_streaming_smoke", source),
+            source,
+            0.05f,
+            out var patch,
+            out var error))
+        {
+            if (error?.Contains("Faust toolchain not found", StringComparison.OrdinalIgnoreCase) == true ||
+                error?.Contains("Faust DLL not found", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return;
+            }
+
+            Assert.Fail($"AquaSynth native Faust streaming compile failed: {error}");
+        }
+
+        using (patch)
+        using (var stream = patch!.CreateStreamingPatch())
+        {
+            Assert.Equal(1, stream.InputCount);
+            Assert.Equal(1, stream.OutputCount);
+
+            var input = new[] { Enumerable.Repeat(0.25f, 128).ToArray() };
+            var output = new[] { new float[128] };
+            stream.ProcessBlock(input, output, 128, new Dictionary<string, float>
+            {
+                ["gain"] = 0.5f
+            });
+
+            Assert.All(output[0], sample => Assert.InRange(sample, 0.124f, 0.126f));
+        }
+    }
 }

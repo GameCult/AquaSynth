@@ -28,6 +28,7 @@ public sealed record AquaSynthNativeManifest(
     string CompileKey,
     int Revision,
     int SampleRate,
+    int InputCount,
     int OutputCount,
     int FrameCount,
     float DurationSeconds,
@@ -59,6 +60,12 @@ public sealed class AquaSynthCompiledPatch : IDisposable
     public IReadOnlyList<string> ControlPaths { get; }
 
     public float[] Render(float gain = 1.0f) => Render(null, gain);
+
+    public AquaSynthStreamingPatch CreateStreamingPatch()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        return new AquaSynthStreamingPatch(toolchain, factory, Manifest);
+    }
 
     public float[] Render(IReadOnlyDictionary<string, float>? controls, float gain = 1.0f)
     {
@@ -134,6 +141,154 @@ public sealed class AquaSynthCompiledPatch : IDisposable
 
         toolchain.DeleteFactory(factory);
         disposed = true;
+    }
+}
+
+public sealed class AquaSynthStreamingPatch : IDisposable
+{
+    private readonly FaustNativeToolchain toolchain;
+    private readonly IntPtr dsp;
+    private readonly Dictionary<string, IntPtr> controlZones;
+    private bool disposed;
+
+    internal AquaSynthStreamingPatch(
+        FaustNativeToolchain toolchain,
+        IntPtr factory,
+        AquaSynthNativeManifest manifest)
+    {
+        this.toolchain = toolchain;
+        Manifest = manifest;
+        dsp = toolchain.CreateInstance(factory);
+        try
+        {
+            toolchain.InitInstance(dsp, Manifest.SampleRate);
+            controlZones = toolchain.ControlZones(dsp);
+        }
+        catch
+        {
+            toolchain.DeleteInstance(dsp);
+            throw;
+        }
+    }
+
+    public AquaSynthNativeManifest Manifest { get; }
+
+    public int InputCount => Manifest.InputCount;
+
+    public int OutputCount => Manifest.OutputCount;
+
+    public void SetControls(IReadOnlyDictionary<string, float> controls)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        toolchain.SetControls(dsp, controls, controlZones);
+    }
+
+    public void ProcessBlock(int frameCount, IntPtr inputChannelPointers, IntPtr outputChannelPointers, IReadOnlyDictionary<string, float>? controls = null)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (frameCount <= 0)
+        {
+            return;
+        }
+
+        if (controls is not null)
+        {
+            SetControls(controls);
+        }
+
+        toolchain.Compute(dsp, frameCount, inputChannelPointers, outputChannelPointers);
+    }
+
+    public void ProcessBlock(float[][] inputs, float[][] outputs, int frameCount, IReadOnlyDictionary<string, float>? controls = null)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (frameCount <= 0)
+        {
+            return;
+        }
+
+        ValidateManagedBlock(inputs, InputCount, frameCount, nameof(inputs));
+        ValidateManagedBlock(outputs, OutputCount, frameCount, nameof(outputs));
+
+        var inputPointers = new IntPtr[Math.Max(InputCount, 1)];
+        var outputPointers = new IntPtr[Math.Max(OutputCount, 1)];
+        var inputHandles = new GCHandle[InputCount];
+        var outputHandles = new GCHandle[OutputCount];
+        try
+        {
+            for (var channel = 0; channel < InputCount; channel++)
+            {
+                inputHandles[channel] = GCHandle.Alloc(inputs[channel], GCHandleType.Pinned);
+                inputPointers[channel] = inputHandles[channel].AddrOfPinnedObject();
+            }
+
+            for (var channel = 0; channel < OutputCount; channel++)
+            {
+                outputHandles[channel] = GCHandle.Alloc(outputs[channel], GCHandleType.Pinned);
+                outputPointers[channel] = outputHandles[channel].AddrOfPinnedObject();
+            }
+
+            var inputPointerHandle = GCHandle.Alloc(inputPointers, GCHandleType.Pinned);
+            var outputPointerHandle = GCHandle.Alloc(outputPointers, GCHandleType.Pinned);
+            try
+            {
+                ProcessBlock(
+                    frameCount,
+                    InputCount == 0 ? IntPtr.Zero : inputPointerHandle.AddrOfPinnedObject(),
+                    outputPointerHandle.AddrOfPinnedObject(),
+                    controls);
+            }
+            finally
+            {
+                inputPointerHandle.Free();
+                outputPointerHandle.Free();
+            }
+        }
+        finally
+        {
+            foreach (var handle in inputHandles)
+            {
+                if (handle.IsAllocated)
+                {
+                    handle.Free();
+                }
+            }
+
+            foreach (var handle in outputHandles)
+            {
+                if (handle.IsAllocated)
+                {
+                    handle.Free();
+                }
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        if (disposed)
+        {
+            return;
+        }
+
+        toolchain.DeleteInstance(dsp);
+        disposed = true;
+    }
+
+    private static void ValidateManagedBlock(float[][] channels, int expectedChannels, int frameCount, string parameterName)
+    {
+        if (channels.Length < expectedChannels)
+        {
+            throw new ArgumentException($"Expected at least {expectedChannels} channels.", parameterName);
+        }
+
+        for (var channel = 0; channel < expectedChannels; channel++)
+        {
+            if (channels[channel].Length < frameCount)
+            {
+                throw new ArgumentException($"Channel {channel} has fewer than {frameCount} frames.", parameterName);
+            }
+        }
     }
 }
 
@@ -354,6 +509,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
 
             try
             {
+                var inputs = Math.Max(toolchain.GetNumInputs(probe), 0);
                 var outputs = Math.Max(toolchain.GetNumOutputs(probe), 1);
                 var frames = Math.Max(1, (int)MathF.Ceiling(durationSeconds * options.SampleRate));
                 var controlPaths = toolchain.ControlPaths(probe);
@@ -364,6 +520,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
                     CompileKey(identity),
                     identity.Revision,
                     options.SampleRate,
+                    inputs,
                     outputs,
                     frames,
                     durationSeconds,
@@ -480,6 +637,7 @@ internal sealed class FaustNativeToolchain : IDisposable
     private readonly DeleteInstanceFn deleteInstance;
     private readonly InitInstanceFn initInstance;
     private readonly ComputeInstanceFn computeInstance;
+    private readonly GetNumInputsFn getNumInputs;
     private readonly GetNumOutputsFn getNumOutputs;
     private readonly BuildUserInterfaceFn buildUserInterface;
     private readonly StartFactoriesFn startFactories;
@@ -498,6 +656,7 @@ internal sealed class FaustNativeToolchain : IDisposable
         deleteInstance = Export<DeleteInstanceFn>("deleteCDSPInstance");
         initInstance = Export<InitInstanceFn>("initCDSPInstance");
         computeInstance = Export<ComputeInstanceFn>("computeCDSPInstance");
+        getNumInputs = Export<GetNumInputsFn>("getNumInputsCDSPInstance");
         getNumOutputs = Export<GetNumOutputsFn>("getNumOutputsCDSPInstance");
         buildUserInterface = Export<BuildUserInterfaceFn>("buildUserInterfaceCDSPInstance");
         startFactories = Export<StartFactoriesFn>("startMTDSPFactories");
@@ -570,14 +729,22 @@ internal sealed class FaustNativeToolchain : IDisposable
 
     public void Compute(IntPtr dsp, int count, IntPtr inputs, IntPtr outputs) => computeInstance(dsp, count, inputs, outputs);
 
+    public int GetNumInputs(IntPtr dsp) => getNumInputs(dsp);
+
     public int GetNumOutputs(IntPtr dsp) => getNumOutputs(dsp);
 
     public IReadOnlyList<string> ControlPaths(IntPtr dsp) =>
-        BuildControlMap(dsp).Keys.Order(StringComparer.Ordinal).ToArray();
+        ControlZones(dsp).Keys.Order(StringComparer.Ordinal).ToArray();
+
+    public Dictionary<string, IntPtr> ControlZones(IntPtr dsp) => BuildControlMap(dsp);
 
     public void SetControls(IntPtr dsp, IReadOnlyDictionary<string, float> controls)
     {
-        var map = BuildControlMap(dsp);
+        SetControls(dsp, controls, ControlZones(dsp));
+    }
+
+    public void SetControls(IntPtr dsp, IReadOnlyDictionary<string, float> controls, IReadOnlyDictionary<string, IntPtr> map)
+    {
         foreach (var (path, value) in controls)
         {
             if (!map.TryGetValue(path, out var zone) &&
@@ -644,6 +811,9 @@ internal sealed class FaustNativeToolchain : IDisposable
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void ComputeInstanceFn(IntPtr dsp, int count, IntPtr inputs, IntPtr outputs);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int GetNumInputsFn(IntPtr dsp);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate int GetNumOutputsFn(IntPtr dsp);
