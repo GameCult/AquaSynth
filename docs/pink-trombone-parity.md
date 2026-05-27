@@ -154,8 +154,10 @@ Trombone anatomy:
   controls consumed by tract voices; graph injection maps burst into source
   `transient` rather than a PT-specific side path.
 - `nasal_branch` adds a second diameter/area tube and generated oral/nasal
-  connection terminals. Velum owns branch coupling and nasal aperture; the first
-  nasal tube sample is not allowed to masquerade as the velum opening.
+  connection terminals. Velum owns branch entrance area and nasal aperture;
+  connection coupling is a structural admittance limit, not a second velum
+  writer. The first nasal tube sample is not allowed to masquerade as the velum
+  opening.
 - generated graph records mirror live `tract` parameter bindings into acoustic
   source, terminal, connection, radiation, and path-area fields so `/pink/...`
   controls exercise the actual graph.

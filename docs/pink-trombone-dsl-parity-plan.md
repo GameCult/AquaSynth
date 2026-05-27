@@ -224,8 +224,9 @@ terminal-specific admittance in connection pressure instead of collapsing every
 co-located terminal into one node area, and branch output uses a floored
 area-ratio pressure normalization so weak side ports no longer receive full
 junction pressure. The generated tract graph also stopped treating the first
-nasal tube diameter as the velum aperture; velum now owns branch coupling and
-aperture. Two tempting compensators were cut: raw per-port outgoing coupling
+nasal tube diameter as the velum aperture; velum now owns branch entrance area
+and nasal aperture, while connection coupling remains a structural admittance
+limit. Two tempting compensators were cut: raw per-port outgoing coupling
 made supposedly oral fixtures nearly silent, and lip/beak radiation gain did
 not restore oral vowel RMS. The internal-node scatter fix made unconnected
 injection/source terminals transmit pressure between adjacent segments instead

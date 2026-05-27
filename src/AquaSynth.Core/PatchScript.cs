@@ -1417,7 +1417,7 @@ public static class PatchScript
                     0,
                     AcousticBranchKind.Nasal,
                     nasal.Velum,
-                    1,
+                    0.15f,
                     true);
                 AddAcousticBranchRecord(branch);
                 AddAcousticTerminalRecord(new AcousticTerminal(
@@ -1434,13 +1434,11 @@ public static class PatchScript
                     AcousticTerminalKind.Junction,
                     branch.Name,
                     MathF.Pow(Math.Max(0, branch.Opening), 2) / Math.Max(0.000001f, nasalArea.Diameters[0] * nasalArea.Diameters[0])));
-                var branchConnectionIndex = _acousticConnections.Count;
                 AddAcousticConnectionRecord(new AcousticConnection(
                     BranchConnectionName(branch),
                     [BranchFromTerminalName(branch), BranchToTerminalName(branch)],
                     AcousticConnectionLaw.AreaScattering,
                     branch.Coupling));
-                MirrorParameterBinding(OwnerField(tractPath, "velum"), $"/acoustic/connections/{branchConnectionIndex}/coupling");
                 var nasalRadiation = new AcousticRadiationPort(
                     $"{nasalPathName}_radiation",
                     nasalPathName,

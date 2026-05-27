@@ -638,6 +638,8 @@ public sealed class PatchScriptTests
             Assert.Contains(patch.AcousticPaths, path => path.Name == "voices_0_oral" && path.AreaControl is not null);
             Assert.Contains(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal) && port.Transient > 0 && port.PositionControl is not null);
             Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
+            Assert.Contains(patch.AcousticConnections, connection => connection.Name.Contains("_nose_connection", StringComparison.Ordinal) && MathF.Abs(connection.Coupling - 0.15f) < 0.0001f);
+            Assert.DoesNotContain(patch.ParameterBindings, binding => binding.FieldPath.StartsWith("/acoustic/connections/", StringComparison.OrdinalIgnoreCase) && binding.FieldPath.EndsWith("/coupling", StringComparison.OrdinalIgnoreCase));
             Assert.Contains("acoustic_graph_radiated", export.Source);
             Assert.Contains("graph_terminal_area_voices_0_area_", export.Source);
             Assert.DoesNotContain("wg_diameter_target_", export.Source);
