@@ -320,6 +320,8 @@ public sealed class PatchScriptTests
 
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph_boundaries"));
         Assert.Contains("graph_connection_pressure_voices_0_nose_connection", export.Source);
+        Assert.Contains("graph_connection_energy_in_voices_0_nose_connection", export.Source);
+        Assert.Contains("graph_connection_energy_out_voices_0_nose_connection", export.Source);
         Assert.Contains("graph_radiation_admittance_voices_0_lip", export.Source);
         Assert.Contains("graph_radiation_flow_voices_0_lip", export.Source);
         Assert.Contains("patch_param_0) * (patch_param_0", export.Source);

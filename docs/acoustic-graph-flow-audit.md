@@ -152,7 +152,10 @@ storage/release and passive multi-port scattering rather than output gain.
 The live implementation now has a named three-port branch law for connection
 groups with two same-path ports plus one side-branch port. It is intentionally
 kept even though it exposes over-radiation, because it moves ownership to the
-physically correct port.
+physically correct port. The emitted Faust now also names branch
+`energy_in`/`energy_out` probes for that junction, so the next pass can inspect
+whether the scatter law itself is passive or whether downstream radiation is
+the only loudness fault.
 
 The next coherent implementation target is to make that law passive and
 radiation-aware:

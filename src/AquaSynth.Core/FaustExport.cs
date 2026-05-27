@@ -1649,6 +1649,8 @@ public static class FaustEmitter
             var sourceInjection = NodeSourceExpression(voiceName, item.node, sources);
             source.AppendLine($"    {outgoing} = ({voiceName}_graph_connection_pressure_{safeConnection} - {incoming} + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {voiceName}_graph_connection_loss_{safeConnection};");
         }
+        source.AppendLine($"    {voiceName}_graph_connection_energy_in_{safeConnection} = {string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphIncoming(voiceName, item.port)}, 2.0)"))};");
+        source.AppendLine($"    {voiceName}_graph_connection_energy_out_{safeConnection} = {string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphOutgoing(voiceName, item.port)}, 2.0)"))};");
 
         return true;
     }
