@@ -877,7 +877,8 @@ public static class FaustEmitter
         string balance)
     {
         var legacy = LegacyGlottalExpression(phase, tension, opening);
-        var shaped = $"(({legacy}) + 1.4 * ({legacy}) * ({legacy}) * ({legacy}))";
+        var brightness = $"(0.10 * (1.0 - 0.35 * ({tension})) * sin(6.0 * ma.PI * {phase}) + 0.05 * (1.0 - 0.50 * ({tension})) * sin(8.0 * ma.PI * {phase}))";
+        var shaped = $"(({legacy}) + 1.4 * ({legacy}) * ({legacy}) * ({legacy}) + {brightness})";
         return $"(({shaped}) * {pressure} * 0.68 + no.noise * {noise} * {pressure} * (1.0 - sqrt(max(0.0, {tension})))) * {balance}";
     }
 

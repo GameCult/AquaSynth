@@ -300,6 +300,14 @@ authority fix, not the final mouth. The remaining articulation failure points
 at pressure storage/release around severe constrictions and better nasal/oral
 coupling, not another output color patch.
 
+A small glottal-brightness pass then added higher modal harmonics to the
+reusable glottal source rather than adding a PT-only exciter. Latest accepted
+utterance smoke is `mama` 0.5705, `papa` 0.8622, and `thrombosis` 0.4355 under
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T123628148`; static
+smoke remains stable under
+`artifacts/parity/pink-trombone-logmel/20260527T123734700`. This helps the
+voiced fixtures a little, but it is not the missing articulation mechanism.
+
 ## Cut Line
 
 The current `Voice.Tract` scalar proxy may survive only as an adapter over real

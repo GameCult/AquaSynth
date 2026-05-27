@@ -22,6 +22,13 @@ Current slice:
   impedance control, but `thrombosis` still loses voiced body and stops remain
   underpowered. Next pressure is graph-native pressure storage/release around
   severe constrictions and nasal/oral branch coupling, not more output color.
+- Added a small higher-harmonic brightness term to the reusable glottal source.
+  Utterance smoke passed under
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T123628148`:
+  `mama` `0.5705`, `papa` `0.8622`, `thrombosis` `0.4355`.
+  Static smoke passed under
+  `artifacts/parity/pink-trombone-logmel/20260527T123734700` and stayed close
+  to the radiation checkpoint.
 
 - Added time-varying Pink Trombone utterance reference fixtures before any Aqua
   utterance metric golf. `PinkTromboneReferenceRenderer.RenderUtterance`
