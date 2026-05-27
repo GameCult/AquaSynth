@@ -176,6 +176,12 @@ patches can read those bargraph zones after processing blocks, so passivity
 checks can sample probe values over time without turning probes into audio
 channels.
 
+The first native probe report on the nasal-vowel graph shows same-path and
+nasal branch energy ratios essentially at 1.0. That is useful: the current
+tract does not appear to be exploding at the basic scatter sites. The audible
+failure is more likely missing frequency-dependent tract losses/radiation color
+and closure pressure storage than a gross non-passive junction.
+
 The next coherent implementation target is to make that law passive and
 radiation-aware:
 

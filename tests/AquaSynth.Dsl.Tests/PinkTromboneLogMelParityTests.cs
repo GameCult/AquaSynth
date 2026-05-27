@@ -130,6 +130,84 @@ public sealed class PinkTromboneLogMelParityTests
         File.WriteAllText(Path.Combine(artifactDir, "summary.txt"), string.Join(Environment.NewLine + Environment.NewLine, reports));
     }
 
+    [Fact]
+    public void PinkTromboneGraphDebugProbesWritePassivityReportWhenNativeFaustIsInstalled()
+    {
+        var fixture = PinkTromboneParityFixtures.ById("nasal-vowel");
+        var export = FaustEmitter.EmitScript(
+            fixture.AquaScript,
+            new FaustExportOptions("pt_probe_nasal_vowel", DebugProbeUi: true));
+        var artifactDir = ArtifactPath("parity", "pink-trombone-graph-probes", DateTimeOffset.UtcNow.ToString("yyyyMMddTHHmmssfff", CultureInfo.InvariantCulture));
+
+        using var compiler = new AquaSynthPatchCompiler();
+        if (!compiler.TryCompileSource(
+            new AquaSynthCompileIdentity("pt_probe_nasal_vowel", "pt_probe_nasal_vowel", export.Source),
+            export.Source,
+            0.57f,
+            out var patch,
+            out var error))
+        {
+            if (error?.Contains("Faust toolchain not found", StringComparison.OrdinalIgnoreCase) == true ||
+                error?.Contains("Faust DLL not found", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return;
+            }
+
+            Assert.Fail($"Native Faust graph probe compile failed: {error}{Environment.NewLine}artifacts: {artifactDir}");
+        }
+
+        Directory.CreateDirectory(artifactDir);
+        File.WriteAllText(Path.Combine(artifactDir, "candidate-debug.dsp"), export.Source);
+
+        using (patch)
+        using (var stream = patch!.CreateStreamingPatch())
+        {
+            Assert.Contains(stream.ProbePaths, path => path.Contains("/energy_in", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(stream.ProbePaths, path => path.Contains("/energy_out", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(stream.ProbePaths, path => path.Contains("/radiation/", StringComparison.OrdinalIgnoreCase));
+
+            var peaks = new Dictionary<string, ProbePeak>(StringComparer.Ordinal);
+            var blockSize = 128;
+            var frames = Math.Max(1, (int)MathF.Ceiling(0.57f * patch.Manifest.SampleRate));
+            var inputs = Enumerable.Range(0, stream.InputCount).Select(_ => new float[blockSize]).ToArray();
+            var outputs = Enumerable.Range(0, stream.OutputCount).Select(_ => new float[blockSize]).ToArray();
+            for (var offset = 0; offset < frames; offset += blockSize)
+            {
+                var count = Math.Min(blockSize, frames - offset);
+                stream.ProcessBlock(inputs, outputs, count);
+                foreach (var (path, value) in stream.SnapshotProbes())
+                {
+                    if (!TryProbeBase(path, out var basePath, out var kind))
+                    {
+                        continue;
+                    }
+
+                    peaks.TryGetValue(basePath, out var peak);
+                    peak = kind == "energy_in"
+                        ? peak with { EnergyIn = Math.Max(peak.EnergyIn, MathF.Abs(value)) }
+                        : peak with { EnergyOut = Math.Max(peak.EnergyOut, MathF.Abs(value)) };
+                    peaks[basePath] = peak;
+                }
+            }
+
+            var lines = peaks
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair =>
+                {
+                    var ratio = pair.Value.EnergyOut / Math.Max(1e-6f, pair.Value.EnergyIn);
+                    return string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"{pair.Key},energy_in_peak={pair.Value.EnergyIn:0.000000},energy_out_peak={pair.Value.EnergyOut:0.000000},out_in_ratio={ratio:0.000000}");
+                })
+                .ToArray();
+            File.WriteAllLines(Path.Combine(artifactDir, "passivity-report.txt"), lines);
+
+            Assert.NotEmpty(lines);
+            Assert.Contains(lines, line => line.Contains("/connection/", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(lines, line => line.Contains("/area/", StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
     private static string Report(PinkTromboneParityFixture fixture, AudioComparison comparison, string candidate) =>
         string.Create(
             CultureInfo.InvariantCulture,
@@ -152,6 +230,31 @@ public sealed class PinkTromboneLogMelParityTests
         if (articulation.MotorBandRatio > 2.2f || articulation.SpeechBandRatio < 0.45f) return "not-accepted-band-balance";
         return "smoke-only";
     }
+
+    private static bool TryProbeBase(string path, out string basePath, out string kind)
+    {
+        const string energyIn = "/energy_in";
+        const string energyOut = "/energy_out";
+        if (path.EndsWith(energyIn, StringComparison.OrdinalIgnoreCase))
+        {
+            basePath = path[..^energyIn.Length];
+            kind = "energy_in";
+            return true;
+        }
+
+        if (path.EndsWith(energyOut, StringComparison.OrdinalIgnoreCase))
+        {
+            basePath = path[..^energyOut.Length];
+            kind = "energy_out";
+            return true;
+        }
+
+        basePath = "";
+        kind = "";
+        return false;
+    }
+
+    private readonly record struct ProbePeak(float EnergyIn, float EnergyOut);
 
     private static string AutomatedGraphSource(PinkTromboneUtteranceFixture fixture)
     {

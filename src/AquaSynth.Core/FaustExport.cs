@@ -683,6 +683,7 @@ public static class FaustEmitter
             .Concat(segments.Select(segment => $"l{segment.Index}"))
             .ToList();
         var nextStates = new List<string>(stateCount);
+        var debugProbeKeepAlive = new List<string>();
         source.AppendLine($"{name}_graph(x) = {name}_graph_loop ~ si.bus({stateCount}) : (si.block({stateCount}), _) with {{");
         source.AppendLine($"  {name}_graph_loop({string.Join(", ", stateInputs)}) = {string.Join(", ", NextStatesPlaceholder(stateCount))}, {name}_graph_out with {{");
 
@@ -723,7 +724,7 @@ public static class FaustEmitter
             }
 
             var safeConnection = SafeIdentifier(connection.Name);
-            if (TryEmitThreePortBranchScatter(source, name, connection, safeConnection, ports, options))
+            if (TryEmitThreePortBranchScatter(source, name, connection, safeConnection, ports, options, debugProbeKeepAlive))
             {
                 continue;
             }
@@ -764,7 +765,7 @@ public static class FaustEmitter
 
             var sourceInjection = NodeSourceIdentifier(name, node);
             var reflection = $"{name}_graph_node_reflection_{node.Name}";
-            if (TryEmitTwoPortPathScatter(source, name, node, ports, sourceInjection, options))
+            if (TryEmitTwoPortPathScatter(source, name, node, ports, sourceInjection, options, debugProbeKeepAlive))
             {
                 // Emitted as a local area-discontinuity junction.
             }
@@ -822,7 +823,12 @@ public static class FaustEmitter
         }
         nextStates.AddRange(segments.Select(segment => $"{name}_graph_next_l{segment.Index}"));
         source.Replace(string.Join(", ", NextStatesPlaceholder(stateCount)), string.Join(", ", nextStates));
-        source.AppendLine($"    {name}_graph_out = ({(radiated.Count == 0 ? "0.0" : string.Join(" + ", radiated))}) * {name}_graph_radiation_gain;");
+        var graphOutput = $"({(radiated.Count == 0 ? "0.0" : string.Join(" + ", radiated))}) * {name}_graph_radiation_gain";
+        if (options.DebugProbeUi && debugProbeKeepAlive.Count > 0)
+        {
+            graphOutput = $"attach(({graphOutput}), {string.Join(" + ", debugProbeKeepAlive)})";
+        }
+        source.AppendLine($"    {name}_graph_out = {graphOutput};");
         source.AppendLine("  };");
         source.AppendLine("};");
         source.AppendLine($"{name}_acoustic_graph_radiated = {name}_graph({name}_graph_drive);");
@@ -1625,7 +1631,8 @@ public static class FaustEmitter
         AcousticConnection connection,
         string safeConnection,
         IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports,
-        FaustExportOptions options)
+        FaustExportOptions options,
+        List<string> debugProbeKeepAlive)
     {
         if (ports.Count != 3 || connection.Law != AcousticConnectionLaw.AreaScattering)
         {
@@ -1673,6 +1680,8 @@ public static class FaustEmitter
         var energyOut = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphOutgoing(voiceName, item.port)}, 2.0)"));
         source.AppendLine($"    {voiceName}_graph_connection_energy_in_{safeConnection} = {ProbeSignal(options, $"/debug/{voiceName}/connection/{connection.Name}/energy_in", energyIn, 0, 4)};");
         source.AppendLine($"    {voiceName}_graph_connection_energy_out_{safeConnection} = {ProbeSignal(options, $"/debug/{voiceName}/connection/{connection.Name}/energy_out", energyOut, 0, 4)};");
+        debugProbeKeepAlive.Add($"{voiceName}_graph_connection_energy_in_{safeConnection}");
+        debugProbeKeepAlive.Add($"{voiceName}_graph_connection_energy_out_{safeConnection}");
 
         return true;
     }
@@ -1683,7 +1692,8 @@ public static class FaustEmitter
         AcousticGraphNode node,
         IReadOnlyList<AcousticGraphPort> ports,
         string sourceInjection,
-        FaustExportOptions options)
+        FaustExportOptions options,
+        List<string> debugProbeKeepAlive)
     {
         if (ports.Count != 2 ||
             !ports[0].Segment.Path.Name.Equals(ports[1].Segment.Path.Name, StringComparison.OrdinalIgnoreCase) ||
@@ -1709,6 +1719,8 @@ public static class FaustEmitter
         var energyOut = $"({firstArea}) * pow({firstOutgoing}, 2.0) + ({secondArea}) * pow({secondOutgoing}, 2.0)";
         source.AppendLine($"    {voiceName}_graph_area_energy_in_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/area/{node.Name}/energy_in", energyIn, 0, 4)};");
         source.AppendLine($"    {voiceName}_graph_area_energy_out_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/area/{node.Name}/energy_out", energyOut, 0, 4)};");
+        debugProbeKeepAlive.Add($"{voiceName}_graph_area_energy_in_{node.Name}");
+        debugProbeKeepAlive.Add($"{voiceName}_graph_area_energy_out_{node.Name}");
         return true;
     }
 
