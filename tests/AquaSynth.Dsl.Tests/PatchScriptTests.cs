@@ -459,6 +459,9 @@ public sealed class PatchScriptTests
 
         Assert.True(comparison.Reference.Features.Peak > 0.19f);
         Assert.True(comparison.Score > 0.99f);
+        Assert.True(comparison.Articulation.ArticulationScore > 0.99f);
+        Assert.True(comparison.Articulation.EnvelopeCosineSimilarity > 0.99f);
+        Assert.Equal(0, comparison.Articulation.SilenceMismatch, precision: 6);
     }
 
     [Fact]

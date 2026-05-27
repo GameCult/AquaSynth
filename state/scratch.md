@@ -2,6 +2,23 @@
 
 Current slice:
 
+- User listening correctly rejected the log-mel witness: `thrombosis` was
+  mostly silence plus breathy/squeaky bursts, and `papa`/`mama` still read as
+  phone-vibration buzz. `AudioComparison` now includes articulation diagnostics
+  instead of letting log-mel cosine own speech parity.
+- New `AudioArticulationComparison` fields: envelope cosine, active-frame
+  ratio, silence mismatch, envelope flux ratio, spectral flux ratio, motor-band
+  ratio, speech-band ratio, and articulation score. Utterance reports now print
+  a verdict. Latest artifact:
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T130026316`;
+  all three accepted utterance fixtures are `not-accepted-articulation` with
+  articulation scores `mama` `0.1930`, `papa` `0.1829`, `thrombosis` `0.1848`.
+  This is correct: the harness now agrees with the ear instead of laundering
+  filtered buzz through cosine.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter "AudioAnalyzerComparesSimpleBuffers|PinkTromboneAcceptedUtterancesReportGraphLogMelParityWhenFaustIsInstalled|PinkTromboneFixturesReportLogMelParityWhenFaustIsInstalled" -v minimal`
+  passed.
+
 - Latest graph radiation pass moved articulation authority into the acoustic
   boundary instead of the output tap. `AcousticRadiationPort` aperture now
   blends boundary reflection between near-closed termination and declared

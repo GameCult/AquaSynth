@@ -38,7 +38,18 @@ public sealed record AudioComparison(
     float EnvelopeDistance,
     float LogMelDistance,
     float LogMelCosineSimilarity,
+    AudioArticulationComparison Articulation,
     float Score);
+
+public sealed record AudioArticulationComparison(
+    float EnvelopeCosineSimilarity,
+    float ActiveFrameRatio,
+    float SilenceMismatch,
+    float EnvelopeFluxRatio,
+    float SpectralFluxRatio,
+    float MotorBandRatio,
+    float SpeechBandRatio,
+    float ArticulationScore);
 
 public sealed class AudioAnalyzer
 {
@@ -68,7 +79,7 @@ public sealed class AudioAnalyzer
     }
 
     public AudioComparison Compare(ReadOnlySpan<float> referenceSamples, ReadOnlySpan<float> candidateSamples) =>
-        FromAnalysis(Analyze(referenceSamples), Analyze(candidateSamples));
+        FromAnalysis(Analyze(referenceSamples), Analyze(candidateSamples), CompareArticulation(referenceSamples, candidateSamples));
 
     private AudioFeatures ExtractFeatures(ReadOnlySpan<float> samples)
     {
@@ -176,7 +187,7 @@ public sealed class AudioAnalyzer
     public static AudioComparison CompareAudio(ReadOnlySpan<float> referenceSamples, ReadOnlySpan<float> candidateSamples, AudioAnalysisConfig? config = null) =>
         new AudioAnalyzer(config).Compare(referenceSamples, candidateSamples);
 
-    private static AudioComparison FromAnalysis(AudioAnalysis reference, AudioAnalysis candidate)
+    private static AudioComparison FromAnalysis(AudioAnalysis reference, AudioAnalysis candidate, AudioArticulationComparison articulation)
     {
         var durationRatio = SafeRatio(candidate.Features.DurationSeconds, reference.Features.DurationSeconds);
         var rmsRatio = SafeRatio(candidate.Features.Rms, reference.Features.Rms);
@@ -187,7 +198,91 @@ public sealed class AudioAnalyzer
         var logMelCosine = CosineSimilarity(reference.LogMelSpectrogram.Values, candidate.LogMelSpectrogram.Values);
         var ratioPenalty = RatioDistance(durationRatio) + RatioDistance(rmsRatio) + RatioDistance(zeroCrossingRatio) * 0.5f + RatioDistance(centroidRatio) * 0.5f;
         var score = 1 / (1 + envelopeDistance * 0.7f + logMelDistance + ratioPenalty);
-        return new AudioComparison(reference, candidate, durationRatio, rmsRatio, zeroCrossingRatio, centroidRatio, envelopeDistance, logMelDistance, logMelCosine, score);
+        return new AudioComparison(reference, candidate, durationRatio, rmsRatio, zeroCrossingRatio, centroidRatio, envelopeDistance, logMelDistance, logMelCosine, articulation, score);
+    }
+
+    private AudioArticulationComparison CompareArticulation(ReadOnlySpan<float> referenceSamples, ReadOnlySpan<float> candidateSamples)
+    {
+        var reference = ArticulationFrames(referenceSamples);
+        var candidate = ArticulationFrames(candidateSamples);
+        var envelopeCosine = CosineSimilarity(reference.Envelope, candidate.Envelope);
+        var activeFrameRatio = SafeRatio(candidate.ActiveRatio, reference.ActiveRatio);
+        var silenceMismatch = BinaryMismatch(reference.Active, candidate.Active);
+        var envelopeFluxRatio = SafeRatio(candidate.EnvelopeFlux, reference.EnvelopeFlux);
+        var spectralFluxRatio = SafeRatio(candidate.SpectralFlux, reference.SpectralFlux);
+        var motorBandRatio = SafeRatio(candidate.MotorBandShare, reference.MotorBandShare);
+        var speechBandRatio = SafeRatio(candidate.SpeechBandShare, reference.SpeechBandShare);
+        var penalty =
+            (1 - Math.Clamp(envelopeCosine, 0, 1)) * 1.4f +
+            silenceMismatch * 1.7f +
+            RatioDistance(activeFrameRatio) * 0.9f +
+            RatioDistance(envelopeFluxRatio) * 0.7f +
+            RatioDistance(spectralFluxRatio) * 0.7f +
+            RatioDistance(motorBandRatio) * 0.6f +
+            RatioDistance(speechBandRatio) * 0.8f;
+        var score = 1 / (1 + penalty);
+        return new AudioArticulationComparison(
+            envelopeCosine,
+            activeFrameRatio,
+            silenceMismatch,
+            envelopeFluxRatio,
+            spectralFluxRatio,
+            motorBandRatio,
+            speechBandRatio,
+            score);
+    }
+
+    private ArticulationFrameSet ArticulationFrames(ReadOnlySpan<float> samples)
+    {
+        const int frameSize = 1024;
+        const int hopSize = 256;
+        if (samples.IsEmpty) return new ArticulationFrameSet([0], [false], 0, 0, 0, 0, 0);
+
+        var envelope = new List<float>();
+        var active = new List<bool>();
+        var speechBand = 0f;
+        var motorBand = 0f;
+        var totalBand = 0f;
+        var spectralFlux = 0f;
+        var previousSpectrum = Array.Empty<float>();
+        var peak = 0f;
+        foreach (var sample in samples) peak = Math.Max(peak, Math.Abs(sample));
+        var gate = Math.Max(peak * 0.035f, _config.GateFloor);
+
+        for (var start = 0; start < samples.Length; start += hopSize)
+        {
+            WriteFramePowerSpectrum(samples, start);
+            var end = Math.Min(start + frameSize, samples.Length);
+            var rms = MathF.Sqrt(MeanSquare(samples[start..end]));
+            envelope.Add(MathF.Log(1e-7f + rms));
+            active.Add(rms >= gate);
+
+            var current = _spectrumBuffer.ToArray();
+            if (previousSpectrum.Length == current.Length)
+            {
+                spectralFlux += PositiveSpectralFlux(previousSpectrum, current);
+            }
+            previousSpectrum = current;
+
+            for (var bin = 0; bin < current.Length; bin++)
+            {
+                var frequency = bin * _config.SampleRate / Math.Max(1, _fftSize);
+                var energy = current[bin];
+                totalBand += energy;
+                if (frequency is >= 80 and < 200) motorBand += energy;
+                if (frequency is >= 500 and < 2500) speechBand += energy;
+            }
+        }
+
+        var fluxFrames = Math.Max(1, envelope.Count - 1);
+        return new ArticulationFrameSet(
+            envelope.ToArray(),
+            active.ToArray(),
+            active.Count(item => item) / (float)Math.Max(1, active.Count),
+            EnvelopeFlux(envelope),
+            spectralFlux / fluxFrames,
+            motorBand / Math.Max(float.Epsilon, totalBand),
+            speechBand / Math.Max(float.Epsilon, totalBand));
     }
 
     private static void Fft(Complex[] buffer)
@@ -302,6 +397,50 @@ public sealed class AudioAnalyzer
         return dot / MathF.Max(0.000001f, MathF.Sqrt(left) * MathF.Sqrt(right));
     }
 
+    private static float BinaryMismatch(IReadOnlyList<bool> reference, IReadOnlyList<bool> candidate)
+    {
+        var length = Math.Max(1, Math.Max(reference.Count, candidate.Count));
+        var mismatches = 0;
+        for (var i = 0; i < length; i++)
+        {
+            if (BoolResampledAt(reference, i, length) != BoolResampledAt(candidate, i, length)) mismatches++;
+        }
+
+        return mismatches / (float)length;
+    }
+
+    private static bool BoolResampledAt(IReadOnlyList<bool> values, int index, int targetLength)
+    {
+        if (values.Count == 0) return false;
+        if (values.Count == 1 || targetLength <= 1) return values[0];
+        var position = index * (values.Count - 1f) / (targetLength - 1);
+        return values[(int)MathF.Round(position)];
+    }
+
+    private static float EnvelopeFlux(IReadOnlyList<float> envelope)
+    {
+        if (envelope.Count < 2) return 0;
+        var sum = 0f;
+        for (var i = 1; i < envelope.Count; i++) sum += MathF.Abs(envelope[i] - envelope[i - 1]);
+        return sum / (envelope.Count - 1);
+    }
+
+    private static float PositiveSpectralFlux(IReadOnlyList<float> previous, IReadOnlyList<float> current)
+    {
+        var sum = 0f;
+        var scale = 0f;
+        var length = Math.Min(previous.Count, current.Count);
+        for (var i = 0; i < length; i++)
+        {
+            var previousLog = MathF.Log(1e-12f + previous[i]);
+            var currentLog = MathF.Log(1e-12f + current[i]);
+            sum += MathF.Max(0, currentLog - previousLog);
+            scale += MathF.Abs(previousLog) + MathF.Abs(currentLog);
+        }
+
+        return sum / Math.Max(1e-6f, scale);
+    }
+
     private static float ResampledAt(IReadOnlyList<float> values, int index, int targetLength)
     {
         if (values.Count == 0) return 0;
@@ -335,6 +474,15 @@ public sealed class AudioAnalyzer
     private static float SafeRatio(float candidate, float reference) => candidate / Math.Max(float.Epsilon, reference);
     private static float RatioDistance(float ratio) => MathF.Abs(MathF.Log(Math.Max(float.Epsilon, ratio)));
     private static int NextPowerOfTwo(int value) => 1 << (int)MathF.Ceiling(MathF.Log2(value));
+
+    private sealed record ArticulationFrameSet(
+        float[] Envelope,
+        bool[] Active,
+        float ActiveRatio,
+        float EnvelopeFlux,
+        float SpectralFlux,
+        float MotorBandShare,
+        float SpeechBandShare);
 }
 
 file static class FloatExtensions

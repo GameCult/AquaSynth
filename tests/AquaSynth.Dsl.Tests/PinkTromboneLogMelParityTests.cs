@@ -110,9 +110,7 @@ public sealed class PinkTromboneLogMelParityTests
             Assert.True(candidate.Samples.Max(MathF.Abs) > 0.00001f, candidate.Stderr);
 
             var comparison = analyzer.Compare(reference.Samples, candidate.Samples);
-            var report = string.Create(
-                CultureInfo.InvariantCulture,
-                $"{fixture.Id}/graph-utterance: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000}");
+            var report = UtteranceReport(fixture, comparison);
             reports.Add(report);
 
             var fixtureDir = Path.Combine(artifactDir, fixture.Id);
@@ -135,7 +133,25 @@ public sealed class PinkTromboneLogMelParityTests
     private static string Report(PinkTromboneParityFixture fixture, AudioComparison comparison, string candidate) =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"{fixture.Id}/{candidate}: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000}");
+            $"{fixture.Id}/{candidate}: cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000} articulation={comparison.Articulation.ArticulationScore:0.0000} envCos={comparison.Articulation.EnvelopeCosineSimilarity:0.0000} silenceMismatch={comparison.Articulation.SilenceMismatch:0.0000} motorBandRatio={comparison.Articulation.MotorBandRatio:0.0000} speechBandRatio={comparison.Articulation.SpeechBandRatio:0.0000}");
+
+    private static string UtteranceReport(PinkTromboneUtteranceFixture fixture, AudioComparison comparison)
+    {
+        var verdict = ArticulationVerdict(comparison);
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"{fixture.Id}/graph-utterance: verdict={verdict} cosine={comparison.LogMelCosineSimilarity:0.0000} logMelDistance={comparison.LogMelDistance:0.0000} score={comparison.Score:0.0000} rmsRatio={comparison.RmsRatio:0.0000} centroidRatio={comparison.CentroidRatio:0.0000} articulation={comparison.Articulation.ArticulationScore:0.0000} envCos={comparison.Articulation.EnvelopeCosineSimilarity:0.0000} activeRatio={comparison.Articulation.ActiveFrameRatio:0.0000} silenceMismatch={comparison.Articulation.SilenceMismatch:0.0000} envelopeFluxRatio={comparison.Articulation.EnvelopeFluxRatio:0.0000} spectralFluxRatio={comparison.Articulation.SpectralFluxRatio:0.0000} motorBandRatio={comparison.Articulation.MotorBandRatio:0.0000} speechBandRatio={comparison.Articulation.SpeechBandRatio:0.0000}");
+    }
+
+    private static string ArticulationVerdict(AudioComparison comparison)
+    {
+        var articulation = comparison.Articulation;
+        if (articulation.ArticulationScore < 0.45f) return "not-accepted-articulation";
+        if (articulation.SilenceMismatch > 0.22f) return "not-accepted-silence-map";
+        if (articulation.EnvelopeCosineSimilarity < 0.55f) return "not-accepted-envelope";
+        if (articulation.MotorBandRatio > 2.2f || articulation.SpeechBandRatio < 0.45f) return "not-accepted-band-balance";
+        return "smoke-only";
+    }
 
     private static string AutomatedGraphSource(PinkTromboneUtteranceFixture fixture)
     {

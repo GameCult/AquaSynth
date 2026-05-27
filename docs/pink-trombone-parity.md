@@ -183,10 +183,13 @@ Trombone anatomy:
   PT-like 500-1000 Hz body band and pulled `thrombosis` RMS under reference
   level. Radiation aperture now also owns boundary reflection, and graph
   radiation reads boundary flow (`incoming - outgoing`) through a stronger
-  radiation high-pass slope instead of acting as a raw pressure tap. That
-  reduces pressure-tap vocoder behavior and gives `mama`/`papa` better
-  500-1000 Hz body, but `thrombosis` still loses too much voiced body during
-  articulation. Pressure storage/release remains the next live cut.
+  radiation high-pass slope instead of acting as a raw pressure tap. The
+  log-mel witness still overrated the result, so the parity harness now reports
+  articulation diagnostics: envelope cosine, active-frame ratio, silence
+  mismatch, envelope/spectral flux ratios, motor-band ratio, speech-band ratio,
+  and an articulation verdict. The latest utterances are explicitly
+  `not-accepted-articulation`; pressure storage/release remains the next live
+  cut.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
   knob-twiddling through a small WebAudio witness.
 - `PinkTromboneReferenceDeclaresMissingWaveguideAuthority` prevents graph
@@ -206,9 +209,9 @@ of these:
    stops are released by the acoustic graph instead of only by a source burst.
 2. Improve nasal/oral branch and radiation behavior so `mama` gets vowel body
    without reverting to low-band motor buzz.
-3. Use the log-mel artifact loop to golf `mama`, `papa`, and `thrombosis`
-   against the source-ported PT renderer without reintroducing a parallel
-   PT-shaped backend.
+3. Use the artifact loop to golf `mama`, `papa`, and `thrombosis` against the
+   source-ported PT renderer, but treat log-mel as spectral pressure only.
+   Articulation diagnostics own the "does this behave like speech?" verdict.
 
 The new owner should be explainable as:
 

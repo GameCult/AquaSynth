@@ -311,6 +311,17 @@ smoke remains passing under
 `artifacts/parity/pink-trombone-logmel/20260527T124311305`. This helps the
 voiced fixtures a little, but it is not the missing articulation mechanism.
 
+Log-mel cosine is no longer allowed to impersonate a speech-parity verdict.
+It rewards spectral overlap even when the candidate is mostly silence, filtered
+motor buzz, or a few breathy/squeaky bursts. `AudioComparison` now includes an
+`AudioArticulationComparison` with envelope cosine, active-frame ratio, silence
+mismatch, envelope/spectral flux ratios, motor-band ratio, speech-band ratio,
+and an articulation score. The utterance report prints a verdict. Latest run:
+`mama`, `papa`, and `thrombosis` are all
+`not-accepted-articulation` under
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T130026316`, despite
+their old cosine values. That is the harness telling the truth again.
+
 ## Cut Line
 
 The current `Voice.Tract` scalar proxy may survive only as an adapter over real
