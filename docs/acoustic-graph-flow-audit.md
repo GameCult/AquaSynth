@@ -135,7 +135,10 @@ The current graph now names each radiation terminal's boundary flow and applies
 a bounded local admittance term derived from that terminal area. This reduces
 the worst over-radiation exposed by the side-branch fix, but it also makes the
 remaining failure clearer: speech-band articulation is still weak, especially
-for utterances. The graph is less loud and still not speaking.
+for utterances. The radiation blend was softened away from a mostly
+differentiated/high-passed flow because the graph was over-bright relative to
+its weak vowel body. That helps some closure/thrombosis evidence but does not
+fix the missing tract resonance.
 
 Required cut: keep moving radiation toward local port admittance and aperture
 physics, but the next audible articulation work probably belongs in pressure

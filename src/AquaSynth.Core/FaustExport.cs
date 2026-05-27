@@ -802,7 +802,7 @@ public static class FaustEmitter
                 var flowName = $"{name}_graph_radiation_flow_{safeTerminal}";
                 source.AppendLine($"    {admittance} = sqrt(clip01(({terminalArea}) / max(0.000001, ({terminalArea}) + 1.0)));");
                 source.AppendLine($"    {flowName} = {flow};");
-                radiated.Add($"(({flowName} * 0.15 + ({flowName} : {filter}) * 0.85) * {opening} * {loss} * {admittance})");
+                radiated.Add($"(({flowName} * 0.30 + ({flowName} : {filter}) * 0.70) * {opening} * {loss} * {admittance})");
             }
         }
 
@@ -873,6 +873,9 @@ public static class FaustEmitter
         var releasePressure = localPressure is null
             ? "1.0"
             : $"(0.20 + 2.80 * clip01((abs({localPressure}) * ({closure})) : + ~ *(0.992)))";
+        var turbulence = $"(no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening})))";
+        var apertureNoiseGate = $"min(clip01((0.8 - {opening}) / 0.8), clip01(8.0 * (0.7 - {opening})) * clip01(30.0 * ({opening} - 0.3)))";
+        var releaseBurstGate = $"clip01({opening} / 0.8) * {release}";
         return port.Kind switch
         {
             AcousticSourceKind.Glottal =>
@@ -882,7 +885,7 @@ public static class FaustEmitter
             AcousticSourceKind.Reed =>
                 $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
             AcousticSourceKind.TurbulenceJet =>
-                $"((no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening}))) * {noise} * {pressure} * min(clip01((0.8 - {opening}) / 0.8), clip01(8.0 * (0.7 - {opening})) * clip01(30.0 * ({opening} - 0.3))) * 0.62 + {transient} * {pressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
+                $"(({turbulence}) * {noise} * {pressure} * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({releaseBurstGate}) * 1.2 + {transient} * {pressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
             AcousticSourceKind.Click =>
                 $"no.noise * {pressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance}",
             AcousticSourceKind.Synthetic =>
