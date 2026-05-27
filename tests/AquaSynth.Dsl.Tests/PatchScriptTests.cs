@@ -324,6 +324,8 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_connection_energy_out_voices_0_nose_connection", export.Source);
         Assert.Contains("graph_node_incident_pressure_", export.Source);
         Assert.Contains("graph_node_source_", export.Source);
+        Assert.Contains("graph_area_energy_in_", export.Source);
+        Assert.Contains("graph_area_energy_out_", export.Source);
         Assert.Contains("graph_radiation_admittance_voices_0_lip", export.Source);
         Assert.Contains("graph_radiation_flow_voices_0_lip", export.Source);
         Assert.Contains("patch_param_0) * (patch_param_0", export.Source);

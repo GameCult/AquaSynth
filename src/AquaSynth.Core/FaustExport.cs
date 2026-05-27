@@ -1697,6 +1697,8 @@ public static class FaustEmitter
         source.AppendLine($"    {voiceName}_graph_area_reflection_{node.Name} = {reflection};");
         source.AppendLine($"    {firstOutgoing} = {secondIncoming} + {voiceName}_graph_area_reflection_{node.Name} * ({firstIncoming} + {secondIncoming}) + ({sourceInjection}) / 2;");
         source.AppendLine($"    {secondOutgoing} = {firstIncoming} - {voiceName}_graph_area_reflection_{node.Name} * ({firstIncoming} + {secondIncoming}) + ({sourceInjection}) / 2;");
+        source.AppendLine($"    {voiceName}_graph_area_energy_in_{node.Name} = ({firstArea}) * pow({firstIncoming}, 2.0) + ({secondArea}) * pow({secondIncoming}, 2.0);");
+        source.AppendLine($"    {voiceName}_graph_area_energy_out_{node.Name} = ({firstArea}) * pow({firstOutgoing}, 2.0) + ({secondArea}) * pow({secondOutgoing}, 2.0);");
         return true;
     }
 
