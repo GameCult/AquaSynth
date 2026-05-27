@@ -4,7 +4,7 @@ using System.Text;
 
 namespace AquaSynth.Dsl;
 
-public sealed record FaustExportOptions(string Name = "aquasynth_patch", bool Stereo = false);
+public sealed record FaustExportOptions(string Name = "aquasynth_patch", bool Stereo = false, bool DebugProbeUi = false);
 
 public sealed record FaustExport(string Source, IReadOnlyList<string> Warnings);
 
@@ -77,13 +77,13 @@ public static class FaustEmitter
         for (var i = 0; i < patch.Voices.Count; i++)
         {
             var name = $"voice_{i}";
-            EmitVoice(source, patch, patch.Voices[i], VoicePath(i), name, parameters, warnings);
+            EmitVoice(source, patch, patch.Voices[i], VoicePath(i), name, parameters, warnings, options);
             voices.Add(name);
         }
         for (var i = 0; i < patch.SpectralBanks.Count; i++)
         {
             var name = $"spectral_{i}";
-            EmitSpectralBank(source, patch, patch.SpectralBanks[i], i, name, parameters, warnings);
+            EmitSpectralBank(source, patch, patch.SpectralBanks[i], i, name, parameters, warnings, options);
             voices.Add(name);
         }
         for (var i = 0; i < patch.OperatorGraphs.Count; i++)
@@ -140,6 +140,7 @@ public static class FaustEmitter
         string name,
         ParameterMap parameters,
         List<string> warnings,
+        FaustExportOptions options,
         string? oscillatorOverride = null)
     {
         if (voice.Filter.LowPassResonance != 0 ||
@@ -183,12 +184,12 @@ public static class FaustEmitter
         var dutyExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "osc/duty"), voice.Oscillator.Duty)} + {parameters.Expression(OwnerField(ownerPath, "duty/ramp"), voice.Duty.RampPerSecond)} * age + patch_mod_duty + {duty})";
         var fmIndex = $"max(0.0, {parameters.Expression(OwnerField(ownerPath, "fm/index"), voice.Fm.Index)} + patch_mod_fm_index + {fmIndexMod}) * {FmDecay(parameters.Expression(OwnerField(ownerPath, "fm/decay"), voice.Fm.IndexDecaySeconds), voice.Fm.IndexDecaySeconds, parameters.IsBound(OwnerField(ownerPath, "fm/decay")))}";
         var oscillator = oscillatorOverride ??
-                         (voice.Tract is { Propagation: TractPropagationMode.Graph } && voice.AcousticNetwork is { } tractGraph
-                             ? AcousticNetworkExpression(source, patch, tractGraph, ownerPath, name, frequency, parameters, warnings)
+                        (voice.Tract is { Propagation: TractPropagationMode.Graph } && voice.AcousticNetwork is { } tractGraph
+                             ? AcousticNetworkExpression(source, patch, tractGraph, ownerPath, name, frequency, parameters, warnings, options)
                              : voice.Tract is { } tract
                              ? TractExpression(source, tract, ownerPath, name, frequency, noteGate, parameters)
                              : voice.AcousticNetwork is { } acousticNetwork
-                             ? AcousticNetworkExpression(source, patch, acousticNetwork, ownerPath, name, frequency, parameters, warnings)
+                             ? AcousticNetworkExpression(source, patch, acousticNetwork, ownerPath, name, frequency, parameters, warnings, options)
                              : OscillatorExpression(patch, voice, ownerPath, frequency, dutyExpression, fmIndex, parameters));
         var envelope = voice.RateLevelEnvelope is not null
             ? RateLevelEnvelopeExpression(voice.RateLevelEnvelope, noteGate)
@@ -299,7 +300,8 @@ public static class FaustEmitter
         int bankIndex,
         string name,
         ParameterMap parameters,
-        List<string> warnings)
+        List<string> warnings,
+        FaustExportOptions options)
     {
         const int tableSize = 131072;
         var table = PadSynthWaveform.Generate(bank, tableSize);
@@ -311,7 +313,7 @@ public static class FaustEmitter
         source.AppendLine($"{name}_read_frac = {name}_read_pos - float({name}_read_index);");
         source.AppendLine($"{name}_read_next = ({name}_read_index + 1) % {tableSize};");
         source.AppendLine($"{name}_wavetable = ({name}_wave, {name}_read_index : rdtable) * (1 - {name}_read_frac) + ({name}_wave, {name}_read_next : rdtable) * {name}_read_frac;");
-        EmitVoice(source, patch, bank.Treatment, SpectralPath(bankIndex), name, parameters, warnings, $"{name}_wavetable");
+        EmitVoice(source, patch, bank.Treatment, SpectralPath(bankIndex), name, parameters, warnings, options, $"{name}_wavetable");
     }
 
     private static string NoteFrequencyExpression(StringBuilder source, Playback playback, Note note, string name, string fieldPath, ParameterMap parameters)
@@ -394,7 +396,8 @@ public static class FaustEmitter
         string name,
         string frequency,
         ParameterMap parameters,
-        List<string> warnings)
+        List<string> warnings,
+        FaustExportOptions options)
     {
         var paths = patch.AcousticPaths.ToDictionary(path => path.Name, StringComparer.OrdinalIgnoreCase);
         var sources = patch.AcousticSourcePorts.ToDictionary(port => port.Name, StringComparer.OrdinalIgnoreCase);
@@ -411,7 +414,7 @@ public static class FaustEmitter
 
         if (network.Terminals.Count > 0)
         {
-            var graph = AcousticGraphExpression(source, patch, network, name, frequency, parameters, warnings, paths, sources, radiation, terminals, connections, waveClocks);
+            var graph = AcousticGraphExpression(source, patch, network, name, frequency, parameters, warnings, paths, sources, radiation, terminals, connections, waveClocks, options);
             if (graph.Length > 0)
             {
                 return graph;
@@ -518,7 +521,8 @@ public static class FaustEmitter
         IReadOnlyDictionary<string, AcousticRadiationPort> radiation,
         IReadOnlyDictionary<string, AcousticTerminal> terminals,
         IReadOnlyDictionary<string, AcousticConnection> connections,
-        IReadOnlyDictionary<string, WaveClockPolicy> waveClocks)
+        IReadOnlyDictionary<string, WaveClockPolicy> waveClocks,
+        FaustExportOptions options)
     {
         var waveClock = ResolveWaveClock(network, waveClocks, warnings, name);
         var networkTerminals = new List<AcousticTerminal>();
@@ -719,7 +723,7 @@ public static class FaustEmitter
             }
 
             var safeConnection = SafeIdentifier(connection.Name);
-            if (TryEmitThreePortBranchScatter(source, name, connection, safeConnection, ports))
+            if (TryEmitThreePortBranchScatter(source, name, connection, safeConnection, ports, options))
             {
                 continue;
             }
@@ -760,7 +764,7 @@ public static class FaustEmitter
 
             var sourceInjection = NodeSourceIdentifier(name, node);
             var reflection = $"{name}_graph_node_reflection_{node.Name}";
-            if (TryEmitTwoPortPathScatter(source, name, node, ports, sourceInjection))
+            if (TryEmitTwoPortPathScatter(source, name, node, ports, sourceInjection, options))
             {
                 // Emitted as a local area-discontinuity junction.
             }
@@ -800,8 +804,8 @@ public static class FaustEmitter
                 var admittance = $"{name}_graph_radiation_admittance_{safeTerminal}";
                 var flow = $"({string.Join(" + ", ports.Select(port => $"({GraphIncoming(name, port)} - {GraphOutgoing(name, port)})"))})";
                 var flowName = $"{name}_graph_radiation_flow_{safeTerminal}";
-                source.AppendLine($"    {admittance} = sqrt(clip01(({terminalArea}) / max(0.000001, ({terminalArea}) + 1.0)));");
-                source.AppendLine($"    {flowName} = {flow};");
+                source.AppendLine($"    {admittance} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/admittance", $"sqrt(clip01(({terminalArea}) / max(0.000001, ({terminalArea}) + 1.0)))", 0, 1)};");
+                source.AppendLine($"    {flowName} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/flow", flow, -2, 2)};");
                 radiated.Add($"(({flowName} * 0.30 + ({flowName} : {filter}) * 0.70) * {opening} * {loss} * {admittance})");
             }
         }
@@ -1620,7 +1624,8 @@ public static class FaustEmitter
         string voiceName,
         AcousticConnection connection,
         string safeConnection,
-        IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports)
+        IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports,
+        FaustExportOptions options)
     {
         if (ports.Count != 3 || connection.Law != AcousticConnectionLaw.AreaScattering)
         {
@@ -1664,8 +1669,10 @@ public static class FaustEmitter
             var sourceInjection = NodeSourceIdentifier(voiceName, item.node);
             source.AppendLine($"    {outgoing} = ({voiceName}_graph_connection_pressure_{safeConnection} - {incoming} + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {voiceName}_graph_connection_loss_{safeConnection};");
         }
-        source.AppendLine($"    {voiceName}_graph_connection_energy_in_{safeConnection} = {string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphIncoming(voiceName, item.port)}, 2.0)"))};");
-        source.AppendLine($"    {voiceName}_graph_connection_energy_out_{safeConnection} = {string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphOutgoing(voiceName, item.port)}, 2.0)"))};");
+        var energyIn = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphIncoming(voiceName, item.port)}, 2.0)"));
+        var energyOut = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphOutgoing(voiceName, item.port)}, 2.0)"));
+        source.AppendLine($"    {voiceName}_graph_connection_energy_in_{safeConnection} = {ProbeSignal(options, $"/debug/{voiceName}/connection/{connection.Name}/energy_in", energyIn, 0, 4)};");
+        source.AppendLine($"    {voiceName}_graph_connection_energy_out_{safeConnection} = {ProbeSignal(options, $"/debug/{voiceName}/connection/{connection.Name}/energy_out", energyOut, 0, 4)};");
 
         return true;
     }
@@ -1675,7 +1682,8 @@ public static class FaustEmitter
         string voiceName,
         AcousticGraphNode node,
         IReadOnlyList<AcousticGraphPort> ports,
-        string sourceInjection)
+        string sourceInjection,
+        FaustExportOptions options)
     {
         if (ports.Count != 2 ||
             !ports[0].Segment.Path.Name.Equals(ports[1].Segment.Path.Name, StringComparison.OrdinalIgnoreCase) ||
@@ -1697,10 +1705,17 @@ public static class FaustEmitter
         source.AppendLine($"    {voiceName}_graph_area_reflection_{node.Name} = {reflection};");
         source.AppendLine($"    {firstOutgoing} = {secondIncoming} + {voiceName}_graph_area_reflection_{node.Name} * ({firstIncoming} + {secondIncoming}) + ({sourceInjection}) / 2;");
         source.AppendLine($"    {secondOutgoing} = {firstIncoming} - {voiceName}_graph_area_reflection_{node.Name} * ({firstIncoming} + {secondIncoming}) + ({sourceInjection}) / 2;");
-        source.AppendLine($"    {voiceName}_graph_area_energy_in_{node.Name} = ({firstArea}) * pow({firstIncoming}, 2.0) + ({secondArea}) * pow({secondIncoming}, 2.0);");
-        source.AppendLine($"    {voiceName}_graph_area_energy_out_{node.Name} = ({firstArea}) * pow({firstOutgoing}, 2.0) + ({secondArea}) * pow({secondOutgoing}, 2.0);");
+        var energyIn = $"({firstArea}) * pow({firstIncoming}, 2.0) + ({secondArea}) * pow({secondIncoming}, 2.0)";
+        var energyOut = $"({firstArea}) * pow({firstOutgoing}, 2.0) + ({secondArea}) * pow({secondOutgoing}, 2.0)";
+        source.AppendLine($"    {voiceName}_graph_area_energy_in_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/area/{node.Name}/energy_in", energyIn, 0, 4)};");
+        source.AppendLine($"    {voiceName}_graph_area_energy_out_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/area/{node.Name}/energy_out", energyOut, 0, 4)};");
         return true;
     }
+
+    private static string ProbeSignal(FaustExportOptions options, string label, string expression, float min, float max) =>
+        options.DebugProbeUi
+            ? $"(({expression}) : vbargraph(\"{Escape(label)}\", {F(min)}, {F(max)}))"
+            : expression;
 
     private static string MaxExpression(IEnumerable<string> expressions)
     {

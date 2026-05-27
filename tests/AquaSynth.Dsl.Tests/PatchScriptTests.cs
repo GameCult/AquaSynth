@@ -329,6 +329,11 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_radiation_admittance_voices_0_lip", export.Source);
         Assert.Contains("graph_radiation_flow_voices_0_lip", export.Source);
         Assert.Contains("patch_param_0) * (patch_param_0", export.Source);
+
+        var debugExport = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph_boundaries_debug", DebugProbeUi: true));
+        Assert.Contains("vbargraph(\"/debug/voice_0/connection/voices_0_nose_connection/energy_in\"", debugExport.Source);
+        Assert.Contains("vbargraph(\"/debug/voice_0/radiation/voices_0_lip/flow\"", debugExport.Source);
+        Assert.Contains("process = ", debugExport.Source);
     }
 
     [Fact]
@@ -1282,7 +1287,7 @@ public sealed class PatchScriptTests
             wave_clock name=continuous strategy=thiran order=1 max_delay=4096 smoothing_ms=3
             acoustic_network name=humanish path=oral wave_clock=continuous sources=folds radiation=mouth,nostril terminals=trachea_bottom,oral_back,nasal_gate connections=velopharynx
             acoustic network=humanish freq=130 gain=.1
-            """, new FaustExportOptions("acoustic_graph_validation"));
+            """, new FaustExportOptions("acoustic_graph_validation", DebugProbeUi: true));
         var validation = await FaustCompiler.ValidateAsync(export.Source);
 
         if (validation is null)

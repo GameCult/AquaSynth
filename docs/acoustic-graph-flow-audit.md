@@ -168,6 +168,11 @@ the only loudness fault. Ordinary two-port area discontinuities now expose the
 same area-weighted energy probes, so vowel-body scattering can be inspected at
 the layer where tract resonances should actually form.
 
+By default those probes remain ordinary named Faust locals. When
+`FaustExportOptions.DebugProbeUi` is enabled, the same signals are wrapped in
+Faust `vbargraph` UI probes under `/debug/...`, exposing passivity and radiation
+telemetry without changing the patch's audio output arity.
+
 The next coherent implementation target is to make that law passive and
 radiation-aware:
 
