@@ -1491,7 +1491,7 @@ public static class PatchScript
                 lip.Position,
                 AcousticTerminalKind.Radiation,
                 lip.Name,
-                Math.Max(0, lip.Opening),
+                1,
                 lip.Reflection));
             MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/reflection");
             radiationNames.Add(lipName);

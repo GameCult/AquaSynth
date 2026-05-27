@@ -251,6 +251,19 @@ removed fake source-created impedance slices, but that is a downstream source,
 closure, and radiation problem, not grounds to let source placement mutate the
 tract.
 
+Generated lip radiation terminals no longer bake the first frame's lip opening
+into terminal `area_scale`. Lip opening already owns live path area and
+radiation aperture; letting the terminal keep the initial opening made a word
+that starts closed, such as `papa`, carry closed-lip admittance through the
+whole utterance. Static artifact
+`artifacts/parity/pink-trombone-logmel/20260527T231611586` still passes. The
+utterance artifact
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T231056242` still
+fails: `thrombosis` is too silent, and `mama/papa` candidate similarity is
+`0.6343` versus reference `0.3791`. The fix is kept because it removes stale
+authority; the remaining failure is now more plainly source/reservoir/radiation
+coupling.
+
 The next coherent implementation target is source/boundary coupling, not more
 global gain:
 
