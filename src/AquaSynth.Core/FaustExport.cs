@@ -886,7 +886,7 @@ public static class FaustEmitter
         var release = $"(max(0.0, (({closure}) : mem) - ({closure})) : + ~ *(0.995))";
         var releasePressure = localPressure is null
             ? "1.0"
-            : $"(0.35 + 6.00 * clip01((abs({localPressure}) * ({closure})) : + ~ *(0.992)))";
+            : $"(0.20 + 2.80 * clip01((abs({localPressure}) * ({closure})) : + ~ *(0.992)))";
         var turbulence = $"(no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening})))";
         var apertureNoiseGate = $"min(clip01((0.85 - {opening}) / 0.85), clip01(25.0 * ({opening} - 0.04)))";
         var releaseBurstGate = $"clip01({opening} / 0.8) * {release}";
@@ -899,7 +899,7 @@ public static class FaustEmitter
             AcousticSourceKind.Reed =>
                 $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
             AcousticSourceKind.TurbulenceJet =>
-                $"(({turbulence}) * {noise} * {pressure} * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({releaseBurstGate}) * 2.4 + {transient} * {pressure} * {release} * {releasePressure} * 2.2 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
+                $"(({turbulence}) * {noise} * {pressure} * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({releaseBurstGate}) * 1.2 + {transient} * {pressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
             AcousticSourceKind.Click =>
                 $"no.noise * {pressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance}",
             AcousticSourceKind.Synthetic =>
@@ -1659,8 +1659,11 @@ public static class FaustEmitter
         }
 
         var side = pathGroups[1].Single();
-        var portItems = new List<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)>(through)
+        var orderedThrough = through.OrderBy(item => item.port.Segment.StartPosition).ToList();
+        var portItems = new List<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)>
         {
+            orderedThrough[0],
+            orderedThrough[1],
             side
         };
         var areaExpressions = new Dictionary<AcousticGraphPort, string>();
@@ -1671,14 +1674,15 @@ public static class FaustEmitter
         areaExpressions[side.port] = ConnectionPortAreaExpression(voiceName, side.terminal, side.nodePortCount);
 
         var areaSum = string.Join(" + ", portItems.Select(item => areaExpressions[item.port]));
-        var weightedIncoming = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * {GraphIncoming(voiceName, item.port)}"));
-        source.AppendLine($"    {voiceName}_graph_connection_pressure_{safeConnection} = 2.0 * ({weightedIncoming}) / max(0.000001, {areaSum});");
         foreach (var item in portItems)
         {
             var incoming = GraphIncoming(voiceName, item.port);
             var outgoing = GraphOutgoing(voiceName, item.port);
             var sourceInjection = NodeSourceIdentifier(voiceName, item.node);
-            source.AppendLine($"    {outgoing} = ({voiceName}_graph_connection_pressure_{safeConnection} - {incoming} + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {voiceName}_graph_connection_loss_{safeConnection};");
+            var reflection = $"{voiceName}_graph_connection_reflection_{safeConnection}_{SafeIdentifier(item.terminal.Name)}_{item.port.Segment.Index}_{(item.port.AtStart ? "start" : "end")}";
+            var otherIncoming = string.Join(" + ", portItems.Where(other => other.port != item.port).Select(other => GraphIncoming(voiceName, other.port)));
+            source.AppendLine($"    {reflection} = (2.0 * ({areaExpressions[item.port]}) - ({areaSum})) / max(0.000001, {areaSum});");
+            source.AppendLine($"    {outgoing} = ({reflection} * {incoming} + (1.0 + {reflection}) * ({otherIncoming}) + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {voiceName}_graph_connection_loss_{safeConnection};");
         }
         var energyIn = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphIncoming(voiceName, item.port)}, 2.0)"));
         var energyOut = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphOutgoing(voiceName, item.port)}, 2.0)"));
@@ -1706,22 +1710,21 @@ public static class FaustEmitter
             return false;
         }
 
-        var first = ports[0];
-        var second = ports[1];
-        var firstArea = GraphPortArea(voiceName, first);
-        var secondArea = GraphPortArea(voiceName, second);
-        var firstIncoming = GraphIncoming(voiceName, first);
-        var secondIncoming = GraphIncoming(voiceName, second);
-        var firstOutgoing = GraphOutgoing(voiceName, first);
-        var secondOutgoing = GraphOutgoing(voiceName, second);
-        var areaSum = $"max(0.000001, ({firstArea}) + ({secondArea}))";
-        var pressure = $"{voiceName}_graph_area_pressure_{node.Name}";
+        var left = ports.OrderBy(port => port.Segment.StartPosition).First();
+        var right = ports.OrderByDescending(port => port.Segment.EndPosition).First();
+        var leftArea = GraphPortArea(voiceName, left);
+        var rightArea = GraphPortArea(voiceName, right);
+        var leftIncoming = GraphIncoming(voiceName, left);
+        var rightIncoming = GraphIncoming(voiceName, right);
+        var leftOutgoing = GraphOutgoing(voiceName, left);
+        var rightOutgoing = GraphOutgoing(voiceName, right);
+        var reflection = $"{voiceName}_graph_area_reflection_{node.Name}";
 
-        source.AppendLine($"    {pressure} = 2.0 * (({firstArea}) * {firstIncoming} + ({secondArea}) * {secondIncoming}) / {areaSum};");
-        source.AppendLine($"    {firstOutgoing} = {pressure} - {firstIncoming} + ({sourceInjection}) / 2;");
-        source.AppendLine($"    {secondOutgoing} = {pressure} - {secondIncoming} + ({sourceInjection}) / 2;");
-        var energyIn = $"({firstArea}) * pow({firstIncoming}, 2.0) + ({secondArea}) * pow({secondIncoming}, 2.0)";
-        var energyOut = $"({firstArea}) * pow({firstOutgoing}, 2.0) + ({secondArea}) * pow({secondOutgoing}, 2.0)";
+        source.AppendLine($"    {reflection} = (({leftArea}) - ({rightArea})) / max(0.000001, ({leftArea}) + ({rightArea}));");
+        source.AppendLine($"    {rightOutgoing} = {leftIncoming} - {reflection} * ({leftIncoming} + {rightIncoming}) + ({sourceInjection}) / 2;");
+        source.AppendLine($"    {leftOutgoing} = {rightIncoming} + {reflection} * ({leftIncoming} + {rightIncoming}) + ({sourceInjection}) / 2;");
+        var energyIn = $"({leftArea}) * pow({leftIncoming}, 2.0) + ({rightArea}) * pow({rightIncoming}, 2.0)";
+        var energyOut = $"({leftArea}) * pow({leftOutgoing}, 2.0) + ({rightArea}) * pow({rightOutgoing}, 2.0)";
         source.AppendLine($"    {voiceName}_graph_area_energy_in_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/area/{node.Name}/energy_in", energyIn, 0, 4)};");
         source.AppendLine($"    {voiceName}_graph_area_energy_out_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/area/{node.Name}/energy_out", energyOut, 0, 4)};");
         debugProbeKeepAlive.Add($"{voiceName}_graph_area_energy_in_{node.Name}");

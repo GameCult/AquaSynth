@@ -182,11 +182,20 @@ the original two-port same-path area law was passive while still carrying the
 wrong pressure relation for unequal areas. It could conserve a local energy
 proxy and still phase-mangle the tract.
 
-Same-path two-port area discontinuities now use the same pressure-continuity
-shape as the branch law: compute admittance-weighted junction pressure, then
-emit each outgoing wave as `pressure - incoming`. This is a structural fix even
-where PT log-mel worsens, because matching a reference through a sign error is
-not an acoustic model.
+Same-path two-port area discontinuities and three-port nasal/side branches now
+use one wave convention: Kelly-Lochbaum/PT-style traveling-wave scattering over
+area reflection coefficients. The previous pressure-continuity rewrite was a
+mistake because the graph's wave variables were not power-normalized pressure
+variables. It could look locally conservative and still collapse articulation
+into the phone-vibration failure the user heard.
+
+For two-port path nodes the emitted law is now the classic form:
+`r = (A_left - A_right) / (A_left + A_right)`,
+`right_out = left_in - r * (left_in + right_in)`, and
+`left_out = right_in + r * (left_in + right_in)`. Three-port branch nodes use
+the matching multi-port form from PT's nasal junction:
+`r_p = (2 * A_p - sum(A)) / sum(A)` and
+`out_p = r_p * in_p + (1 + r_p) * sum(other inputs)`.
 
 The generated graph clock also now defaults to continuous fractional delay for
 `propagation=graph`. Cell-centered source terminals had doubled the segment
@@ -200,12 +209,12 @@ parity runs slow and collapsed body energy without improving articulation. A
 softer radiation-color experiment was also cut after it worsened `papa`. Those
 lessons belong here, not as dead compensators in the emitter.
 
-The latest pressure-law/fractional-clock evidence is:
+The latest wave-convention/fractional-clock evidence is:
 
 - static PT graph artifact
-  `artifacts/parity/pink-trombone-logmel/20260527T205043576`;
+  `artifacts/parity/pink-trombone-logmel/20260527T223816035`;
 - utterance artifact
-  `artifacts/parity/pink-trombone-utterance-logmel/20260527T205009225`;
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T223931573`;
 - probe artifact
   `artifacts/parity/pink-trombone-graph-probes/20260527T204610846`;
 - plosive source probe artifact
@@ -215,11 +224,13 @@ The remaining audible failure is still speech-band articulation: `mama` and
 `papa` have weak 500-2500 Hz energy and plosive motion, while closure/release
 still lacks a true upstream pressure reservoir. The first `papa` source probe
 showed the lip-adjacent plosive source at only about `0.09` peak while the
-glottal source was about `3.7`. Raising release-reservoir coupling moved that
-plosive source peak to about `0.43`, but the utterance metric barely improved.
-That means the release now exists at the source layer; the next failure is how
-that stored pressure is shaped by source impedance, constriction filtering, and
-radiation.
+glottal source was about `3.7`. A temporary release-reservoir boost moved that
+plosive source peak to about `0.43`, but after the wave-convention fix it
+overdrove `papa` and was cut. The next failure is how stored pressure is shaped
+by source impedance, constriction filtering, and radiation. After the
+wave-convention fix, `papa` rose to cosine `0.8828` with near-unity RMS, while
+`thrombosis` still fails because it goes too silent even though speech-band
+ratio is finally present.
 
 The next coherent implementation target is source/boundary coupling, not more
 global gain:
