@@ -214,7 +214,7 @@ question is whether graph-authored PT compatibility can beat the current weak
 
 The parity report now renders the graph lane only. The latest static fixture
 evidence is useful instead of decorative: open/front/nasal/ma/sibilant/closure
-cosine is 0.5870/0.6632/0.6965/0.6598/0.4053/0.6137. The useful levers so far
+cosine is 0.5827/0.6270/0.6342/0.5963/0.4496/0.5749. The useful levers so far
 are source semantics, radiation impedance, terminal-specific admittance,
 frication injection, cutting stale first-frame morphology from generated graph
 paths, and live path-area control at graph sample points.
@@ -262,6 +262,17 @@ while letting frication and release energy follow the articulator. Latest
 accepted utterance graph smoke is `mama` 0.3418, `papa` 0.8318, and
 `thrombosis` 0.4521 under
 `artifacts/parity/pink-trombone-utterance-logmel/20260527T111349174`.
+
+The first listening-led anti-buzz cut changed the glottal source, not the tract
+topology. A direct LF coefficient expression improved some cosine scores but
+overdrove the recursive graph and broke the static open-vowel fixture, so it
+was cut. The kept graph source adds a mild cubic waveshaping component to the
+existing glottal primitive. Latest accepted utterance graph smoke is `mama`
+0.4822, `papa` 0.8602, and `thrombosis` 0.5202 under
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T114901634`. The band
+probe still shows weak 500-1000 Hz vowel-body energy, so this is not the final
+answer to the smartphone-vibration complaint. It only proves source excitation
+was part of the failure; tract scattering/radiation remains the live pressure.
 
 ## Cut Line
 

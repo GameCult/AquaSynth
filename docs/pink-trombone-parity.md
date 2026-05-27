@@ -83,6 +83,9 @@ Current AquaSynth can express:
 - aperture-normalized turbulent source lowering, where sustained jet noise is
   allowed only through a narrow-open constriction and closure release remains
   owned by the transient path;
+- mildly shaped glottal source lowering, which adds harmonic drive to the
+  stable glottal primitive without adopting the unstable direct LF coefficient
+  port as the live graph source;
 - source-port `PositionControl`, which lets a bank of fixed graph terminals
   share one moving source gesture through differentiable runtime weights;
 - graph lowering that splits paths at terminals, injects typed sources, scatters
@@ -165,14 +168,18 @@ Trombone anatomy:
   writes listening WAV/report artifacts under
   `artifacts/parity/pink-trombone-logmel/`, and reports only the graph lane.
 - Latest static graph fixture evidence after cutting the old parity lane:
-  open vowel cosine 0.5870, front vowel 0.6632, nasal 0.6965,
-  bilabial-nasal-ma 0.6598, sibilant 0.4053, closure-release 0.6137.
+  open vowel cosine 0.5827, front vowel 0.6270, nasal 0.6342,
+  bilabial-nasal-ma 0.5963, sibilant 0.4496, closure-release 0.5749.
 - Latest graph utterance smoke evidence:
-  `mama` cosine 0.3418 / RMS 1.0295, `papa` 0.8318 / 0.1806,
-  `thrombosis` 0.4521 / 1.2855 under
-  `artifacts/parity/pink-trombone-utterance-logmel/20260527T111349174`.
+  `mama` cosine 0.4822 / RMS 1.7942, `papa` 0.8602 / 0.4354,
+  `thrombosis` 0.5202 / 1.6360 under
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T114901634`.
   This is still not final speech parity; it is the first honest graph-only
   moving-utterance rung.
+- Listening pressure remains active: the latest band probe still shows too much
+  80-200 Hz energy and too little 500-1000 Hz vowel body on `mama`/`papa`.
+  Source shaping helped, but the next architectural owner must be tract
+  scattering/radiation body, not another source-only compensator.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
   knob-twiddling through a small WebAudio witness.
 - `PinkTromboneReferenceDeclaresMissingWaveguideAuthority` prevents graph
@@ -191,9 +198,9 @@ of these:
 1. Improve graph source/radiation impedance normalization so source injection
    and radiation read/write pressure through path admittance rather than raw
    per-node gain.
-2. Improve plosive timing and source position distribution for moving
-   constrictions; a single compile-time source terminal is still too crude for
-   gestures that move along the tract.
+2. Give ordinary path discontinuities a correct formant-producing scattering
+   owner. A naive midpoint admittance scatter was tested and cut because it
+   collapsed `mama`; the live graph still needs the right tube impedance law.
 3. Use the log-mel artifact loop to golf `mama`, `papa`, and `thrombosis`
    against the source-ported PT renderer without reintroducing a parallel
    PT-shaped backend.

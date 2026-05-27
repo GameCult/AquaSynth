@@ -812,7 +812,7 @@ public static class FaustEmitter
         return port.Kind switch
         {
             AcousticSourceKind.Glottal =>
-                $"((select2({phase} < (0.42 + clip01({opening}) * 0.36), -0.28 * sin(ma.PI * ({phase} - (0.42 + clip01({opening}) * 0.36)) / max(0.001, 1.0 - (0.42 + clip01({opening}) * 0.36))), sin(ma.PI * {phase} / max(0.001, 0.42 + clip01({opening}) * 0.36))) - (0.12 + {tension} * 0.62) * sin(4.0 * ma.PI * {phase}) + 0.18 * (sin(2.0 * ma.PI * {phase}) - {tension} * 0.35 * sin(4.0 * ma.PI * {phase}))) * {pressure} * (0.45 + 0.75 * pow(max(0.0, {tension}), 0.35)) + no.noise * {noise} * {pressure} * (1.0 - sqrt(max(0.0, {tension})))) * {balance}",
+                $"{GlottalSourceExpression(phase, tension, opening, pressure, noise, balance)}",
             AcousticSourceKind.Labial =>
                 $"((sin(2.0 * ma.PI * {phase}) - {tension} * 0.35 * sin(4.0 * ma.PI * {phase})) * {pressure} * {opening} + no.noise * {noise} * {pressure} * (1.0 - {tension})) * {balance}",
             AcousticSourceKind.Reed =>
@@ -826,6 +826,22 @@ public static class FaustEmitter
             _ => "0.0"
         };
     }
+
+    private static string GlottalSourceExpression(
+        string phase,
+        string tension,
+        string opening,
+        string pressure,
+        string noise,
+        string balance)
+    {
+        var legacy = LegacyGlottalExpression(phase, tension, opening);
+        var shaped = $"(({legacy}) + 1.4 * ({legacy}) * ({legacy}) * ({legacy}))";
+        return $"(({shaped}) * {pressure} * 0.68 + no.noise * {noise} * {pressure} * (1.0 - sqrt(max(0.0, {tension})))) * {balance}";
+    }
+
+    private static string LegacyGlottalExpression(string phase, string tension, string opening) =>
+        $"(select2({phase} < (0.42 + clip01({opening}) * 0.36), -0.28 * sin(ma.PI * ({phase} - (0.42 + clip01({opening}) * 0.36)) / max(0.001, 1.0 - (0.42 + clip01({opening}) * 0.36))), sin(ma.PI * {phase} / max(0.001, 0.42 + clip01({opening}) * 0.36))) - (0.12 + {tension} * 0.62) * sin(4.0 * ma.PI * {phase}) + 0.18 * (sin(2.0 * ma.PI * {phase}) - {tension} * 0.35 * sin(4.0 * ma.PI * {phase}))) * (0.45 + 0.75 * pow(max(0.0, {tension}), 0.35))";
 
     private static string SourcePositionWeightExpression(
         AcousticSourcePort port,
