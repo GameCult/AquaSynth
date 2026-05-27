@@ -80,6 +80,9 @@ Current AquaSynth can express:
   and lip gestures into live diameter/area expressions at graph sample points;
 - source-port `transient` control for graph-native release bursts on turbulent
   or click-like sources;
+- aperture-normalized turbulent source lowering, where sustained jet noise is
+  allowed only through a narrow-open constriction and closure release remains
+  owned by the transient path;
 - graph lowering that splits paths at terminals, injects typed sources, scatters
   connection groups, and radiates from typed terminal ports;
 - oscillator/noise sources;
@@ -158,11 +161,11 @@ Trombone anatomy:
   `artifacts/parity/pink-trombone-logmel/`, and reports only the graph lane.
 - Latest static graph fixture evidence after cutting the old parity lane:
   open vowel cosine 0.6252, front vowel 0.6576, nasal 0.6893,
-  bilabial-nasal-ma 0.6550, sibilant 0.4166, closure-release 0.5554.
+  bilabial-nasal-ma 0.6550, sibilant 0.4389, closure-release 0.5993.
 - Latest graph utterance smoke evidence:
-  `mama` cosine 0.3354 / RMS 1.0698, `papa` 0.8162 / 0.1815,
-  `thrombosis` 0.3584 / 1.9499 under
-  `artifacts/parity/pink-trombone-utterance-logmel/20260526T232106458`.
+  `mama` cosine 0.3339 / RMS 1.0698, `papa` 0.8320 / 0.1806,
+  `thrombosis` 0.3957 / 1.6144 under
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T110608640`.
   This is still not final speech parity; it is the first honest graph-only
   moving-utterance rung.
 - `tools/vocal-tract-playground` exposes the same control surface for fast
@@ -180,10 +183,12 @@ sound like an actual mouth.
 Do not add another formant workaround. The next coherent implementation is one
 of these:
 
-1. Give plosive/closure release a graph-native transient owner instead of
-   smearing burst pressure through the turbulence port.
-2. Improve graph source/radiation level normalization so `papa` is not
-   under-driven while `thrombosis` is hot.
+1. Improve graph source/radiation impedance normalization so source injection
+   and radiation read/write pressure through path admittance rather than raw
+   per-node gain.
+2. Improve plosive timing and source position distribution for moving
+   constrictions; a single compile-time source terminal is still too crude for
+   gestures that move along the tract.
 3. Use the log-mel artifact loop to golf `mama`, `papa`, and `thrombosis`
    against the source-ported PT renderer without reintroducing a parallel
    PT-shaped backend.

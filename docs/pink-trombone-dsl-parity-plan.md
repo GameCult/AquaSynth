@@ -214,7 +214,7 @@ question is whether graph-authored PT compatibility can beat the current weak
 
 The parity report now renders the graph lane only. The latest static fixture
 evidence is useful instead of decorative: open/front/nasal/ma/sibilant/closure
-cosine is 0.6252/0.6576/0.6893/0.6550/0.4166/0.5554. The useful levers so far
+cosine is 0.6252/0.6576/0.6893/0.6550/0.4389/0.5993. The useful levers so far
 are source semantics, radiation impedance, terminal-specific admittance,
 frication injection, cutting stale first-frame morphology from generated graph
 paths, and live path-area control at graph sample points.
@@ -245,6 +245,14 @@ by a transient control. They now use `max(turbulence, burst)` as pressure while
 keeping turbulence as the noise amount. This only nudges the current sibilant
 fixture (0.2302 cosine), but the primitive semantics are cleaner: turbulence
 owns continuous noisy pressure, burst owns transient pressure.
+
+The graph source law now separates sustained aperture noise from closure
+release. `AcousticSourcePort.Transient` owns release energy, while sustained
+`TurbulenceJet` noise is gated by the intersection of the old upper constriction
+cap and a narrow-open aperture window. Closed constrictions no longer hiss just
+because they are closed. Latest accepted utterance graph smoke is `mama` 0.3339,
+`papa` 0.8320, and `thrombosis` 0.3957 under
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T110608640`.
 
 ## Cut Line
 

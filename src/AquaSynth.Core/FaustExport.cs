@@ -818,7 +818,7 @@ public static class FaustEmitter
             AcousticSourceKind.Reed =>
                 $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
             AcousticSourceKind.TurbulenceJet =>
-                $"((no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening}))) * {noise} * {pressure} * clip01((0.8 - {opening}) / 0.8) + (no.noise : fi.highpass(1, 450.0)) * {transient} * {pressure} * {release} * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
+                $"((no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening}))) * {noise} * {pressure} * min(clip01((0.8 - {opening}) / 0.8), clip01(8.0 * (0.7 - {opening})) * clip01(30.0 * ({opening} - 0.3))) * 0.62 + (no.noise : fi.highpass(1, 450.0)) * {transient} * {pressure} * {release} * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
             AcousticSourceKind.Click =>
                 $"no.noise * {pressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance}",
             AcousticSourceKind.Synthetic =>
