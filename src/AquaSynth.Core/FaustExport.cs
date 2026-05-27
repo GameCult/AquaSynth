@@ -664,7 +664,7 @@ public static class FaustEmitter
             source.AppendLine($"{name}_graph_connection_coupling_{SafeIdentifier(connection.Name)} = clip01({parameters.Expression(OwnerField(connectionPath, "coupling"), connection.Coupling)});");
             source.AppendLine($"{name}_graph_connection_loss_{SafeIdentifier(connection.Name)} = clip01({parameters.Expression(OwnerField(connectionPath, "loss"), connection.Loss)});");
         }
-        source.AppendLine($"{name}_graph_radiation_gain = 3.0;");
+        source.AppendLine($"{name}_graph_radiation_gain = 4.0;");
 
         foreach (var sourceName in network.SourcePorts)
         {

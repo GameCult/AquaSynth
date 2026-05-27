@@ -24,11 +24,14 @@ Current slice:
   severe constrictions and nasal/oral branch coupling, not more output color.
 - Added a small higher-harmonic brightness term to the reusable glottal source.
   Utterance smoke passed under
-  `artifacts/parity/pink-trombone-utterance-logmel/20260527T123628148`:
-  `mama` `0.5705`, `papa` `0.8622`, `thrombosis` `0.4355`.
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T123628148`.
+  Post-flow radiation gain was then recalibrated from `3.0` to `4.0`; `4.5`
+  was tested and rejected as too close to static soft-clip pressure.
+  Latest utterance artifact:
+  `artifacts/parity/pink-trombone-utterance-logmel/20260527T124230804`;
+  `mama` `0.5712`, `papa` `0.8659`, `thrombosis` `0.4379`.
   Static smoke passed under
-  `artifacts/parity/pink-trombone-logmel/20260527T123734700` and stayed close
-  to the radiation checkpoint.
+  `artifacts/parity/pink-trombone-logmel/20260527T124311305`.
 
 - Added time-varying Pink Trombone utterance reference fixtures before any Aqua
   utterance metric golf. `PinkTromboneReferenceRenderer.RenderUtterance`

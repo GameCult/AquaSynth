@@ -301,11 +301,14 @@ at pressure storage/release around severe constrictions and better nasal/oral
 coupling, not another output color patch.
 
 A small glottal-brightness pass then added higher modal harmonics to the
-reusable glottal source rather than adding a PT-only exciter. Latest accepted
-utterance smoke is `mama` 0.5705, `papa` 0.8622, and `thrombosis` 0.4355 under
-`artifacts/parity/pink-trombone-utterance-logmel/20260527T123628148`; static
-smoke remains stable under
-`artifacts/parity/pink-trombone-logmel/20260527T123734700`. This helps the
+reusable glottal source rather than adding a PT-only exciter. The post-flow
+radiation normalization now uses `4.0`, a middle point that improves utterance
+RMS without pushing static closure into the soft-clip guardrail. Latest
+accepted utterance smoke is `mama` 0.5712, `papa` 0.8659, and `thrombosis`
+0.4379 under
+`artifacts/parity/pink-trombone-utterance-logmel/20260527T124230804`; static
+smoke remains passing under
+`artifacts/parity/pink-trombone-logmel/20260527T124311305`. This helps the
 voiced fixtures a little, but it is not the missing articulation mechanism.
 
 ## Cut Line
