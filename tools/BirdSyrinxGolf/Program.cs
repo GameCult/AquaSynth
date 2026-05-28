@@ -226,23 +226,46 @@ static string SyrinxScript(SyrinxCandidate candidate, float durationSeconds) =>
     $$"""
     patch gain=0.42 soft_clip=true
 
+    param path=/bird/left/pressure default={{F(candidate.Pressure)}} min=0 max=1 step=.001
+    param path=/bird/right/pressure default={{F(candidate.RightPressure)}} min=0 max=1 step=.001
+    param path=/bird/left/opening default={{F(candidate.Opening)}} min=0 max=1 step=.001
+    param path=/bird/right/opening default={{F(candidate.RightOpening)}} min=0 max=1 step=.001
+    param path=/bird/beak/opening default={{F(candidate.BeakOpening)}} min=0 max=1.5 step=.001
+    curve name=left_pressure path=/bird/left/pressure points={{PressureCurve(candidate.Pressure, durationSeconds)}} depth=1
+    curve name=right_pressure path=/bird/right/pressure points={{PressureCurve(candidate.RightPressure, durationSeconds)}} depth=1
+    curve name=left_opening path=/bird/left/opening points={{OpeningCurve(candidate.Opening, durationSeconds)}} depth=.9
+    curve name=right_opening path=/bird/right/opening points={{OpeningCurve(candidate.RightOpening, durationSeconds)}} depth=.9
+    curve name=beak_opening path=/bird/beak/opening points={{BeakCurve(candidate.BeakOpening, durationSeconds)}} depth=.65
+
     path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
     path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
     path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
 
-    source_port name=left_labium path=left_bronchus kind=syrinx model=tissue_valve position=0 pressure={{F(candidate.Pressure)}} tension={{F(candidate.Tension)}} opening={{F(candidate.Opening)}} noise=.025 impedance={{F(candidate.Load)}} mass={{F(candidate.Mass)}} damping={{F(candidate.Damping)}} stiffness={{F(candidate.Stiffness)}} saturation=.9 drive={{F(candidate.Drive)}} load_coupling={{F(candidate.LoadCoupling)}} rest_opening={{F(candidate.RestOpening)}}
-    source_port name=right_labium path=right_bronchus kind=syrinx model=tissue_valve position=0 pressure={{F(candidate.RightPressure)}} tension={{F(candidate.RightTension)}} opening={{F(candidate.RightOpening)}} noise=.02 balance=.96 impedance={{F(candidate.Load)}} mass={{F(candidate.RightMass)}} damping={{F(candidate.RightDamping)}} stiffness={{F(candidate.RightStiffness)}} saturation=.9 drive={{F(candidate.RightDrive)}} load_coupling={{F(candidate.LoadCoupling)}} rest_opening={{F(candidate.RestOpening)}}
+    source_port name=left_labium path=left_bronchus kind=syrinx model=tissue_valve position=0 pressure=@/bird/left/pressure tension={{F(candidate.Tension)}} opening=@/bird/left/opening noise=.025 impedance={{F(candidate.Load)}} mass={{F(candidate.Mass)}} damping={{F(candidate.Damping)}} stiffness={{F(candidate.Stiffness)}} saturation=.9 drive={{F(candidate.Drive)}} load_coupling={{F(candidate.LoadCoupling)}} rest_opening={{F(candidate.RestOpening)}}
+    source_port name=right_labium path=right_bronchus kind=syrinx model=tissue_valve position=0 pressure=@/bird/right/pressure tension={{F(candidate.RightTension)}} opening=@/bird/right/opening noise=.02 balance=.96 impedance={{F(candidate.Load)}} mass={{F(candidate.RightMass)}} damping={{F(candidate.RightDamping)}} stiffness={{F(candidate.RightStiffness)}} saturation=.9 drive={{F(candidate.RightDrive)}} load_coupling={{F(candidate.LoadCoupling)}} rest_opening={{F(candidate.RestOpening)}}
 
     terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
     terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1
     terminal name=trachea_base path=trachea position=0 kind=junction area_scale=1
     connect name=syrinx_merge terminals=left_merge,right_merge,trachea_base law=area_scatter coupling=1
 
-    radiation_port name=beak path=trachea kind=beak position=1 opening={{F(candidate.BeakOpening)}} reflection=-.72
+    radiation_port name=beak path=trachea kind=beak position=1 opening=@/bird/beak/opening reflection=-.72
     wave_clock name=bird_clock strategy=linear max_delay=1024 smoothing_ms=2
     acoustic_network name=bird_syrinx path=trachea wave_clock=bird_clock sources=left_labium,right_labium radiation=beak terminals=left_merge,right_merge,trachea_base connections=syrinx_merge
     acoustic network=bird_syrinx freq={{F(candidate.Frequency)}} gain={{F(candidate.Gain)}} sustain={{F(Math.Max(0.05f, durationSeconds - 0.12f))}} decay=.08
     """;
+
+static string PressureCurve(float value, float durationSeconds) =>
+    Curve((0, MathF.Max(0.01f, value * 0.08f)), (0.035f, value), (durationSeconds * 0.55f, value * 0.94f), (durationSeconds, value * 0.35f));
+
+static string OpeningCurve(float value, float durationSeconds) =>
+    Curve((0, MathF.Max(0.01f, value * 0.15f)), (0.03f, value), (durationSeconds * 0.65f, value * 0.86f), (durationSeconds, MathF.Max(0.01f, value * 0.20f)));
+
+static string BeakCurve(float value, float durationSeconds) =>
+    Curve((0, value * 0.45f), (0.05f, value), (durationSeconds * 0.72f, Math.Min(1.5f, value * 1.08f)), (durationSeconds, value * 0.55f));
+
+static string Curve(params (float Time, float Value)[] points) =>
+    string.Join(",", points.Select(point => $"{F(Math.Max(0, point.Time))}:{F(Math.Max(0, point.Value))}"));
 
 static string Report(BirdSource source, string downloadedFrom, ReferenceFeatures features, CandidateResult best) =>
     $"""

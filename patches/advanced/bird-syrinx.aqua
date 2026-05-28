@@ -21,6 +21,12 @@ param path=/bird/right/rest_opening default=.025 min=0 max=1 step=.001
 param path=/bird/load default=.85 min=0 max=2 step=.001
 param path=/bird/beak/opening default=.95 min=0 max=1.5 step=.001
 
+curve name=left_pressure path=/bird/left/pressure points=0:.08,.035:.82,.32:.88,.78:.74,1.08:.38 depth=1
+curve name=right_pressure path=/bird/right/pressure points=0:.04,.04:.68,.28:.74,.72:.62,1.08:.28 depth=1
+curve name=left_opening path=/bird/left/opening points=0:.02,.03:.24,.76:.20,1.08:.04 depth=.85
+curve name=right_opening path=/bird/right/opening points=0:.02,.035:.21,.70:.18,1.08:.04 depth=.85
+curve name=beak_opening path=/bird/beak/opening points=0:.35,.06:.92,.82:1.05,1.08:.55 depth=.7
+
 path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
 path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
 path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46

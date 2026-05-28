@@ -32,6 +32,7 @@ public static class PatchScript
         private readonly List<ControlLane> _controls = [];
         private readonly List<OperatorGraph> _operatorGraphs = [];
         private readonly List<PatchParameter> _parameters = [];
+        private readonly List<ControlCurve> _controlCurves = [];
         private readonly List<ParameterBinding> _parameterBindings = [];
         private readonly List<PatchLayer> _layers = [];
         private readonly List<HarmonicBank> _harmonicBanks = [];
@@ -99,6 +100,7 @@ public static class PatchScript
                 OperatorGraphs = _operatorGraphs,
                 Controls = _controls,
                 Parameters = _parameters,
+                ControlCurves = _controlCurves,
                 ParameterBindings = _parameterBindings,
                 Playback = Playback,
                 Repeat = Repeat,
@@ -234,6 +236,10 @@ public static class PatchScript
                 case "param":
                     FlushPendingOperatorGraph();
                     AddParameter(fields, line);
+                    break;
+                case "curve":
+                    FlushPendingOperatorGraph();
+                    AddControlCurve(fields, line);
                     break;
                 case "sfxr":
                     FlushPendingOperatorGraph();
@@ -1764,6 +1770,39 @@ public static class PatchScript
                 GetAny(fields, ["notes", "note"], "")));
         }
 
+        private void AddControlCurve(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var parameterPath = Required(fields, "path", line);
+            if (!parameterPath.StartsWith('/'))
+            {
+                throw new PatchScriptException(line, "control curve path must start with `/`");
+            }
+            if (_parameters.All(parameter => !parameter.Path.Equals(parameterPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new PatchScriptException(line, $"control curve targets unknown parameter `{parameterPath}`");
+            }
+            if (_controlCurves.Any(curve => curve.ParameterPath.Equals(parameterPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new PatchScriptException(line, $"duplicate control curve for `{parameterPath}`");
+            }
+
+            var name = TryGetAny(fields, ["name", "n"], out var nameText)
+                ? nameText
+                : parameterPath.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "curve";
+            var points = ParseControlCurvePoints(RequiredAny(fields, ["points", "pts", "values"], line), line);
+            _controlCurves.Add(new ControlCurve(
+                name,
+                parameterPath,
+                points,
+                ParseControlCurveMode(GetAny(fields, ["mode"], "blend"), line),
+                ParseControlCurveInterpolation(GetAny(fields, ["interp", "interpolation"], "linear"), line),
+                GetFloat(fields, line, 1, "depth", "amount", "mix"),
+                GetFloat(fields, line, 1, "time_scale", "speed"),
+                GetFloat(fields, line, 0, "offset", "time_offset"),
+                TryGetAny(fields, ["loop"], out var loop) && ParseBool(loop, line),
+                GetAny(fields, ["rate", "automation", "automation_rate"], "control")));
+        }
+
         private float GetBoundFloat(
             IReadOnlyDictionary<string, string> fields,
             int line,
@@ -2519,6 +2558,7 @@ public static class PatchScript
         "mod" or "wob" or "wobble" or "bus" => "mod",
         "lfo" or "control" => "control",
         "param" or "parameter" => "param",
+        "curve" or "control_curve" or "automation" or "gesture" => "curve",
         "s" or "sfxr" => "sfxr",
         _ => command
     };
@@ -2693,6 +2733,55 @@ public static class PatchScript
         string.IsNullOrWhiteSpace(value)
             ? Array.Empty<string>()
             : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static IReadOnlyList<ControlCurvePoint> ParseControlCurvePoints(string value, int line)
+    {
+        var points = value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part =>
+            {
+                var pieces = part.Split(':', StringSplitOptions.TrimEntries);
+                if (pieces.Length != 2)
+                {
+                    throw new PatchScriptException(line, $"bad control curve point `{part}`");
+                }
+
+                return new ControlCurvePoint(ParseFloat(pieces[0], line), ParseFloat(pieces[1], line));
+            })
+            .OrderBy(point => point.TimeSeconds)
+            .ToArray();
+        if (points.Length == 0)
+        {
+            throw new PatchScriptException(line, "control curve needs at least one point");
+        }
+        if (points[0].TimeSeconds < 0)
+        {
+            throw new PatchScriptException(line, "control curve times must be non-negative");
+        }
+        for (var i = 1; i < points.Length; i++)
+        {
+            if (Math.Abs(points[i].TimeSeconds - points[i - 1].TimeSeconds) < 0.000001f)
+            {
+                throw new PatchScriptException(line, "control curve point times must be unique");
+            }
+        }
+
+        return points;
+    }
+
+    private static ControlCurveMode ParseControlCurveMode(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "blend" or "replace" or "absolute" => ControlCurveMode.Blend,
+        "add" or "offset" or "relative" => ControlCurveMode.Add,
+        _ => throw new PatchScriptException(line, $"unknown control curve mode `{value}`")
+    };
+
+    private static ControlCurveInterpolation ParseControlCurveInterpolation(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "linear" or "lin" => ControlCurveInterpolation.Linear,
+        "hold" or "step" or "sample_hold" => ControlCurveInterpolation.Hold,
+        _ => throw new PatchScriptException(line, $"unknown control curve interpolation `{value}`")
+    };
 
     private static string Required(IReadOnlyDictionary<string, string> fields, string key, int line) =>
         fields.TryGetValue(key, out var value) ? value : throw new PatchScriptException(line, $"missing `{key}`");

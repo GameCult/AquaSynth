@@ -509,6 +509,35 @@ public sealed record PatchParameter(
     string AutomationRate = "control",
     string Notes = "");
 
+public enum ControlCurveMode
+{
+    Blend,
+    Add
+}
+
+public enum ControlCurveInterpolation
+{
+    Linear,
+    Hold
+}
+
+public sealed record ControlCurvePoint(float TimeSeconds, float Value);
+
+public sealed record ControlCurve(
+    string Name,
+    string ParameterPath,
+    IReadOnlyList<ControlCurvePoint> Points,
+    ControlCurveMode Mode = ControlCurveMode.Blend,
+    ControlCurveInterpolation Interpolation = ControlCurveInterpolation.Linear,
+    float Depth = 1,
+    float TimeScale = 1,
+    float TimeOffsetSeconds = 0,
+    bool Loop = false,
+    string AutomationRate = "control")
+{
+    public IReadOnlyList<ControlCurvePoint> Points { get; init; } = Points ?? Array.Empty<ControlCurvePoint>();
+}
+
 public enum ParameterBindingTransform
 {
     Identity,
@@ -696,6 +725,7 @@ public sealed record SynthPatch
     public IReadOnlyList<OperatorGraph> OperatorGraphs { get; init; } = Array.Empty<OperatorGraph>();
     public IReadOnlyList<ControlLane> Controls { get; init; } = Array.Empty<ControlLane>();
     public IReadOnlyList<PatchParameter> Parameters { get; init; } = Array.Empty<PatchParameter>();
+    public IReadOnlyList<ControlCurve> ControlCurves { get; init; } = Array.Empty<ControlCurve>();
     public IReadOnlyList<ParameterBinding> ParameterBindings { get; init; } = Array.Empty<ParameterBinding>();
     public Playback Playback { get; init; } = new();
     public Repeat? Repeat { get; init; }

@@ -58,7 +58,7 @@ Deletion line: any future `kind=syrinx` lowering that cannot be explained as pre
 
 ## Recommended Next Build Slice
 
-1. Add general arbitrary-path control curves for acoustic source/radiation fields, especially pressure, tension, opening, left/right balance, and beak opening.
+1. Extend control curves from single-parameter authored gestures into reusable gesture sets that can be fitted, stored, and driven by learned controllers.
 2. Move glottal graph lowering onto `model=tissue_valve` defaults once the syrinx valve has enough listening evidence.
 3. Fit clean bird references by segmented time-varying controls, keeping morphology parameters slower and gesture parameters faster.
 4. Score onset timing, amplitude envelope, pitch contour, sidebands/subharmonics, and log-mel distance separately.

@@ -111,8 +111,62 @@ public static class FaustEmitter
         for (var i = 0; i < patch.Parameters.Count; i++)
         {
             var parameter = patch.Parameters[i];
-            source.AppendLine($"{ParameterIdentifier(i)} = hslider(\"{Escape(parameter.Path)}\", {F(parameter.Default)}, {F(parameter.Min)}, {F(parameter.Max)}, {F(parameter.Step)}) : si.smoo;");
+            var parameterId = ParameterIdentifier(i);
+            var curve = patch.ControlCurves.FirstOrDefault(candidate => candidate.ParameterPath.Equals(parameter.Path, StringComparison.OrdinalIgnoreCase));
+            if (curve is null)
+            {
+                source.AppendLine($"{parameterId} = hslider(\"{Escape(parameter.Path)}\", {F(parameter.Default)}, {F(parameter.Min)}, {F(parameter.Max)}, {F(parameter.Step)}) : si.smoo;");
+                continue;
+            }
+
+            var baseId = $"{parameterId}_base";
+            var curveId = $"{parameterId}_curve";
+            var depthId = $"{parameterId}_curve_depth";
+            source.AppendLine($"{baseId} = hslider(\"{Escape(parameter.Path)}\", {F(parameter.Default)}, {F(parameter.Min)}, {F(parameter.Max)}, {F(parameter.Step)}) : si.smoo;");
+            EmitControlCurve(source, curve, parameter, curveId);
+            source.AppendLine($"{depthId} = hslider(\"/curves/{Escape(curve.Name)}/depth\", {F(Math.Clamp(curve.Depth, 0, 1))}, 0, 1, 0.001) : si.smoo;");
+            var blended = curve.Mode == ControlCurveMode.Add
+                ? $"{baseId} + ({curveId}_value - {F(parameter.Default)}) * {depthId}"
+                : $"{baseId} * (1.0 - {depthId}) + {curveId}_value * {depthId}";
+            source.AppendLine($"{parameterId} = min({F(parameter.Max)}, max({F(parameter.Min)}, {blended}));");
         }
+    }
+
+    private static void EmitControlCurve(StringBuilder source, ControlCurve curve, PatchParameter parameter, string curveId)
+    {
+        var points = curve.Points
+            .OrderBy(point => point.TimeSeconds)
+            .ToArray();
+        var lastTime = Math.Max(points[^1].TimeSeconds, 0.0001f);
+        var scaledTime = $"max(0.0, age * {F(curve.TimeScale)} - {F(curve.TimeOffsetSeconds)})";
+        var curveTime = curve.Loop && points.Length > 1
+            ? $"wrap01(({scaledTime}) / {F(lastTime)}) * {F(lastTime)}"
+            : scaledTime;
+        source.AppendLine($"{curveId}_time = {curveTime};");
+        source.AppendLine($"{curveId}_value = {ControlCurveValueExpression(curveId, points, curve.Interpolation, parameter.Default)};");
+    }
+
+    private static string ControlCurveValueExpression(
+        string curveId,
+        IReadOnlyList<ControlCurvePoint> points,
+        ControlCurveInterpolation interpolation,
+        float fallback)
+    {
+        if (points.Count == 0) return F(fallback);
+        if (points.Count == 1) return F(points[0].Value);
+
+        var expression = F(points[^1].Value);
+        for (var i = points.Count - 2; i >= 0; i--)
+        {
+            var from = points[i];
+            var to = points[i + 1];
+            var segment = interpolation == ControlCurveInterpolation.Hold
+                ? F(from.Value)
+                : $"seg({curveId}_time, {F(from.TimeSeconds)}, {F(Math.Max(0.0001f, to.TimeSeconds - from.TimeSeconds))}, {F(from.Value)}, {F(to.Value)})";
+            expression = $"select2({curveId}_time < {F(to.TimeSeconds)}, {expression}, {segment})";
+        }
+
+        return expression;
     }
 
     private static string FaustOptions(Playback playback)

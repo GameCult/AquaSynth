@@ -174,12 +174,18 @@ valves feeding an acoustic graph; a larynx is one such valve feeding a tract.
 Different species should change morphology and gestures, not add hidden source
 renderers.
 
+General control curves are a parameter-layer primitive. They target stable
+`param path=` values, not random downstream fields, so authored gestures,
+realtime host control, and learned controllers share one authority. Faust
+lowering keeps the realtime hslider as the base value and emits a separate
+curve-depth hslider, allowing the host to ride, reduce, or disable the authored
+gesture without recompiling. Downstream field bindings still read the same
+`patch_param_N` expression.
+
 The current bird-golf tool extracts reference envelope, dominant pitch,
 onset/offset, active-duty, and flux features, then maps those into tissue-valve
-candidate parameters. It does not yet express arbitrary time-varying source
-gestures through the DSL. That missing automation surface is the next coherent
-language feature: general control curves must target stable field paths such as
-`/acoustic/sources/0/pressure`, not a bird-shaped side channel.
+candidate parameters plus pressure/opening/beak curves. This is still a first
+gesture surface, not a full motor planner.
 
 The current speech-learning lane adds a trainable surface above that boundary:
 structured utterance metadata lowers into an utterance embedding, then into a

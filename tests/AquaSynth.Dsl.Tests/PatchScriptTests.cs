@@ -569,6 +569,35 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsRealtimeBlendableControlCurvesOnParameters()
+    {
+        var patch = PatchScript.Parse("""
+            param path=/bird/left/pressure default=.2 min=0 max=1 step=.001 rate=audio
+            curve name=left_pressure path=/bird/left/pressure points=0:.05,.08:.9,.24:.35 mode=blend depth=.8 loop=true rate=audio
+            path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
+            path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
+            source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure=@/bird/left/pressure opening=.2 tension=.4
+            terminal name=left_merge path=left_bronchus position=1 kind=junction
+            terminal name=trachea_base path=trachea position=0 kind=junction
+            connect name=merge terminals=left_merge,trachea_base
+            radiation_port name=beak path=trachea kind=beak position=1 opening=.9
+            acoustic_network name=bird path=trachea sources=left_labium radiation=beak terminals=left_merge,trachea_base connections=merge
+            acoustic network=bird freq=1200
+            """);
+
+        var curve = Assert.Single(patch.ControlCurves);
+        Assert.Equal("left_pressure", curve.Name);
+        Assert.Equal("/bird/left/pressure", curve.ParameterPath);
+        Assert.Equal(ControlCurveMode.Blend, curve.Mode);
+        Assert.Equal(ControlCurveInterpolation.Linear, curve.Interpolation);
+        Assert.Equal(.8f, curve.Depth, 5);
+        Assert.True(curve.Loop);
+        Assert.Equal("audio", curve.AutomationRate);
+        Assert.Equal([0f, .08f, .24f], curve.Points.Select(point => point.TimeSeconds).ToArray());
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/pressure");
+    }
+
+    [Fact]
     public void ParserRejectsUnknownParameterReferences()
     {
         var exception = Assert.Throws<PatchScriptException>(() =>
@@ -1254,6 +1283,31 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void FaustEmitterKeepsControlCurveParametersRealtimeDrivable()
+    {
+        var export = FaustEmitter.EmitScript("""
+            param path=/bird/left/pressure default=.2 min=0 max=1 step=.001
+            curve name=left_pressure path=/bird/left/pressure points=0:.05,.08:.9,.24:.35 mode=blend depth=.8 loop=true
+            path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
+            path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
+            source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure=@/bird/left/pressure opening=.2 tension=.4
+            terminal name=left_merge path=left_bronchus position=1 kind=junction
+            terminal name=trachea_base path=trachea position=0 kind=junction
+            connect name=merge terminals=left_merge,trachea_base
+            radiation_port name=beak path=trachea kind=beak position=1 opening=.9
+            acoustic_network name=bird path=trachea sources=left_labium radiation=beak terminals=left_merge,trachea_base connections=merge
+            acoustic network=bird freq=1200
+            """, new FaustExportOptions("curve_voice"));
+
+        Assert.Contains("patch_param_0_base = hslider(\"/bird/left/pressure\", 0.2, 0, 1, 0.001) : si.smoo;", export.Source);
+        Assert.Contains("patch_param_0_curve_depth = hslider(\"/curves/left_pressure/depth\", 0.8, 0, 1, 0.001) : si.smoo;", export.Source);
+        Assert.Contains("patch_param_0_curve_time = wrap01((max(0.0, age * 1 - 0)) / 0.24) * 0.24;", export.Source);
+        Assert.Contains("patch_param_0 = min(1, max(0, patch_param_0_base * (1.0 - patch_param_0_curve_depth) + patch_param_0_curve_value * patch_param_0_curve_depth));", export.Source);
+        Assert.Contains("clip01(patch_param_0)", export.Source);
+        Assert.Empty(export.Warnings);
+    }
+
+    [Fact]
     public void VoiceLowPassOrderSelectsFaustFilterOrder()
     {
         var patch = PatchScript.Parse("v w=saw f=80 lpf=.1 lpf_order=2");
@@ -1352,6 +1406,24 @@ public sealed class PatchScriptTests
     public async Task FaustCompilerValidatesParameterizedPatchWhenInstalled()
     {
         var export = FaustEmitter.EmitScript("param path=/macro/brightness default=.45 min=0 max=1 step=.001;v w=saw f=80 lpf=@/macro/brightness");
+        var validation = await FaustCompiler.ValidateAsync(export.Source);
+
+        if (validation is null)
+        {
+            return;
+        }
+
+        Assert.True(validation.Success, validation.Stderr);
+    }
+
+    [Fact]
+    public async Task FaustCompilerValidatesControlCurvePatchWhenInstalled()
+    {
+        var export = FaustEmitter.EmitScript("""
+            param path=/macro/brightness default=.2 min=0 max=1 step=.001
+            curve name=brightness_gesture path=/macro/brightness points=0:.1,.05:.8,.2:.25 mode=blend depth=.75 loop=true
+            v w=saw f=80 lpf=@/macro/brightness sustain=.15
+            """);
         var validation = await FaustCompiler.ValidateAsync(export.Source);
 
         if (validation is null)
