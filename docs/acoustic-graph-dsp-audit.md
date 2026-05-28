@@ -423,3 +423,24 @@ The next change can now target the reservoir/source-impedance law directly.
 The remaining bad smell is not that the source code is unreadable; it is that
 the model still has only a source-local reservoir instead of a contact-aware
 upstream/downstream pressure state.
+
+## 2026-05-28 Reservoir Charging Sign
+
+The source-local closure reservoir now charges from positive local pressure
+only:
+
+`max(0, incident_pressure) * closure`
+
+The previous `abs(incident_pressure) * closure` let alternating buzzer pressure
+charge a plosive reservoir equally in both phases. That is not pressure storage;
+it is rectified vibration. The new law is more physical, but current parity
+metrics did not move:
+
+- utterance artifact
+  `artifacts/parity/pink-trombone-utterance-logmel/20260528T114903720`;
+- static artifact
+  `artifacts/parity/pink-trombone-logmel/20260528T114953503`.
+
+Keep the sign fix. The non-result strengthens the diagnosis: the real missing
+primitive is still a contact-aware upstream/downstream closure state, not a
+source-local scalar reservoir.

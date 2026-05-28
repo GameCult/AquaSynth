@@ -1841,7 +1841,7 @@ public static class FaustEmitter
 
         source.AppendLine($"    {prefix}_closure = clip01((0.12 - ({opening})) / 0.12);");
         source.AppendLine($"    {prefix}_release = (max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.995));");
-        source.AppendLine($"    {prefix}_reservoir = (abs({localPressure}) * {prefix}_closure) : + ~ *(0.992);");
+        source.AppendLine($"    {prefix}_reservoir = (max(0.0, {localPressure}) * {prefix}_closure) : + ~ *(0.992);");
         source.AppendLine($"    {prefix}_pressure_drive = 0.50 + 1.50 * clip01(abs({localPressure}));");
         source.AppendLine($"    {prefix}_release_pressure = 0.20 + 2.80 * clip01({prefix}_reservoir);");
         source.AppendLine($"    {prefix}_noise_gate = min(clip01((0.85 - ({opening})) / 0.85), clip01(25.0 * (({opening}) - 0.04)));");
