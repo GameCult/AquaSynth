@@ -20,13 +20,14 @@ area_curve name=oral_vowel length_cm=17 diameters=.55,.72,1.05,1.45,1.58,1.30,.8
 path name=trachea area_curve=tracheal_tube loss=.998 loss_model=viscous
 path name=oral area_curve=oral_vowel loss=.997 loss_model=birkholz_2024 tongue_index=@/human/tongue/index tongue_diameter=@/human/tongue/diameter constriction_index=@/human/constriction/index constriction_diameter=@/human/constriction/diameter lip=@/human/lip/opening
 
-source_port name=folds path=trachea kind=glottal law=two_mass position=0 pressure=@/human/subglottal tension=@/human/fold/tension opening=@/human/fold/opening noise=.035 upper_mass=.22 lower_mass=.36 upper_stiffness=.04 lower_stiffness=.06 coupling_stiffness=.09 collision_stiffness=.62 collision_damping=.18 vertical_phase=.24 reservoir_pressure=1 downstream_pressure=.05 load_coupling=.42 rest_opening=.012 drive=1.05
+source_port name=folds path=trachea kind=glottal law=two_mass position=1 pressure=@/human/subglottal tension=@/human/fold/tension opening=@/human/fold/opening noise=.035 upper_mass=.22 lower_mass=.36 upper_stiffness=.04 lower_stiffness=.06 coupling_stiffness=.09 collision_stiffness=.62 collision_damping=.18 vertical_phase=.24 reservoir_pressure=1 downstream_pressure=.05 load_coupling=.42 rest_opening=.012 drive=1.05
 
+terminal name=subglottal_wall path=trachea position=0 kind=closed reflection=.78
 terminal name=trachea_top path=trachea position=1 kind=junction
 terminal name=oral_back path=oral position=0 kind=junction
 connect name=larynx_to_tract terminals=trachea_top,oral_back law=area_scatter coupling=.92
 
 radiation_port name=mouth path=oral kind=lip model=lip_piston position=1 opening=@/human/lip/opening reflection=-.82 loss=.98
 wave_clock name=continuous strategy=linear max_delay=4096 smoothing_ms=3
-acoustic_network name=human_larynx path=oral wave_clock=continuous sources=folds radiation=mouth terminals=trachea_top,oral_back connections=larynx_to_tract
+acoustic_network name=human_larynx path=oral wave_clock=continuous sources=folds radiation=mouth terminals=subglottal_wall,trachea_top,oral_back connections=larynx_to_tract
 acoustic network=human_larynx freq=145 gain=.18 sustain=1.1 decay=.08

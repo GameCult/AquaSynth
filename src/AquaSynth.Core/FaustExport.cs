@@ -1636,13 +1636,17 @@ public static class FaustEmitter
 
         source.AppendLine($"    {prefix}_stiffness_hint = max(0.00002, min(0.16, pow(2.0 * ma.PI * max(20.0, {frequency}) / ma.SR, 2.0)));");
         source.AppendLine($"    {prefix}_reservoir_pressure = ({pressure}) * ({drive}) * ({reservoirPressure});");
-        source.AppendLine($"    {prefix}_downstream_pressure = ({downstreamPressure}) + ({loadCoupling}) * {prefix}_load_pressure;");
+        source.AppendLine($"    {prefix}_downstream_pressure = ({downstreamPressure}) + ({loadCoupling}) * ma.tanh({prefix}_load_pressure);");
         source.AppendLine($"    {prefix}_pressure_drive = max(0.0, {prefix}_reservoir_pressure - {prefix}_downstream_pressure);");
         source.AppendLine($"    {prefix}_stiffness = max(({stiffness}), {prefix}_stiffness_hint * (0.35 + 1.65 * ({tension})));");
         source.AppendLine($"    {prefix}_modal_frequency = max(45.0, min(5200.0, (ma.SR / (2.0 * ma.PI)) * sqrt(max(0.00002, {prefix}_stiffness) / ({mass}))));");
+        source.AppendLine($"    {prefix}_load_detune = 1.0 - 0.035 * ma.tanh({prefix}_load_pressure * ({loadCoupling}));");
+        source.AppendLine($"    {prefix}_oscillation_gate = clip01(({prefix}_pressure_drive - 0.035 - 0.18 * clip01({opening})) * (2.4 + 2.6 * ({drive})));");
         source.AppendLine($"    {prefix}_modal_q = 3.0 + 24.0 * clip01(({pressure}) * (1.0 - 0.45 * ({damping})) + 0.35 * ({tension}));");
         source.AppendLine($"    {prefix}_modal_seed = (no.noise * 0.018 + {prefix}_pressure_drive * max(0.0, 0.22 - clip01({opening})) * 0.16);");
-        source.AppendLine($"    {prefix}_modal_tissue = {prefix}_modal_seed : fi.resonbp({prefix}_modal_frequency, {prefix}_modal_q, 1);");
+        source.AppendLine($"    {prefix}_modal_ring = {prefix}_modal_seed : fi.resonbp({prefix}_modal_frequency, {prefix}_modal_q, 1);");
+        source.AppendLine($"    {prefix}_modal_oscillator = os.osc({prefix}_modal_frequency * {prefix}_load_detune) * {prefix}_oscillation_gate;");
+        source.AppendLine($"    {prefix}_modal_tissue = ({prefix}_modal_oscillator * (0.70 + 0.80 * ({tension})) + {prefix}_modal_ring * 0.35) * (1.0 - 0.35 * ({damping}));");
         switch (port.Law)
         {
             case AcousticValveLaw.TwoMass:
