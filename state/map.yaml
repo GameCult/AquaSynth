@@ -20,6 +20,7 @@ surfaces:
   utterance_parity_research: docs/utterance-parity-research.md
   pink_trombone_parity: docs/pink-trombone-parity.md
   pink_trombone_dsl_parity_plan: docs/pink-trombone-dsl-parity-plan.md
+  bird_syrinx_golf_research: research/bird-syrinx-golf/README.md
   wet_voice_witness_fixture: tests/AquaSynth.Dsl.Tests/Fixtures/Speech/WetVoice01
   faust_toolchain_boundary: docs/faust-toolchain-boundary.md
   dx7_public_domain_fixtures: tests/AquaSynth.Dsl.Tests/Fixtures/Dx7/PublicDomain
@@ -31,6 +32,7 @@ surfaces:
   zyn_voice_reference_renderer: tools/zyn-reference/ZynVoiceReference.cpp
   vocal_tract_playground: tools/vocal-tract-playground/index.html
   tract_graph_renderer: tools/TractGraphRenderer/TractGraphRenderer.csproj
+  bird_syrinx_golf_tool: tools/BirdSyrinxGolf/BirdSyrinxGolf.csproj
   zyn_reference_build_patches: tools/zyn-reference/patches
   zyn_project_fixtures: tests/AquaSynth.Dsl.Tests/Fixtures/ZynAddSubFX/ProjectAuthored
   core_package: AquaSynth.Core 0.1.0-alpha.3
@@ -75,6 +77,7 @@ modules:
   vocal_tract_learning_tests: tests/AquaSynth.Dsl.Tests/VocalTractLearningTests.cs
   vocal_tract_playground: tools/vocal-tract-playground
   tract_graph_renderer: tools/TractGraphRenderer
+  bird_syrinx_golf_tool: tools/BirdSyrinxGolf
   sfxr: src/AquaSynth.Core/SfxrParams.cs
   analysis: src/AquaSynth.Core/AudioAnalysis.cs
   mel_cepstral_warp_effect: src/AquaSynth.Core/MelCepstralWarpEffect.cs
