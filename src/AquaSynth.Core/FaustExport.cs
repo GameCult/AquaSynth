@@ -490,12 +490,10 @@ public static class FaustEmitter
             var opening = $"max(0.0, {parameters.Expression(OwnerField(radiationPath, "opening"), port.Opening)})";
             var reflection = $"min(1.0, abs({parameters.Expression(OwnerField(radiationPath, "reflection"), port.Reflection)}))";
             var portLoss = $"clip01({parameters.Expression(OwnerField(radiationPath, "loss"), port.Loss)})";
-            var highpass = port.Kind is AcousticRadiationKind.Lip or AcousticRadiationKind.Beak
-                ? "80.0"
-                : port.Kind == AcousticRadiationKind.Nostril
-                ? "40.0"
-                : "20.0";
-            radiationExpressions.Add($"(({name}_acoustic_body : fi.highpass(1, {highpass})) * {opening} * (0.55 + 0.45 * {reflection}) * {portLoss})");
+            var aperture = RadiationApertureExpression(patch, parameters, port);
+            var highpass = RadiationHighpassExpression(port.Kind, aperture, false);
+            var reflectionWeight = $"(0.55 + 0.45 * {reflection})";
+            radiationExpressions.Add($"(({name}_acoustic_body : fi.highpass(1, {highpass})) * {opening} * {reflectionWeight} * {portLoss})");
         }
         if (radiationExpressions.Count == 0)
         {
@@ -798,20 +796,20 @@ public static class FaustEmitter
                 var radiationPath = $"/acoustic/radiation/{radiationIndex}";
                 var opening = RadiationApertureExpression(patch, parameters, radiationPort);
                 var loss = $"clip01({parameters.Expression(OwnerField(radiationPath, "loss"), radiationPort.Loss)})";
-                var highpass = radiationPort.Kind is AcousticRadiationKind.Lip or AcousticRadiationKind.Beak
-                    ? "220.0"
-                    : radiationPort.Kind == AcousticRadiationKind.Nostril
-                        ? "90.0"
-                        : "20.0";
-                var filter = $"fi.highpass(1, {highpass})";
                 var safeTerminal = SafeIdentifier(terminal.Name);
                 var terminalArea = $"{name}_graph_terminal_area_{safeTerminal}";
+                var referenceArea = $"{name}_graph_radiation_reference_area_{safeTerminal}";
+                var differentiation = $"{name}_graph_radiation_differentiation_{safeTerminal}";
+                var highpass = $"{name}_graph_radiation_highpass_{safeTerminal}";
                 var admittance = $"{name}_graph_radiation_admittance_{safeTerminal}";
                 var flow = $"({string.Join(" + ", ports.Select(port => $"({GraphIncoming(name, port)} - {GraphOutgoing(name, port)})"))})";
                 var flowName = $"{name}_graph_radiation_flow_{safeTerminal}";
-                source.AppendLine($"    {admittance} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/admittance", $"sqrt(clip01(({terminalArea}) / max(0.000001, ({terminalArea}) + 1.0)))", 0, 1)};");
+                source.AppendLine($"    {referenceArea} = {RadiationReferenceAreaExpression(radiationPort.Kind, opening)};");
+                source.AppendLine($"    {differentiation} = {RadiationDifferentiationExpression(radiationPort.Kind, opening)};");
+                source.AppendLine($"    {highpass} = {RadiationHighpassExpression(radiationPort.Kind, opening, true)};");
+                source.AppendLine($"    {admittance} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/admittance", $"sqrt(clip01(({terminalArea}) / max(0.000001, ({terminalArea}) + ({referenceArea}))))", 0, 1)};");
                 source.AppendLine($"    {flowName} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/flow", flow, -2, 2)};");
-                radiated.Add($"(({flowName} * 0.30 + ({flowName} : {filter}) * 0.70) * {loss} * {admittance})");
+                radiated.Add($"(({flowName} * (1.0 - ({differentiation})) + ({flowName} : fi.highpass(1, {highpass})) * ({differentiation})) * {loss} * {admittance})");
             }
         }
 
@@ -864,6 +862,39 @@ public static class FaustEmitter
             : "0.72";
         return $"(({closedReflection}) * (1.0 - clip01({aperture})) + ({openReflection}) * clip01({aperture}))";
     }
+
+    private static string RadiationReferenceAreaExpression(AcousticRadiationKind kind, string aperture) => kind switch
+    {
+        AcousticRadiationKind.Lip or AcousticRadiationKind.Beak => $"max(0.18, 1.50 * 1.50 * (0.35 + 0.65 * clip01({aperture})))",
+        AcousticRadiationKind.Nostril => $"max(0.08, 0.70 * 0.70 * (0.50 + 0.50 * clip01({aperture})))",
+        AcousticRadiationKind.Membrane => "0.35",
+        AcousticRadiationKind.Vent => "0.80",
+        _ => "1.0"
+    };
+
+    private static string RadiationDifferentiationExpression(AcousticRadiationKind kind, string aperture) => kind switch
+    {
+        AcousticRadiationKind.Lip or AcousticRadiationKind.Beak => $"(0.55 + 0.25 * clip01({aperture}))",
+        AcousticRadiationKind.Nostril => $"(0.45 + 0.20 * clip01({aperture}))",
+        AcousticRadiationKind.Membrane => "0.20",
+        AcousticRadiationKind.Vent => $"(0.30 + 0.20 * clip01({aperture}))",
+        _ => "0.50"
+    };
+
+    private static string RadiationHighpassExpression(AcousticRadiationKind kind, string aperture, bool graph) => kind switch
+    {
+        AcousticRadiationKind.Lip or AcousticRadiationKind.Beak => graph
+            ? $"(120.0 + 180.0 * clip01({aperture}))"
+            : $"(60.0 + 50.0 * clip01({aperture}))",
+        AcousticRadiationKind.Nostril => graph
+            ? $"(55.0 + 75.0 * clip01({aperture}))"
+            : $"(30.0 + 30.0 * clip01({aperture}))",
+        AcousticRadiationKind.Membrane => "15.0",
+        AcousticRadiationKind.Vent => graph
+            ? $"(20.0 + 35.0 * clip01({aperture}))"
+            : $"(15.0 + 20.0 * clip01({aperture}))",
+        _ => "20.0"
+    };
 
     private static string AcousticSourceExpression(
         SynthPatch patch,

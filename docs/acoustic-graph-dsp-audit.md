@@ -235,21 +235,25 @@ own contact loss scale and frequency-dependent wall loss.
 What it simulates: boundary flow emitted from lip, nostril, beak, or other
 openings.
 
-Current state: less wrong after cutting generated lip double gates. Radiation
-now reads boundary flow and generated tract lip opening is path geometry, not
-also output aperture.
+Current state: less wrong after cutting generated lip double gates and moving
+the graph output constants into one named radiation impedance expression.
+Radiation now reads boundary flow, generated tract lip opening is path
+geometry, and emitted graph Faust names per-port reference area,
+differentiation, high-pass cutoff, admittance, and flow.
 
 Smells:
 
-- The 30/70 raw/high-pass blend is a voicing scar. It approximates radiation
-  color, but it is not a clear radiation impedance model.
-- The admittance expression `sqrt(area / (area + 1.0))` contains an unexplained
-  unit constant.
+- The graph no longer has inline `30/70` raw/high-pass blend or `area + 1.0`
+  admittance denominator, but the helper still uses compact empirical kind
+  constants. Those are now in one organ, not scattered through graph lowering.
 - `RadiationBoundaryReflectionExpression` is useful for standalone radiation
   openings, but dangerous when the path end area already represents aperture.
+- Radiation still has no frequency-dependent load matched to tube radius and
+  characteristic impedance.
 
-Verdict: keep boundary-flow readout. Replace color/admittance constants with a
-named radiation impedance primitive.
+Verdict: keep boundary-flow readout and the named primitive. Replace the
+empirical primitive with a radius/characteristic-impedance model once source
+and closure storage stop dominating the audible failure.
 
 ### Generated PT-Style Tract
 
@@ -292,15 +296,19 @@ faster than global scores.
 
 Cut or replace these before piling on more tuning:
 
-1. Unowned radiation constants: 30/70 high-pass blend and `area + 1.0`.
-2. Unowned segment contact-loss constant `0.02`.
-3. Turbulence/release scalar constants without a named pressure-flow model.
-4. Nearest-node source attachment as the only interior source placement model.
+1. Unowned segment contact-loss constant `0.02`.
+2. Turbulence/release scalar constants without a named pressure-flow model.
+3. Nearest-node source attachment as the only interior source placement model.
 
 Cut in the 2026-05-28 N-port pass:
 
 - Generic connection fallback pressure/admittance blend.
 - Shape-specific three-port branch scattering path.
+
+Cut in the 2026-05-28 radiation pass:
+
+- Inline graph radiation `30/70` raw/high-pass blend.
+- Inline graph radiation `area + 1.0` admittance denominator.
 
 ## Keep List
 
@@ -323,8 +331,8 @@ radiation impedance:
 - Closure reservoir: a stateful pressure store attached to a constriction owner,
   charged while local area is sealed and released through the graph when area
   opens.
-- Radiation impedance: replace output coloring constants with a named local
-  radiation model.
+- Radiation impedance: upgrade the named empirical local model to a
+  radius/characteristic-impedance model.
 
 Until those exist, the graph can imitate some Pink Trombone pressure, but it is
 not yet a clean general vocal-acoustic machine.
@@ -350,3 +358,33 @@ with peak `0.000009`.
 This is not a victory lap. It is a floor repair. The next real smells are still
 radiation impedance constants, graph-native closure reservoir state, and source
 impedance at junction nodes.
+
+## 2026-05-28 Radiation Primitive Cut
+
+The second audit cut moved graph radiation coloring and admittance into a named
+local primitive. The emitter now names per-radiation-terminal:
+
+- `graph_radiation_reference_area_*`
+- `graph_radiation_differentiation_*`
+- `graph_radiation_highpass_*`
+- `graph_radiation_admittance_*`
+- `graph_radiation_flow_*`
+
+This removes the inline `flow * 0.30 + highpass(flow) * 0.70` expression and
+the inline `area + 1.0` admittance denominator from graph lowering. The current
+primitive is still empirical, but it has one owner.
+
+Latest utterance artifact:
+`artifacts/parity/pink-trombone-utterance-logmel/20260528T113949841`.
+`mama/papa/thrombosis` cosine is `0.7648/0.8550/0.4556`. `mama/papa`
+candidate separability is `0.2044` versus reference `0.3791`, so this cleanup
+does not fix articulation.
+
+Latest static artifact:
+`artifacts/parity/pink-trombone-logmel/20260528T113949813`.
+Static fixtures still pass; `closure-release` remains sealed-static evidence
+with peak `0.000011`.
+
+The conclusion is plain: radiation needed an owner, but the voice still needs
+graph-native closure pressure storage and source impedance before it will stop
+leaning on boundary color.
