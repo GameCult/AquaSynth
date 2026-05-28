@@ -834,15 +834,15 @@ public static class FaustEmitter
                 var flowName = $"{name}_graph_radiation_flow_{safeTerminal}";
                 source.AppendLine($"    {admittance} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/admittance", $"sqrt(clip01(({terminalArea}) / max(0.000001, ({terminalArea}) + 1.0)))", 0, 1)};");
                 source.AppendLine($"    {flowName} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/flow", flow, -2, 2)};");
-                radiated.Add($"(({flowName} * 0.30 + ({flowName} : {filter}) * 0.70) * {opening} * {loss} * {admittance})");
+                radiated.Add($"(({flowName} * 0.30 + ({flowName} : {filter}) * 0.70) * {loss} * {admittance})");
             }
         }
 
         foreach (var segment in segments)
         {
-            var loss = F(Math.Clamp(segment.Path.Loss, 0, 1));
             var delayExpression = SegmentDelayExpression(segment);
             var maxDelay = SegmentMaxDelay(segment, waveClock);
+            var loss = SegmentLossExpression(name, segment);
             source.AppendLine($"    {name}_graph_delay_{segment.Index} = {delayExpression};");
             source.AppendLine($"    {name}_graph_next_r{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, true))} : {WaveClockDelayExpression(waveClock, maxDelay, $"{name}_graph_delay_{segment.Index}")} * {loss};");
             source.AppendLine($"    {name}_graph_next_l{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, false))} : {WaveClockDelayExpression(waveClock, maxDelay, $"{name}_graph_delay_{segment.Index}")} * {loss};");
@@ -910,6 +910,9 @@ public static class FaustEmitter
         var releasePressure = localPressure is null
             ? "1.0"
             : $"(0.20 + 2.80 * clip01((abs({localPressure}) * ({closure})) : + ~ *(0.992)))";
+        var pressureDrive = localPressure is null
+            ? "1.0"
+            : $"(0.50 + 1.50 * clip01(abs({localPressure})))";
         var turbulence = $"(no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening})))";
         var apertureNoiseGate = $"min(clip01((0.85 - {opening}) / 0.85), clip01(25.0 * ({opening} - 0.04)))";
         var releaseBurstGate = $"clip01({opening} / 0.8) * {release}";
@@ -922,7 +925,7 @@ public static class FaustEmitter
             AcousticSourceKind.Reed =>
                 $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
             AcousticSourceKind.TurbulenceJet =>
-                $"(({turbulence}) * {noise} * {pressure} * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({releaseBurstGate}) * 1.2 + {transient} * {pressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
+                $"(({turbulence}) * {noise} * {pressure} * ({pressureDrive}) * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({pressureDrive}) * ({releaseBurstGate}) * 1.2 + {transient} * {pressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
             AcousticSourceKind.Click =>
                 $"no.noise * {pressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance}",
             AcousticSourceKind.Synthetic =>
@@ -942,7 +945,8 @@ public static class FaustEmitter
         var legacy = LegacyGlottalExpression(phase, tension, opening);
         var brightness = $"(0.10 * (1.0 - 0.35 * ({tension})) * sin(6.0 * ma.PI * {phase}) + 0.05 * (1.0 - 0.50 * ({tension})) * sin(8.0 * ma.PI * {phase}))";
         var shaped = $"(({legacy}) + 1.4 * ({legacy}) * ({legacy}) * ({legacy}) + {brightness})";
-        return $"(({shaped}) * {pressure} * 0.68 + no.noise * {noise} * {pressure} * (1.0 - sqrt(max(0.0, {tension})))) * {balance}";
+        var normalized = $"ma.tanh(({shaped}) * 0.70)";
+        return $"(({normalized}) * {pressure} * 0.72 + no.noise * {noise} * {pressure} * (1.0 - sqrt(max(0.0, {tension})))) * {balance}";
     }
 
     private static string LegacyGlottalExpression(string phase, string tension, string opening) =>
@@ -1600,6 +1604,14 @@ public static class FaustEmitter
     {
         var segmentLengthMeters = Math.Max(0.000001f, (segment.EndPosition - segment.StartPosition) * segment.Path.AreaFunction.LengthMeters);
         return $"max(0.000001, {F(segmentLengthMeters / segment.Path.PropagationSpeedMetersPerSecond)} * ma.SR)";
+    }
+
+    private static string SegmentLossExpression(string voiceName, AcousticGraphSegment segment)
+    {
+        var baseLoss = F(Math.Clamp(segment.Path.Loss, 0, 1));
+        var area = $"{voiceName}_graph_segment_area_{segment.Index}";
+        var apertureLoss = $"sqrt(clip01(({area}) / max(0.000001, ({area}) + 0.02)))";
+        return $"({baseLoss}) * ({apertureLoss})";
     }
 
     private static int SegmentMaxDelay(AcousticGraphSegment segment, WaveClockPolicy waveClock)

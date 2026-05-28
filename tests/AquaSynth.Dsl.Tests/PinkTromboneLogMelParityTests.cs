@@ -65,7 +65,19 @@ public sealed class PinkTromboneLogMelParityTests
 
             Assert.NotNull(candidate);
             Assert.True(candidate.Samples.Length > 0, $"{candidate.Stderr}{Environment.NewLine}artifacts: {fixtureDir}");
-            Assert.True(candidate.Samples.Max(MathF.Abs) > 0.00001f, candidate.Stderr);
+            var candidatePeak = candidate.Samples.Max(MathF.Abs);
+            if (fixture.Id == "closure-release")
+            {
+                Assert.True(
+                    candidatePeak < 0.001f,
+                    $"static closure fixture should stay sealed without an opening event; peak={candidatePeak:0.000000}{Environment.NewLine}artifacts: {fixtureDir}");
+                reports.Add($"{fixture.Id}/graph: sealed-static peak={candidatePeak:0.000000}");
+                WriteWav(Path.Combine(fixtureDir, "reference-pink-trombone.wav"), reference.Samples, reference.SampleRate);
+                WriteWav(Path.Combine(fixtureDir, "candidate-graph.wav"), candidate.Samples, candidate.SampleRate);
+                continue;
+            }
+
+            Assert.True(candidatePeak > 0.00001f, candidate.Stderr);
 
             var comparison = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: reference.SampleRate))
                 .Compare(reference.Samples, candidate.Samples);

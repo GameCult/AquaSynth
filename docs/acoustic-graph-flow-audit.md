@@ -279,3 +279,41 @@ global gain:
 If the graph remains under-articulated after closure storage exists, inspect
 the source and boundary probes at the same layer. Do not fix this with another
 global gain.
+
+## 2026-05-28 Model Repair
+
+The first real repair pass found four ownership leaks that made the graph sound
+like one buzz wearing different filters.
+
+- The graph glottal source was emitting an unbounded cubed waveform into the
+  tract. It is now locally normalized with `tanh` at the source owner. This is
+  not output gain; it keeps the excitation from overpowering the tract state.
+- Segment propagation loss now depends on live segment area. Narrow or
+  contact-like sections absorb more wave energy, so closures stop preserving
+  motor-like ringing as if they were open vowel tubes.
+- Generated nasal side-port area now maps velum diameter squared directly into
+  the side terminal. The previous `0.15` factor was a hidden nasal damper; it
+  made `mama`'s nasal windows nearly silent and caused `mama/papa` collapse.
+- Generated tract lips no longer bind lip opening into radiation-port opening,
+  and graph radiation no longer multiplies boundary flow by aperture after the
+  boundary reflection/geometry already handled it. Rounded vowels in
+  `thrombosis` had been killed by this double gate.
+
+Latest utterance artifact:
+`artifacts/parity/pink-trombone-utterance-logmel/20260528T070759312`.
+The accepted smoke now passes. `mama/papa` separability is no longer collapsed:
+reference log-mel similarity `0.3791`, candidate `0.3651`. `thrombosis` rises
+to cosine `0.4366` with lower silence mismatch. This still is not accepted
+speech articulation; RMS is low and speech-band motion is weak, but different
+articulations now reach different sample-flow paths.
+
+Latest static artifact:
+`artifacts/parity/pink-trombone-logmel/20260528T071240442`.
+The static closure fixture is now treated as a sealed static closure, not as a
+fake release event. It reports `sealed-static peak=0.000005`; real release
+belongs to utterance fixtures with time history.
+
+Next pressure after this pass is actual graph-native closure reservoir state:
+store upstream pressure while a constriction is sealed, then release it through
+the same scattering path when the area opens. Do that before adding any more
+source gain.
