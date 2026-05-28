@@ -43,6 +43,8 @@ public static class FaustEmitter
         source.AppendLine("release_start(a,d,g) = max(g, a + d);");
         source.AppendLine("oneshot_adsr(a,d,s,r,g) = select2(age < a, select2(age < a + d, select2(age < release_start(a,d,g), select2(age < release_start(a,d,g) + r, 0.0, s * (1.0 - (age - release_start(a,d,g)) / max(0.0001, r))), s), 1.0 - (1.0 - s) * ((age - a) / max(0.0001, d))), age / max(0.0001, a));");
         source.AppendLine("seg(t,t0,d,a,b) = a + (b - a) * clip01((t - t0) / max(0.0001, d));");
+        source.AppendLine("smooth01(x) = clip01(x) * clip01(x) * (3.0 - 2.0 * clip01(x));");
+        source.AppendLine("seg_smooth(t,t0,d,a,b) = a + (b - a) * smooth01((t - t0) / max(0.0001, d));");
         source.AppendLine("seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));");
         source.AppendLine("seg_curve(c,t,t0,d,a,b) = select2(c < 0.5, seg_exp(t,t0,d,a,b), seg(t,t0,d,a,b));");
         source.AppendLine("rl_release_start(r1,r2,r3,g) = max(g, r1 + r2 + r3);");
@@ -160,9 +162,12 @@ public static class FaustEmitter
         {
             var from = points[i];
             var to = points[i + 1];
-            var segment = interpolation == ControlCurveInterpolation.Hold
-                ? F(from.Value)
-                : $"seg({curveId}_time, {F(from.TimeSeconds)}, {F(Math.Max(0.0001f, to.TimeSeconds - from.TimeSeconds))}, {F(from.Value)}, {F(to.Value)})";
+            var segment = interpolation switch
+            {
+                ControlCurveInterpolation.Hold => F(from.Value),
+                ControlCurveInterpolation.Smooth => $"seg_smooth({curveId}_time, {F(from.TimeSeconds)}, {F(Math.Max(0.0001f, to.TimeSeconds - from.TimeSeconds))}, {F(from.Value)}, {F(to.Value)})",
+                _ => $"seg({curveId}_time, {F(from.TimeSeconds)}, {F(Math.Max(0.0001f, to.TimeSeconds - from.TimeSeconds))}, {F(from.Value)}, {F(to.Value)})"
+            };
             expression = $"select2({curveId}_time < {F(to.TimeSeconds)}, {expression}, {segment})";
         }
 

@@ -2903,6 +2903,7 @@ public static class PatchScript
     {
         "linear" or "lin" => ControlCurveInterpolation.Linear,
         "hold" or "step" or "sample_hold" => ControlCurveInterpolation.Hold,
+        "smooth" or "smoothstep" or "ease" or "eased" => ControlCurveInterpolation.Smooth,
         _ => throw new PatchScriptException(line, $"unknown control curve interpolation `{value}`")
     };
 

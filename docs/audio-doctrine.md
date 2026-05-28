@@ -275,6 +275,14 @@ fixed-frequency floor underneath it. Valve displacement shapes aperture; it is
 not a second hidden audio oscillator. Source flow comes from pressure through
 dynamic aperture, modal tissue motion, and acoustic load.
 
+Birdsong and speech gestures are continuous motor acts. Linear control ramps are
+valid when the author wants mechanical straight-line motion, but the default
+mental model for vocal articulation should be smooth pressure, tension,
+stiffness, aperture, and radiation trajectories. Use smooth gesture
+interpolation for vocal motifs before blaming morphology or adding spectral
+compensators; a straight spectrogram trace is often a straight control curve
+leaking through the physics.
+
 ## Source Distillations
 
 - PortAudio callback guidance: callbacks are delicate realtime contexts; avoid

@@ -559,7 +559,8 @@ public enum ControlCurveMode
 public enum ControlCurveInterpolation
 {
     Linear,
-    Hold
+    Hold,
+    Smooth
 }
 
 public sealed record ControlCurvePoint(float TimeSeconds, float Value);

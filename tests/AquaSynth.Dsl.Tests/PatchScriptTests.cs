@@ -688,6 +688,25 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void SmoothControlCurvesLowerToSmoothFaustSegments()
+    {
+        var patch = PatchScript.Parse("""
+            patch gain=.2
+            param path=/voice/tension default=.4 min=0 max=1 step=.001
+            curve name=bird_motor path=/voice/tension points=0:.2,.12:.8,.24:.35 interp=smooth depth=.9
+            v wave=sine freq=440 tension=@/voice/tension sustain=.3
+            """);
+
+        var curve = Assert.Single(patch.ControlCurves);
+        Assert.Equal(ControlCurveInterpolation.Smooth, curve.Interpolation);
+
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions("smooth_curve"));
+        Assert.Contains("seg_smooth", export.Source);
+        Assert.Contains("smooth01", export.Source);
+        Assert.Contains("hslider(\"/curves/bird_motor/depth\"", export.Source);
+    }
+
+    [Fact]
     public void ParserRejectsUnknownParameterReferences()
     {
         var exception = Assert.Throws<PatchScriptException>(() =>
