@@ -21,6 +21,7 @@ surfaces:
   pink_trombone_parity: docs/pink-trombone-parity.md
   pink_trombone_dsl_parity_plan: docs/pink-trombone-dsl-parity-plan.md
   bird_syrinx_golf_research: research/bird-syrinx-golf/README.md
+  syrinx_modeling_research: research/syrinx-modeling/README.md
   wet_voice_witness_fixture: tests/AquaSynth.Dsl.Tests/Fixtures/Speech/WetVoice01
   faust_toolchain_boundary: docs/faust-toolchain-boundary.md
   dx7_public_domain_fixtures: tests/AquaSynth.Dsl.Tests/Fixtures/Dx7/PublicDomain

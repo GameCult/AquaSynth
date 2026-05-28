@@ -1,0 +1,141 @@
+[
+  {
+    "id": "fee-etal-1998-nonlinear-syrinx",
+    "title": "The role of nonlinear dynamics of the syrinx in the vocalizations of a songbird",
+    "authors": "M. S. Fee, B. Shraiman, B. Pesaran, P. P. Mitra",
+    "year": 1998,
+    "url": "https://web.mit.edu/fee/Public/Publications/Fee_etal1998.pdf",
+    "local": "sources/fee-etal-1998-nonlinear-syrinx.pdf",
+    "notes": "Downloaded PDF."
+  },
+  {
+    "id": "laje-gardner-mindlin-2002-neuromuscular-control",
+    "title": "Neuromuscular control of vocalizations in birdsong: A model",
+    "authors": "Rodrigo Laje, Timothy J. Gardner, Gabriel B. Mindlin",
+    "year": 2002,
+    "doi": "10.1103/PhysRevE.65.051921",
+    "url": "https://journals.aps.org/pre/abstract/10.1103/PhysRevE.65.051921",
+    "local": "sources/laje-gardner-mindlin-2002-neuromuscular-control-aps.html",
+    "notes": "APS metadata snapshot; public PDF mirror attempted but returned 404."
+  },
+  {
+    "id": "mindlin-laje-2005-synthesizing-bird-song",
+    "title": "The physics of birdsong",
+    "authors": "Gabriel B. Mindlin, Rodrigo Laje",
+    "year": 2005,
+    "url": "https://pubmed.ncbi.nlm.nih.gov/16383664/",
+    "local": "sources/mindlin-laje-2005-synthesizing-bird-song-pubmed.html",
+    "notes": "PubMed metadata for the book/review commonly cited as Synthesizing bird song / Physics of Birdsong."
+  },
+  {
+    "id": "laje-mindlin-2005-source-source-filter",
+    "title": "Modeling source-source and source-filter acoustic interaction in birdsong",
+    "authors": "Rodrigo Laje, Gabriel B. Mindlin",
+    "year": 2005,
+    "doi": "10.1103/PhysRevE.72.036218",
+    "url": "https://journals.aps.org/pre/abstract/10.1103/PhysRevE.72.036218",
+    "local": "sources/laje-mindlin-2005-source-source-filter-aps.html",
+    "notes": "APS metadata snapshot."
+  },
+  {
+    "id": "laje-sciamarella-zanella-mindlin-2008-bilateral-source",
+    "title": "Bilateral source acoustic interaction in a syrinx model of an oscine bird",
+    "authors": "Rodrigo Laje, D. Sciamarella, J. Zanella, Gabriel B. Mindlin",
+    "year": 2008,
+    "url": "https://pubmed.ncbi.nlm.nih.gov/18351881/",
+    "local": "sources/laje-sciamarella-zanella-mindlin-2008-bilateral-source-pubmed.html",
+    "notes": "PubMed metadata snapshot."
+  },
+  {
+    "id": "mindlin-2009-new-perspectives",
+    "title": "New perspectives on the physics of birdsong",
+    "authors": "Gabriel B. Mindlin",
+    "year": 2009,
+    "doi": "10.1098/rsta.2009.0076",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3263773/",
+    "local": "sources/mindlin-2009-new-perspectives.html",
+    "notes": "Open PMC HTML snapshot."
+  },
+  {
+    "id": "elemans-etal-2009-mechanical-syrinx",
+    "title": "Amplitude and frequency modulation control of sound production in a mechanical model of the avian syrinx",
+    "authors": "C. P. H. Elemans, M. Muller, O. N. Larsen, J. L. van Leeuwen",
+    "year": 2009,
+    "doi": "10.1242/jeb.026872",
+    "url": "https://research.wur.nl/en/publications/amplitude-and-frequency-modulation-control-of-sound-production-in/",
+    "local": "sources/elemans-etal-2009-mechanical-syrinx.html",
+    "notes": "Wageningen research portal snapshot with abstract and citation metadata."
+  },
+  {
+    "id": "arneodo-perl-mindlin-2011-acoustic-source-tract-coupling",
+    "title": "Acoustic signatures of sound source-tract coupling",
+    "authors": "Ezequiel M. Arneodo, Yonatan Sanz Perl, Gabriel B. Mindlin",
+    "year": 2011,
+    "doi": "10.1103/PhysRevE.83.041920",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3909991/",
+    "local": "sources/arneodo-perl-mindlin-2011-acoustic-source-tract-coupling.html",
+    "notes": "Open PMC HTML snapshot."
+  },
+  {
+    "id": "arneodo-etal-2012-prosthetic-avian-vocal-organ",
+    "title": "Prosthetic Avian Vocal Organ Controlled by a Freely Behaving Bird Based on a Low Dimensional Model of the Biomechanical Periphery",
+    "authors": "Ezequiel M. Arneodo, Yonatan Sanz Perl, Franz Goller, Gabriel B. Mindlin",
+    "year": 2012,
+    "doi": "10.1371/journal.pcbi.1002546",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3386162/",
+    "local": "sources/arneodo-etal-2012-prosthetic-avian-vocal-organ.html",
+    "notes": "Open PMC HTML snapshot."
+  },
+  {
+    "id": "goller-rietveld-2013-frequency-control",
+    "title": "Integrative physiology of fundamental frequency control in birds",
+    "authors": "Franz Goller, Laurens Rietveld",
+    "year": 2013,
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3674193/",
+    "local": "sources/goller-rietveld-2013-frequency-control.html",
+    "notes": "Open PMC HTML snapshot."
+  },
+  {
+    "id": "elemans-etal-2015-universal-mechanisms",
+    "title": "Universal mechanisms of sound production and control in birds and mammals",
+    "authors": "Coen P. H. Elemans et al.",
+    "year": 2015,
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4674827/",
+    "local": "sources/elemans-etal-2015-universal-mechanisms.html",
+    "notes": "Open PMC HTML snapshot."
+  },
+  {
+    "id": "sanz-perl-etal-2021-neurally-driven-synthesis",
+    "title": "Neurally driven respiratory gestures in an embodied model of birdsong production",
+    "authors": "Yonatan Sanz Perl et al.",
+    "year": 2021,
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8375361/",
+    "local": "sources/sanz-perl-etal-2021-neurally-driven-synthesis.html",
+    "notes": "Open PMC HTML snapshot."
+  },
+  {
+    "id": "synthetic-birdsongs-replay",
+    "title": "Synthetic birdsongs reproduce neural responses",
+    "year": 2021,
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8287859/",
+    "local": "sources/synthetic-birdsongs-replay.html",
+    "notes": "Open PMC HTML snapshot; useful for synthesis-as-neural-replay validation."
+  },
+  {
+    "id": "mindlin-2017-physics-of-birdsong-talk",
+    "title": "The Physics of Birdsong",
+    "authors": "Gabriel B. Mindlin",
+    "year": 2017,
+    "url": "https://www.icts.res.in/sites/default/files/DCS2017-2017-06-12-Gabriel-Mindlin.pdf",
+    "local": "sources/mindlin-2017-physics-of-birdsong-talk.pdf",
+    "notes": "Downloaded talk PDF."
+  },
+  {
+    "id": "elemans-2025-transitions-and-tricks",
+    "title": "Transitions and tricks: nonlinear phenomena in the avian voice",
+    "year": 2025,
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11966160/",
+    "local": "sources/elemans-2025-transitions-and-tricks.html",
+    "notes": "Open PMC HTML snapshot; recent review useful for failure modes and nonlinear phenomena."
+  }
+]
