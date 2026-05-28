@@ -1633,13 +1633,17 @@ public static class FaustEmitter
         var verticalPhase = $"clip01({parameters.Expression(OwnerField(path, "vertical_phase"), port.VerticalPhase)})";
         var reservoirPressure = $"max(0.0, {parameters.Expression(OwnerField(path, "reservoir_pressure"), port.ReservoirPressure)})";
         var downstreamPressure = $"max(0.0, {parameters.Expression(OwnerField(path, "downstream_pressure"), port.DownstreamPressure)})";
+        var hasExplicitStiffness = port.Stiffness > 0 || parameters.IsBound(OwnerField(path, "stiffness"));
+        var effectiveStiffness = hasExplicitStiffness
+            ? $"max(0.00002, ({stiffness}) * (0.55 + 1.10 * ({tension})))"
+            : $"{prefix}_stiffness_hint * (0.35 + 1.65 * ({tension}))";
 
         source.AppendLine($"    {prefix}_stiffness_hint = max(0.00002, min(0.16, pow(2.0 * ma.PI * max(20.0, {frequency}) / ma.SR, 2.0)));");
         source.AppendLine($"    {prefix}_reservoir_pressure = ({pressure}) * ({drive}) * ({reservoirPressure});");
         source.AppendLine($"    {prefix}_downstream_pressure = ({downstreamPressure}) + ({loadCoupling}) * ma.tanh({prefix}_load_pressure);");
         source.AppendLine($"    {prefix}_pressure_drive = max(0.0, {prefix}_reservoir_pressure - {prefix}_downstream_pressure);");
-        source.AppendLine($"    {prefix}_stiffness = max(({stiffness}), {prefix}_stiffness_hint * (0.35 + 1.65 * ({tension})));");
-        source.AppendLine($"    {prefix}_modal_frequency = max(45.0, min(5200.0, (ma.SR / (2.0 * ma.PI)) * sqrt(max(0.00002, {prefix}_stiffness) / ({mass}))));");
+        source.AppendLine($"    {prefix}_stiffness = {effectiveStiffness};");
+        source.AppendLine($"    {prefix}_modal_frequency = max(45.0, min(10000.0, (ma.SR / (2.0 * ma.PI)) * sqrt(max(0.00002, {prefix}_stiffness) / ({mass}))));");
         source.AppendLine($"    {prefix}_load_detune = 1.0 - 0.035 * ma.tanh({prefix}_load_pressure * ({loadCoupling}));");
         source.AppendLine($"    {prefix}_oscillation_gate = clip01(({prefix}_pressure_drive - 0.035 - 0.18 * clip01({opening})) * (2.4 + 2.6 * ({drive})));");
         source.AppendLine($"    {prefix}_modal_q = 3.0 + 24.0 * clip01(({pressure}) * (1.0 - 0.45 * ({damping})) + 0.35 * ({tension}));");
@@ -1675,8 +1679,8 @@ public static class FaustEmitter
         }
         source.AppendLine($"    {prefix}_aperture = max(0.0, ({restOpening}) + ({opening}) + {prefix}_displacement - ({saturation}) * pow({prefix}_displacement, 3.0));");
         source.AppendLine($"    {prefix}_turbulence = no.noise : fi.highpass(2, 1200.0 + 2800.0 * clip01(1.0 - {prefix}_aperture));");
-        source.AppendLine($"    {prefix}_voicing = {prefix}_modal_tissue * (0.65 + 5.5 * ({tension})) + {prefix}_displacement * (0.35 + 1.8 * ({drive}));");
-        source.AppendLine($"    {prefix}_flow = ma.tanh(({prefix}_pressure_drive * {prefix}_aperture * (1.5 + 8.0 * ({drive}))) + ({prefix}_voicing * {prefix}_pressure_drive * (2.0 + 8.0 * ({drive}))));");
+        source.AppendLine($"    {prefix}_voicing = {prefix}_modal_tissue * (0.18 + 1.45 * ({tension})) + {prefix}_displacement * (0.03 + 0.18 * ({drive}));");
+        source.AppendLine($"    {prefix}_flow = ma.tanh(({prefix}_pressure_drive * {prefix}_aperture * (1.2 + 5.0 * ({drive}))) + ({prefix}_voicing * {prefix}_pressure_drive * (0.55 + 2.6 * ({drive}))));");
         source.AppendLine($"    {prefix}_noise = {prefix}_turbulence * ({noise}) * {prefix}_pressure_drive * clip01({prefix}_aperture) * (1.0 - 0.55 * ({tension}));");
         source.AppendLine($"    {prefix}_out = ({prefix}_flow * (0.55 + 2.6 * {prefix}_pressure_drive) + {prefix}_noise) * ({balance});");
     }

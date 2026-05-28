@@ -267,6 +267,14 @@ Hard PT thresholds return only after the shared physical primitives have passed
 structural, passivity, and render-smoke checks; otherwise the test suite rewards
 parity whack-a-mole over a coherent voice machine.
 
+For graph vocal sources, `freq=` is not pitch authority. It is only a stiffness
+initializer when the source has no explicit or parameter-bound stiffness. Once a
+tissue valve exposes `stiffness`, authored curves, realtime controls, or learned
+controllers own that degree of freedom, and the lowering must not reintroduce a
+fixed-frequency floor underneath it. Valve displacement shapes aperture; it is
+not a second hidden audio oscillator. Source flow comes from pressure through
+dynamic aperture, modal tissue motion, and acoustic load.
+
 ## Source Distillations
 
 - PortAudio callback guidance: callbacks are delicate realtime contexts; avoid

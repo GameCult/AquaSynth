@@ -665,6 +665,29 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void GraphTissueValveExplicitStiffnessOwnsPitch()
+    {
+        var export = FaustEmitter.EmitScript("""
+            patch gain=.2
+            param path=/voice/stiffness default=.04 min=0 max=.16 step=.001
+            param path=/voice/pressure default=.8 min=0 max=1 step=.001
+            curve name=stiffness_sweep path=/voice/stiffness points=0:.03,.2:.12 depth=1
+            path name=trachea length_cm=6 diameters=.3,.35,.32,.28
+            source_port name=folds path=trachea model=tissue_valve position=0 pressure=@/voice/pressure tension=.8 opening=.08 stiffness=@/voice/stiffness mass=.12 damping=.12
+            radiation_port name=mouth path=trachea position=1 opening=.9 reflection=-.6
+            acoustic_network name=voice_graph path=trachea sources=folds radiation=mouth
+            acoustic network=voice_graph freq=4200 gain=.5 sustain=.3
+            """, new FaustExportOptions("explicit_stiffness"));
+
+        Assert.Contains("_stiffness_hint", export.Source);
+        Assert.Contains("_stiffness = max(0.00002", export.Source);
+        Assert.Contains("(0.55 + 1.10 *", export.Source);
+        Assert.Contains("min(10000.0", export.Source);
+        Assert.DoesNotContain("_stiffness = max((max(0.0, param_0)", export.Source);
+        Assert.DoesNotContain("_stiffness_hint * (0.35 + 1.65", export.Source);
+    }
+
+    [Fact]
     public void ParserRejectsUnknownParameterReferences()
     {
         var exception = Assert.Throws<PatchScriptException>(() =>
