@@ -721,8 +721,9 @@ public static class FaustEmitter
                 : $"({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) / {F(ports.Count)}";
             var incidentName = $"{name}_graph_node_incident_pressure_{node.Name}";
             var nodeSourceName = NodeSourceIdentifier(name, node);
+            var nodeSourceExpression = EmitNodeSourceExpression(source, patch, name, node, sources, frequency, parameters);
             source.AppendLine($"    {incidentName} = {ProbeSignal(options, $"/debug/{name}/node/{node.Name}/incident_pressure", incidentPressure, -2, 2)};");
-            source.AppendLine($"    {nodeSourceName} = {ProbeSignal(options, $"/debug/{name}/node/{node.Name}/source", NodeSourceExpression(patch, name, node, sources, frequency, parameters), -2, 2)};");
+            source.AppendLine($"    {nodeSourceName} = {ProbeSignal(options, $"/debug/{name}/node/{node.Name}/source", nodeSourceExpression, -2, 2)};");
             debugProbeKeepAlive.Add(incidentName);
             debugProbeKeepAlive.Add(nodeSourceName);
         }
@@ -1794,7 +1795,8 @@ public static class FaustEmitter
     private static string NodeSourceIdentifier(string voiceName, AcousticGraphNode node) =>
         $"{voiceName}_graph_node_source_{node.Name}";
 
-    private static string NodeSourceExpression(
+    private static string EmitNodeSourceExpression(
+        StringBuilder source,
         SynthPatch patch,
         string voiceName,
         AcousticGraphNode node,
@@ -1809,11 +1811,47 @@ public static class FaustEmitter
                 var sourceName = terminal.Port.Length == 0 ? terminal.Name : terminal.Port;
                 var port = sources[sourceName];
                 return port.Kind == AcousticSourceKind.TurbulenceJet
-                    ? AcousticSourceExpression(patch, port, frequency, parameters, $"{voiceName}_graph_node_incident_pressure_{node.Name}")
+                    ? EmitGraphTurbulenceSourceExpression(source, patch, voiceName, node, sourceName, port, parameters)
                     : $"{voiceName}_graph_source_{SafeIdentifier(sourceName)}";
             })
             .ToList();
         return sourceTerms.Count == 0 ? "0.0" : string.Join(" + ", sourceTerms);
+    }
+
+    private static string EmitGraphTurbulenceSourceExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        AcousticGraphNode node,
+        string sourceName,
+        AcousticSourcePort port,
+        ParameterMap parameters)
+    {
+        var index = AcousticSourcePortIndex(patch, port);
+        var path = $"/acoustic/sources/{index}";
+        var safeSource = SafeIdentifier(sourceName);
+        var safeNode = SafeIdentifier(node.Name);
+        var prefix = $"{voiceName}_graph_source_{safeSource}_{safeNode}";
+        var localPressure = $"{voiceName}_graph_node_incident_pressure_{node.Name}";
+        var pressure = $"clip01({parameters.Expression(OwnerField(path, "pressure"), port.Pressure)})";
+        var opening = $"max(0.0, {parameters.Expression(OwnerField(path, "opening"), port.Opening)})";
+        var noise = $"clip01({parameters.Expression(OwnerField(path, "noise"), port.Noise)})";
+        var transient = $"clip01({parameters.Expression(OwnerField(path, "transient"), port.Transient)})";
+        var balance = $"({parameters.Expression(OwnerField(path, "balance"), port.Balance)}) * ({SourcePositionWeightExpression(port, path, parameters)})";
+
+        source.AppendLine($"    {prefix}_closure = clip01((0.12 - ({opening})) / 0.12);");
+        source.AppendLine($"    {prefix}_release = (max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.995));");
+        source.AppendLine($"    {prefix}_reservoir = (abs({localPressure}) * {prefix}_closure) : + ~ *(0.992);");
+        source.AppendLine($"    {prefix}_pressure_drive = 0.50 + 1.50 * clip01(abs({localPressure}));");
+        source.AppendLine($"    {prefix}_release_pressure = 0.20 + 2.80 * clip01({prefix}_reservoir);");
+        source.AppendLine($"    {prefix}_noise_gate = min(clip01((0.85 - ({opening})) / 0.85), clip01(25.0 * (({opening}) - 0.04)));");
+        source.AppendLine($"    {prefix}_release_gate = clip01(({opening}) / 0.8) * {prefix}_release;");
+        source.AppendLine($"    {prefix}_turbulence = no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - ({opening})));");
+        source.AppendLine($"    {prefix}_sustained = {prefix}_turbulence * {noise} * {pressure} * {prefix}_pressure_drive * {prefix}_noise_gate * 0.62;");
+        source.AppendLine($"    {prefix}_burst_noise = {prefix}_turbulence * {noise} * {transient} * {prefix}_pressure_drive * {prefix}_release_gate * 1.2;");
+        source.AppendLine($"    {prefix}_release_pulse = {transient} * {pressure} * {prefix}_release * {prefix}_release_pressure * 0.58 * (0.8 + 0.8 * clip01(({opening}) / 0.8));");
+        source.AppendLine($"    {prefix}_out = ({prefix}_sustained + {prefix}_burst_noise + {prefix}_release_pulse) * {balance};");
+        return $"{prefix}_out";
     }
 
     private static string GraphIncoming(string voiceName, AcousticGraphPort port) =>

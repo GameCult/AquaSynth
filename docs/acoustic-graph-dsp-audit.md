@@ -198,19 +198,25 @@ transient.
 
 Current state: partially coherent. Sustained turbulence now has a local
 pressure-drive term, and release pressure can observe node incident pressure.
+Graph turbulence lowering now emits named closure, release, reservoir,
+pressure-drive, gate, burst, and release-pulse locals instead of hiding the
+whole pressure-flow model inside one source expression.
 
 Smells:
 
 - The aperture gate constants `0.85`, `0.04`, source gains `0.62`, `1.2`,
   `0.58`, and pressure-drive `0.50 + 1.50 * pressure` are not owned by a named
-  physical model.
-- Release still detects local control opening, not stored upstream pressure
-  behind a sealed constriction.
-- There is no graph-native reservoir state.
+  physical model. They are now at least localized in graph source lowering.
+- Release still detects local control opening and stores pressure at the source
+  owner, not as a true two-sided constriction/contact state inside the scatter
+  graph.
+- There is no explicit upstream/downstream reservoir split across a sealed
+  constriction.
 
-Verdict: keep as a pressure-informed source, but do not call this plosive
-modeling yet. The next real primitive is closure reservoir state connected to
-the scattering graph.
+Verdict: keep as a named pressure-informed source. Do not call this plosive
+modeling yet. The next real primitive is a closure/contact owner that can store
+pressure on one side of a severe constriction and release it through the
+scattering graph.
 
 ### Segment Loss
 
@@ -388,3 +394,32 @@ with peak `0.000011`.
 The conclusion is plain: radiation needed an owner, but the voice still needs
 graph-native closure pressure storage and source impedance before it will stop
 leaning on boundary color.
+
+## 2026-05-28 Graph Source Reservoir Naming
+
+The third audit cut did not change the intended source math. It moved graph
+turbulence/release lowering out of one dense expression and into emitted
+per-source locals:
+
+- `_closure`
+- `_release`
+- `_reservoir`
+- `_pressure_drive`
+- `_release_pressure`
+- `_noise_gate`
+- `_release_gate`
+- `_sustained`
+- `_burst_noise`
+- `_release_pulse`
+
+Latest utterance artifact:
+`artifacts/parity/pink-trombone-utterance-logmel/20260528T114618213`.
+Latest static artifact:
+`artifacts/parity/pink-trombone-logmel/20260528T114618202`.
+Metrics match the prior radiation-primitive pass, which is the expected result:
+this was an ownership/observability cut, not a gain change.
+
+The next change can now target the reservoir/source-impedance law directly.
+The remaining bad smell is not that the source code is unreadable; it is that
+the model still has only a source-local reservoir instead of a contact-aware
+upstream/downstream pressure state.
