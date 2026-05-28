@@ -27,41 +27,53 @@ BirdSource[] sources =
         "https://upload.wikimedia.org/wikipedia/commons/transcoded/7/7c/Aegithina_tiphia_-_Common_Iora_XC125847.ogg/Aegithina_tiphia_-_Common_Iora_XC125847.ogg.mp3",
         "https://upload.wikimedia.org/wikipedia/commons/7/7c/Aegithina_tiphia_-_Common_Iora_XC125847.ogg"),
     new(
-        "bohemian-waxwing-xc132884",
-        "Bohemian Waxwing",
-        "Bombycilla garrulus",
-        "flight call",
+        "common-blackbird-1059970",
+        "Common Blackbird",
+        "Turdus merula",
+        "song",
+        BirdKind.HarmonicSong,
+        "Diana Tudor",
+        "CC BY 4.0",
+        "https://creativecommons.org/licenses/by/4.0",
+        "https://commons.wikimedia.org/wiki/File:Common_Blackbird_song_(Turdus_merula).ogg",
+        "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/30/Common_Blackbird_song_%28Turdus_merula%29.ogg/Common_Blackbird_song_%28Turdus_merula%29.ogg.mp3",
+        "https://upload.wikimedia.org/wikipedia/commons/3/30/Common_Blackbird_song_%28Turdus_merula%29.ogg"),
+    new(
+        "red-footed-falcon",
+        "Red-footed Falcon",
+        "Falco vespertinus",
+        "typical calls",
         BirdKind.HighCall,
-        "Bushman",
-        "CC BY-SA 3.0",
-        "https://creativecommons.org/licenses/by-sa/3.0",
-        "https://commons.wikimedia.org/wiki/File:Bombycilla_garrulus_-_Bohemian_Waxwing_XC132884.ogg",
-        "https://upload.wikimedia.org/wikipedia/commons/transcoded/4/46/Bombycilla_garrulus_-_Bohemian_Waxwing_XC132884.ogg/Bombycilla_garrulus_-_Bohemian_Waxwing_XC132884.ogg.mp3",
-        "https://upload.wikimedia.org/wikipedia/commons/4/46/Bombycilla_garrulus_-_Bohemian_Waxwing_XC132884.ogg"),
+        "Bubulcus",
+        "CC BY 3.0",
+        "https://creativecommons.org/licenses/by/3.0",
+        "https://commons.wikimedia.org/wiki/File:Falco_vespertinus.ogg",
+        "https://upload.wikimedia.org/wikipedia/commons/transcoded/5/59/Falco_vespertinus.ogg/Falco_vespertinus.ogg.mp3",
+        "https://upload.wikimedia.org/wikipedia/commons/5/59/Falco_vespertinus.ogg"),
     new(
-        "california-quail-xc109825",
-        "California Quail",
-        "Callipepla californica",
-        "natural calls",
-        BirdKind.LowCall,
-        "Jonathon Jongsma",
-        "CC BY-SA 3.0",
-        "https://creativecommons.org/licenses/by-sa/3.0",
-        "https://commons.wikimedia.org/wiki/File:Callipepla_californica_-_California_Quail_-_XC109825.ogg",
-        "https://upload.wikimedia.org/wikipedia/commons/transcoded/3/3c/Callipepla_californica_-_California_Quail_-_XC109825.ogg/Callipepla_californica_-_California_Quail_-_XC109825.ogg.mp3",
-        "https://upload.wikimedia.org/wikipedia/commons/3/3c/Callipepla_californica_-_California_Quail_-_XC109825.ogg"),
+        "warbling-white-eye-ko",
+        "Warbling White-eye",
+        "Zosterops japonicus",
+        "call",
+        BirdKind.HighCall,
+        "National Institute of Biological Resources",
+        "KOGL Type 1",
+        "http://www.kogl.or.kr/info/licenseType1.do",
+        "https://commons.wikimedia.org/wiki/File:%EB%8F%99%EB%B0%95%EC%83%88.ogg",
+        "https://upload.wikimedia.org/wikipedia/commons/transcoded/e/e7/%EB%8F%99%EB%B0%95%EC%83%88.ogg/%EB%8F%99%EB%B0%95%EC%83%88.ogg.mp3",
+        "https://upload.wikimedia.org/wikipedia/commons/e/e7/%EB%8F%99%EB%B0%95%EC%83%88.ogg"),
     new(
-        "american-crow-xc115429",
-        "American Crow",
-        "Corvus brachyrhynchos",
-        "soft rattling calls",
-        BirdKind.LowCall,
-        "Jonathon Jongsma",
-        "CC BY-SA 3.0",
-        "https://creativecommons.org/licenses/by-sa/3.0",
-        "https://commons.wikimedia.org/wiki/File:Corvus_brachyrhynchos_-_American_Crow_-_XC115429.ogg",
-        "https://upload.wikimedia.org/wikipedia/commons/transcoded/9/90/Corvus_brachyrhynchos_-_American_Crow_-_XC115429.ogg/Corvus_brachyrhynchos_-_American_Crow_-_XC115429.ogg.mp3",
-        "https://upload.wikimedia.org/wikipedia/commons/9/90/Corvus_brachyrhynchos_-_American_Crow_-_XC115429.ogg")
+        "eurasian-wren-ko",
+        "Eurasian Wren",
+        "Troglodytes troglodytes",
+        "song",
+        BirdKind.HarmonicSong,
+        "National Institute of Biological Resources",
+        "KOGL Type 1",
+        "http://www.kogl.or.kr/info/licenseType1.do",
+        "https://commons.wikimedia.org/wiki/File:%EA%B5%B4%EB%9A%9D%EC%83%88.ogg",
+        "https://upload.wikimedia.org/wikipedia/commons/transcoded/2/2b/%EA%B5%B4%EB%9A%9D%EC%83%88.ogg/%EA%B5%B4%EB%9A%9D%EC%83%88.ogg.mp3",
+        "https://upload.wikimedia.org/wikipedia/commons/2/2b/%EA%B5%B4%EB%9A%9D%EC%83%88.ogg")
 ];
 Directory.CreateDirectory(sourceRoot);
 
@@ -231,7 +243,7 @@ static string Summary(IEnumerable<ResultRow> rows)
     var builder = new StringBuilder();
     builder.AppendLine("# Bird Syrinx Golf");
     builder.AppendLine();
-    builder.AppendLine("All references are Creative Commons files mirrored on Wikimedia Commons from xeno-canto. Candidates are graph-native Aqua syrinx patches using paired labial source ports.");
+    builder.AppendLine("All references are open-licensed bird recordings from Wikimedia Commons. Candidates are graph-native Aqua syrinx patches using paired labial source ports.");
     builder.AppendLine();
     builder.AppendLine("| id | bird | call | score | logMelCosine | logMelDistance | centroidRatio | candidate |");
     builder.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | --- |");
