@@ -654,6 +654,9 @@ public sealed class PatchScriptTests
         Assert.Contains("_upper_displacement", export.Source);
         Assert.Contains("_lower_displacement", export.Source);
         Assert.Contains("_coupling_stiffness", export.Source);
+        Assert.Contains("_modal_frequency", export.Source);
+        Assert.Contains("_modal_tissue", export.Source);
+        Assert.Contains("_voicing", export.Source);
         Assert.Contains("graph_segment_loss_", export.Source);
         Assert.Contains("graph_radiation_model_mouth", export.Source);
         Assert.Contains("hslider(\"/curves/pressure_path/depth\"", export.Source);

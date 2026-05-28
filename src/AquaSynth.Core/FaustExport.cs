@@ -1639,6 +1639,10 @@ public static class FaustEmitter
         source.AppendLine($"    {prefix}_downstream_pressure = ({downstreamPressure}) + ({loadCoupling}) * {prefix}_load_pressure;");
         source.AppendLine($"    {prefix}_pressure_drive = max(0.0, {prefix}_reservoir_pressure - {prefix}_downstream_pressure);");
         source.AppendLine($"    {prefix}_stiffness = max(({stiffness}), {prefix}_stiffness_hint * (0.35 + 1.65 * ({tension})));");
+        source.AppendLine($"    {prefix}_modal_frequency = max(45.0, min(5200.0, (ma.SR / (2.0 * ma.PI)) * sqrt(max(0.00002, {prefix}_stiffness) / ({mass}))));");
+        source.AppendLine($"    {prefix}_modal_q = 3.0 + 24.0 * clip01(({pressure}) * (1.0 - 0.45 * ({damping})) + 0.35 * ({tension}));");
+        source.AppendLine($"    {prefix}_modal_seed = (no.noise * 0.018 + {prefix}_pressure_drive * max(0.0, 0.22 - clip01({opening})) * 0.16);");
+        source.AppendLine($"    {prefix}_modal_tissue = {prefix}_modal_seed : fi.resonbp({prefix}_modal_frequency, {prefix}_modal_q, 1);");
         switch (port.Law)
         {
             case AcousticValveLaw.TwoMass:
@@ -1667,9 +1671,10 @@ public static class FaustEmitter
         }
         source.AppendLine($"    {prefix}_aperture = max(0.0, ({restOpening}) + ({opening}) + {prefix}_displacement - ({saturation}) * pow({prefix}_displacement, 3.0));");
         source.AppendLine($"    {prefix}_turbulence = no.noise : fi.highpass(2, 1200.0 + 2800.0 * clip01(1.0 - {prefix}_aperture));");
-        source.AppendLine($"    {prefix}_flow = ma.tanh({prefix}_pressure_drive * {prefix}_aperture * (2.0 + 10.0 * ({drive})));");
+        source.AppendLine($"    {prefix}_voicing = {prefix}_modal_tissue * (0.65 + 5.5 * ({tension})) + {prefix}_displacement * (0.35 + 1.8 * ({drive}));");
+        source.AppendLine($"    {prefix}_flow = ma.tanh(({prefix}_pressure_drive * {prefix}_aperture * (1.5 + 8.0 * ({drive}))) + ({prefix}_voicing * {prefix}_pressure_drive * (2.0 + 8.0 * ({drive}))));");
         source.AppendLine($"    {prefix}_noise = {prefix}_turbulence * ({noise}) * {prefix}_pressure_drive * clip01({prefix}_aperture) * (1.0 - 0.55 * ({tension}));");
-        source.AppendLine($"    {prefix}_out = ({prefix}_flow + {prefix}_noise) * ({balance});");
+        source.AppendLine($"    {prefix}_out = ({prefix}_flow * (0.55 + 2.6 * {prefix}_pressure_drive) + {prefix}_noise) * ({balance});");
     }
 
     private static string EmitGraphContactSourceExpression(
