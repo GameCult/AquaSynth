@@ -158,11 +158,17 @@ public sealed class PatchScriptTests
         var patch = PatchScript.Parse("""
             param path=/voice/left_pressure default=.7 min=0 max=1 step=.001
             param path=/voice/source_load default=.65 min=0 max=2 step=.001
+            param path=/voice/left_mass default=.32 min=.02 max=2 step=.001
+            param path=/voice/left_damping default=.16 min=0 max=2 step=.001
+            param path=/voice/left_stiffness default=.03 min=0 max=1 step=.001
+            param path=/voice/left_drive default=1.2 min=0 max=4 step=.001
+            param path=/voice/left_load_coupling default=.44 min=0 max=2 step=.001
+            param path=/voice/left_rest_opening default=.03 min=0 max=1 step=.001
             param path=/voice/throat_opening default=.8 min=0 max=1 step=.001
             param path=/voice/mouth_opening default=1.2 min=0 max=2 step=.001
             path name=trachea length_cm=12 diameters=.4,.7,1,1
             path name=oral length_cm=17 diameters=.6,1.1,1.6,1.2,.8
-            source_port name=left_labium path=trachea kind=labial position=0 pressure=@/voice/left_pressure tension=.55 opening=.4 noise=.02 impedance=@/voice/source_load
+            source_port name=left_labium path=trachea model=tissue_valve position=0 pressure=@/voice/left_pressure tension=.55 opening=.4 noise=.02 impedance=@/voice/source_load mass=@/voice/left_mass damping=@/voice/left_damping stiffness=@/voice/left_stiffness saturation=.9 drive=@/voice/left_drive load_coupling=@/voice/left_load_coupling rest_opening=@/voice/left_rest_opening
             source_port name=right_labium path=trachea kind=labial position=0 pressure=.65 tension=.5 opening=.45 noise=.03 balance=.8 position_index=.12 position_width=.05 position_index_scale=1
             branch name=throat from_path=trachea from_position=.9 to_path=oral kind=bronchial opening=@/voice/throat_opening coupling=.7
             radiation_port name=mouth path=oral kind=lip position=1 opening=@/voice/mouth_opening reflection=-.82
@@ -186,13 +192,22 @@ public sealed class PatchScriptTests
         Assert.Equal(2, patch.AcousticPaths.Count);
         Assert.Equal(5, patch.AcousticTerminals.Count);
         Assert.Single(patch.AcousticConnections);
-        Assert.All(patch.AcousticSourcePorts, port => Assert.Equal(AcousticSourceKind.Labial, port.Kind));
+        Assert.Equal(AcousticSourceKind.Glottal, patch.AcousticSourcePorts[0].Kind);
+        Assert.Equal(AcousticSourceKind.Labial, patch.AcousticSourcePorts[1].Kind);
+        Assert.All(patch.AcousticSourcePorts, port => Assert.Equal(AcousticSourceModel.TissueValve, port.Model));
+        Assert.Equal(.9f, patch.AcousticSourcePorts[0].Saturation, 5);
         Assert.NotNull(patch.AcousticSourcePorts[1].PositionControl);
         Assert.Equal(AcousticBranchKind.Bronchial, Assert.Single(patch.AcousticBranches).Kind);
         Assert.Equal(AcousticRadiationKind.Lip, Assert.Single(patch.AcousticRadiationPorts).Kind);
         Assert.Equal(WaveClockDelayStrategy.FractionalThiran, Assert.Single(patch.WaveClocks).Strategy);
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/pressure");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/impedance");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/mass");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/damping");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/stiffness");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/drive");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/load_coupling");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/rest_opening");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/branches/0/opening");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/radiation/0/opening");
 
@@ -209,6 +224,11 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_node_area_left_labium_right_labium", export.Source);
         Assert.Contains("graph_source_right_labium", export.Source);
         Assert.Contains("_load_pressure", export.Source);
+        Assert.Contains("_pressure_drive", export.Source);
+        Assert.Contains("_velocity", export.Source);
+        Assert.Contains("_displacement", export.Source);
+        Assert.Contains("_aperture", export.Source);
+        Assert.DoesNotContain("os.phasor(1.0, syrinxish_freq", export.Source);
         Assert.Contains("de.fdelay1a", export.Source);
         Assert.Contains("patch_param_0", export.Source);
         Assert.Contains("patch_param_1", export.Source);
@@ -243,6 +263,7 @@ public sealed class PatchScriptTests
         Assert.Equal(3, patch.AcousticPaths.Count);
         Assert.Equal(2, patch.AcousticSourcePorts.Count);
         Assert.All(patch.AcousticSourcePorts, port => Assert.Equal(AcousticSourceKind.Labial, port.Kind));
+        Assert.All(patch.AcousticSourcePorts, port => Assert.Equal(AcousticSourceModel.TissueValve, port.Model));
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/impedance");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/1/impedance");
         Assert.Equal(AcousticRadiationKind.Beak, Assert.Single(patch.AcousticRadiationPorts).Kind);
@@ -254,8 +275,13 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_source_left_labium", export.Source);
         Assert.Contains("graph_source_right_labium", export.Source);
         Assert.Contains("_load_pressure", export.Source);
+        Assert.Contains("_pressure_drive", export.Source);
+        Assert.Contains("_velocity", export.Source);
+        Assert.Contains("_displacement", export.Source);
+        Assert.Contains("_aperture", export.Source);
         Assert.Contains("graph_radiation_flow_beak", export.Source);
         Assert.Contains("patch_param_0", export.Source);
+        Assert.DoesNotContain("os.phasor(1.0, bird_syrinx_freq", export.Source);
         Assert.DoesNotContain("Tract", export.Source);
     }
 
@@ -1362,6 +1388,37 @@ public sealed class PatchScriptTests
         }
 
         Assert.True(validation.Success, validation.Stderr);
+    }
+
+    [Fact]
+    public async Task FaustCompilerRendersTissueValveGraphWhenInstalled()
+    {
+        var export = FaustEmitter.EmitScript("""
+            path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
+            path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
+            path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
+            source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure=.82 tension=.44 opening=.22 noise=.015 impedance=.7 mass=.32 damping=.14 stiffness=.025 saturation=.9 drive=1.2 load_coupling=.42 rest_opening=.025
+            source_port name=right_labium path=right_bronchus kind=syrinx position=0 pressure=.70 tension=.51 opening=.20 noise=.015 balance=.96 impedance=.7 mass=.34 damping=.16 stiffness=.03 saturation=.9 drive=1.1 load_coupling=.42 rest_opening=.025
+            terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
+            terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1
+            terminal name=trachea_base path=trachea position=0 kind=junction area_scale=1
+            connect name=syrinx_merge terminals=left_merge,right_merge,trachea_base law=area_scatter coupling=1
+            radiation_port name=beak path=trachea kind=beak position=1 opening=.95 reflection=-.72
+            wave_clock name=bird_clock strategy=linear max_delay=1024 smoothing_ms=2
+            acoustic_network name=bird_syrinx path=trachea wave_clock=bird_clock sources=left_labium,right_labium radiation=beak terminals=left_merge,right_merge,trachea_base connections=syrinx_merge
+            acoustic network=bird_syrinx freq=1120 gain=.32 sustain=.18 decay=.04
+            """, new FaustExportOptions("tissue_valve_render_validation"));
+        var render = await FaustCompiler.RenderAsync(export.Source, new FaustRenderOptions(DurationSeconds: .18f));
+
+        if (render is null)
+        {
+            return;
+        }
+
+        Assert.True(render.Samples.Length > 0, render.Stderr);
+        Assert.All(render.Samples, sample => Assert.True(float.IsFinite(sample), "tissue-valve render produced a non-finite sample"));
+        Assert.True(render.Samples.Select(MathF.Abs).DefaultIfEmpty(0).Max() > 0.000001f, render.Stderr);
+        Assert.True(render.Samples.Select(MathF.Abs).DefaultIfEmpty(0).Max() <= 1.2f, render.Stderr);
     }
 
     [Fact]

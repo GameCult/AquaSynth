@@ -106,12 +106,14 @@ foreach (var source in sources)
     var target = LoudestWindow(decoded.Samples, decoded.SampleRate, 1.2f);
     var target44 = Resample(target, decoded.SampleRate, 44100);
     NormalizePeak(target44, 0.9f);
+    var referenceFeatures = ExtractReferenceFeatures(target44, 44100);
     WriteWav(Path.Combine(sourceDir, "reference-clip.wav"), target44, 44100);
     File.WriteAllText(Path.Combine(sourceDir, "source.json"), JsonSerializer.Serialize(new SourceSnapshot(source, downloadedFrom), jsonOptions));
+    File.WriteAllText(Path.Combine(sourceDir, "reference-features.json"), JsonSerializer.Serialize(referenceFeatures, jsonOptions));
 
     var best = default(CandidateResult?);
     var candidateIndex = 0;
-    foreach (var candidate in CandidateGrid(source))
+    foreach (var candidate in CandidateGrid(source, referenceFeatures))
     {
         candidateIndex++;
         var script = SyrinxScript(candidate, target44.Length / 44100f);
@@ -138,17 +140,19 @@ foreach (var source in sources)
 
     if (best is null)
     {
-        rows.Add(new ResultRow(source.Id, source.CommonName, "no-render", 0, 0, 0, 0, ""));
+        rows.Add(new ResultRow(source.Id, source.CommonName, "no-render", referenceFeatures.DominantHz, referenceFeatures.ActiveDuty, 0, 0, 0, 0, ""));
         continue;
     }
 
     WriteWav(Path.Combine(sourceDir, "candidate-syrinx.wav"), best.Samples, 44100);
     File.WriteAllText(Path.Combine(sourceDir, "candidate-syrinx.aqua"), best.Script);
-    File.WriteAllText(Path.Combine(sourceDir, "report.txt"), Report(source, downloadedFrom, best));
+    File.WriteAllText(Path.Combine(sourceDir, "report.txt"), Report(source, downloadedFrom, referenceFeatures, best));
     rows.Add(new ResultRow(
         source.Id,
         source.CommonName,
         source.CallType,
+        referenceFeatures.DominantHz,
+        referenceFeatures.ActiveDuty,
         best.Comparison.Score,
         best.Comparison.LogMelCosineSimilarity,
         best.Comparison.LogMelDistance,
@@ -160,33 +164,59 @@ File.WriteAllText(Path.Combine(runRoot, "summary.md"), Summary(rows));
 Console.WriteLine(runRoot);
 return 0;
 
-static IEnumerable<SyrinxCandidate> CandidateGrid(BirdSource source)
+static IEnumerable<SyrinxCandidate> CandidateGrid(BirdSource source, ReferenceFeatures features)
 {
-    var bases = source.Kind switch
+    var fallbackBases = source.Kind switch
     {
         BirdKind.HarmonicSong => new[] { 750f, 1050f, 1400f },
         BirdKind.HighCall => new[] { 1400f, 2200f, 3000f },
         BirdKind.LowCall => new[] { 260f, 480f, 760f },
         _ => new[] { 800f, 1300f, 2100f }
     };
-    var tensions = source.Kind == BirdKind.LowCall ? new[] { 0.28f, 0.5f } : new[] { 0.38f, 0.62f };
-    var openings = source.Kind == BirdKind.HighCall ? new[] { 0.14f, 0.28f } : new[] { 0.20f, 0.38f };
-    var loads = new[] { 0.85f };
-
-    foreach (var frequency in bases)
-    foreach (var tension in tensions)
-    foreach (var opening in openings)
-    foreach (var load in loads)
+    var featureBase = features.DominantHz is > 120 and < 6000
+        ? features.DominantHz
+        : fallbackBases[1];
+    var bases = new[]
     {
+        Math.Clamp(featureBase * 0.78f, 120f, 5000f),
+        Math.Clamp(featureBase, 120f, 5000f),
+        Math.Clamp(featureBase * 1.24f, 120f, 5000f)
+    };
+    var active = Math.Clamp(features.ActiveDuty, 0.05f, 1f);
+    var flux = Math.Clamp(features.SpectralFlux, 0f, 1f);
+    var basePressure = Math.Clamp(0.58f + active * 0.28f + flux * 0.10f, 0.45f, 0.95f);
+    var baseOpening = source.Kind == BirdKind.HighCall
+        ? Math.Clamp(0.10f + features.Rms * 1.5f, 0.08f, 0.28f)
+        : Math.Clamp(0.16f + features.Rms * 1.7f, 0.12f, 0.42f);
+    var loads = new[] { 0.65f, 0.9f };
+    var leftGates = new[] { 1.0f, 0.72f };
+    foreach (var frequency in bases)
+    foreach (var load in loads)
+    foreach (var leftGate in leftGates)
+    {
+        var tension = Math.Clamp(0.18f + frequency / 5200f + flux * 0.12f, 0.18f, 0.88f);
+        var stiffness = Math.Clamp(MathF.Pow(frequency / 3200f, 2) * 0.09f, 0.004f, 0.16f);
+        var mass = Math.Clamp(0.48f - frequency / 9000f, 0.10f, 0.46f);
+        var damping = Math.Clamp(0.08f + (1f - active) * 0.16f + flux * 0.08f, 0.06f, 0.38f);
         yield return new SyrinxCandidate(
             frequency,
-            Pressure: source.Kind == BirdKind.LowCall ? 0.74f : 0.82f,
-            RightPressure: source.Kind == BirdKind.LowCall ? 0.62f : 0.70f,
+            Pressure: basePressure * leftGate,
+            RightPressure: Math.Clamp(basePressure * (0.82f + flux * 0.18f), 0.35f, 0.95f),
             Tension: tension,
             RightTension: Math.Clamp(tension + 0.07f, 0, 1),
-            Opening: opening,
-            RightOpening: Math.Max(0.05f, opening * 0.88f),
+            Opening: baseOpening,
+            RightOpening: Math.Max(0.04f, baseOpening * (0.82f + flux * 0.18f)),
             Load: load,
+            Mass: mass,
+            RightMass: Math.Clamp(mass * 1.06f, 0.08f, 0.6f),
+            Damping: damping,
+            RightDamping: Math.Clamp(damping * 1.08f, 0.04f, 0.5f),
+            Stiffness: stiffness,
+            RightStiffness: Math.Clamp(stiffness * 1.12f, 0.002f, 0.2f),
+            Drive: Math.Clamp(0.9f + features.Peak * 0.45f, 0.7f, 1.5f),
+            RightDrive: Math.Clamp(0.82f + features.Peak * 0.40f, 0.65f, 1.4f),
+            LoadCoupling: Math.Clamp(0.28f + load * 0.18f, 0.2f, 0.7f),
+            RestOpening: Math.Clamp(baseOpening * 0.10f, 0.01f, 0.08f),
             BeakOpening: source.Kind == BirdKind.LowCall ? 0.75f : 0.95f,
             Gain: source.Kind == BirdKind.LowCall ? 0.42f : 0.32f);
     }
@@ -200,8 +230,8 @@ static string SyrinxScript(SyrinxCandidate candidate, float durationSeconds) =>
     path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
     path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
 
-    source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure={{F(candidate.Pressure)}} tension={{F(candidate.Tension)}} opening={{F(candidate.Opening)}} noise=.025 impedance={{F(candidate.Load)}}
-    source_port name=right_labium path=right_bronchus kind=syrinx position=0 pressure={{F(candidate.RightPressure)}} tension={{F(candidate.RightTension)}} opening={{F(candidate.RightOpening)}} noise=.02 balance=.96 impedance={{F(candidate.Load)}}
+    source_port name=left_labium path=left_bronchus kind=syrinx model=tissue_valve position=0 pressure={{F(candidate.Pressure)}} tension={{F(candidate.Tension)}} opening={{F(candidate.Opening)}} noise=.025 impedance={{F(candidate.Load)}} mass={{F(candidate.Mass)}} damping={{F(candidate.Damping)}} stiffness={{F(candidate.Stiffness)}} saturation=.9 drive={{F(candidate.Drive)}} load_coupling={{F(candidate.LoadCoupling)}} rest_opening={{F(candidate.RestOpening)}}
+    source_port name=right_labium path=right_bronchus kind=syrinx model=tissue_valve position=0 pressure={{F(candidate.RightPressure)}} tension={{F(candidate.RightTension)}} opening={{F(candidate.RightOpening)}} noise=.02 balance=.96 impedance={{F(candidate.Load)}} mass={{F(candidate.RightMass)}} damping={{F(candidate.RightDamping)}} stiffness={{F(candidate.RightStiffness)}} saturation=.9 drive={{F(candidate.RightDrive)}} load_coupling={{F(candidate.LoadCoupling)}} rest_opening={{F(candidate.RestOpening)}}
 
     terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
     terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1
@@ -214,7 +244,7 @@ static string SyrinxScript(SyrinxCandidate candidate, float durationSeconds) =>
     acoustic network=bird_syrinx freq={{F(candidate.Frequency)}} gain={{F(candidate.Gain)}} sustain={{F(Math.Max(0.05f, durationSeconds - 0.12f))}} decay=.08
     """;
 
-static string Report(BirdSource source, string downloadedFrom, CandidateResult best) =>
+static string Report(BirdSource source, string downloadedFrom, ReferenceFeatures features, CandidateResult best) =>
     $"""
     # {source.CommonName} ({source.ScientificName})
 
@@ -223,6 +253,15 @@ static string Report(BirdSource source, string downloadedFrom, CandidateResult b
     License: {source.LicenseName} ({source.LicenseUrl})
     Author: {source.Author}
     Call type: {source.CallType}
+
+    Reference features:
+    rms={features.Rms:0.0000}
+    peak={features.Peak:0.0000}
+    activeDuty={features.ActiveDuty:0.0000}
+    onsetSeconds={features.OnsetSeconds:0.0000}
+    offsetSeconds={features.OffsetSeconds:0.0000}
+    dominantHz={features.DominantHz:0.0}
+    spectralFlux={features.SpectralFlux:0.0000}
 
     Best candidate:
     {best.Candidate}
@@ -235,7 +274,7 @@ static string Report(BirdSource source, string downloadedFrom, CandidateResult b
     centroidRatio={best.Comparison.CentroidRatio:0.0000}
     articulation={best.Comparison.Articulation.ArticulationScore:0.0000}
 
-    This is a first graph-native syrinx golf pass, not an accepted species model.
+    This is a feature-informed graph-native syrinx golf pass, not an accepted species model. Gesture curves are currently compressed into source parameters because Aqua does not yet have general arbitrary-path control automation.
     """;
 
 static string Summary(IEnumerable<ResultRow> rows)
@@ -243,15 +282,73 @@ static string Summary(IEnumerable<ResultRow> rows)
     var builder = new StringBuilder();
     builder.AppendLine("# Bird Syrinx Golf");
     builder.AppendLine();
-    builder.AppendLine("All references are open-licensed bird recordings from Wikimedia Commons. Candidates are graph-native Aqua syrinx patches using paired labial source ports.");
+    builder.AppendLine("All references are open-licensed bird recordings from Wikimedia Commons. Candidates are graph-native Aqua syrinx patches using paired tissue-valve source ports.");
     builder.AppendLine();
-    builder.AppendLine("| id | bird | call | score | logMelCosine | logMelDistance | centroidRatio | candidate |");
-    builder.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | --- |");
+    builder.AppendLine("| id | bird | call | dominantHz | activeDuty | score | logMelCosine | logMelDistance | centroidRatio | candidate |");
+    builder.AppendLine("| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
     foreach (var row in rows)
     {
-        builder.AppendLine(CultureInfo.InvariantCulture, $"| {row.Id} | {row.Bird} | {row.Call} | {row.Score:0.0000} | {row.LogMelCosine:0.0000} | {row.LogMelDistance:0.0000} | {row.CentroidRatio:0.0000} | `{row.Candidate}` |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| {row.Id} | {row.Bird} | {row.Call} | {row.DominantHz:0.0} | {row.ActiveDuty:0.0000} | {row.Score:0.0000} | {row.LogMelCosine:0.0000} | {row.LogMelDistance:0.0000} | {row.CentroidRatio:0.0000} | `{row.Candidate}` |");
     }
     return builder.ToString();
+}
+
+static ReferenceFeatures ExtractReferenceFeatures(IReadOnlyList<float> samples, int sampleRate)
+{
+    var peak = samples.Select(MathF.Abs).DefaultIfEmpty(0).Max();
+    var rms = MathF.Sqrt(samples.Select(sample => sample * sample).DefaultIfEmpty(0).Average());
+    var frameSize = Math.Max(64, sampleRate / 100);
+    var threshold = Math.Max(0.02f, rms * 0.45f);
+    var frameRms = new List<float>();
+    for (var start = 0; start < samples.Count; start += frameSize)
+    {
+        var end = Math.Min(samples.Count, start + frameSize);
+        var sum = 0f;
+        for (var i = start; i < end; i++) sum += samples[i] * samples[i];
+        frameRms.Add(MathF.Sqrt(sum / Math.Max(1, end - start)));
+    }
+
+    var activeFrames = frameRms
+        .Select((value, index) => (value, index))
+        .Where(frame => frame.value >= threshold)
+        .Select(frame => frame.index)
+        .ToArray();
+    var activeDuty = frameRms.Count == 0 ? 0 : activeFrames.Length / (float)frameRms.Count;
+    var onset = activeFrames.Length == 0 ? 0 : activeFrames[0] * frameSize / (float)sampleRate;
+    var offset = activeFrames.Length == 0 ? samples.Count / (float)sampleRate : Math.Min(samples.Count, (activeFrames[^1] + 1) * frameSize) / (float)sampleRate;
+    var flux = 0f;
+    for (var i = 1; i < frameRms.Count; i++) flux += Math.Max(0, frameRms[i] - frameRms[i - 1]);
+    flux = frameRms.Count <= 1 || peak <= 0 ? 0 : Math.Clamp(flux / (frameRms.Count * peak), 0, 1);
+
+    return new ReferenceFeatures(rms, peak, activeDuty, onset, offset, DominantFrequency(samples, sampleRate, activeFrames, frameSize), flux);
+}
+
+static float DominantFrequency(IReadOnlyList<float> samples, int sampleRate, IReadOnlyList<int> activeFrames, int frameSize)
+{
+    if (samples.Count < 256) return 0;
+    var activeCenter = activeFrames.Count == 0
+        ? samples.Count / 2
+        : Math.Clamp((int)((activeFrames[activeFrames.Count / 2] + 0.5f) * frameSize), 0, samples.Count - 1);
+    var size = Math.Min(4096, samples.Count);
+    var start = Math.Clamp(activeCenter - size / 2, 0, Math.Max(0, samples.Count - size));
+    var minLag = Math.Max(1, sampleRate / 5000);
+    var maxLag = Math.Min(size / 2, sampleRate / 120);
+    var bestLag = 0;
+    var best = 0f;
+    for (var lag = minLag; lag <= maxLag; lag++)
+    {
+        var sum = 0f;
+        for (var i = 0; i < size - lag; i++)
+        {
+            sum += samples[start + i] * samples[start + i + lag];
+        }
+        if (sum > best)
+        {
+            best = sum;
+            bestLag = lag;
+        }
+    }
+    return bestLag == 0 ? 0 : sampleRate / (float)bestLag;
 }
 
 static DecodedAudio DecodeMono(string path, string sourceUrl)
@@ -462,13 +559,23 @@ public sealed record SyrinxCandidate(
     float Opening,
     float RightOpening,
     float Load,
+    float Mass,
+    float RightMass,
+    float Damping,
+    float RightDamping,
+    float Stiffness,
+    float RightStiffness,
+    float Drive,
+    float RightDrive,
+    float LoadCoupling,
+    float RestOpening,
     float BeakOpening,
     float Gain)
 {
     public override string ToString() =>
         string.Create(
             CultureInfo.InvariantCulture,
-            $"freq={Frequency:0.#} pressure={Pressure:0.###}/{RightPressure:0.###} tension={Tension:0.###}/{RightTension:0.###} opening={Opening:0.###}/{RightOpening:0.###} load={Load:0.###} beak={BeakOpening:0.###} gain={Gain:0.###}");
+            $"freqHint={Frequency:0.#} pressure={Pressure:0.###}/{RightPressure:0.###} tension={Tension:0.###}/{RightTension:0.###} opening={Opening:0.###}/{RightOpening:0.###} mass={Mass:0.###}/{RightMass:0.###} damp={Damping:0.###}/{RightDamping:0.###} stiff={Stiffness:0.###}/{RightStiffness:0.###} drive={Drive:0.###}/{RightDrive:0.###} load={Load:0.###} loadCoupling={LoadCoupling:0.###} rest={RestOpening:0.###} beak={BeakOpening:0.###} gain={Gain:0.###}");
 }
 
 public sealed record CandidateResult(SyrinxCandidate Candidate, float[] Samples, AudioComparison Comparison, string Script);
@@ -477,6 +584,8 @@ public sealed record ResultRow(
     string Id,
     string Bird,
     string Call,
+    float DominantHz,
+    float ActiveDuty,
     float Score,
     float LogMelCosine,
     float LogMelDistance,
@@ -484,3 +593,12 @@ public sealed record ResultRow(
     string Candidate);
 
 public sealed record DecodedAudio(int SampleRate, float[] Samples);
+
+public sealed record ReferenceFeatures(
+    float Rms,
+    float Peak,
+    float ActiveDuty,
+    float OnsetSeconds,
+    float OffsetSeconds,
+    float DominantHz,
+    float SpectralFlux);

@@ -233,6 +233,13 @@ public enum AcousticSourceKind
     Synthetic
 }
 
+public enum AcousticSourceModel
+{
+    Default,
+    Legacy,
+    TissueValve
+}
+
 public enum AcousticBranchKind
 {
     SideBranch,
@@ -312,7 +319,15 @@ public sealed record AcousticSourcePort(
     float Balance = 1,
     bool Active = true,
     AcousticSourcePositionControl? PositionControl = null,
-    float Impedance = 0.35f);
+    float Impedance = 0.35f,
+    AcousticSourceModel Model = AcousticSourceModel.Default,
+    float Mass = 0.35f,
+    float Damping = 0.18f,
+    float Stiffness = 0,
+    float Saturation = 0.8f,
+    float Drive = 1,
+    float LoadCoupling = 0.35f,
+    float RestOpening = 0.02f);
 
 public sealed record AcousticSourcePositionControl(
     float Index = 0,

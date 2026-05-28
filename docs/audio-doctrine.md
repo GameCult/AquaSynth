@@ -144,6 +144,43 @@ owns text, phonology, allophones, and phonetic intent. AquaSynth owns the
 articulatory realization: gesture planning, morphology constraints, tract-area
 targets, excitation events, and Faust lowering.
 
+## Graph Vocal Sources
+
+Graph voices do not let `freq=` own vocal pitch. For acoustic-graph voices,
+`freq=` is only an initializer/hint for defaults such as valve stiffness when a
+script has not supplied a physical value. The live source authority is the
+source port and its acoustic load.
+
+Current authority map:
+
+- Owner: `AcousticSourcePort` owns local excitation semantics at a graph
+  terminal.
+- Inputs: pressure, tension, aperture/opening, mass, damping, stiffness,
+  saturation, drive, load coupling, rest opening, balance, source position, and
+  the incident pressure at the graph node.
+- Outputs: source flow injected into the acoustic graph; rendered pitch is an
+  outcome of valve state plus tract/radiation load.
+- Derived state: `kind=syrinx` and `kind=labial` are authoring aliases for
+  `model=tissue_valve`; they are not species modules.
+- Forbidden writers: labial/syrinx lowering must not emit a commanded
+  `os.phasor(... freq ...)` oscillator as the source of truth.
+- Shared path: larynx, syrinx, reed-like, and alien morphologies should become
+  graphs plus source ports, not bespoke renderer families.
+
+The reusable primitive is `model=tissue_valve`: a Faust-friendly nonlinear
+valve state with pressure drive, delayed velocity/displacement state, cubic
+aperture saturation, and incident-pressure load feedback. A syrinx is two such
+valves feeding an acoustic graph; a larynx is one such valve feeding a tract.
+Different species should change morphology and gestures, not add hidden source
+renderers.
+
+The current bird-golf tool extracts reference envelope, dominant pitch,
+onset/offset, active-duty, and flux features, then maps those into tissue-valve
+candidate parameters. It does not yet express arbitrary time-varying source
+gestures through the DSL. That missing automation surface is the next coherent
+language feature: general control curves must target stable field paths such as
+`/acoustic/sources/0/pressure`, not a bird-shaped side channel.
+
 The current speech-learning lane adds a trainable surface above that boundary:
 structured utterance metadata lowers into an utterance embedding, then into a
 synth-driver automation vector for tract controls, envelopes, LFOs, filters, and

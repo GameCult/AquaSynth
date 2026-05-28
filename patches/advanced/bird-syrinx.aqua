@@ -6,6 +6,18 @@ param path=/bird/left/opening default=.24 min=0 max=1 step=.001
 param path=/bird/right/opening default=.21 min=0 max=1 step=.001
 param path=/bird/left/tension default=.38 min=0 max=1 step=.001
 param path=/bird/right/tension default=.45 min=0 max=1 step=.001
+param path=/bird/left/mass default=.32 min=.02 max=2 step=.001
+param path=/bird/right/mass default=.34 min=.02 max=2 step=.001
+param path=/bird/left/damping default=.14 min=0 max=2 step=.001
+param path=/bird/right/damping default=.16 min=0 max=2 step=.001
+param path=/bird/left/stiffness default=.025 min=0 max=1 step=.001
+param path=/bird/right/stiffness default=.03 min=0 max=1 step=.001
+param path=/bird/left/drive default=1.2 min=0 max=4 step=.001
+param path=/bird/right/drive default=1.1 min=0 max=4 step=.001
+param path=/bird/left/load_coupling default=.42 min=0 max=2 step=.001
+param path=/bird/right/load_coupling default=.42 min=0 max=2 step=.001
+param path=/bird/left/rest_opening default=.025 min=0 max=1 step=.001
+param path=/bird/right/rest_opening default=.025 min=0 max=1 step=.001
 param path=/bird/load default=.85 min=0 max=2 step=.001
 param path=/bird/beak/opening default=.95 min=0 max=1.5 step=.001
 
@@ -13,8 +25,8 @@ path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
 path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
 path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
 
-source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure=@/bird/left/pressure tension=@/bird/left/tension opening=@/bird/left/opening noise=.025 impedance=@/bird/load
-source_port name=right_labium path=right_bronchus kind=syrinx position=0 pressure=@/bird/right/pressure tension=@/bird/right/tension opening=@/bird/right/opening noise=.02 balance=.96 impedance=@/bird/load
+source_port name=left_labium path=left_bronchus kind=syrinx model=tissue_valve position=0 pressure=@/bird/left/pressure tension=@/bird/left/tension opening=@/bird/left/opening noise=.025 impedance=@/bird/load mass=@/bird/left/mass damping=@/bird/left/damping stiffness=@/bird/left/stiffness saturation=.9 drive=@/bird/left/drive load_coupling=@/bird/left/load_coupling rest_opening=@/bird/left/rest_opening
+source_port name=right_labium path=right_bronchus kind=syrinx model=tissue_valve position=0 pressure=@/bird/right/pressure tension=@/bird/right/tension opening=@/bird/right/opening noise=.02 balance=.96 impedance=@/bird/load mass=@/bird/right/mass damping=@/bird/right/damping stiffness=@/bird/right/stiffness saturation=.9 drive=@/bird/right/drive load_coupling=@/bird/right/load_coupling rest_opening=@/bird/right/rest_opening
 
 terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
 terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1

@@ -621,7 +621,10 @@ public static class FaustEmitter
         {
             if (sources.TryGetValue(sourceName, out var port))
             {
-                source.AppendLine($"{name}_graph_source_{SafeIdentifier(sourceName)} = {AcousticSourceExpression(patch, port, frequency, parameters)};");
+                var sourceExpression = IsTissueValveSource(port)
+                    ? "0.0"
+                    : AcousticSourceExpression(patch, port, frequency, parameters);
+                source.AppendLine($"{name}_graph_source_{SafeIdentifier(sourceName)} = {sourceExpression};");
             }
         }
 
@@ -839,6 +842,13 @@ public static class FaustEmitter
         var transient = $"clip01({parameters.Expression(OwnerField(path, "transient"), port.Transient)})";
         var balance = $"({parameters.Expression(OwnerField(path, "balance"), port.Balance)}) * ({SourcePositionWeightExpression(port, path, parameters)})";
         var impedance = $"max(0.0, {parameters.Expression(OwnerField(path, "impedance"), port.Impedance)})";
+        var mass = $"max(0.02, {parameters.Expression(OwnerField(path, "mass"), port.Mass)})";
+        var damping = $"max(0.0, {parameters.Expression(OwnerField(path, "damping"), port.Damping)})";
+        var stiffness = $"max(0.0, {parameters.Expression(OwnerField(path, "stiffness"), port.Stiffness)})";
+        var saturation = $"max(0.0, {parameters.Expression(OwnerField(path, "saturation"), port.Saturation)})";
+        var drive = $"max(0.0, {parameters.Expression(OwnerField(path, "drive"), port.Drive)})";
+        var loadCoupling = $"max(0.0, {parameters.Expression(OwnerField(path, "load_coupling"), port.LoadCoupling)})";
+        var restOpening = $"max(0.0, {parameters.Expression(OwnerField(path, "rest_opening"), port.RestOpening)})";
         var effectivePressure = localPressure is null
             ? pressure
             : $"clip01(({pressure}) - 0.14 * ({impedance}) * ({localPressure}))";
@@ -858,6 +868,11 @@ public static class FaustEmitter
         var turbulence = $"(no.noise : fi.highpass(2, 900.0 + 2600.0 * clip01(1.0 - {opening})))";
         var apertureNoiseGate = $"min(clip01((0.85 - {opening}) / 0.85), clip01(25.0 * ({opening} - 0.04)))";
         var releaseBurstGate = $"clip01({opening} / 0.8) * {release}";
+        if (IsTissueValveSource(port))
+        {
+            return TissueValveInlineExpression(frequency, pressure, tension, opening, noise, balance, mass, damping, stiffness, saturation, drive, loadCoupling, restOpening, localPressure);
+        }
+
         return port.Kind switch
         {
             AcousticSourceKind.Glottal =>
@@ -874,6 +889,39 @@ public static class FaustEmitter
                 $"sin(2.0 * ma.PI * {phase}) * {effectivePressure} * {opening} * {balance} * {load}",
             _ => "0.0"
         };
+    }
+
+    private static bool IsTissueValveSource(AcousticSourcePort port) =>
+        port.Model == AcousticSourceModel.TissueValve ||
+        port.Model == AcousticSourceModel.Default && port.Kind == AcousticSourceKind.Labial;
+
+    private static string TissueValveInlineExpression(
+        string frequency,
+        string pressure,
+        string tension,
+        string opening,
+        string noise,
+        string balance,
+        string mass,
+        string damping,
+        string stiffness,
+        string saturation,
+        string drive,
+        string loadCoupling,
+        string restOpening,
+        string? localPressure)
+    {
+        var loadPressure = localPressure ?? "0.0";
+        var stiffnessHint = $"max(0.00002, min(0.16, pow(2.0 * ma.PI * max(20.0, {frequency}) / ma.SR, 2.0)))";
+        var effectiveStiffness = $"max(({stiffness}), ({stiffnessHint}) * (0.35 + 1.65 * ({tension})))";
+        var pressureDrive = $"max(0.0, ({pressure}) * ({drive}) - ({loadCoupling}) * ({loadPressure}))";
+        var velocityDecay = $"min(0.9995, max(0.20, 1.0 - ((0.008 + 0.08 * ({damping})) / ({mass}))))";
+        var displacementDecay = $"min(0.9998, max(0.20, 1.0 - 0.0008 / ({mass})))";
+        var velocity = $"((({pressureDrive}) * (0.0004 + 0.0024 * (1.0 - clip01({opening}))) - ({loadCoupling}) * ({loadPressure}) * 0.001) : + ~ *(({velocityDecay}) / (1.0 + 10.0 * ({effectiveStiffness}) + 0.4 * ({saturation}))))";
+        var displacement = $"(({velocity}) : + ~ *(({displacementDecay}) / (1.0 + 1.5 * ({effectiveStiffness}))))";
+        var aperture = $"max(0.0, ({restOpening}) + ({opening}) + ({displacement}) - ({saturation}) * pow(({displacement}), 3.0))";
+        var turbulence = $"(no.noise : fi.highpass(2, 1200.0 + 2800.0 * clip01(1.0 - ({aperture}))))";
+        return $"(ma.tanh(({pressureDrive}) * ({aperture}) * (2.0 + 10.0 * ({drive}))) + ({turbulence}) * ({noise}) * ({pressureDrive}) * clip01({aperture}) * (1.0 - 0.55 * ({tension}))) * ({balance})";
     }
 
     private static string GlottalSourceExpression(
@@ -1463,8 +1511,59 @@ public static class FaustEmitter
         var prefix = $"{voiceName}_graph_source_{safeSource}_{safeNode}";
         var localPressure = $"{voiceName}_graph_node_incident_pressure_{node.Name}";
         source.AppendLine($"    {prefix}_load_pressure = {localPressure};");
-        source.AppendLine($"    {prefix}_out = {AcousticSourceExpression(patch, port, frequency, parameters, localPressure)};");
+        if (IsTissueValveSource(port))
+        {
+            EmitGraphTissueValveSourceExpression(source, patch, voiceName, node, sourceName, port, frequency, parameters, localPressure);
+        }
+        else
+        {
+            source.AppendLine($"    {prefix}_out = {AcousticSourceExpression(patch, port, frequency, parameters, localPressure)};");
+        }
         return $"{prefix}_out";
+    }
+
+    private static void EmitGraphTissueValveSourceExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        AcousticGraphNode node,
+        string sourceName,
+        AcousticSourcePort port,
+        string frequency,
+        ParameterMap parameters,
+        string localPressure)
+    {
+        var index = AcousticSourcePortIndex(patch, port);
+        var path = $"/acoustic/sources/{index}";
+        var safeSource = SafeIdentifier(sourceName);
+        var safeNode = SafeIdentifier(node.Name);
+        var prefix = $"{voiceName}_graph_source_{safeSource}_{safeNode}";
+        var pressure = $"clip01({parameters.Expression(OwnerField(path, "pressure"), port.Pressure)})";
+        var tension = $"clip01({parameters.Expression(OwnerField(path, "tension"), port.Tension)})";
+        var opening = $"max(0.0, {parameters.Expression(OwnerField(path, "opening"), port.Opening)})";
+        var noise = $"clip01({parameters.Expression(OwnerField(path, "noise"), port.Noise)})";
+        var balance = $"({parameters.Expression(OwnerField(path, "balance"), port.Balance)}) * ({SourcePositionWeightExpression(port, path, parameters)})";
+        var mass = $"max(0.02, {parameters.Expression(OwnerField(path, "mass"), port.Mass)})";
+        var damping = $"max(0.0, {parameters.Expression(OwnerField(path, "damping"), port.Damping)})";
+        var stiffness = $"max(0.0, {parameters.Expression(OwnerField(path, "stiffness"), port.Stiffness)})";
+        var saturation = $"max(0.0, {parameters.Expression(OwnerField(path, "saturation"), port.Saturation)})";
+        var drive = $"max(0.0, {parameters.Expression(OwnerField(path, "drive"), port.Drive)})";
+        var loadCoupling = $"max(0.0, {parameters.Expression(OwnerField(path, "load_coupling"), port.LoadCoupling)})";
+        var restOpening = $"max(0.0, {parameters.Expression(OwnerField(path, "rest_opening"), port.RestOpening)})";
+
+        source.AppendLine($"    {prefix}_stiffness_hint = max(0.00002, min(0.16, pow(2.0 * ma.PI * max(20.0, {frequency}) / ma.SR, 2.0)));");
+        source.AppendLine($"    {prefix}_stiffness = max(({stiffness}), {prefix}_stiffness_hint * (0.35 + 1.65 * ({tension})));");
+        source.AppendLine($"    {prefix}_pressure_drive = max(0.0, ({pressure}) * ({drive}) - ({loadCoupling}) * {prefix}_load_pressure);");
+        source.AppendLine($"    {prefix}_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.008 + 0.08 * ({damping})) / ({mass}))));");
+        source.AppendLine($"    {prefix}_displacement_decay = min(0.9998, max(0.20, 1.0 - 0.0008 / ({mass})));");
+        source.AppendLine($"    {prefix}_force = ({prefix}_pressure_drive * (0.0004 + 0.0024 * (1.0 - clip01({opening}))) - ({loadCoupling}) * {prefix}_load_pressure * 0.001) / ({mass});");
+        source.AppendLine($"    {prefix}_velocity = {prefix}_force : + ~ *({prefix}_velocity_decay / (1.0 + 10.0 * {prefix}_stiffness + 0.4 * ({saturation})));");
+        source.AppendLine($"    {prefix}_displacement = {prefix}_velocity : + ~ *({prefix}_displacement_decay / (1.0 + 1.5 * {prefix}_stiffness));");
+        source.AppendLine($"    {prefix}_aperture = max(0.0, ({restOpening}) + ({opening}) + {prefix}_displacement - ({saturation}) * pow({prefix}_displacement, 3.0));");
+        source.AppendLine($"    {prefix}_turbulence = no.noise : fi.highpass(2, 1200.0 + 2800.0 * clip01(1.0 - {prefix}_aperture));");
+        source.AppendLine($"    {prefix}_flow = ma.tanh({prefix}_pressure_drive * {prefix}_aperture * (2.0 + 10.0 * ({drive})));");
+        source.AppendLine($"    {prefix}_noise = {prefix}_turbulence * ({noise}) * {prefix}_pressure_drive * clip01({prefix}_aperture) * (1.0 - 0.55 * ({tension}));");
+        source.AppendLine($"    {prefix}_out = ({prefix}_flow + {prefix}_noise) * ({balance});");
     }
 
     private static string EmitGraphContactSourceExpression(

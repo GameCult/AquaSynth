@@ -564,11 +564,13 @@ public static class PatchScript
 
             var path = Required(fields, "path", line);
             RequireAcousticPath(path, line);
+            var kind = ParseAcousticSourceKind(GetAny(fields, ["kind", "source_kind"], "glottal"), line);
+            var model = ParseAcousticSourceModel(GetAny(fields, ["model", "source_model"], ""), kind, line);
             var port = new AcousticSourcePort(
                 name,
                 path,
                 GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/position", "position", "pos", "at"),
-                ParseAcousticSourceKind(GetAny(fields, ["kind", "source_kind"], "glottal"), line),
+                kind,
                 GetBoundFloat(fields, line, 0.72f, $"/acoustic/sources/{_acousticSourcePorts.Count}/pressure", "pressure", "intensity"),
                 GetBoundFloat(fields, line, 0.6f, $"/acoustic/sources/{_acousticSourcePorts.Count}/tension", "tension", "tenseness", "tense"),
                 GetBoundFloat(fields, line, 0.5f, $"/acoustic/sources/{_acousticSourcePorts.Count}/opening", "opening", "open"),
@@ -577,7 +579,15 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 1, $"/acoustic/sources/{_acousticSourcePorts.Count}/balance", "balance"),
                 TryGetAny(fields, ["active"], out var active) ? ParseBool(active, line) : true,
                 ParseAcousticSourcePositionControl(fields, line, _acousticSourcePorts.Count),
-                GetBoundFloat(fields, line, 0.35f, $"/acoustic/sources/{_acousticSourcePorts.Count}/impedance", "impedance", "load", "source_impedance"));
+                GetBoundFloat(fields, line, 0.35f, $"/acoustic/sources/{_acousticSourcePorts.Count}/impedance", "impedance", "load", "source_impedance"),
+                model,
+                GetBoundFloat(fields, line, 0.35f, $"/acoustic/sources/{_acousticSourcePorts.Count}/mass", "mass", "valve_mass"),
+                GetBoundFloat(fields, line, 0.18f, $"/acoustic/sources/{_acousticSourcePorts.Count}/damping", "damping", "damp"),
+                GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/stiffness", "stiffness", "spring"),
+                GetBoundFloat(fields, line, 0.8f, $"/acoustic/sources/{_acousticSourcePorts.Count}/saturation", "saturation", "sat"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/sources/{_acousticSourcePorts.Count}/drive", "drive", "flow_gain"),
+                GetBoundFloat(fields, line, 0.35f, $"/acoustic/sources/{_acousticSourcePorts.Count}/load_coupling", "load_coupling", "load_feedback"),
+                GetBoundFloat(fields, line, 0.02f, $"/acoustic/sources/{_acousticSourcePorts.Count}/rest_opening", "rest_opening", "rest_aperture"));
             AddAcousticSourcePortRecord(port);
             AddAcousticTerminalRecord(new AcousticTerminal(
                 port.Name,
@@ -2609,6 +2619,22 @@ public static class PatchScript
         "synthetic" or "synth" or "alien" => AcousticSourceKind.Synthetic,
         _ => throw new PatchScriptException(line, $"unknown acoustic source kind `{value}`")
     };
+
+    private static AcousticSourceModel ParseAcousticSourceModel(string value, AcousticSourceKind kind, int line)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return kind == AcousticSourceKind.Labial ? AcousticSourceModel.TissueValve : AcousticSourceModel.Default;
+        }
+
+        return value.ToLowerInvariant() switch
+        {
+            "default" or "auto" => kind == AcousticSourceKind.Labial ? AcousticSourceModel.TissueValve : AcousticSourceModel.Default,
+            "legacy" or "proxy" => AcousticSourceModel.Legacy,
+            "tissue_valve" or "tissue-valve" or "valve" or "labial_oscillator" or "labial-oscillator" => AcousticSourceModel.TissueValve,
+            _ => throw new PatchScriptException(line, $"unknown acoustic source model `{value}`")
+        };
+    }
 
     private static AcousticBranchKind ParseAcousticBranchKind(string value, int line) => value.ToLowerInvariant() switch
     {

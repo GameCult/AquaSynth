@@ -42,27 +42,27 @@ Aqua implication: the oscillator should expose controllable nonlinear regimes. A
 
 ## Architecture Intention
 
-Owner: graph-native acoustic lowering owns how pressure waves, source loading, junctions, tract delays, and radiation interact.
+Owner: graph-native acoustic lowering owns how pressure waves, source loading, junctions, tract delays, and radiation interact. `AcousticSourcePort` owns local source dynamics at a terminal; `kind=syrinx` and `kind=labial` are now aliases onto `model=tissue_valve`, not independent renderers.
 
-Inputs: morphology graph, labial source parameters, pressure/tension/gating control curves, tract/radiation controls, and optional fitting targets.
+Inputs: morphology graph, tissue-valve source parameters, pressure/tension/gating control curves, tract/radiation controls, and optional fitting targets. The implemented v1 valve surface exposes mass, damping, stiffness, saturation, drive, load coupling, and rest opening in addition to pressure, tension, opening, noise, balance, and impedance.
 
-Outputs: emitted Faust DSP in which source dynamics and acoustic network are mutually coupled enough to express source-source and source-tract interaction.
+Outputs: emitted Faust DSP in which source dynamics and acoustic network are mutually coupled enough to express source-source and source-tract interaction. The current Faust lowering emits named pressure-drive, force, velocity, displacement, aperture, load-pressure, and flow locals so the source law remains inspectable.
 
-Derived state: direct frequency controls are authoring hints or fit initializers, not the physical owner of pitch.
+Derived state: direct frequency controls are authoring hints or fit initializers for default stiffness, not the physical owner of pitch.
 
-Forbidden writers: no bespoke bird renderer, no two-oscillator mixdown path, no species-specific hardcoded syrinx module, and no static spectral-grid compensator pretending to be a model.
+Forbidden writers: no bespoke bird renderer, no two-oscillator mixdown path, no species-specific hardcoded syrinx module, no hidden phasor-owned labial excitation, and no static spectral-grid compensator pretending to be a model.
 
 Shared paths: human larynx, bird syrinx, and alien valve morphologies should use the same tissue-valve/source-port semantics where possible, differing through morphology, coupling, and control curves.
 
-Deletion line: if the current `kind=syrinx` lowering cannot be explained as pressure/tension/aperture tissue dynamics coupled to graph pressure, it should be demoted to a smoke-test source and replaced.
+Deletion line: any future `kind=syrinx` lowering that cannot be explained as pressure/tension/aperture tissue dynamics coupled to graph pressure should be demoted to a smoke-test source and replaced.
 
 ## Recommended Next Build Slice
 
-1. Add a `labial_oscillator` or generalized `tissue_valve` source primitive with stateful displacement/velocity, nonlinear stiffness, nonlinear damping, aperture/rest-position, pressure drive, and load feedback.
-2. Give `source_port kind=syrinx` a lowering that maps pressure/tension/opening/load to that primitive instead of fixed-frequency excitation.
-3. Add control curves for pressure, tension, opening, left/right balance, and beak opening in `BirdSyrinxGolf`.
-4. Fit clean bird references by segmented time-varying controls, keeping morphology parameters slower and gesture parameters faster.
-5. Score onset timing, amplitude envelope, pitch contour, sidebands/subharmonics, and log-mel distance separately.
+1. Add general arbitrary-path control curves for acoustic source/radiation fields, especially pressure, tension, opening, left/right balance, and beak opening.
+2. Move glottal graph lowering onto `model=tissue_valve` defaults once the syrinx valve has enough listening evidence.
+3. Fit clean bird references by segmented time-varying controls, keeping morphology parameters slower and gesture parameters faster.
+4. Score onset timing, amplitude envelope, pitch contour, sidebands/subharmonics, and log-mel distance separately.
+5. Add a larynx-style graph patch using the same tissue-valve primitive.
 
 ## Source Notes
 
