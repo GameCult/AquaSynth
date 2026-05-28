@@ -37,6 +37,11 @@ entries:
     name: "aurora-pad"
     source: "BuiltInScripts.ReferenceScripts"
     notes: "Stock reference patch exported from the in-code catalog."
+  - path: patches/advanced/bird-syrinx.aqua
+    family: advanced
+    name: "bird-syrinx"
+    source: "Graph-native syrinx patch"
+    notes: "Paired labial source-port bird voice for differentiable training and audition."
   - path: patches/advanced/glass-creature.aqua
     family: advanced
     name: "glass-creature"

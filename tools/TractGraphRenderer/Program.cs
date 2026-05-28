@@ -48,6 +48,12 @@ Console.WriteLine(JsonSerializer.Serialize(new
 return 0;
 
 static string Script(RenderRequest controls) =>
+    controls.Mode.Equals("syrinx", StringComparison.OrdinalIgnoreCase) ||
+    controls.Mode.Equals("bird", StringComparison.OrdinalIgnoreCase)
+        ? SyrinxScript(controls)
+        : TractScript(controls);
+
+static string TractScript(RenderRequest controls) =>
     $$"""
     patch gain=0.48 soft_clip=true
 
@@ -61,6 +67,35 @@ static string Script(RenderRequest controls) =>
     tract_motion name=motion diameter_slew=18 shape_return=8 constriction_slew=24 velum_slew=16 obstruction_threshold=.05
 
     tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation=graph loss=.999 freq={{F(controls.Frequency)}} gain={{F(controls.Gain)}} intensity={{F(controls.Intensity)}} tenseness={{F(controls.Tenseness)}} sustain={{F(Math.Max(0.05f, controls.DurationSeconds - 0.12f))}} decay=.12 tongue_index={{F(controls.TongueIndex)}} tongue_diameter={{F(controls.TongueDiameter)}} constriction_index={{F(controls.ConstrictionIndex)}} constriction_diameter={{F(controls.ConstrictionDiameter)}} turbulence={{F(controls.Turbulence)}} velum={{F(controls.Velum)}} lip={{F(controls.LipOpening)}} burst={{F(controls.Burst)}} glottal_reflection={{F(controls.GlottalReflection)}} lip_reflection={{F(controls.LipReflection)}}
+    """;
+
+static string SyrinxScript(RenderRequest controls) =>
+    $$"""
+    patch gain=0.42 soft_clip=true
+
+    param path=/bird/left/pressure default={{F(Math.Clamp(controls.Intensity, 0, 1))}} min=0 max=1 step=.001
+    param path=/bird/right/pressure default={{F(Math.Clamp(controls.Intensity * 0.86f, 0, 1))}} min=0 max=1 step=.001
+    param path=/bird/left/opening default={{F(Math.Clamp(controls.LipOpening * 0.24f, 0.05f, 1.0f))}} min=0 max=1 step=.001
+    param path=/bird/right/opening default={{F(Math.Clamp(controls.LipOpening * 0.20f, 0.05f, 1.0f))}} min=0 max=1 step=.001
+    param path=/bird/load default=.85 min=0 max=2 step=.001
+    param path=/bird/beak/opening default=.95 min=0 max=1.5 step=.001
+
+    path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
+    path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
+    path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
+
+    source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure=@/bird/left/pressure tension={{F(controls.Tenseness)}} opening=@/bird/left/opening noise=.025 impedance=@/bird/load
+    source_port name=right_labium path=right_bronchus kind=syrinx position=0 pressure=@/bird/right/pressure tension={{F(Math.Clamp(controls.Tenseness + 0.07f, 0, 1))}} opening=@/bird/right/opening noise=.02 balance=.96 impedance=@/bird/load
+
+    terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
+    terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1
+    terminal name=trachea_base path=trachea position=0 kind=junction area_scale=1
+    connect name=syrinx_merge terminals=left_merge,right_merge,trachea_base law=area_scatter coupling=1
+
+    radiation_port name=beak path=trachea kind=beak position=1 opening=@/bird/beak/opening reflection=-.72
+    wave_clock name=bird_clock strategy=linear max_delay=1024 smoothing_ms=2
+    acoustic_network name=bird_syrinx path=trachea wave_clock=bird_clock sources=left_labium,right_labium radiation=beak terminals=left_merge,right_merge,trachea_base connections=syrinx_merge
+    acoustic network=bird_syrinx freq={{F(controls.Frequency)}} gain={{F(controls.Gain)}} sustain={{F(Math.Max(0.05f, controls.DurationSeconds - 0.12f))}} decay=.08
     """;
 
 static string F(float value) =>
@@ -93,6 +128,7 @@ static void WriteWav(string path, IReadOnlyList<float> samples, int sampleRate, 
 }
 
 public sealed record RenderRequest(
+    string Mode = "tract",
     string OutputPath = "",
     int SampleRate = 44100,
     float DurationSeconds = 0.57f,

@@ -266,6 +266,7 @@ public enum AcousticTerminalKind
     Junction,
     Source,
     Radiation,
+    Contact,
     Open,
     Closed,
     Probe
@@ -310,7 +311,8 @@ public sealed record AcousticSourcePort(
     float Transient = 0,
     float Balance = 1,
     bool Active = true,
-    AcousticSourcePositionControl? PositionControl = null);
+    AcousticSourcePositionControl? PositionControl = null,
+    float Impedance = 0.35f);
 
 public sealed record AcousticSourcePositionControl(
     float Index = 0,

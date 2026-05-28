@@ -140,6 +140,7 @@ public static class CultCachePatchDocumentCatalog
         new("patches/808/snare.aqua", "808", "snare", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
         new("patches/808/tom.aqua", "808", "tom", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
         new("patches/advanced/aurora-pad.aqua", "advanced", "aurora-pad", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
+        new("patches/advanced/bird-syrinx.aqua", "advanced", "bird-syrinx", "Graph-native syrinx patch", "Paired labial source-port bird voice for differentiable training and audition."),
         new("patches/advanced/glass-creature.aqua", "advanced", "glass-creature", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
         new("patches/advanced/machine-breath.aqua", "advanced", "machine-breath", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
         new("patches/advanced/ritual-sequence.aqua", "advanced", "ritual-sequence", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),

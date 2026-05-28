@@ -576,7 +576,8 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/transient", "transient", "burst"),
                 GetBoundFloat(fields, line, 1, $"/acoustic/sources/{_acousticSourcePorts.Count}/balance", "balance"),
                 TryGetAny(fields, ["active"], out var active) ? ParseBool(active, line) : true,
-                ParseAcousticSourcePositionControl(fields, line, _acousticSourcePorts.Count));
+                ParseAcousticSourcePositionControl(fields, line, _acousticSourcePorts.Count),
+                GetBoundFloat(fields, line, 0.35f, $"/acoustic/sources/{_acousticSourcePorts.Count}/impedance", "impedance", "load", "source_impedance"));
             AddAcousticSourcePortRecord(port);
             AddAcousticTerminalRecord(new AcousticTerminal(
                 port.Name,
@@ -1334,7 +1335,12 @@ public static class PatchScript
                 tract.Intensity,
                 tract.Tenseness,
                 tract.Glottis?.Skew ?? 0.42f,
-                tract.Glottis?.Aspiration ?? 0.08f);
+                tract.Glottis?.Aspiration ?? 0.08f,
+                0,
+                1,
+                true,
+                null,
+                0.10f);
             var sourceIndex = _acousticSourcePorts.Count;
             AddAcousticSourcePortRecord(source);
             MirrorParameterBinding(OwnerField(tractPath, "intensity"), $"/acoustic/sources/{sourceIndex}/pressure");
@@ -1357,7 +1363,7 @@ public static class PatchScript
                     $"{prefix}_area_{section}",
                     primaryPathName,
                     position,
-                    AcousticTerminalKind.Junction,
+                    AcousticTerminalKind.Contact,
                     "",
                     1,
                     0);
@@ -1392,7 +1398,8 @@ public static class PatchScript
                         injection.Burst,
                         1,
                         true,
-                        positionControl);
+                        positionControl,
+                        0.20f);
                     var injectionSourceIndex = _acousticSourcePorts.Count;
                     AddAcousticSourcePortRecord(injectionSource);
                     MirrorParameterBinding(OwnerField(tractPath, "turbulence"), $"/acoustic/sources/{injectionSourceIndex}/pressure");
@@ -2628,6 +2635,7 @@ public static class PatchScript
         "junction" or "node" or "scatter" => AcousticTerminalKind.Junction,
         "source" or "excitation" => AcousticTerminalKind.Source,
         "radiation" or "radiator" or "output" => AcousticTerminalKind.Radiation,
+        "contact" or "closure" or "obstruction" => AcousticTerminalKind.Contact,
         "open" => AcousticTerminalKind.Open,
         "closed" or "wall" => AcousticTerminalKind.Closed,
         "probe" or "diagnostic" => AcousticTerminalKind.Probe,

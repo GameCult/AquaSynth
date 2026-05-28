@@ -51,6 +51,7 @@ modules:
   acoustic_graph_lowering: src/AquaSynth.Core/FaustExport.cs
   pink_trombone_parity_fixtures: src/AquaSynth.Core/PinkTromboneParityFixtures.cs
   pink_trombone_utterance_fixtures: src/AquaSynth.Core/PinkTromboneUtteranceFixtures.cs
+  bird_syrinx_patch: patches/advanced/bird-syrinx.aqua
   pink_trombone_logmel_parity_tests: tests/AquaSynth.Dsl.Tests/PinkTromboneLogMelParityTests.cs
   pink_trombone_utterance_reference_tests: tests/AquaSynth.Dsl.Tests/PinkTromboneUtteranceReferenceTests.cs
   faust_emitter: src/AquaSynth.Core/FaustExport.cs

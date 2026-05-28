@@ -60,6 +60,33 @@ warning instead of inventing a fallback body.
 Deletion line: do not restore a fake vocal renderer to make a test pass. If the
 graph cannot express a vocal behavior, add or fix graph semantics.
 
+## 2026-05-28 Source Load And Contact Cut
+
+Owner: graph source ports own source impedance/load interaction; graph contact
+terminals own closure pressure storage and release at constrictions.
+
+Inputs: source pressure/tension/opening/noise/balance/impedance, node incident
+pressure, contact terminal area, and upstream/downstream traveling waves.
+
+Outputs: load-aware source flow terms, named `_load_pressure` locals for
+non-turbulence sources, and named `graph_contact_*` closure/reservoir/release
+signals for contact terminals.
+
+Derived state: generated tract area terminals are contact-capable graph
+terminals. They still derive area from the live tract path geometry; they do
+not become a separate morphology owner.
+
+Forbidden writers: plosive release is not allowed to live only inside a
+TurbulenceJet source expression. A source-local burst can remain as excitation,
+but graph contact state now has the authority to store and release pressure at
+severe constrictions.
+
+Syrinx proof: `source_port kind=syrinx` is still the generic labial source
+kind, now load-aware through the same source impedance path. The checked-in
+`patches/advanced/bird-syrinx.aqua` patch uses two labial source ports, two
+bronchial paths, one tracheal path, a three-terminal area-scattering merge,
+and a beak radiation port. No species module was added.
+
 ## Component Audit
 
 ### Topology Construction

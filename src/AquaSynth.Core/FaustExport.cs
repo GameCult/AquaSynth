@@ -838,6 +838,13 @@ public static class FaustEmitter
         var noise = $"clip01({parameters.Expression(OwnerField(path, "noise"), port.Noise)})";
         var transient = $"clip01({parameters.Expression(OwnerField(path, "transient"), port.Transient)})";
         var balance = $"({parameters.Expression(OwnerField(path, "balance"), port.Balance)}) * ({SourcePositionWeightExpression(port, path, parameters)})";
+        var impedance = $"max(0.0, {parameters.Expression(OwnerField(path, "impedance"), port.Impedance)})";
+        var effectivePressure = localPressure is null
+            ? pressure
+            : $"clip01(({pressure}) - 0.14 * ({impedance}) * ({localPressure}))";
+        var load = localPressure is null
+            ? "1.0"
+            : $"(1.0 / (1.0 + 0.25 * ({impedance}) * abs({localPressure})))";
         var detune = port.Kind == AcousticSourceKind.Labial ? $" * (1.0 + ({balance} - 0.5) * 0.018)" : "";
         var phase = $"os.phasor(1.0, {frequency}{detune})";
         var closure = $"clip01((0.12 - ({opening})) / 0.12)";
@@ -854,17 +861,17 @@ public static class FaustEmitter
         return port.Kind switch
         {
             AcousticSourceKind.Glottal =>
-                $"{GlottalSourceExpression(phase, tension, opening, pressure, noise, balance)}",
+                $"{GlottalSourceExpression(phase, tension, opening, effectivePressure, noise, balance)} * {load}",
             AcousticSourceKind.Labial =>
-                $"((sin(2.0 * ma.PI * {phase}) - {tension} * 0.35 * sin(4.0 * ma.PI * {phase})) * {pressure} * {opening} + no.noise * {noise} * {pressure} * (1.0 - {tension})) * {balance}",
+                $"(ma.tanh((sin(2.0 * ma.PI * {phase}) - {tension} * 0.35 * sin(4.0 * ma.PI * {phase})) * (2.0 + 8.0 * {effectivePressure})) * {effectivePressure} * {opening} + no.noise * {noise} * {effectivePressure} * (1.0 - {tension})) * {balance} * {load}",
             AcousticSourceKind.Reed =>
-                $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {pressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance}",
+                $"(ma.tanh(sin(2.0 * ma.PI * {phase}) * (1.0 + {effectivePressure} * 8.0)) * {opening} + no.noise * {noise} * 0.2) * {balance} * {load}",
             AcousticSourceKind.TurbulenceJet =>
-                $"(({turbulence}) * {noise} * {pressure} * ({pressureDrive}) * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({pressureDrive}) * ({releaseBurstGate}) * 1.2 + {transient} * {pressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance}",
+                $"(({turbulence}) * {noise} * {effectivePressure} * ({pressureDrive}) * ({apertureNoiseGate}) * 0.62 + ({turbulence}) * {noise} * {transient} * ({pressureDrive}) * ({releaseBurstGate}) * 1.2 + {transient} * {effectivePressure} * {release} * {releasePressure} * 0.58 * (0.8 + 0.8 * clip01({opening} / 0.8))) * {balance} * {load}",
             AcousticSourceKind.Click =>
-                $"no.noise * {pressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance}",
+                $"no.noise * {effectivePressure} * max({opening}, {transient}) * exp(0.0 - age * 120.0) * {balance} * {load}",
             AcousticSourceKind.Synthetic =>
-                $"sin(2.0 * ma.PI * {phase}) * {pressure} * {opening} * {balance}",
+                $"sin(2.0 * ma.PI * {phase}) * {effectivePressure} * {opening} * {balance} * {load}",
             _ => "0.0"
         };
     }
@@ -1357,7 +1364,10 @@ public static class FaustEmitter
     {
         if (ports.Count != 2 ||
             !ports[0].Segment.Path.Name.Equals(ports[1].Segment.Path.Name, StringComparison.OrdinalIgnoreCase) ||
-            node.Terminals.Any(terminal => terminal.Kind != AcousticTerminalKind.Junction && terminal.Kind != AcousticTerminalKind.Source))
+            node.Terminals.Any(terminal =>
+                terminal.Kind != AcousticTerminalKind.Junction &&
+                terminal.Kind != AcousticTerminalKind.Source &&
+                terminal.Kind != AcousticTerminalKind.Contact))
         {
             return false;
         }
@@ -1419,6 +1429,10 @@ public static class FaustEmitter
         string frequency,
         ParameterMap parameters)
     {
+        var contactTerms = node.Terminals
+            .Where(terminal => terminal.Kind == AcousticTerminalKind.Contact)
+            .Select(terminal => EmitGraphContactSourceExpression(source, voiceName, node, nodePorts, terminal))
+            .ToList();
         var sourceTerms = node.Terminals
             .Where(terminal => terminal.Kind == AcousticTerminalKind.Source && sources.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port))
             .Select(terminal =>
@@ -1427,10 +1441,51 @@ public static class FaustEmitter
                 var port = sources[sourceName];
                 return port.Kind == AcousticSourceKind.TurbulenceJet
                     ? EmitGraphTurbulenceSourceExpression(source, patch, voiceName, node, nodePorts, sourceName, port, parameters)
-                    : $"{voiceName}_graph_source_{SafeIdentifier(sourceName)}";
+                    : EmitGraphLoadedSourceExpression(source, patch, voiceName, node, sourceName, port, frequency, parameters);
             })
             .ToList();
+        sourceTerms.AddRange(contactTerms);
         return sourceTerms.Count == 0 ? "0.0" : string.Join(" + ", sourceTerms);
+    }
+
+    private static string EmitGraphLoadedSourceExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        AcousticGraphNode node,
+        string sourceName,
+        AcousticSourcePort port,
+        string frequency,
+        ParameterMap parameters)
+    {
+        var safeSource = SafeIdentifier(sourceName);
+        var safeNode = SafeIdentifier(node.Name);
+        var prefix = $"{voiceName}_graph_source_{safeSource}_{safeNode}";
+        var localPressure = $"{voiceName}_graph_node_incident_pressure_{node.Name}";
+        source.AppendLine($"    {prefix}_load_pressure = {localPressure};");
+        source.AppendLine($"    {prefix}_out = {AcousticSourceExpression(patch, port, frequency, parameters, localPressure)};");
+        return $"{prefix}_out";
+    }
+
+    private static string EmitGraphContactSourceExpression(
+        StringBuilder source,
+        string voiceName,
+        AcousticGraphNode node,
+        IReadOnlyList<AcousticGraphPort> nodePorts,
+        AcousticTerminal terminal)
+    {
+        var safeTerminal = SafeIdentifier(terminal.Name);
+        var prefix = $"{voiceName}_graph_contact_{safeTerminal}_{node.Name}";
+        var terminalArea = $"{voiceName}_graph_terminal_area_{safeTerminal}";
+        var localPressure = $"{voiceName}_graph_node_incident_pressure_{node.Name}";
+        var drive = ContactReservoirDriveExpression(voiceName, node, nodePorts, localPressure);
+        source.AppendLine($"    {prefix}_closure = clip01((0.0144 - ({terminalArea})) / 0.0144);");
+        source.AppendLine($"    {prefix}_release = (max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.992));");
+        source.AppendLine($"    {prefix}_reservoir_drive = {drive};");
+        source.AppendLine($"    {prefix}_reservoir = {prefix}_reservoir_drive * {prefix}_closure : + ~ *(0.994);");
+        source.AppendLine($"    {prefix}_release_pressure = 0.12 + 3.20 * clip01({prefix}_reservoir);");
+        source.AppendLine($"    {prefix}_out = {prefix}_release * {prefix}_release_pressure * (0.35 + 0.65 * clip01(abs({voiceName}_graph_terminal_reflection_{safeTerminal})));");
+        return $"{prefix}_out";
     }
 
     private static string EmitGraphTurbulenceSourceExpression(
@@ -1487,6 +1542,25 @@ public static class FaustEmitter
             .OrderByDescending(port => port.Segment.StartPosition)
             .FirstOrDefault();
         var downstream = samePathPorts
+            .Where(port => port.AtStart && port.Segment.StartPosition >= node.Position - 0.0001f)
+            .OrderBy(port => port.Segment.EndPosition)
+            .FirstOrDefault();
+        return upstream is not null && downstream is not null
+            ? $"max(0.0, {GraphIncoming(voiceName, upstream)} - {GraphIncoming(voiceName, downstream)})"
+            : $"max(0.0, {fallbackPressure})";
+    }
+
+    private static string ContactReservoirDriveExpression(
+        string voiceName,
+        AcousticGraphNode node,
+        IReadOnlyList<AcousticGraphPort> nodePorts,
+        string fallbackPressure)
+    {
+        var upstream = nodePorts
+            .Where(port => !port.AtStart && port.Segment.EndPosition <= node.Position + 0.0001f)
+            .OrderByDescending(port => port.Segment.StartPosition)
+            .FirstOrDefault();
+        var downstream = nodePorts
             .Where(port => port.AtStart && port.Segment.StartPosition >= node.Position - 0.0001f)
             .OrderBy(port => port.Segment.EndPosition)
             .FirstOrDefault();

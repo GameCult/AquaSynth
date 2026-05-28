@@ -1,0 +1,27 @@
+patch gain=0.42 soft_clip=true
+
+param path=/bird/left/pressure default=.82 min=0 max=1 step=.001
+param path=/bird/right/pressure default=.70 min=0 max=1 step=.001
+param path=/bird/left/opening default=.24 min=0 max=1 step=.001
+param path=/bird/right/opening default=.21 min=0 max=1 step=.001
+param path=/bird/left/tension default=.38 min=0 max=1 step=.001
+param path=/bird/right/tension default=.45 min=0 max=1 step=.001
+param path=/bird/load default=.85 min=0 max=2 step=.001
+param path=/bird/beak/opening default=.95 min=0 max=1.5 step=.001
+
+path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
+path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
+path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
+
+source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure=@/bird/left/pressure tension=@/bird/left/tension opening=@/bird/left/opening noise=.025 impedance=@/bird/load
+source_port name=right_labium path=right_bronchus kind=syrinx position=0 pressure=@/bird/right/pressure tension=@/bird/right/tension opening=@/bird/right/opening noise=.02 balance=.96 impedance=@/bird/load
+
+terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
+terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1
+terminal name=trachea_base path=trachea position=0 kind=junction area_scale=1
+connect name=syrinx_merge terminals=left_merge,right_merge,trachea_base law=area_scatter coupling=1
+
+radiation_port name=beak path=trachea kind=beak position=1 opening=@/bird/beak/opening reflection=-.72
+wave_clock name=bird_clock strategy=linear max_delay=1024 smoothing_ms=2
+acoustic_network name=bird_syrinx path=trachea wave_clock=bird_clock sources=left_labium,right_labium radiation=beak terminals=left_merge,right_merge,trachea_base connections=syrinx_merge
+acoustic network=bird_syrinx freq=1120 gain=.32 sustain=1.08 decay=.08
