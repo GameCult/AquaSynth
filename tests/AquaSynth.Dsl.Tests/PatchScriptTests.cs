@@ -727,6 +727,7 @@ public sealed class PatchScriptTests
             Assert.Contains("acoustic_graph_radiated", export.Source);
             Assert.Contains("graph_terminal_area_voices_0_area_", export.Source);
             Assert.Contains("graph_source_", export.Source);
+            Assert.Contains("_reservoir_drive", export.Source);
             Assert.Contains("_reservoir", export.Source);
             Assert.Contains("_release_pulse", export.Source);
             Assert.DoesNotContain("wg_diameter_target_", export.Source);

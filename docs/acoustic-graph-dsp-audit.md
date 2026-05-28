@@ -444,3 +444,24 @@ metrics did not move:
 Keep the sign fix. The non-result strengthens the diagnosis: the real missing
 primitive is still a contact-aware upstream/downstream closure state, not a
 source-local scalar reservoir.
+
+## 2026-05-28 Directed Reservoir Drive
+
+For turbulence/release sources attached to ordinary two-port path nodes, the
+reservoir now charges from directed upstream-minus-downstream pressure:
+
+`max(0, upstream_incoming - downstream_incoming)`
+
+Boundary or non-two-port source nodes fall back to positive local incident
+pressure. This lets a source-local plosive at least read the graph's traveling
+wave direction instead of only a node-average pressure.
+
+Latest utterance artifact:
+`artifacts/parity/pink-trombone-utterance-logmel/20260528T115452268`.
+Latest static artifact:
+`artifacts/parity/pink-trombone-logmel/20260528T115719882`.
+
+Metrics still do not move. That is useful and damning: the source-local
+reservoir sign/direction is no longer the main missing piece. The graph needs a
+contact/closure primitive that participates in scattering and flow, not a
+separate source pulse hoping the node will turn it into articulation.
