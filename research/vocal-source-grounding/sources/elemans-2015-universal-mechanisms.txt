@@ -1,0 +1,2128 @@
+University of Southern Denmark
+
+Universal mechanisms of sound production and control in birds and mammals
+Elemans, Coen; Rasmussen, Jeppe Have; Herbst, Christian T.; Düring, Daniel Normen;
+Zollinger, Sue Anne; Brumm, Henrik ; Srivastava, K.; Svane, Niels; Ding, Ming; Larsen, Ole
+Næsbye; Sober, Sam J. ; Svec, Jan G.
+Published in:
+Nature Communications
+DOI:
+10.1038/ncomms9978
+Publication date:
+2015
+Document version:
+Final published version
+Document license:
+CC BY
+Citation for pulished version (APA):
+Elemans, C., Rasmussen, J. H., Herbst, C. T., Düring, D. N., Zollinger, S. A., Brumm, H., Srivastava, K., Svane,
+N., Ding, M., Larsen, O. N., Sober, S. J., & Svec, J. G. (2015). Universal mechanisms of sound production and
+control in birds and mammals. Nature Communications, 6, Article 8978. https://doi.org/10.1038/ncomms9978
+
+Go to publication entry in University of Southern Denmark's Research Portal
+
+Terms of use
+This work is brought to you by the University of Southern Denmark.
+Unless otherwise specified it has been shared according to the terms for self-archiving.
+If no other license is stated, these terms apply:
+• You may download this work for personal use only.
+• You may not further distribute the material or use it for any profit-making activity or commercial gain
+• You may freely distribute the URL identifying this open access version
+If you believe that this document breaches copyright please contact us providing details and we will investigate your claim.
+Please direct all enquiries to puresupport@bib.sdu.dk
+
+Download date: 28. May. 2026
+
+ARTICLE
+Received 24 Mar 2015 | Accepted 22 Oct 2015 | Published 27 Nov 2015
+
+DOI: 10.1038/ncomms9978
+
+OPEN
+
+Universal mechanisms of sound production
+and control in birds and mammals
+C.P.H Elemans1,2,3, J.H. Rasmussen1,*, C.T. Herbst4,*, D.N. Düring1,*, S.A. Zollinger5, H. Brumm5, K. Srivastava6,7,
+N. Svane1, M. Ding8, O.N. Larsen1, S.J. Sober6 & J.G. Švec4
+
+As animals vocalize, their vocal organ transforms motor commands into vocalizations for
+social communication. In birds, the physical mechanisms by which vocalizations are produced
+and controlled remain unresolved because of the extreme difﬁculty in obtaining in vivo
+measurements. Here, we introduce an ex vivo preparation of the avian vocal organ that allows
+simultaneous high-speed imaging, muscle stimulation and kinematic and acoustic analyses to
+reveal the mechanisms of vocal production in birds across a wide range of taxa. Remarkably,
+we show that all species tested employ the myoelastic-aerodynamic (MEAD) mechanism,
+the same mechanism used to produce human speech. Furthermore, we show substantial
+redundancy in the control of key vocal parameters ex vivo, suggesting that in vivo vocalizations
+may also not be speciﬁed by unique motor commands. We propose that such motor
+redundancy can aid vocal learning and is common to MEAD sound production across birds
+and mammals, including humans.
+
+1 Department of Biology, University of Southern Denmark, Campusvej 55, 5230 Odense, Denmark. 2 QuanTM program, Emory University, Atlanta, Georgia
+30322, USA. 3 Université de Saint-Etienne/Lyon, ENES/CNPS CNRS UMR8195, Saint-Etienne 42023, France. 4 Faculty of Science, Department of Biophysics,
+Voice Research Lab, Palacky University, Olomouc 77146, Czech Republic. 5 Communication and Social Behaviour Group, Max Planck Institute for Ornithology,
+Seewiesen 82319, Germany. 6 Department of Biology, Emory University, Atlanta, Georgia 30332, USA. 7 Coulter Department of Biomedical Engineering,
+Georgia Institute of Technology, Atlanta, Georgia 30332, USA. 8 Department of Orthopaedic Surgery & Traumatology, Odense University Hospital, University
+of Southern Denmark, Odense 5230, Denmark. * These authors contributed equally to this work. Correspondence and requests for materials should be
+addressed to C.P.H.E. (email: coen@biology.sdu.dk).
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+1
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+n contrast to laryngeally vocalizing mammals, B10,000
+species of extant birds vocalize with a uniquely avian vocal
+organ, the syrinx, located at the tracheobronchial junction and
+suspended in an air sac of the respiratory system1. The syrinx is
+structurally highly diverse across species1, but how morphological
+diversity reﬂects functional diversity remains unexplored. In
+addition, while songbirds are a widely used experimental animal
+model for neural mechanisms underlying vocal imitation
+learning2,3, we lack the empirical evidence to precisely map
+motor function onto neural circuitry4. Addressing these questions
+requires empirical quantiﬁcation of syringeal dynamics as a
+function of control parameters in different species under
+physiologically realistic, controlled conditions. However,
+imaging the syrinx in vivo remains a challenge5,6, and we thus
+still lack this quantiﬁcation of syringeal dynamics and control
+parameters.
+Earlier endoscopic imaging identiﬁed syringeal vibratory
+tissues in songbirds and non-songbirds5,6, arguing against
+purely aerodynamical whistle mechanisms in which sound is
+produced without periodic movement of the vocal apparatus.
+Many mathematical models for birdsong7–11 assume that
+syringeal sound production is based on a myoelasticaerodynamic (MEAD) system12–15. However, conclusive
+empirical evidence for MEAD is lacking4,16. The MEAD
+framework explains the physical mechanism underlying
+laryngeal sound production in mammals12–15,17. In brief,
+self-sustaining laryngeal vocal fold oscillations are maintained
+through ﬂuid-tissue interactions and (myo)elastic restoring
+forces generated within the tissues12–15, preventing the
+need for muscle contractions at the rate of tissue vibration or
+other periodic input18. Expiratory airﬂow is mechanically
+converted by vocal folds into pulse-like airﬂow, which
+causes air pressure disturbances constituting the acoustic
+excitation of the system13. The mechanical properties and
+recruitment of different layers of vibrating tissues affect
+their resonance properties, which in combination with
+aerodynamic driving forces determine the frequency and mode
+of oscillation19–22.
+According to MEAD theory, the medio-lateral vibration of the
+inner vocal fold surface (vibrational component 1 (VC1)) that
+gates airﬂow23 can only be self-sustaining if moving around a
+stable equilibrium position and if no net energy loss occurs per
+oscillation cycle13,24. The latter requires the presence of an
+aerodynamic force that changes magnitude with direction of
+vocal fold motion and thus is asymmetric over the oscillation
+cycle13. One possibility is that during self-sustained vocal fold
+vibration the required asymmetric aerodynamic force is produced
+by time-varying supraglottal pressure due to inertia of air in
+the vocal tract23. Such a mechanism would result in uniform
+medio-lateral vibration of the vocal folds24. However, models
+suggest that this mechanism limits the range of fundamental
+frequencies (F0) produced14. Another, more robust possibility is
+that the asymmetric aerodynamic force during self-sustained
+vocal fold vibration is produced by out-of-phase motion of the
+superior and inferior edge of the vibrating tissue (vibrational
+component 2 (VC2))13,25. VC1 and VC2 are the respective
+medio-lateral and caudo-cranial components of a tissue surface
+wave, or mucosal wave, that travels on the inner vocal fold surface
+along the expiratory air stream and facilitates aerodynamic energy
+transfer into tissue24. The wave phase changes cause the vocal
+folds to change shape from convergent during opening to
+divergent during closing parts of the cycle24. Because the
+intraglottal pressure is higher for the convergent shape than for
+the divergent shape26,27, the vocal folds are pushed apart during
+opening and pulled together during closing14,24,25. VC2 presence
+thus indicates that intraglottal pressure forms the asymmetric
+
+I
+
+2
+
+forcing function over opening and closing phases of vibration25
+essential to self-sustained oscillation. Sound excitation events in
+mammals occur mainly at glottal closure and/or opening, when
+airﬂow abruptly stops or starts28–30.
+Although isolated aspects of syringeal dynamics have been
+studied in birds5,6,31–35, the asymmetric forcing function essential
+to maintain self-sustained oscillation has not yet been identiﬁed,
+and the caudo-cranial tissue-wave component VC2—a crucial
+underlying assumption in modelling studies7,9,36—has not been
+demonstrated experimentally in the intact syrinx under
+appropriate physiological conditions16. Furthermore, it is
+unknown how syringeal dynamics relate to sound generating
+events within a single oscillatory cycle. These essential features of
+syringeal dynamics required to conﬁrm MEAD have yet to be
+established16.
+The translation of vocal motor commands into acoustic output
+depends on neural activity, musculature, morphology and
+physical mechanism of sound production4,16,37. These variables
+deﬁne a multi-dimensional parameter space that the brain needs
+to explore and navigate to control vocal output. In birds, these
+control variables have been studied in vivo by correlating
+acoustical parameters, for example, F0, with physiological
+parameters, for example, lung pressure or muscle activity,
+taking advantage of the highly stereotyped vocal patterns
+employed by adult birds38. This approach can inform us about
+a particular solution an individual uses to control its vocal output.
+However, if the control space is redundant (that is, there is more
+than one possible solution to achieve a speciﬁc vocal target, for
+example, F0), as commonly observed in motor control systems39,
+studying stereotyped in vivo behaviour provides limited insight in
+the behaviour of the entire system as we only observe the ﬁnal
+solution the individual uses that may not be unique. Furthermore
+if vocal control parameters covary it may be difﬁcult to establish
+causal relationships. To understand how the brain controls vocal
+behaviour therefore requires systematic quantiﬁcation of the
+system’s behaviour across its multi-dimensional parameter space.
+However, we currently lack an experimental paradigm to
+systematically study physiological control of the vocal system
+in birds.
+Here, we present a novel ex vivo paradigm of the syrinx, which
+allows unprecedented experimental control and high-resolution
+imaging during sound production. First, to investigate if the
+MEAD physical mechanism of self-sustained oscillations as
+observed in mammals is applicable to birds, we test the
+hypotheses that a caudo-cranial travelling tissue surface wave is
+present and that this tissue wave is associated with sound
+production events. Second, to determine whether vocalizations
+are encoded by unique motor commands we test the hypothesis
+that the physiological control space of the syrinx ex vivo is
+redundant for key acoustic parameters. We show that birds
+employ the MEAD mechanism for sound production and that
+key vocal parameters exhibit redundant control ex vivo. We
+propose that motor redundancy may accelerate vocal learning
+and is common to MEAD sound production across birds and
+mammals.
+Results
+Physical mechanism of sound production. We developed an
+experimental paradigm that allows imaging of syringeal dynamics
+under controlled conditions ex vivo (Methods section;
+Supplementary Fig. 1). To test our ﬁrst hypothesis, if the
+MEAD physical mechanism of self-sustained oscillations is
+applicable to birds (Fig. 1a), we took advantage of the diversity in
+syringeal morphology across species and ﬁrst studied the
+domestic pigeon syrinx (Fig. 1b) because of its relatively simple
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+VC1
+
+VC2
+
+Trachea
+ICAS membrane
+
+psupra
+
+Muscle
+
+pICAS
+
+T4
+Lateral vibratory
+mass (LVM)
+
+T2
+psub
+Larynx
+
+Closing
+
+Syrinx
+
+Right
+LVM
+
+T1
+Opening
+
+Bronchus
+Cranial
+
+Left
+LVM
+
+T4
+Ch B
+
+DKG1
+T2
+
+Δy
+
+DKG2
+
+T1
+Ch A
+
+1 mm
+Closing/divergent
+
+Caudal
+
+Collision
+
+Opening/convergent
+
+DKG1
+
+Syringeal opening
+
+Left
+
+ΔtDKG
+
+Right
+
+DKG2
+
+Left
+
+Right
+
+μEGG
+
+Ch A
+Ch B
+
+Position
+
+2
+
+1 mm
+
+Cranial
+Min
+
+VC2 mucosal wave
+
+2
+2 ms
+
+4
+0
+
+6
+
+LVM displacement
+(mm)
+
+ΔtEGG
+
+Glottovibrogram
+GVG
+
+3
+Opening / closing / opening cranial edge
+
+2
+
+Cranial edge
+
+1
+
+Caudal edge
+
+0
+
+Syringeal opening
+(mm)
+
+Caudal
+
+Closing/opening caudal edge
+Right
+
+Sound (Pa)
+
+Tracheal
+VKG
+
+Closing caudal edge
+Mediolateral mucosal wave
+
+Left
+
+Opening/closing cranial edge
+
+0
+
+5
+
+0
+Excitation
+10
+
+15
+
+20
+
+25
+
+30
+
+35
+
+Time (ms)
+
+morphology. We found self-sustained syringeal oscillations when
+both bronchial and air sac pressures were 40.5 kPa (N ¼ 12).
+The lateral vibratory masses (LVMs)7 were visualized using
+transillumination of the syrinx (Fig. 1c). Within an oscillation
+
+cycle the LVM inner wall changed shape from divergent
+during closing, rectangular during full collision and to
+convergent during opening (Fig. 1c, Supplementary Movie 1).
+A consistent phase shift in LVM position, conﬁrmed by
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+3
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+simultaneous micro-electroglottography (mEGG) recordings
+(Methods section), was present along the caudo-cranial
+axis (Fig. 1d). Spatiotemporal analysis of the LVM inner wall
+displacement and syringeal opening identiﬁed both components
+VC1 and VC2 of a tissue travelling wave along the caudo-cranial
+axis (Fig. 1e). Furthermore, we observed medio-lateral, that is,
+laterally travelling, tissue waves on the cranial surface of the
+LVMs (Fig. 1f), which are continuations of the caudo-cranial
+waves accompanying the LVM opening, and commonly observed
+on mammalian vocal folds (Supplementary Fig. 2). Sound
+pressure excitation occurred both during opening and closing
+events (Fig. 1g). The presence of both VC1 and VC2 components
+conﬁrms our hypotheses that a caudo-cranial travelling tissue
+surface wave is present and that this wave is associated with
+sound producing events in pigeons.
+To test whether the presence of a tissue surface wave is a shared
+trait across birds, we studied syringeal oscillatory behaviour in six
+additional bird species from ﬁve orders. We selected species
+ranging in size (B15 g–200 kg) and vocal complexity, each with
+highly divergent syrinx morphologies, containing one or two
+paired oscillators and controlled by zero to seven pairs of intrinsic
+syringeal muscles (Figs 2 and 3). We reconstructed threedimensional geometries including bone, soft tissue and muscle
+based on micro-computed tomography (CT) scans (Figs 2a
+and 3a). Our study species included the largest extant bird
+(ostrich), a phylogenetically basal paleognathid bird (elegantcrested tinamou) and several neognathids: a parrot (cockatiel),
+dove (Barbary dove) and two songbirds (zebra ﬁnch and
+Bengalese ﬁnch). Medio-lateral vibration components (VC1)
+were observed in each species using tracheal endoscopy (Figs 2c
+and 3c). These VC1 vibrations resulted in complete syringeal
+closure within an oscillatory cycle in each species except for the
+ostrich, where full closure was never observed, more closely
+resembling human breathy phonation40.
+In each species, regardless of syringeal morphology, we
+conﬁrmed the presence of the caudo-cranial component (VC2)
+of a travelling tissue wave using spatiotemporal analysis of
+syringeal inner wall displacement, syringeal opening and/or
+mEGG (Figs 2d and 3d, Supplementary Movies 1–6). To further
+test if the tissue wave was present over a range of fundamental
+frequencies, we subjected the syrinx to bronchial pressure ramps
+and measured the direction and speed of the tissue wave when
+present (Methods section). During self-sustained oscillations over
+a range of F0 values, the tissue wave was always present (Fig. 4)
+and running from caudal to cranial (indicated by all velocities
+being positive in Fig. 4). The wave speed did either not vary
+(pigeon and tinamou; linear regression, P ¼ 0.56 (n ¼ 10) and
+P ¼ 0.26 (n ¼ 10), respectively) or increased signiﬁcantly with
+F0 (zebra ﬁnch and cockatiel; linear regression, Po0.001
+(n ¼ 11) and Poo0.001 (n ¼ 118) respectively) within a range of
+0.5–4.0 m s  1.
+
+Furthermore, to investigate the relationship between tissue
+motion dynamics and sound generation events within a single
+oscillatory cycle, we quantiﬁed the delay between sound
+excitation events and ﬁrst opening and closing events of the
+syringeal passage over a range of F0 values (Fig. 5). In the pigeon,
+both opening and closing events were precisely accompanied by
+an acoustic excitation at very short delays of 170 and 90 ms,
+respectively (Fig. 5a), which are both below the 250 ms temporal
+accuracy of the opening and closing event timing (that is, one
+frame duration of high-speed video). The tinamou showed a
+strong acoustic excitation on syringeal opening, with a delay of
+100 ms, also below the 250 ms temporal accuracy of the opening
+and closing event timing (Fig. 5b). A second, often weaker,
+excitation occurred 1.63 ms after closing. The zebra ﬁnch showed
+a very precisely timed strong acoustic excitation on syringeal
+closing at a delay of 40 ms (at a temporal accuracy of 33 ms;
+Fig. 5c).
+In conclusion, these data conﬁrm our ﬁrst hypothesis that a
+caudo-cranial travelling tissue surface wave is present across a
+range of syringeal morphologies and sizes. Furthermore, our data
+conﬁrm a close association between opening/closing event timing
+and sound generation events within single oscillatory cycles
+across a range of species. Collectively, our data thus provide the
+essential lacking demonstrations of syringeal dynamics and sound
+generation events required to conclusively show that MEAD
+theory is applicable to sound production in birds.
+Vocal control redundancy ex vivo. To test our second hypothesis
+that the physiological control space of the vocal organ is
+redundant for key acoustic parameters, we systematically
+investigated the relationship between syringeal control parameters and acoustic output ex vivo. In mammals, the brain can
+control bronchial pressure and laryngeal muscle activity to
+modulate aerodynamic forces and vocal fold tissue properties (for
+example, geometry and elasticity) and attain a target fundamental
+frequency (F0)12–15. In birds, in addition to bronchial pressure,
+pressure in the interclavicular air sac (ICAS) enclosing the syrinx
+also affects F0, as suggested by models7,9,10 and experimental
+manipulations10. We ﬁrst quantiﬁed syringeal oscillatory
+behaviour in different species as a function of bronchial and air
+sac pressure (Figs 6 and 7a–c). For each species the F0 ranges
+produced ex vivo corresponded well to the lower-end distribution
+of spontaneous vocalizations (Figs 6 and 7b,c). We further found
+that in each investigated species, multiple different combinations
+of bronchial and ICAS pressures could achieve the same target
+frequency (iso-F0 contours in Figs 6 and 7c), indicating that F0
+control is redundant within the pressure control space. To
+investigate how much two other important vocal parameters, that
+is, sound pressure level (SPL) and sound quality, changed with F0,
+we quantiﬁed the SPL and Wiener entropy (WE) along evenly
+
+Figure 1 | The MEAD theory explains sound production in the domestic pigeon (Columba livia) syrinx. (a) Schematic illustration of vocal organs in
+mammals (larynx) and birds (syrinx) showing the two vibrational components essential to MEAD theory: medio-lateral oscillation (VC1), and caudo-cranial
+phase differences (VC2). The latter are related to a tissue surface wave moving cranially and cause the inner wall of the vibratory tissue to be divergent during
+closing (solid line, black arrows) and convergent during opening motion (dashed line, white arrows). The syrinx is suspended in the ICAS. Three pressures act
+on the syrinx: subsyringeal (psub), suprasyringeal (psupra) and ICAS pressure (pICAS). (b) Annotated micro-CT scan of the pigeon syrinx showing LVM (yellow)
+and their inner edges (right, green; left, red), muscle (pink) and tracheal rings (T1–4). (c) Transilluminated syrinx ﬁlmed at 4 kHz with traced outlines of right
+(green) and left (red) LVM during closing, collision and opening phases of oscillation. The region shown is indicated by the dotted box in b. White
+arrows indicate movement. Circles indicate mEGG electrode pairs channel A (cyan ﬁll) and B (black ﬁll). (d) Two DKG (compiled at dotted lines in c) and
+simultaneous mEGG recordings show consistent caudo-cranial time delay of syringeal closure between the caudal line DKG2 and cranial line DKG1 (DtDKG) as
+well as between the caudal and cranial mEGG signals (DtmEGG). (e) Spatiotemporal displacement analysis of the left LVM (top) shows a caudo-cranial travelling
+tissue wave (dashed line), which is also present in the glottovibrogram of syringeal opening (bottom). (f) Simultaneous tracheal endoscopic VKG conﬁrms
+opening and closing event timing of the cranial LVM edge, and reveals tissue waves (arrowheads) travelling mediolaterally over the epithelia. (g) Abrupt
+positive and negative excitation of the acoustic waveform aligns with opening and closing of the LVM cranial edge.
+4
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+Ostrich
+
+Tinamou
+Muscle
+ICAS
+
+1m
+
+Tracheal view
+
+LVM
+
+10 mm
+
+ventral
+
+Muscle
+
+LVM
+100 mm
+
+1 mm
+
+Ventral
+
+1
+
+Tracheal VKG
+
+Right
+
+Left
+
+Pa
+
+Left
+
+Opening cranial edge
+
+GVG
+
+DKG
+
+VC2 wave
+
+Caudal (pos 1)
+
+Sound
+
+Closing
+
+3
+
+Cranial
+
+Cranial (pos 2)
+
+VC2
+
+Right
+
+VC2 wave
+
+2 ms
+
+Caudal
+
+F0 = 150 Hz
+
+0.4
+
+1 mm
+
+Tracheal VKG
+
+VC1
+
+DKG
+
+0.2
+
+0
+
+Syringeal opening
+(mm)
+
+2
+Dorsal
+
+Left
+LVM
+
+Right
+LVM
+VKG
+
+F0 = 310 Hz
+
+0
+
+0
+
+2 ms
+
+5 ms
+
+–0.4
+
+–0.2
+Time
+
+Time
+
+Figure 2 | MEAD theory explains syringeal sound production in paleognaths. (a) Three-dimensional syrinx geometry of the ostrich (Struthio camelus) and
+elegant-crested tinamou (Eudromia elegans) showing bone (grey), LVM (yellow) and muscles (pink). Both views are ventral. Muscle is rendered transparent
+in tinamou syrinx to show vibratory tissue. (b) High-speed imaging stills of endoscopic tracheal (ostrich) and transilluminated frontal views (tinamou) of
+the syrinx at two different phases during the oscillatory cycle. The region and location of these stills is indicated with a dotted box in a. For the ostrich the
+position of VKG analysis (dotted horizontal line) and DKG analysis (solid white line from point 1–2) presented in panel c is indicated. Transillumination
+provides sufﬁcient detail to identify inner edges of right (green) and left (red) LVM in tinamou. (c) Evidence for medio-lateral vibrations (VC1) using
+tracheal endoscopic VKG. In the ostrich predominantly the right side vibrated. Full opening and closure of the cranial edge can be observed in tinamou.
+(d) Evidence for the caudo-cranial component (VC2) of the tissue wave as demonstrated by DKG for ostrich, and glottovibrogram for tinamou.
+(e) Synchronised acoustic waveforms.
+
+spaced iso-F0 contours. A point on the iso-F0 contour was
+considered to be redundant in all three acoustic parameters if
+neither SPL nor WE changed along the iso-F0 contour (Methods
+section). The percentage of the explored control space that
+demonstrated redundancy for the three vocal parameters
+measured 79.8±21.4% (mean±s.d.) for pigeon (N ¼ 7),
+83.0±7.7% for Barbary dove (N ¼ 3), 67.8±4.7% for tinamou
+(N ¼ 3), 71.4±18.9% for cockatiel (N ¼ 2), 44.3% for zebra ﬁnch
+right hemisyrinx, 62.4±13.3% for Bengalese ﬁnch left hemisyrinx
+(N ¼ 6) and 71.6±18.6% for Bengalese ﬁnch left hemisyrinx
+(N ¼ 6). These results demonstrate that F0 control by pressure
+ex vivo is redundant in subspaces within the pressure control
+space, and that this redundancy is conserved across species
+exhibiting a wide range of syringeal morphologies. Therefore, in
+the ex vivo preparation redundant acoustic output can be
+achieved by modulating air pressure, without any active control
+of syringeal muscles.
+We furthermore examined whether muscular control
+introduced an additional source of redundancy and quantiﬁed
+the effect of syringeal muscle recruitment on F0 using local
+micro-stimulation (Fig. 7d). Muscle stimulation caused an F0
+increase of 300–750 Hz and 75–200 Hz for tinamou and zebra
+ﬁnch, respectively (Fig. 7e). The F0 range achieved by pressure
+
+and muscle recruitment overlapped within each species (tinamou
+(N ¼ 1) and zebra ﬁnch (N ¼ 5)) and multiple different
+combinations of muscle recruitment and bronchial pressure
+resulted in the same F0. These results thus demonstrate that
+muscular control of F0 is redundant in the ex vivo preparation.
+Taken together, the above data conﬁrm our second hypothesis
+that the physiological control space of the vocal organ ex vivo is
+redundant for key acoustic parameters across a range of syringeal
+morphologies and sizes.
+Discussion
+Our data establish that birds use MEAD as the primary physical
+mechanism for sound production with strong similarities to
+mammalian MEAD systems: First, we demonstrate the presence
+of a tissue wave that travels from the caudal to cranial end of the
+syringeal vibratory tissue (Figs 1–4). This tissue wave thus causes
+the syringeal vibratory tissue shape to be convergent when
+opening, and divergent when closing during expiratory sound
+production, and can be considered analogous to the caudo-cranial
+mucosal wave observed in mammalian vocal folds. Our data
+therefore strongly suggest that in birds, just as in mammals, the
+dominant asymmetric forcing function over the opening and
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+5
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+Zebra finch
+
+Cockatiel
+
+Muscle
+Muscle
+
+Medial
+Labia
+Lateral
+Labia
+
+B3
+LVM
+100 mm
+
+10 mm
+
+1 mm
+
+1 mm
+
+B3
+Ch B
+
+Ch B
+
+Right
+LL
+
+Ch A
+
+Right
+
+Left
+
+Closing
+
+Opening cranial edge
+
+Right
+
+Closing
+Midline
+Opening cranial edge
+
+Left
+
+μEGG
+
+μEGG
+
+ΔtEGG
+
+ΔtEGG
+1
+
+F0 = 1450 Hz
+
+Sound
+Pa
+
+0.5
+
+GVG
+
+Ch A
+Ch B
+
+VC2
+
+0.4
+
+VC2 wave
+
+0
+
+Syringeal opening
+(mm)
+
+VC1
+
+Tracheal VKG
+
+Tracheal VKG
+
+Ch A
+
+6
+F0 = 420 Hz
+
+0
+
+0
+
+2 ms
+
+1 ms
+–0.4
+
+–1
+Time
+
+Time
+
+Figure 3 | MEAD theory explains syringeal sound production in neognaths. (a) Three-dimensional syrinx geometry of the cockatiel (Nymphicus hollandicus,
+ventral view) and zebra ﬁnch (Taeniopygia guttata, dorsal view) showing bone (grey), LVM (yellow) and muscles (pink). Muscle is rendered transparent in
+zebra ﬁnch right hemisyrinx to show vibratory tissue. (b) High-speed imaging stills of frontal transilluminated frontal views of the syrinx at two different phases
+during the oscillatory cycle at view and location indicated with a dotted box in a. While transillumination does not provide detail on motion in the cockatiel
+syrinx, it provides sufﬁcient detail to identify inner edges of vibratory tissue in female zebra ﬁnches (green). Circles indicate location of mEGG electrodes (cyan,
+channel A; black, channel B). (c) Tracheal endoscopic VKG shows opening and closing events and thus evidence for medio-lateral vibrations (VC1). In the
+zebra ﬁnch sound production was induced in the right hemisyrinx. (d) Evidence for caudo-cranial component (VC2) of the tissue wave as demonstrated by
+mEGG phase delays for cockatiel and zebra ﬁnch and glottovibrogram analysis for zebra ﬁnch. (e) Synchronised acoustic waveforms.
+
+closing phases of vibration essential to maintain self-sustained
+oscillation is not formed by the mass inertance of the air column
+in the vocal tract23,24, but by the tissue-wave-induced intraglottal
+pressure changes. This mechanism reduces the dependency of the
+self-sustained syringeal oscillations on acoustic resonances of the
+vocal tract and allows for an expanded F0 range of vocalization14,
+which in addition to labial morphology41 could aid birds in
+extending their F0 range. Second, the magnitude range of the
+tissue-wave speed measured (0.5–3.0 m s  1) is in excellent
+agreement with values reported for the mammalian larynx30,41–
+46 (human41,43–45, 0.5–2.0 m s  1; dog42,46,47, 0.5–2 m s  1; calf45,
+0.4 m s  1; and an African elephant30, 1.2 m s  1) suggesting that
+no scaling effects occur. Third, our data show that in some species
+(zebra ﬁnch, cockatiel) the tissue-wave speed increased with F0,
+similar to what has been observed in humans47, whereas in other
+species (pigeon, tinamou) the tissue-wave remained constant with
+respect to F0 (Fig. 4). The different relationships are possibly
+related to biomechanical properties of the tissue layers involved in
+the vibrations or varying aerodynamic forces acting on the
+vibrating structures. Future work will be required to establish the
+respective causality. Last, our ﬁndings demonstrate that acoustic
+excitation occurs at opening and/or closing of the syringeal
+passage (Fig. 5), which strongly suggests a causal relation between
+6
+
+tissue vibration and generation of acoustic energy by modulating
+the glottal airﬂow as found in the mammalian larynx28–30. While
+in humans the maximum acoustic excitation has been shown to
+occur mainly at the instant of glottal closure28,29, a recent study
+reported that in an excised elephant larynx the maximum
+acoustic excitation occurred at the instant of glottal opening30.
+The mammalian larynx thus exhibits more diversity than
+previously thought in what movements cause the predominant
+acoustic excitation. Our work demonstrates that this diversity is
+also present in birds and that more comparative studies are
+needed to explain the causal link between airﬂow, tissue vibration
+and acoustic excitation.
+In conclusion, we ﬁnd that despite the large diversity present in
+syringeal morphology of the bird species included in this study,
+all use MEAD as the primary physical mechanism of sound
+production, supporting MEAD-based approaches to modelling
+avian sound production7–11. Moreover, our ﬁndings suggest that
+despite their different evolutionary origins1, laryngeally vocalizing
+mammals and syringeally vocalizing birds have converged on the
+same physical mechanism for vocalization.
+Furthermore, our data show that key acoustic parameters, such
+as particular F0 values, can be achieved by multiple distinct
+combinations of respiratory pressure and syringeal muscle
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+vVC2 (m s–1)
+
+1.0
+
+Pigeon
+
+0.8
+0.6
+0.4
+0.2
+0
+
+vVC2 (m s–1)
+
+4
+
+190
+
+200
+
+210
+
+220
+
+230
+
+240
+
+250
+
+260
+
+270
+
+Tinamou
+
+3
+2
+1
+0
+
+2
+vVC2 (m s–1)
+
+P = 0.56
+180
+
+P = 0.26
+230
+
+240
+
+250
+
+260
+
+270
+
+280
+
+290
+
+300
+
+310
+
+320
+
+330
+
+Zebra finch
+
+1
+
+P < 0.001
+0
+
+240
+
+260
+
+280
+
+300
+
+320
+
+340
+
+360
+
+380
+
+400
+
+Cockatiel
+vVC2 (m s–1)
+
+3
+2
+1
+P << 0.001
+0
+
+1,650
+
+1,700 1,750 1,800 1,850 1,900
+Fundamental frequency (Hz)
+
+1,950
+
+2,000
+
+Figure 4 | The caudo-cranial tissue wave is present across a range of
+fundamental frequencies. Magnitude of the caudo-cranial component
+(vVC2) of the travelling tissue-wave’s velocity in (a) pigeon and (b) tinamou,
+(c) zebra ﬁnch and (d) cockatiel. The positive velocity values indicate that
+the wave travelled from caudal to cranial. Wave speed remained constant
+with F0 in pigeon and tinamou (Linear regression, P ¼ 0.56 (n ¼ 10) and
+P ¼ 0.26 (n ¼ 10), respectively), but increased signiﬁcantly with F0 in zebra
+ﬁnch and cockatiel (linear regression, Po0.001 (n ¼ 11) and Poo0.001
+(n ¼ 118), respectively).
+
+recruitment ex vivo (Figs 6 and 7). This ﬁnding thus supports the
+hypothesis that subspaces within the entire physiological control
+space of the vocal organ ex vivo are redundant for acoustic
+parameters.
+Our work represents the ﬁrst systematic exploration of
+syringeal behaviour in a controlled environment using pressure
+differentials up to 2 kPa. Although it remains unresolved to what
+degree birds can independently control bronchial pressure and
+ICAS air sac pressure in vivo, ventilation ﬂow across the lungs
+requires the existence of pressure differences between different
+parts of the respiratory system48–50. Especially in dynamic
+situations such as vocal behaviour, the passive geometry of the
+air sac system can lead to substantial pressure differences between
+air sacs51,52 and indeed transient pressure differences up to
+1.0 kPa occur during vocalizations in Barbary doves7,53. These
+pressure ﬂuctuations can result in local transmural pressure
+differentials over the syringeal walls and thus in transmural forces
+on the vibrating tissues7,37. The individual bird can either avoid
+or exploit such regimes during vocalization. However, regardless
+
+of pressure differentials, only bronchial pressure in combination
+with different levels of recruitment in a single vocal muscle leads
+to redundancy in F0 (Fig. 7e).
+How acoustic redundancy of the vocal organ ex vivo reﬂects the
+functional motor redundancy in vivo remains to be explored. The
+speed at which consecutive motor commands can be executed
+in vivo (either on the same side of the syrinx or when vocal
+production switches rapidly from one side to the other within a
+complex syllable) may cause a signiﬁcant reduction of the
+available functional redundancy, especially because at least some
+songbirds possess superfast syringeal muscles that produce peak
+force in o5 ms (refs 54,55). Here, we did not investigate the rapid
+time-varying pressure and muscle recruitment patterns that occur
+in vivo, and indeed for most species more detailed experimental
+in vivo data are required to meaningfully explore the highdimensional control space ex vivo. On the other hand, we show
+that redundancy emerges when only varying the activity level of a
+single vocal muscle. Redundancy can thus be expected to
+increase when the brain can produce a given acoustic output by
+choosing from a large set of redundant motor commands when
+coordinating the B16 syringeal muscles56 with several thousand
+motor units57.
+A recent study used zebra ﬁnch song acoustics to infer lowdimensional motor commands11, which were then used to
+generate synthetic songs that closely resembled the acoustic
+output of natural vocal behaviour, and evoked auditory responses
+that closely resembled the pattern of premotor activity. These
+results led the authors to suggest that premotor area HVC
+encodes a low-dimensional forward model of gesture dynamics11.
+In contrast, our data indicate that particular acoustic outputs can
+be speciﬁed by multiple motor states, suggesting that motor
+commands cannot be uniquely inferred from acoustics. It will
+therefore be important for future studies to investigate whether
+the method used in ref. 11 to infer motor commands from
+acoustic data yields the actual combination of control parameters
+employed by the bird to generate the sound, rather than a
+different set of control parameters that redundantly produces the
+same acoustic output. Similarly, future ex vivo studies employing
+time-varying stimulus patterns across multiple muscles will allow
+us to explore the limits of vocal redundancy during sophisticated
+motor trajectories similar to those in behaving animals. Despite
+the apparent conﬂict between our ﬁndings and elements of
+ref. 11, it is important to note that the instantiation of a lowdimensional forward model within HVC—which is multiple
+synapses upstream from the vocal and respiratory muscles—is
+not incompatible with a redundant vocal organ. Indeed, one
+strength of low-dimensional encoding in HVC is that it would
+allow HVC to represent control parameters (for example, vocal
+fold tension) without regard to the details of the redundant
+combinations of muscle contraction states required to achieve
+that tension.
+In many ﬁne motor control systems such as arm reaching, the
+brain must negotiate the so-called motor redundancy problem39,
+in which a particular behavioural target can be achieved by vast
+numbers of motor commands. However, one potential advantage
+to a redundant control space is that it allows the brain to ﬁnd
+subspaces of possible motor commands (for example, along the
+iso-F0 contours in Figs 6 and 7c in our ex vivo paradigm) rather
+than searching for unique motor commands to achieve the target.
+Crucially, redundant control spaces allow variability in taskirrelevant directions58,59. In vocal production, the brain may
+select from within this motor command space to meet other
+demands, such as acoustic targets in future and/or past syllables.
+Consequently, we speculate that vocal motor redundancy may
+simplify trial-and-error learning during song acquisition by
+allowing the brain to rapidly discover one of many motor
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+7
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+Acoustic excitation with syringeal
+Rock pigeon
+
+Opening
+
+350
+
+150
+
+50
+0
+180
+
+200
+
+220
+
+240
+
+Opening
+
+100
+
+No. observations per bin
+
+200
+
+Closing
+
+Closed
+
+250
+
+Open
+
+Phase ϕ (deg)
+
+–90 μs
+
+10
+
+300
+
+8
+8
+6
+
+6
+4
+
+4
+
+2
+
+2
+
+0
+–1
+
+260
+
+Tinamou
+
+0
+
+0
+–1
+
+1
+
+14
+
+350
+
+0
+
+10
+
+–100 μs
+
+1
+
+1.63 ms
+
+250
+200
+Opening Closing
+
+150
+100
+50
+0
+220
+
+240
+
+260
+
+280
+
+300
+
+No. observations per bin
+
+12
+
+300
+Phase ϕ (deg)
+
+Closing
+10
+
+–170 μs
+
+8
+
+6
+
+6
+
+4
+
+4
+2
+
+2
+0
+–1
+
+320
+
+8
+
+10
+
+0
+
+0
+
+1
+
+0
+
+1
+
+2
+
+3
+
+Time after opening (ms)
+Zebra finch
+
+250
+200
+150
+100
+Opening
+
+Phase ϕ (deg)
+
+300
+
+50
+0
+240 260 280 300 320 340 360 380 400
+Fundamental frequency (Hz)
+
+18
+No. observations per bin
+
+Closing
+
+350
+
+–40 μs
+
+16
+14
+12
+10
+8
+6
+4
+2
+0
+–1
+0
+1
+Time after closing (ms)
+
+Figure 5 | Sound excitation is associated with syringeal opening and closing events. The relative duration of the syrinx in open (white bar starting at
+phase j ¼ 0°) and closed (grey bar) state within a single oscillatory cycle (full oscillation equals 360°) over a range of fundamental frequencies in
+(a) pigeon, (b) tinamou and (c) zebra ﬁnch (left) based on transillumination data (Methods section). Sound excitation events are associated with opening
+(red circles: mean±s.d.) and/or closing (blue circles: mean±s.d.) of the syrinx. The thick vertical black line at the base of each column indicates the
+duration of a single movie frame relative to the cycle duration and thus the timing accuracy for determining a syringeal closing or opening event. Note that
+in zebra ﬁnch the lines are short due to high frame-rates used (25 kHz). The histograms (right) show that timing of sound excitation is closely associated
+with syringeal opening (red) and closing (blue) events.
+
+solutions60 before learning how to further improve performance
+by exploiting motor redundancy39. Vocal redundancy may
+therefore have aided, or even been necessary for, the
+evolutionary development of vocal learning. Future studies
+might evaluate this speculation by quantifying whether learned
+vocalizations exploit vocal redundancy. Furthermore, because
+many species do not learn their vocalizations and many vocal
+learners produce innate vocalizations in addition to learned ones,
+future work might also determine whether innate vocal motor
+programs similarly exploit redundancy to improve performance.
+8
+
+Our ex vivo results suggest that the redundant control of key
+vocal parameters represents a signiﬁcant aspect of avian vocal
+control, and one that merits further investigation. Because
+redundancy in F0 control by pressure and muscle recruitment
+is also observed in various simpliﬁed computational models of the
+human larynx13, and songbird syrinx9 as well as in ex vivo dog
+larynx preparations61,62, we propose that vocal control
+redundancy is a typical feature of MEAD sound production
+systems and hence a common feature of vocal production and
+control in mammals and birds.
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+Airsac pressure (kPa)
+
+Frequency (kHz)
+
+Rock pigeon
+0.8
+
+0.4
+
+0
+
+Airsac pressure (kPa)
+
+Frequency (kHz)
+
+Barbary dove
+
+0.5
+
+0
+500 ms
+
+Airsac pressure (kPa)
+
+Frequency (kHz)
+
+Cockatiel
+4
+
+2
+
+0
+500 ms
+
+2
+R
+1
+0
+
+Airsac pressure (kPa)
+
+Frequency (kHz)
+
+L
+
+0.2
+
+180
+
+1
+
+0.1
+
+0
+0
+
+1
+
+3
+
+2
+
+500
+
+0.4
+
+450
+
+2
+
+400
+
+0.2
+
+1
+0
+
+0
+
+F0 (kHz)
+
+3
+
+0
+
+1
+
+2
+
+3
+
+0
+
+F0 (kHz)
+2
+
+3
+
+1,100
+2
+1
+
+1,500
+1,800
+
+1
+0
+0
+
+Left hemisyrinx
+
+Bengalese finch
+3
+
+230
+220
+
+2
+
+500 ms
+
+1
+
+F0 (kHz)
+0.3
+
+3
+
+3
+
+1
+
+2
+
+3
+
+0
+
+Right hemisyrinx
+F0 (kHz)
+900
+
+2,350
+1,900
+1,500
+
+2
+1
+0
+0
+
+1
+
+2
+
+800
+1
+
+700
+
+1
+2
+2
+30
+Bronchial pressure (kPa)
+
+3
+
+0
+
+200 ms
+
+Frequency (kHz)
+
+0.2
+0.1
+0
+
+500 ms
+
+0.3
+0.2
+0.1
+
+pb (kPa)
+
+Frequency (kHz)
+
+Ostrich
+0.3
+
+0
+
+2
+
+Sound
+500 ms
+
+0
+
+Figure 6 | Pressure control of F0 in sound production is redundant across avian taxa. Spectrograms and oscillograms of spontaneous vocalisation (left)
+and representative pressure control spaces ex vivo (right) of (a) pigeon (Columba livia), (b) Barbary dove (Streptopelia risoria), (c) cockatiel and
+(d) Bengalese ﬁnch (Lonchura striata domestica). The F0 ranges of sounds produced ex vivo (grey vertical bar right of spectrogram) correspond well to the
+lower range of spontaneous vocalizations. Pressure control may allow higher F0 values, as indicated by the grey bar fading out. Iso-F0 contours (values in
+Hz) are overlaid on the pressure control spaces and shown in white when redundant for all three acoustics parameters (F0, SPL and WE), or black when
+not. In the Bengalese ﬁnch, the left hemisyrinx produces higher F0 than the right hemisyrinx, corroborating earlier in vivo studies70. (e) Spectrogram and
+oscillogram (left) of ostrich mating call, and ex vivo sound production including bronchial pressure (pb) patterns underlying phonation (right). A complete
+pressure control space was not obtained for this species.
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+9
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+Tinamou
+
+Zebra finch
+ICAS
+membrane
+
+M. syringealis
+
+Right
+M. syringealis
+ventralis
+
+pICAS
+
+Frequency (kHz)
+
+psub
+2
+
+2
+
+1
+
+1
+
+0
+
+0
+100 ms
+
+200 ms
+
+Time (s)
+F0 (kHz)
+Airsac pressure (kPa)
+
+F0 (kHz)
+0.6
+
+2
+
+3
+
+450
+
+0.4
+2
+
+450
+350
+
+1
+
+0.4
+
+400
+1
+0.2
+
+0.2
+
+300
+300
+
+Frequency (kHz)
+
+0
+
+0
+
+1
+
+2
+
+0
+
+0
+
+3
+0
+Bronchial pressure (kPa)
+
+2
+
+2
+
+1
+
+1
+
+0
+
+0
+
+1
+
+2
+
+0
+
+F0stim
+
+F0pre
+100 ms
+
+100 ms
+Time (s)
+
+1,200
+F0stim
+
+800
+F0 (Hz)
+
+1,000
+700
+
+800
+600
+
+600
+F0Pre
+
+400
+1.6
+
+2.0
+
+500
+1.0
+2.4
+Bronchial pressure (kPa)
+
+2.0
+
+Figure 7 | Motor control of F0 in sound production is redundant. (a) Three-dimensional geometry of the tinamou and zebra ﬁnch syrinx with pressure
+control parameters; bronchial or subsyringeal (psub), and ICAS pressure (pICAS). Stimulated muscles are indicated. (b) Sound spectrogram (top) and
+oscillogram (bottom) of a tinamou honksqueal call and zebra ﬁnch song motif. (c) Representative pressure control spaces ex vivo of one individual. Iso-F0
+contour as in previous ﬁgure (values in Hz). (d) Sound spectrogram (top) and muscle stimulus (bottom) during syringeal muscle stimulation. Black dots
+indicate measurements points. (e) Fundamental frequency (F0) is affected by muscle stimulation (blue dots, no stimulation; red dots, maximal stimulation)
+and pressure. The grey bar indicates the individuals’ frequency range achieved by varying only pressure. Pressure control may allow higher F0 values, as
+indicated by the grey bar fading out. Multiple different combinations result in the same frequency, for example, 500 and 650 Hz in tinamou and zebra ﬁnch,
+respectively, (green horizontal line).
+
+10
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+Methods
+Subjects. To study sound production mechanisms and the effect of muscle stimulation on sound production, we used 12 adult domestic pigeons (Columba livia;
+order Columbiformes; nine males, three females), four domestic Barbary doves
+(Streptopelia risoria; order Columbiformes; three males, one female), three elegantcrested tinamous (Eudromia elegans; order Tinamiformes; two males, one female),
+two ostriches (Struthio camelus; order Struthioniformes; sex unknown), three
+cockatiels (Nymphicus hollandicus; order Psittaciformes; two males, one female),
+six Bengalese ﬁnches (Lonchura striata domestica; order Passeriformes; six males)
+and 19 zebra ﬁnches (Taenopygia guttata, order Passeriformes; ﬁve adult males;
+two juvenile males (B40 dph); 12 females). Ostrich syrinxes were obtained from a
+local breeding farm. They were transferred to ice immediately after extraction, ﬂash
+frozen in liquid nitrogen and stored at  80 °C. Bengalese ﬁnches were kept in
+indoor aviaries on a 14-h light:10-h dark light cycle with food and water ad libitum
+(Emory University, Atlanta, GA, USA). Zebra ﬁnches were kept in indoor aviaries
+on a 12-h light:dark photoperiod with food and water ad libitum (University of
+Southern Denmark (SDU), Odense, Denmark). All other animals were kept
+in 3  6  2 m outdoor aviary with food and water ad libitum (SDU, Odense,
+Denmark). Pigeons, doves, cockatiels and tinamous were obtained from local
+breeders. Bengalese ﬁnch experiments were carried out at Emory University, and
+all other experiments at SDU, Denmark. All experiments were conducted in
+accordance with the Institutional Animal Care and Use Committee of Emory
+University and of SDU.
+Surgical and mounting procedures. Animals were euthanized with isoﬂurane and
+cooled on ice or icepacks. The syrinx and associated blood vessels were dissected
+out using a stereoscope (M165-FC, Leica Microsystems) through a ventral incision
+to the sternum while regularly ﬂushing with oxygenated Ringers solution (5 °C,
+recipe cf. refs 54–56), and transferred to a Sylgard-covered petri dish on ice
+containing oxygenated Ringer solution. The syrinx was cleaned of fat and
+connected to species–speciﬁc tubing assemblies of non-reactive polyethylene tubing
+(Instech Salomon, PA, USA) in the experimental chamber with 10/0 nylon suture
+(S&T, Neuhausen, Switzerland). Special care was taken to mount the syrinx of each
+species in its natural position by leaving structural elements, such as bronchidesmus and collagen tissue strands, intact. Two pairs of mEGG electrodes (see
+below) were inserted in tissue and ﬁxed with 10/0 suture at locations indicated in
+Figs 1 and 2. For muscle stimulation experiments ex vivo, perfusion pathways were
+established in the zebra ﬁnch that allowed perfusion through the original syringeal
+vasculature. All arteriole capillaries were localized and closed using 10/0 suture
+immediately after exposure of the syrinx by a ventral incision to the sternum. The
+syrinx was then transferred to a Sylgard-covered petri dish on ice and connected to
+micro-perfusion lines, gravity fed with oxygenated Ringers. Perfusion pressure was
+kept at 2–4 kPa until patent perfusion was observed and immediately reduced to
+1–2 kPa. The syrinx was typically mounted ventral side up in the experimental
+chamber to two bronchial and one tracheal connector (Supplementary Fig. 1).
+Experimental chamber design. To study syringeal sound production, we
+developed an experimental chamber that allowed for study of the syrinx ex vivo
+(that is, intact perfused organ) under controlled conditions. This experimental
+chamber was milled out of aluminium (temperature controlled) or PVC and
+covered by an airtight glass lid that allowed pressurization and a clear view
+(Supplementary Fig. 1). The glass was either coated with nano-particles (Percenta
+AG, Germany) or heated to 10 °C above chamber temperature by a 18-mm
+diameter Formvar coated Nichrome wire assembly (A-M Systems, Sequim, WA,
+USA), to prevent droplet forming fogging up the glass. In the ﬂoor centre of the
+chamber, a 1-mm raised edge with glass bottom covered in Sylgard allowed
+transillumination of the syrinx. We separately controlled pressure in the bronchial
+connectors (pb) and chamber (pICAS) with dual valve differential pressure PID
+controllers (model PCD, 0–10 kPa, Alicat Scientiﬁc, AZ, USA), referenced to
+atmospheric pressure, and a response time of 1 ms. Bronchial mass ﬂow was
+measured with micro-electro-mechanical system (MEMS) ﬂow sensors of various
+ranges (PMF series, Posifa Microsystems, San Jose, USA) and a response time of
+1 ms. The supply of pressurized air to the controllers was heated and humidiﬁed
+with deionised water in a pressure cooker. Excess vapour condensed in a downstream second pressure cooker. The pressure controllers were temperature controlled at 37 °C (HD4034 with PT100 sensor, Hotek Technologies, WA, USA)
+ensuring pre-heated, fully humidiﬁed air to the syrinx. The temperature of the
+aluminium experimental chamber was controlled with a recirculating water bath
+(Julebo F12-ED, Seelbach, Germany) and logged at 1 s intervals with a 1-mm
+diameter J-type miniature temperature probe (USBTC01, National Instruments,
+TX, USA) 1–2 mm away from the syrinx. Perfusion ﬂuids attained the same
+temperature as the chamber due to physical contact with a platform in the chamber
+(labelled ‘Perfusate platform’ in Supplementary Fig. 1). During the mounting
+process the temperature of the chamber was kept at 7 °C.
+Image acquisition and analysis. The syrinx was imaged through the chamber lid
+with a high-speed camera (MotionPro-X4, 12 bit CMOS sensor, Integrated Design
+Tools, Inc.; 4,000–25,000 frames s–1) mounted on a stereomicroscope (M165-FC,
+Leica Microsystems). For the zebra ﬁnch, we also used a more light-sensitive 16 bit
+
+high-speed camera (Fastcam SA1, Photron, San Diego, CA, USA; 20,000–35,000
+frames s  1). We used a 1.2-mm (Schölly Fiberoptics, Denzlingen, Germany) and
+300-mm (Advanced Inspection Technologies, Melbourne, FL, USA) diameter
+ﬂexible ﬁberscope for endoscopic imaging. The low-light images obtained with the
+endoscopes were captured with a videokymographic (VKG) system (model 2156,
+Cymo B.V., Groningen, The Netherlands), which combines a high-speed linescan
+camera (7,200 line images s  1) with a full frame CMOS camera (25 frames s  1).
+The analogue video output from the VKG was captured together with the
+microphone and a synchronization signal using a capturing device (Intensity
+Extreme, Black Magic Design, Australia). Light for transillumination was provided
+by a 1,700 lumen LED (Luxeon S, Philips, The Netherlands) powered by a stable
+power source (PS23023, HQ Power, Belgium) or plasma light source (HPLS200,
+Thorlabs, Germany) through liquid light guides and reﬂected of a 45° angled silver
+coated prism (MRA series, Thorlabs) to absorb heat.
+Kymography. A kymogram displays pixel intensity over time along a set line in an
+image. The VKG system used here generates a kymogram at the ﬁxed position of
+the linescan camera63. Digital kymograms (DKG) are kymograms along any
+arbitrary line in a digital image64 and were extracted from high-speed image
+recordings using Matlab (The Mathworks). Two kymograms in Supplementary
+Fig. 2 were previously published: human from ref. 40, and elephant from ref. 30.
+Micro-electroglottography. As an independent proxy for kinematics of the
+syringeal vibratory tissues, we used EGG. This non-invasive technique measures
+electrical impedance between electrodes and is commonly used to quantify vocal
+fold contact area in the larynx65. mEGG electrodes consisting of single stranded
+25 mm diameter Formvar coated Nichrome wires (A-M Systems) were inserted as
+described above and connected to a modiﬁed two-channel electroglottograph
+(model EG2, Glottal Enterprises Inc. NY, USA).
+Data acquisition and synchronisation. Sound was recorded with a ½ inch
+pressure microphone-pre-ampliﬁer assembly (model 46AD with preampliﬁer type
+26AH, G.R.A.S., Denmark), ampliﬁed and high-pass ﬁltered (10 Hz, 3-pole
+Butterworth ﬁlter, model 12AQ, G.R.A.S.). The microphone sensitivity was
+measured before each experiment (sound calibrator model 42AB, G.R.A.S.).
+The microphone was placed at 2–3 cm from the tracheal connector outlet in the
+acoustic near ﬁeld, and on a 45° angle to avoid the air jet from the tracheal outlet.
+The sound signal was time shifted for the travelling distance from vibratory
+membranes to microphone. Microphone, mEGG, pressure and ﬂow signals were
+low-pass ﬁltered at 10 kHz (custom-built ﬁlter). These signals together with
+synchronization signals from camera systems and muscle stimulators were
+digitized at 50 kHz (USB 6259, 16 bit, National Instruments, Austin, TX, USA).
+These signals were synchronized with all imaging systems with an accuracy of
+o21 ms before each experiment. All control and analysis software was written in
+Labview (National Instruments) or Matlab.
+Tissue-wave imaging protocol and analysis. Transillumination successfully
+visualized the inside outlines of vibratory tissues in the domestic pigeon, Barbary
+dove, elegant-crested tinamou and zebra ﬁnch. High optical density of the ostrich
+and cockatiel syrinx did not allow transillumination. In the tinamou, we dissected
+apart M. syringealis to allow LVMs imaging using transillumination. In zebra ﬁnch
+transillumination was successful in adult females and juvenile males, but attempts
+in adult males were unsuccessful due to the high optical density of M. syringealis
+ventralis (VS) muscles. In the zebra ﬁnch sound production was induced in the
+right hemisyrinx. Substantially different requirements in lighting conditions did
+not allow for simultaneous transillumination and tracheal endoscopy in zebra
+ﬁnches.
+To image syringeal oscillatory behaviour we subjected the syrinx to a single
+bronchial pressure ramps at constant air sac pressure, while ﬁlming from 5,000 to
+35,000 frames s  1. Our system could acquire and save a maximum of 2–10 s of
+data depending on frame rates, which comprised (tens of) thousands of frames.
+Due to the image complexity of the data, analysis could not be automatized, and
+required frame-by-frame manual analysis. On selected sequences of high-speed
+images, the left and right LVM or labia were traced manually in Amira (Visage
+Imaging GmbH, Berlin, Germany) and processed in Matlab. We calculated
+displacement (for example, Fig. 1e top panel) as current position minus the most
+lateral position during oscillation (indicated by the green line ‘min’ on the top left
+in Fig. 1e). With both left and right LVM shapes quantiﬁed we could then compute
+the syringeal opening as a function of position and time, a graph also known as the
+glottovibrogram30 as can be seen in Figs 1e,2d and 3d.
+To quantify syringeal dynamics over a range of F0 values, full glottovibrogram
+reconstructions over several cycles were not suitable due to the labour intensive
+manual tracing required. Therefore we used an alternative approach to determine
+the presence of the VC2 component and speed of the tissue wave across a range of
+F0 values. For pigeon, tinamou and zebra ﬁnch we used transilluminated frontal
+views of the syrinx and calculated one DKG at the caudal edge and one DKG at the
+cranial edge of the LVM or labia (top two panels in Fig. 1d) at distance Dy
+(indicated in middle panel Fig. 1c). DKG’s contain many periodic traces as many
+structures move with each oscillation. By tracing selected LVM and labial inner
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+11
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+edges in video stills over ﬁve oscillation cycles, we could identify the wave
+representing the motion of the LVM or labial inner edge in the DKG’s and as such
+measure the time difference between maximal lateral position of LVM or labium on
+the two DKG’s (DtDKG in Fig. 1d). The wave speed equalled vVC2 ¼ Dy/DtDKG and
+was averaged over ﬁve consecutive cycles. Because in the cockatiel syrinx
+transillumination was not successful, we used cross-correlation between two
+mEGG electrode pairs located at distance Dy to calculate time delay (DtmEGG) and
+wave speed vVC2. The ostrich was not included in this analysis because both
+transillumination was not successful and mEGG did not resolve vibrations due to
+lack of syringeal closure. We did not estimate wave speed from the tracheal
+endoscopic view because the VC2 velocity component was almost normal to the
+imaging plane, leading to large inaccuracies.
+In these ﬁve consecutive oscillations, we quantiﬁed the timing of syringeal
+opening and closing from the transilluminated frontal views as the ﬁrst frame in
+which the entire syringeal passage was open or closed, respectively. The minimal
+precision for these measurements equals the duration of one frame as indicated by
+the black vertical line at the base of each column in Fig. 5. In addition, we
+quantiﬁed the timing of acoustic excitations in the sound pressure signal. The
+timing of the sound signals was corrected for the time needed for the sound to
+propagate from the oscillators through trachea and tubing to the microphone,
+assuming a sound speed of 340 m s  1. With these parameters we quantiﬁed the
+timing of acoustic excitation with respect to syringeal opening and closing events
+within single oscillatory cycles.
+Pressure control space protocol. To explore syringeal oscillatory behaviour in
+the pressure control space we subjected the syrinx to a set of bronchial pressure
+ramps at randomized and variable air sac pressure, and one additional ramp where
+pb equalled pICAS. Ramp speed was 1 kPa s  1. Depending on species, we used
+pressures o2.0–4.0 kPa and |pb  pICAS|o2.0 kPa to avoid regimes of high ﬂow
+(that is, combinations of high pb and low pICAS) and/or mechanical failure of
+syringeal oscillatory structures. These sets were performed without transillumination imaging. SPL and WE were calculated on 100 ms segments by applying a
+sliding window with 50 ms steps. If the SPL of these segments were above the 60 dB
+re. 20 mPa threshold, segments were zero-padded to the next power of two, and a
+4,096 point power spectral density estimate was computed (periodogram method
+in Matlab). Additional ﬁltering was used to extract the fundamental frequency (F0)
+reliably from the spectral density estimate. WE was calculated as the geometric
+mean of the power spectrum over the arithmetic mean of the power spectrum.
+We extracted iso-F0 contours in pb, pICAS control space. SPL and WE were
+evaluated along the iso-F0 contours at a resolution of 10 Pa (Supplementary Fig. 3).
+To evaluate whether points on these iso-F0 contour lines were redundant for all
+three quantiﬁed acoustic parameters (F0, SPL and WE) we computed acoustic
+parameters at a ﬁxed distance of 100 Pa both before and after each point along the
+iso-F0 contour line locations in pb, pICAS control space (Supplementary Fig. 3). For
+the 100 Pa start and end sections of the contour, only forward and backward values
+could be computed. A point along the iso-F0 contour was considered redundant for
+all the three parameters if the WE and SPL variation within the 100 Pa interval
+was below 0.2 units of WE and 1 dB SPL (ref. 66). This resulted in a logical (1/0)
+redundancy array for each iso-F0 contour. The iso-F0 contour is plotted
+white when redundant and black when not in the pb, pICAS control spaces in
+Figs 6a–d and 7c.
+We computed iso-F0 contours at ﬁxed intervals (Columba, 10 Hz; Streptopelia,
+50 Hz Eudromia, 50 Hz; Nymphicus, 100 Hz; Lonchura, 100 Hz; Taenopygia, 50 Hz)
+within the F0 range observed in the preparation. The percentage redundancy
+of a pressure control space was expressed as the ratio of redundant points to
+the total amount of points on all iso-F0 contours computed in the pb, pICAS
+control space.
+Muscle stimulation protocol. Muscles were stimulated with 50 mm diameter
+Teﬂon-coated twisted silver wire electrodes (A-M Systems) that were ﬁxed with
+10/0 suture. We used a stimulus isolator (model A395, WPI, Sarasota, FL, USA) to
+apply variable currents (0–10 mA) when limited compliance voltage was sufﬁcient
+to contract muscles (tinamou). For zebra ﬁnches and Bengalese ﬁnches, we used
+two stimulators (model 14E11, DISA, Herlev, Denmark and model 2100, A-M
+Systems, respectively). To ensure muscle speciﬁcity, we placed carbon microspheres
+(20–40 mm diameter) at regular intervals on the muscles and surrounding tissues
+and ﬁlmed contractions at 1 kHz. We stimulated the single syringeal muscle
+present in tinamous, M. syringealis. In songbirds, activity of the M. syringealis
+ventralis correlates to F0 (ref. 67). Therefore we focussed on this muscle to study F0
+control in zebra ﬁnches (N ¼ 5 adult males). F0 of the sound was determined
+30 ms prior (control) and 30 ms after stimulation. We computed 512-point fast
+Fourier transforms and used parabolic interpolation around the peak power to
+determine F0.
+Statistics. Linear regressions were calculated to test the signiﬁcance of wave speed
+as a function of F0 in Matlab. All values are presented as mean±1 s.d.
+Morphome reconstruction. We constructed three-dimensional annotated syrinx
+morphologies, that is, morphomes, based on IKI contrasted CT scans56. All
+12
+
+specimens were scanned at Odense University Hospital with a mCT scanner
+(VivaCT 40, Scanco Medical AG, Switzerland) with 10 mm resolution, except the
+ostrich syrinx which was scanned with 80 mm resolution on a XtremeCT (Scanco
+Medical AG). These scans were annotated manually in Amira for bone, soft tissue
+and muscle using protocols cf. ref. 56.
+Natural vocalizations. Sound recordings of natural vocalizations were obtained in
+previous studies for domestic Barbary dove7, elegant-crested tinamou68 and zebra
+ﬁnch69. A domestic pigeon call recording was obtained from www.xeno-canto.com
+(catalogue nr: XC92264). We recorded the mating calls of two male ostriches at an
+open-range ostrich-breeding farm (Langeskov, Denmark) from April to May 2013
+using a shotgun microphone (model KMR82i, Neumann, Berlin, Germany) and a
+24-bit digital recorder (Olympus LS-100). Cockatiel recordings were made with the
+same shotgun microphone and solid-state recorder (model PMD-670, Marantz,
+Mahwah, NJ, USA).
+
+References
+1. King, A. S. Functional anatomy of the syrinx in Form and Function in Birds
+(eds King, A. S. & McLelland, J.) 4, 105–192 (Academic Press, 1989).
+2. Brainard, M. S. & Doupe, A. J. Translating birdsong: songbirds as a model for
+basic and applied medical research. Annu. Rev. Neurosci. 36, 489–517 (2013).
+3. Fee, M. S. & Scharff, C. The songbird as a model for the generation and
+learning of complex sequential behaviors. ILAR J. 51, 362–377 (2010).
+4. Elemans, C. P. H. The singer and the song: The neuromechanics of avian sound
+production. Curr. Opin. Neurobiol. 28, 172–178 (2014).
+5. Goller, F. & Larsen, O. N. A new mechanism of sound generation in songbirds.
+Proc. Natl Acad. Sci. USA 94, 14787–14791 (1997).
+6. Jensen, K. K., Cooper, B. G., Larsen, O. N. & Goller, F. Songbirds use pulse tone
+register in two voices to generate low-frequency sound. Proc. Biol. Sci. 274,
+2703–2710 (2007).
+7. Elemans, C. P. H., Zaccarelli, R. & Herzel, H. Biomechanics and control of
+vocalization in a non-songbird. J. R. Soc. Interface 5, 691–703 (2008).
+8. Zaccarelli, R., Elemans, C. P. H., Fitch, W. T. & Herzel, H. Modelling bird
+songs: voice onset, overtones and registers. Acta Acust. United Acust. 92,
+741–748 (2006).
+9. Mindlin, G. B. & Laje, R. The Physics of Birdsong (Springer, 2005).
+10. Amador, A. & Margoliash, D. A mechanism for frequency modulation in
+songbirds shared with humans. J. Neurosci. 33, 11136–11144 (2013).
+11. Amador, A., Perl, Y. S., Mindlin, G. B. & Margoliash, D. Elemental gesture
+dynamics are encoded by song premotor cortical neurons. Nature 495, 59–64
+(2013).
+12. van den Berg, J. Myoelastic-aerodynamic theory of voice production. J. Speech
+Hear. Res. 1, 227–244 (1958).
+13. Titze, I. R. Principles of Voice Production (National Center for Voice and
+Speech, 2000).
+14. Titze, I. R. Comments on the myoelastic—aerodynamic theory of phonation.
+J. Speech Hear. Res. 23, 495–510 (1980).
+15. Titze, I. R. & Alipour, F. The Myoelastic Aerodynamic Theory of Phonation
+(National Center for Voice and Speech, 2006).
+16. Riede, T. & Goller, F. Peripheral mechanisms for vocal production in birds—
+differences and similarities to human speech and singing. Brain Lang. 115,
+69–80 (2010).
+17. Fitch, T. in Encyclopedia of language and linguistics 2nd ed., Vol. 10 (ed Brown,
+K) 115–121 (Oxford, Elsevier 2006).
+18. Herbst, C. T. et al. How low can you go? Physical production mechanism of
+elephant infrasonic vocalizations. Science 337, 595–599 (2012).
+19. Titze, I. R. & Strong, W. J. Normal modes in vocal cord tissues. J. Acoust. Soc.
+Am. 57, 736–749 (1975).
+20. Titze, I. R. On the relation between subglottal pressure and fundamental
+frequency in phonation. J. Acoust. Soc. Am. 85, 901–906 (1989).
+21. Svec, J. G., Horácek, J., Sram, F. & Veselý, J. Resonance properties of the vocal
+folds: in vivo laryngoscopic investigation of the externally excited laryngeal
+vibrations. J. Acoust. Soc. Am. 108, 1397–1407 (2000).
+22. Berry, D. A. Mechanisms of modal and nonmodal phonation. J. Phon. 29,
+431–450 (2001).
+23. Flanagan, J. L. & Landgraf, L. L. Self-oscillating source for vocal-tract
+synthesizers. IEEE Trans. Audio Electroacoust. AU16, 57 (1968).
+24. Titze, I. R. The physics of small-amplitude oscillation of the vocal folds.
+J. Acoust. Soc. Am. 83, 1536–1552 (1988).
+25. Ishizaka, K. & Flanagan, J. L. Synthesis of voiced sounds from a two-mass
+model of the vocal cords. Bell Syst. Tech. J. 51, 1233–1268 (1972).
+26. Scherer, R. C., Torkaman, S., Kucinschi, B. R. & Afjeh, A. A. Intraglottal
+pressures in a three-dimensional model with a non-rectangular glottal shape.
+J. Acoust. Soc. Am. 128, 828–838 (2010).
+27. Fulcher, L. P. et al. Pressure distributions in a static physical model of the
+hemilarynx: measurements and computations. J. Voice 24, 2–20 (2010).
+28. Miller, D. G. & Schutte, H. K. Characteristic patterns of sub-and supraglottal
+pressure variations within the glottal cycle. in Transcr. XIIIth Symp. Care Prof.
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+ARTICLE
+
+NATURE COMMUNICATIONS | DOI: 10.1038/ncomms9978
+
+Voice (ed. Lawrence, V.) 70–75 (The Voice Foundation, New York, NY,
+USA, 1985).
+29. Schutte, H. K. & Miller, D. G. Resonanzspiele der Gesangsstimme in ihren
+Beziehungen zu supra- und subglottalen Druckverläufen: Konsequenzen für die
+Stimmbildungstheorie. Folia. Phoniatr. (Basel) 40, 65–73 (1988).
+30. Herbst, C. T. et al. Complex vibratory patterns in an elephant larynx. J. Exp.
+Biol. 216, 4054–4064 (2013).
+31. Larsen, O. N. & Goller, F. Role of syringeal vibrations in bird vocalizations.
+Proc. R. Soc. Biol. Sci. 266, 1609–1615 (1999).
+32. Fee, M. S., Shraiman, B., Pesaran, B. & Mitra, P. P. The role of nonlinear dynamics
+of the syrinx in the vocalizations of a songbird. Nature 395, 67–71 (1998).
+33. Fee, M. S. Measurement of the linear and nonlinear mechanical properties of
+the oscine syrinx: implications for function. J. Comp. Physiol. A Neuroethol.
+Sens. Neural. Behav. Physiol. 188, 829–839 (2002).
+34. Dürrwang, R. Funktionelle Biologie, Anatomie und Physiologie der
+Vogelstimme PhD thesis, University of Basel (Aku-Fotodruck, Basel, 1974).
+35. Paulsen, K. Das Prinzip der Stimmbildung in der Wirbeltierrehe und beim
+Menschen (Akademische Verlagsgesellschaft, 1967).
+36. Amador, A. & Mindlin, G. B. Beyond harmonic sounds in a simple model for
+birdsong production. Chaos 18, 043123 (2008).
+37. Goller, F. & Riede, T. Integrative physiology of fundamental frequency control
+in birds. J. Physiol. Paris 107, 230–242 (2013).
+38. Suthers, R. A. & Zollinger, S. A. in Neuroscience of birdsong. (eds Zeigler, H.P.
+& Marler P) 78–98 (Cambridge University Press, Cambridge, UK, 2008).
+39. Bernstein, N. The Co-ordination and Regulation of Movements (Pergamon
+Press, 1967).
+40. Herbst, C. T., Ternström, S. & Švec, J. G. Investigation of four distinct glottal
+conﬁgurations in classical singing—a pilot study. J. Acoust. Soc. Am. 125,
+EL104–EL109 (2009).
+41. Riede, T. & Goller, F. Morphological basis for the evolution of acoustic diversity
+in oscine songbirds. Proc. Biol. Sci. 281, 20132306 (2014).
+42. Kusuyama, T., Fukuda, H., Shiotani, A., Nakagawa, H. & Kanzaki, J. Analysis of
+vocal fold vibration by X-ray stroboscopy with multiple markers. Otolaryngol.
+Head Neck Surg. 124, 317–322 (2001).
+43. Döllinger, M., Tayama, N. & Berry, D. A. Empirical eigenfunctions and medial
+surface dynamics of a human vocal fold. Methods Inf. Med. 44, 384–391 (2005).
+44. Boessenecker, A., Berry, D. A., Lohscheller, J., Eysholdt, U. & Doellinger, M.
+Mucosal wave properties of a human vocal fold. Acta Acust. United Acust. 93,
+815–823 (2007).
+45. Kobler, J. B., Chang, E. W., Zeitels, S. M. & Yun, S.-H. Dynamic imaging of
+vocal fold oscillation with four-dimensional optical coherence tomography.
+Laryngoscope 120, 1354–1362 (2010).
+46. Döllinger, M., Berry, D. A. & Berke, G. S. Medial surface dynamics of an in vivo
+canine vocal fold during phonation. J. Acoust. Soc. Am. 117, 3174–3183 (2005).
+47. Titze, I. R., Jiang, J. J. & Hsiao, T. Y. Measurement of mucosal wave
+propagation and vertical phase difference in vocal fold vibration. Ann. Otol.
+Rhinol. Laryngol. 102, 58–63 (1993).
+48. Maina, J. N. The Lung-Air Sac System of Birds (Springer Science & Business
+Media, 2006).
+49. Maina, J. N., Singh, P. & Moss, E. A. Inspiratory aerodynamic valving occurs in
+the ostrich, Struthio camelus lung: a computational ﬂuid dynamics study under
+resting unsteady state inhalation. Respir. Physiol. Neurobiol. 169, 262–270 (2009).
+50. Mackelprang, R. & Goller, F. Ventilation patterns of the songbird lung/air sac
+system during different behaviors. J. Exp. Biol. 216, 3611–3619 (2013).
+51. Brackenbury, J. H. Lung-air-sac anatomy and respiratory pressures in the bird.
+J. Exp. Biol. 57, 543–550 (1972).
+52. Gaunt, A. S., Stein, R. C. & Gaunt, S. L. Pressure and air ﬂow during distress
+calls of the starling, Sturnus vulgaris (Aves; Passeriformes). J. Exp. Zool. 183,
+241–261 (1973).
+53. Beckers, G. J. L. Mechanisms of frequency and amplitude modulation in ring
+dove song. J. Exp. Biol. 206, 1833–1843 (2003).
+54. Elemans, C. P. H., Spierts, I. L. Y., Müller, U. K., van Leeuwen, J. L. & Goller, F.
+Bird song: superfast muscles control dove’s trill. Nature 431, 146 (2004).
+55. Elemans, C. P. H., Mead, A. F., Rome, L. C. & Goller, F. Superfast vocal muscles
+control song production in songbirds. PLoS ONE 3, e2581 (2008).
+56. Düring, D. N. et al. The songbird syrinx morphome: a three-dimensional, highresolution, interactive morphological map of the zebra ﬁnch vocal organ. BMC
+Biol. 11, 1 (2013).
+57. Sober, S. J., Wohlgemuth, M. J. & Brainard, M. S. Central contributions to
+acoustic variation in birdsong. J. Neurosci. 28, 10370–10379 (2008).
+58. Scholz, J. P. & Schoner, G. The uncontrolled manifold concept: identifying
+control variables for a functional task. Exp. Brain Res. 126, 289–306 (1999).
+
+59. Todorov, E. & Jordan, M. I. Optimal feedback control as a theory of motor
+coordination. Nat. Neurosci. 5, 1226–1235 (2002).
+60. Latash, M. L. The bliss (not the problem) of motor abundance (not
+redundancy). Exp. Brain Res. 217, 1–5 (2012).
+61. Chhetri, D. K. et al. Effects of asymmetric superior laryngeal nerve
+stimulation on glottic posture, acoustics, vibration. Laryngoscope 123,
+3110–3116 (2013).
+62. Chhetri, D. K., Neubauer, J. & Berry, D. A. Neuromuscular control of
+fundamental frequency and glottal posture at phonation onset. J. Acoust. Soc.
+Am. 131, 1401–1412 (2012).
+63. Qiu, Q. & Schutte, H. K. Real-time kymographic imaging for visualizing human
+vocal-fold vibratory function. Rev. Sci. Instrum. 78, 024302 (2007).
+64. Švec, J. G. & Schutte, H. K. Kymographic imaging of laryngeal vibrations. Curr.
+Opin. Otolaryngol. Head Neck Surg. 20, 458–465 (2012).
+65. Baken, R. J. Electroglottography. J. Voice 6, 98–110 (1992).
+66. Dooling, R. J., Lohr, B. & Dent, M. L. Comparative Hearing: Birds and Reptiles
+13, 308–359 (Springer, 2000).
+67. Goller, F. & Suthers, R. A. Role of syringeal muscles in controlling the
+phonology of bird song. J. Neurophysiol. 76, 287–300 (1996).
+68. Schuster, S., Zollinger, S. A., Lesku, J. A. & Brumm, H. On the evolution of
+noise-dependent vocal plasticity in birds. Biol. Lett. 8, 913–916 (2012).
+69. Elemans, C. P. H., Laje, R., Mindlin, G. B. & Goller, F. Smooth operator:
+avoidance of subharmonic bifurcations through mechanical mechanisms
+simpliﬁes song motor control in adult zebra ﬁnches. J. Neurosci. 30,
+13246–13253 (2010).
+70. Secora, K. R. et al. Syringeal specialization of frequency control during song
+production in the Bengalese ﬁnch (Lonchura striata domestica). PLoS ONE 7,
+e34135 (2012).
+
+Acknowledgements
+We thank T. Christensen, P. Martensen, F. Mortensen, F. Andreasen, A. Chandler, V.
+Shanbogue and N. Ditzel for technical assistance, J. Brewer for optics advice, L. Jakobsen
+for use of equipment, S. Pedersen for ostrich access, A. Qiu for videokymography advice
+and M. Rothenberg for EGG advice. H. Mehaffey, J.M. Ratcliffe and A. Surlykke commented on the manuscript. This study was funded by grants from the Danish Research
+Council (FNU), Carlsberg Foundation, visiting professorship (Université de Saint-Etienne) and QuanTM fellowship (Emory University) to C.P.H.E., a Heisenberg Fellowship
+of the German Research Foundation (Br 2309/8-1) to H.B., US National Institutes of
+Health grants F31DC013753 to K.S., P30NS069250 and R01NS084844 to S.J.S., European
+Social Fund and the state budget of the Czech Republic, project numbers OPVK CZ.1.07/
+2.3.00/30.0004 ‘POST-UP’ to C.T.H. and J.G.Š., the institutional fund of Palacký University Olomouc to C.T.H. and OPVK CZ.1.07/2.3.00/20.0057 to J.G.Š.
+
+Author contributions
+C.P.H.E. conceived the study and built the set-up. All authors contributed to data
+acquisition: pigeon (C.P.H.E., J.H.R., C.T.H., D.N.D., J.G.Š.), Barbary dove (C.P.H.E.),
+ostrich (N.S., C.P.H.E.), tinamou (S.A.Z., H.B., C.P.H.E.), cockatiel (O.N.L., C.P.H.E.),
+Bengalese ﬁnch (K.S., S.J.S., C.P.H.E.) and zebra ﬁnch (D.N.D., C.P.H.E.). CT scans were
+performed by D.N.D. and M.D., data annotation by D.N.D. All authors contributed to
+data analysis and the manuscript. All authors read and approved the ﬁnal manuscript.
+
+Additional information
+Supplementary Information accompanies this paper at http://www.nature.com/
+naturecommunications
+Competing ﬁnancial interests: The authors declare no competing ﬁnancial interests.
+Reprints and permission information is available online at http://npg.nature.com/
+reprintsandpermissions/
+How to cite this article: Elemans, C. P. H. et al. Universal mechanisms of
+sound production and control in birds and mammals. Nat. Commun. 6:8978
+doi: 10.1038/ncomms9978 (2015).
+This work is licensed under a Creative Commons Attribution 4.0
+International License. The images or other third party material in this
+article are included in the article’s Creative Commons license, unless indicated otherwise
+in the credit line; if the material is not included under the Creative Commons license,
+users will need to obtain permission from the license holder to reproduce the material.
+To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0/
+
+NATURE COMMUNICATIONS | 6:8978 | DOI: 10.1038/ncomms9978 | www.nature.com/naturecommunications
+
+13
+
+
