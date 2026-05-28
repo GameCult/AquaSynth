@@ -398,8 +398,6 @@ public sealed record TractInjection(
 
 public enum TractPropagationMode
 {
-    Resonator,
-    Waveguide,
     Graph
 }
 
@@ -478,9 +476,8 @@ public sealed record VocalTract(
     TractInjection? Injection = null,
     NasalBranch? Nasal = null,
     TractMotion? Motion = null,
-    TractPropagationMode Propagation = TractPropagationMode.Resonator,
-    float WaveguideLoss = 0.999f,
-    int Substeps = 1,
+    TractPropagationMode Propagation = TractPropagationMode.Graph,
+    float PropagationLoss = 0.999f,
     float IndexScale = 1,
     AcousticPortNetwork? AcousticNetwork = null);
 

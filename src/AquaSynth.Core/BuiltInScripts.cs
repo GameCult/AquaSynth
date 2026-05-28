@@ -668,9 +668,8 @@ public static class BuiltInScripts
             injection=pt_constriction
             nasal_branch=pt_nose
             motion=pt_motion
-            propagation=waveguide
-            waveguide_loss=0.999
-            substeps=2
+            propagation=graph
+            loss=0.999
             freq=@/pink/frequency
             gain=0.7
             attack=0.004
@@ -1156,7 +1155,7 @@ public static class BuiltInScripts
         foreach (var item in Classic808PrimitiveGolfScripts) yield return ("808", item.Name, item.Script);
         foreach (var item in FmBellPrimitiveGolfScripts) yield return ("fm-bell", item.Name, item.Script);
         foreach (var item in WobbleBassPrimitiveGolfScripts) yield return ("wobble-bass", item.Name, item.Script);
-        yield return ("pink-trombone", "current-aquasynth-proxy", PinkTromboneProxy);
+        yield return ("pink-trombone", "current-aquasynth-graph", PinkTromboneProxy);
         foreach (var item in ReferenceRebuildCatalog.Dx7Rebuilds) yield return ("dx7", item.Name, item.Script);
         foreach (var item in ReferenceRebuildCatalog.ZynRebuilds) yield return ("zynaddsubfx", item.Name, item.Script);
         foreach (var item in AdvancedReferenceScripts) yield return ("advanced", item.Name, item.Script);

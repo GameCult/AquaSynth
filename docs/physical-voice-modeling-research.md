@@ -138,9 +138,10 @@ still needs generated named equations for tract-like acoustic networks because:
 - nasal, lateral, syrinx, and alien branch points need multi-port scattering
   rather than a fixed string/tube model.
 
-The current `wg_loop ~ si.bus(...)` shape remains plausible as the low-level
-state owner. It should learn from Faust's physical-modeling library instead of
-pretending the library does not exist.
+The old `wg_loop ~ si.bus(...)` tract backend was useful evidence, then became
+a second vocal audio authority. It has been cut. The live state owner is the
+typed acoustic graph (`graph_loop ~ si.bus(...)`), which should keep learning
+from Faust's physical-modeling library without reviving a PT-shaped backend.
 
 ### Use Faust Library Delay Blocks Where They Match The Segment
 
@@ -174,16 +175,17 @@ speech-like.
 
 ### Separate Fast Training From Final Rendering
 
-Aqua should support at least two lowerings from the same acoustic morphology:
+Aqua may eventually support at least two lowerings from the same acoustic
+morphology, but only if their authority is explicit:
 
-1. `waveguide-grid`: realtime Faust waveguide network for listening, gameplay,
+1. `graph-waveguide`: realtime Faust graph network for listening, gameplay,
    and high-fidelity parity.
-2. `response-proxy`: differentiable transfer-function or modal/SOS proxy for
+2. `training-proxy`: differentiable transfer-function or modal/SOS proxy for
    fast optimization, initialized from the same geometry and periodically
-   checked against the waveguide render.
+   checked against the graph render.
 
-That is not a cheat if the proxy is named and falsified by audio parity. It is
-how the machine avoids making every gradient step pay for a full acoustic body.
+That proxy is not allowed to be a fallback voice. It is acceptable only as a
+named training artifact that cannot answer normal audio rendering requests.
 
 ## DSL Direction
 
@@ -234,23 +236,19 @@ demotes to an `AcousticPath` plus `AcousticBranch`, and each `tract` voice
 gets an `AcousticPortNetwork` over generated oral/source/branch/radiation
 records.
 
-The second cut gives those records an audible Faust proxy. An `acoustic` /
-`acoustic_voice` command can reference an `acoustic_network`; Faust lowering
-builds a compact source/body/radiation model from the declared source ports,
-primary path, branches, and radiation ports. This is a response-proxy renderer,
-not the final waveguide truth renderer: it derives modal resonances from path
-length and area summaries, then mixes branch and radiation responses. It exists
-so syrinx-like and alien topologies can be heard and tested before the full
-bidirectional network lowering is complete. Source-port pressure/tension/opening
-and branch/radiation opening-style controls can bind through normal Aqua
-parameters, so the knobs used by training and playground surfaces are attached
-to acoustic records instead of side-channel state.
+The second cut made those records audible, and the teardown cut removed the
+temporary response proxy. An `acoustic` / `acoustic_voice` command can reference
+an `acoustic_network`; Faust lowering now compiles the typed terminals into a
+bidirectional segment graph. Source-port pressure/tension/opening and
+branch/radiation opening-style controls bind through normal Aqua parameters, so
+the knobs used by training and playground surfaces are attached to acoustic
+records instead of side-channel state.
 
 A syrinx can now be authored as two labial `source_port` records plus
-bronchial/tract `branch` topology without a species mode. The next deeper cut
-is to make `AcousticPortNetwork` own the waveguide renderer directly, at which
-point `Voice.Tract` should become a larynx-shaped authoring convenience over
-the same network rather than a separate audio authority.
+bronchial/tract `branch` topology without a species mode. `AcousticPortNetwork`
+now owns the vocal renderer directly; `Voice.Tract` is a larynx-shaped
+authoring convenience over the same network rather than a separate audio
+authority.
 
 The topology decision is now a path graph with typed terminals. `AcousticPath`
 owns tube geometry. `AcousticTerminal` owns a named position on a path and its

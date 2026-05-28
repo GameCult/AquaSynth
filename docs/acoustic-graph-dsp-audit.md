@@ -38,6 +38,28 @@ have a clean physical contract.
 That is the right high-level architecture. The weak parts are inside the
 lowering laws.
 
+## 2026-05-28 Legacy Vocal Renderer Cut
+
+Owner: `AcousticPortNetwork` and typed graph lowering own vocal acoustics.
+
+Inputs: paths, terminals, connections, source ports, radiation ports, wave
+clock, and ordinary Aqua parameter bindings.
+
+Outputs: one Faust graph loop plus named source, scattering, segment delay, and
+radiation signals.
+
+Derived state: `tract`, `glottis`, `tract_injection`, and `nasal_branch` are
+authoring conveniences that populate the acoustic graph records.
+
+Forbidden writers: the old `Voice.Tract` resonator, the old `Voice.Tract`
+waveguide backend, and the acoustic response proxy no longer produce vocal
+audio. Legacy `propagation=resonator`, `propagation=waveguide`, and related
+aliases now fail at parse time. Invalid graph topology emits silence with a
+warning instead of inventing a fallback body.
+
+Deletion line: do not restore a fake vocal renderer to make a test pass. If the
+graph cannot express a vocal behavior, add or fix graph semantics.
+
 ## Component Audit
 
 ### Topology Construction

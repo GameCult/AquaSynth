@@ -52,36 +52,36 @@ public static class PinkTromboneReference
         new("/pink/lip/reflection", "Lip reflection", -0.85f, -0.98f, 0.1f, 0.001f, "coefficient", "control", "Lip-end reflection proxy.")
     ];
 
-    public static ReferenceRebuild CurrentAquaSynthProxy() =>
+    public static ReferenceRebuild CurrentAquaSynthGraph() =>
         new(
-            "pink-trombone/current-aquasynth-proxy",
+            "pink-trombone/current-aquasynth-graph",
             "pink-trombone",
-            "Current AquaSynth source-filter proxy",
+            "Current AquaSynth typed acoustic graph",
             ReferenceId,
             BuiltInScripts.PinkTromboneProxy,
             [
-                new("tract_voice_authority", "voice.Tract", "Pink Trombone pressure now lowers through a tract treatment on an ordinary AquaSynth voice."),
+                new("acoustic_graph_authority", "AcousticPortNetwork", "Pink Trombone pressure now lowers through the typed acoustic graph on an ordinary AquaSynth voice."),
                 new("tract_area_function", "tract_shape diameters", "AquaSynth can now author reusable section diameter/area functions for tract voices."),
                 new("diameter_to_reflection_coefficients", "TractAreaFunction.ReflectionCoefficients", "AquaSynth derives adjacent-section reflection coefficients from squared diameters as a reusable primitive."),
                 new("glottal_source_primitive", "glottis", "AquaSynth can author reusable glottal excitation controls for tract voices."),
                 new("positioned_injection_primitive", "tract_injection", "AquaSynth can author reusable constriction-position noise/burst injection controls."),
-                new("main_tract_waveguide_cells", "waveguide propagation over tract_shape sections", "AquaSynth can emit an oral bidirectional tube from derived section reflection coefficients."),
-                new("reflection_coefficients_applied_to_waveguide", "generated scattering junctions", "Derived reflection coefficients feed generated right/left wave scattering equations."),
+                new("main_tract_waveguide_cells", "graph path sections", "AquaSynth can emit an oral bidirectional graph path from derived section geometry."),
+                new("reflection_coefficients_applied_to_waveguide", "graph scattering junctions", "Derived areas feed generated right/left wave scattering equations."),
                 new("nose_waveguide_cells", "nasal_branch", "AquaSynth can author a nasal branch as its own diameter/area tube."),
-                new("nose_junction", "generated three-way junction", "Waveguide lowering can emit a velum-controlled oral/nasal junction from local areas."),
-                new("positioned_turbulence_applied_to_waveguide_cells", "position-weighted waveguide injection", "Frication pressure can be distributed into oral waveguide section updates by injection position and width."),
+                new("nose_junction", "generated graph connection", "Graph lowering can emit a velum-controlled oral/nasal junction from local areas."),
+                new("positioned_turbulence_applied_to_waveguide_cells", "position-weighted graph source bank", "Frication pressure can be distributed into oral graph source ports by injection position and width."),
                 new("tract_shape_motion", "tract_motion slew semantics", "AquaSynth can author tract control slew and obstruction thresholds for moving diameter targets."),
-                new("diameter_authority", "dynamic waveguide section diameters", "Waveguide lowering derives live per-section diameter targets before recalculating section areas and reflection coefficients."),
-                new("closure_transients", "obstruction-history burst", "Waveguide lowering derives burst pressure from prior obstruction state and current opening."),
-                new("tract_sample_rate", "physical-length acoustic grid", "Waveguide lowering can choose a compiled scattering grid from tract length and map runtime index controls onto it; `substeps` remains legacy clock pressure rather than the preferred surface."),
+                new("diameter_authority", "dynamic graph section areas", "Graph lowering derives live per-terminal area targets before scattering."),
+                new("closure_transients", "graph source release pulse", "Graph source lowering derives burst pressure from prior obstruction state and current opening."),
+                new("tract_sample_rate", "physical-length acoustic grid", "Graph lowering derives segment timing from tract length and maps runtime index controls onto the emitted graph; `substeps` is no longer a DSL owner."),
                 new("runtime_controls", "/pink/frequency,/pink/intensity,/pink/tenseness,/pink/tongue/index,/pink/tongue/diameter,/pink/velum,/pink/turbulence", "AquaSynth can expose stable runtime parameter paths."),
-                new("glottal_pitch_pressure_proxy", "tract LF-style source", "AquaSynth can drive pitch/loudness-like controls without recompiling."),
-                new("turbulence_proxy", "position-aware frication controls", "The tract voice has constriction index/diameter and turbulence controls."),
-                new("nasal_proxy", "velum-controlled nasal resonator", "The tract voice has a velum/nasal output lane.")
+                new("glottal_pitch_pressure", "bounded graph glottal source", "AquaSynth can drive pitch/loudness-like controls without recompiling."),
+                new("turbulence_source", "position-aware frication source ports", "The tract voice has constriction index/diameter and turbulence controls."),
+                new("nasal_branch", "velum-controlled nasal graph branch", "The tract voice has a velum-controlled nasal branch.")
             ],
             [
-                new("exact_twice_rate_state_update", "two recursive tract state updates per audio sample", "AquaSynth now chooses a physical unit-delay grid for Faust lowering, but it does not yet implement true fractional-delay or twice-rate PT state updates."),
-                new("lf_glottal_exactness", "Pink Trombone LF-style coefficients", "The proxy uses an LF-like glottal source but does not yet match Pink Trombone coefficient updates exactly.")
+                new("contact_aware_closure_state", "graph-owned upstream/downstream pressure storage", "The graph still needs a contact primitive that participates in scattering and flow."),
+                new("lf_glottal_exactness", "Pink Trombone LF-style coefficients", "The bounded source does not yet match Pink Trombone coefficient updates exactly.")
             ],
-            "This is a deliberately non-passing rebuild: it keeps the current source-filter proxy parseable while naming the tract-DSP authority AquaSynth lacks.");
+            "This is a deliberately non-passing rebuild: it proves Pink Trombone pressure lowers through the typed acoustic graph while naming the remaining closure/source exactness debt.");
 }

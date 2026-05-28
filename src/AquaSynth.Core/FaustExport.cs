@@ -184,10 +184,10 @@ public static class FaustEmitter
         var dutyExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "osc/duty"), voice.Oscillator.Duty)} + {parameters.Expression(OwnerField(ownerPath, "duty/ramp"), voice.Duty.RampPerSecond)} * age + patch_mod_duty + {duty})";
         var fmIndex = $"max(0.0, {parameters.Expression(OwnerField(ownerPath, "fm/index"), voice.Fm.Index)} + patch_mod_fm_index + {fmIndexMod}) * {FmDecay(parameters.Expression(OwnerField(ownerPath, "fm/decay"), voice.Fm.IndexDecaySeconds), voice.Fm.IndexDecaySeconds, parameters.IsBound(OwnerField(ownerPath, "fm/decay")))}";
         var oscillator = oscillatorOverride ??
-                        (voice.Tract is { Propagation: TractPropagationMode.Graph } && voice.AcousticNetwork is { } tractGraph
+                        (voice.Tract is not null && voice.AcousticNetwork is { } tractGraph
                              ? AcousticNetworkExpression(source, patch, tractGraph, ownerPath, name, frequency, parameters, warnings, options)
-                             : voice.Tract is { } tract
-                             ? TractExpression(source, tract, ownerPath, name, frequency, noteGate, parameters)
+                             : voice.Tract is not null
+                             ? MissingGraphTractExpression(source, warnings, name)
                              : voice.AcousticNetwork is { } acousticNetwork
                              ? AcousticNetworkExpression(source, patch, acousticNetwork, ownerPath, name, frequency, parameters, warnings, options)
                              : OscillatorExpression(patch, voice, ownerPath, frequency, dutyExpression, fmIndex, parameters));
@@ -421,89 +421,15 @@ public static class FaustEmitter
             }
         }
 
-        var sourceExpressions = new List<string>();
-        foreach (var sourceName in network.SourcePorts)
-        {
-            if (!sources.TryGetValue(sourceName, out var port))
-            {
-                warnings.Add($"{name}: acoustic network `{network.Name}` has unknown source port `{sourceName}`");
-                continue;
-            }
-            sourceExpressions.Add(AcousticSourceExpression(patch, port, frequency, parameters));
-        }
-        if (sourceExpressions.Count == 0)
-        {
-            sourceExpressions.Add("0.0");
-            warnings.Add($"{name}: acoustic network `{network.Name}` has no valid source ports");
-        }
+        warnings.Add($"{name}: acoustic network `{network.Name}` has no valid graph terminals; graph audio is silent");
+        return "0.0";
+    }
 
-        var baseInput = $"({string.Join(" + ", sourceExpressions)})";
-        var lengthMeters = Math.Max(0.001f, primaryPath.AreaFunction.LengthMeters);
-        var quarterWave = primaryPath.PropagationSpeedMetersPerSecond / (4 * lengthMeters);
-        var back = primaryPath.AreaFunction.AverageDiameter(0.1f, 0.35f);
-        var middle = primaryPath.AreaFunction.AverageDiameter(0.35f, 0.7f);
-        var front = primaryPath.AreaFunction.AverageDiameter(0.7f, 1f);
-        var reflectionEnergy = primaryPath.AreaFunction.ReflectionCoefficients.Count == 0
-            ? 0.12f
-            : MathF.Min(1, primaryPath.AreaFunction.ReflectionCoefficients.Sum(item => MathF.Abs(item)) / primaryPath.AreaFunction.ReflectionCoefficients.Count);
-        var loss = F(Math.Clamp(primaryPath.Loss, 0, 1));
-        var q = F(2.5f + reflectionEnergy * 8f + (1 - Math.Clamp(primaryPath.Loss, 0, 1)) * 18f);
-        source.AppendLine($"{name}_acoustic_source = {baseInput};");
-        source.AppendLine($"{name}_acoustic_f1 = max(40.0, {F(quarterWave)} * (1.0 + {F(back - middle)} * 0.18));");
-        source.AppendLine($"{name}_acoustic_f2 = max(80.0, {F(quarterWave * 3)} * (1.0 + {F(middle - front)} * 0.14));");
-        source.AppendLine($"{name}_acoustic_f3 = max(120.0, {F(quarterWave * 5)} * (1.0 + {F(front - back)} * 0.10));");
-        source.AppendLine($"{name}_acoustic_body = ({name}_acoustic_source * 0.12 + ({name}_acoustic_source : fi.resonbp({name}_acoustic_f1, {q}, 1.0)) * 0.9 + ({name}_acoustic_source : fi.resonbp({name}_acoustic_f2, {q}, 1.0)) * 0.65 + ({name}_acoustic_source : fi.resonbp({name}_acoustic_f3, {q}, 1.0)) * 0.35) * {loss};");
-
-        var branchExpressions = new List<string>();
-        foreach (var branchName in network.Branches)
-        {
-            if (!branches.TryGetValue(branchName, out var branch) ||
-                !paths.TryGetValue(branch.ToPath, out var branchPath))
-            {
-                warnings.Add($"{name}: acoustic network `{network.Name}` has unknown branch `{branchName}`");
-                continue;
-            }
-
-            var branchLength = Math.Max(0.001f, branchPath.AreaFunction.LengthMeters);
-            var branchQuarterWave = branchPath.PropagationSpeedMetersPerSecond / (4 * branchLength);
-            var branchIndex = AcousticBranchIndex(patch, branch);
-            var branchPathName = $"/acoustic/branches/{branchIndex}";
-            var branchOpening = $"clip01({parameters.Expression(OwnerField(branchPathName, "opening"), branch.Opening)})";
-            var branchCoupling = $"max(0.0, {parameters.Expression(OwnerField(branchPathName, "coupling"), branch.Coupling)})";
-            var branchQ = F(2f + Math.Clamp(branch.Coupling, 0, 1) * 8f);
-            var branchKindGain = branch.Kind == AcousticBranchKind.Nasal ? "0.75" : branch.Kind == AcousticBranchKind.Bronchial ? "0.55" : "0.45";
-            source.AppendLine($"{name}_branch_{SafeIdentifier(branch.Name)} = ({name}_acoustic_source : fi.resonbp({F(branchQuarterWave)}, {branchQ}, 1.0) : fi.lowpass(2, {F(branchQuarterWave * 8)})) * {branchOpening} * {branchCoupling} * {branchKindGain};");
-            branchExpressions.Add($"{name}_branch_{SafeIdentifier(branch.Name)}");
-        }
-
-        var radiationExpressions = new List<string>();
-        foreach (var radiationName in network.RadiationPorts)
-        {
-            if (!radiation.TryGetValue(radiationName, out var port))
-            {
-                warnings.Add($"{name}: acoustic network `{network.Name}` has unknown radiation port `{radiationName}`");
-                continue;
-            }
-
-            var radiationIndex = AcousticRadiationPortIndex(patch, port);
-            var radiationPath = $"/acoustic/radiation/{radiationIndex}";
-            var opening = $"max(0.0, {parameters.Expression(OwnerField(radiationPath, "opening"), port.Opening)})";
-            var reflection = $"min(1.0, abs({parameters.Expression(OwnerField(radiationPath, "reflection"), port.Reflection)}))";
-            var portLoss = $"clip01({parameters.Expression(OwnerField(radiationPath, "loss"), port.Loss)})";
-            var aperture = RadiationApertureExpression(patch, parameters, port);
-            var highpass = RadiationHighpassExpression(port.Kind, aperture, false);
-            var reflectionWeight = $"(0.55 + 0.45 * {reflection})";
-            radiationExpressions.Add($"(({name}_acoustic_body : fi.highpass(1, {highpass})) * {opening} * {reflectionWeight} * {portLoss})");
-        }
-        if (radiationExpressions.Count == 0)
-        {
-            radiationExpressions.Add($"{name}_acoustic_body");
-        }
-
-        var branchMix = branchExpressions.Count == 0 ? "0.0" : string.Join(" + ", branchExpressions);
-        source.AppendLine($"{name}_acoustic_branches = {branchMix};");
-        source.AppendLine($"{name}_acoustic_radiated = ({string.Join(" + ", radiationExpressions)}) + {name}_acoustic_branches;");
-        return $"{name}_acoustic_radiated";
+    private static string MissingGraphTractExpression(StringBuilder source, List<string> warnings, string name)
+    {
+        warnings.Add($"{name}: vocal tract has no acoustic graph network; graph audio is silent");
+        source.AppendLine($"{name}_acoustic_graph_radiated = 0.0;");
+        return $"{name}_acoustic_graph_radiated";
     }
 
     private static string AcousticGraphExpression(
@@ -537,7 +463,7 @@ public static class FaustEmitter
         }
         if (networkTerminals.Count < 2)
         {
-            warnings.Add($"{name}: acoustic graph `{network.Name}` needs at least two valid terminals; using response proxy");
+            warnings.Add($"{name}: acoustic graph `{network.Name}` needs at least two valid terminals; graph audio is silent");
             return "";
         }
 
@@ -615,7 +541,7 @@ public static class FaustEmitter
 
         if (segments.Count == 0)
         {
-            warnings.Add($"{name}: acoustic graph `{network.Name}` produced no path segments; using response proxy");
+            warnings.Add($"{name}: acoustic graph `{network.Name}` produced no path segments; graph audio is silent");
             return "";
         }
 
@@ -977,318 +903,6 @@ public static class FaustEmitter
         var target = $"clip01(({index}) * max(0.0, {indexScale}))";
         var radius = $"max(0.000001, ({width}) * max(0.0, {indexScale}))";
         return $"clip01(1.0 - abs({F(port.Position)} - ({target})) / ({radius}))";
-    }
-
-    private static string TractExpression(
-        StringBuilder source,
-        VocalTract tract,
-        string ownerPath,
-        string name,
-        string frequency,
-        string gate,
-        ParameterMap parameters)
-    {
-        var tractPath = OwnerField(ownerPath, "tract");
-        var sections = Math.Max(4, tract.Sections);
-        var hasNose = tract.NoseSections > 0;
-        var intensity = $"clip01({parameters.Expression(OwnerField(tractPath, "intensity"), tract.Intensity)})";
-        var tenseness = $"clip01({parameters.Expression(OwnerField(tractPath, "tenseness"), tract.Tenseness)})";
-        var motion = tract.Motion;
-        var diameterSlew = parameters.Expression(OwnerField(tractPath, "motion/diameter_slew"), motion?.DiameterSlewPerSecond ?? 18);
-        var shapeReturn = parameters.Expression(OwnerField(tractPath, "motion/shape_return"), motion?.ShapeReturnPerSecond ?? 8);
-        var constrictionSlew = parameters.Expression(OwnerField(tractPath, "motion/constriction_slew"), motion?.ConstrictionSlewPerSecond ?? 24);
-        var velumSlew = parameters.Expression(OwnerField(tractPath, "motion/velum_slew"), motion?.VelumSlewPerSecond ?? 16);
-        var obstructionThreshold = parameters.Expression(OwnerField(tractPath, "motion/obstruction_threshold"), motion?.ObstructionThreshold ?? 0.05f);
-        var tongueIndexPath = OwnerField(tractPath, "tongue_index");
-        var tongueDiameterPath = OwnerField(tractPath, "tongue_diameter");
-        var velumPath = OwnerField(tractPath, "velum");
-        var constrictionIndexPath = OwnerField(tractPath, "constriction_index");
-        var constrictionDiameterPath = OwnerField(tractPath, "constriction_diameter");
-        var lipOpeningPath = OwnerField(tractPath, "lip_opening");
-        var indexScale = F(tract.IndexScale);
-        var tongueIndexRaw = ScaleIndex(parameters.Expression(tongueIndexPath, tract.TongueIndex));
-        var tongueDiameterRaw = parameters.Expression(tongueDiameterPath, tract.TongueDiameter);
-        var velumRaw = $"clip01(({parameters.Expression(velumPath, tract.Velum)} - 0.01) / 0.39)";
-        var constrictionIndexRaw = ScaleIndex(parameters.Expression(constrictionIndexPath, tract.ConstrictionIndex));
-        var constrictionDiameterRaw = parameters.Expression(constrictionDiameterPath, tract.ConstrictionDiameter);
-        var tongueIndexValue = SmoothControl(motion, parameters, tongueIndexPath, diameterSlew, tongueIndexRaw);
-        var tongueDiameterValue = SmoothControl(motion, parameters, tongueDiameterPath, diameterSlew, tongueDiameterRaw);
-        var velumValue = SmoothControl(motion, parameters, velumPath, velumSlew, velumRaw);
-        var constrictionIndexValue = SmoothControl(motion, parameters, constrictionIndexPath, constrictionSlew, constrictionIndexRaw);
-        var constrictionDiameterValue = SmoothControl(motion, parameters, constrictionDiameterPath, constrictionSlew, constrictionDiameterRaw);
-        var turbulence = $"clip01({parameters.Expression(OwnerField(tractPath, "turbulence"), tract.Turbulence)})";
-        var lipOpening = parameters.Expression(lipOpeningPath, tract.LipOpening);
-        var glottalReflection = parameters.Expression(OwnerField(tractPath, "glottal_reflection"), tract.GlottalReflection);
-        var lipReflection = parameters.Expression(OwnerField(tractPath, "lip_reflection"), tract.LipReflection);
-        var areaFunction = tract.AreaFunction;
-        var glottis = tract.Glottis;
-        var injection = tract.Injection;
-        var shapeBack = F(areaFunction?.AverageDiameter(0.18f, 0.38f) ?? 1.35f);
-        var shapeMiddle = F(areaFunction?.AverageDiameter(0.38f, 0.68f) ?? 1.5f);
-        var shapeFront = F(areaFunction?.AverageDiameter(0.68f, 0.96f) ?? 1.5f);
-        var shapeMinimum = F(areaFunction?.MinimumDiameter ?? 0.6f);
-        var reflectionEnergy = F(areaFunction is null ? 0.12f : MathF.Min(1, areaFunction.ReflectionCoefficients.Sum(reflection => MathF.Abs(reflection)) / Math.Max(1, areaFunction.ReflectionCoefficients.Count)));
-        var aspiration = $"clip01({parameters.Expression(OwnerField(tractPath, "glottis/aspiration"), glottis?.Aspiration ?? 0.08f)})";
-        var glottalSkew = $"clip01({parameters.Expression(OwnerField(tractPath, "glottis/skew"), glottis?.Skew ?? 0.42f)})";
-        var injectionPositionPath = OwnerField(tractPath, "injection/position");
-        var injectionDiameterPath = OwnerField(tractPath, "injection/diameter");
-        var injectionPositionRaw = ScaleIndex(parameters.Expression(injectionPositionPath, injection?.Position ?? tract.ConstrictionIndex));
-        var injectionDiameterRaw = parameters.Expression(injectionDiameterPath, injection?.Diameter ?? tract.ConstrictionDiameter);
-        var injectionPositionValue = SmoothControl(motion, parameters, injectionPositionPath, constrictionSlew, injectionPositionRaw);
-        var injectionDiameterValue = SmoothControl(motion, parameters, injectionDiameterPath, constrictionSlew, injectionDiameterRaw);
-        var injectionTurbulence = $"clip01({parameters.Expression(OwnerField(tractPath, "injection/turbulence"), injection?.Turbulence ?? tract.Turbulence)})";
-        var injectionBurst = $"clip01({parameters.Expression(OwnerField(tractPath, "injection/burst"), injection?.Burst ?? 0)})";
-        var injectionWidth = $"max(1.0, {ScaleIndex(parameters.Expression(OwnerField(tractPath, "injection/width"), injection?.Width ?? 1))})";
-
-        source.AppendLine($"{name}_tract_phase = os.phasor(1.0, {frequency});");
-        source.AppendLine($"{name}_tract_tongue_index = {tongueIndexValue};");
-        source.AppendLine($"{name}_tract_tongue_diameter = {tongueDiameterValue};");
-        source.AppendLine($"{name}_tract_velum = {velumValue};");
-        source.AppendLine($"{name}_tract_constriction_index = {constrictionIndexValue};");
-        source.AppendLine($"{name}_tract_constriction_diameter = {constrictionDiameterValue};");
-        source.AppendLine($"{name}_tract_injection_index = {injectionPositionValue};");
-        source.AppendLine($"{name}_tract_injection_diameter = {injectionDiameterValue};");
-        var tongueIndex = $"{name}_tract_tongue_index";
-        var tongueDiameter = $"{name}_tract_tongue_diameter";
-        var velum = $"{name}_tract_velum";
-        var constrictionIndex = $"{name}_tract_constriction_index";
-        var constrictionDiameter = $"{name}_tract_constriction_diameter";
-        var injectionPosition = $"{name}_tract_injection_index";
-        var injectionDiameter = $"{name}_tract_injection_diameter";
-        source.AppendLine($"{name}_tract_tongue_pos = clip01({tongueIndex} / {F(sections)});");
-        source.AppendLine($"{name}_tract_constriction_pos = clip01({constrictionIndex} / {F(sections)});");
-        source.AppendLine($"{name}_tract_injection_pos = clip01({injectionPosition} / {F(sections)});");
-        source.AppendLine($"{name}_tract_tongue_close = clip01((3.5 - {tongueDiameter}) / 3.5);");
-        source.AppendLine($"{name}_tract_constriction_close = clip01((1.15 - {constrictionDiameter}) / 1.15);");
-        source.AppendLine($"{name}_tract_injection_close = clip01((1.15 - {injectionDiameter}) / max(0.05, 1.15 * {injectionWidth}));");
-        source.AppendLine($"{name}_tract_lip = clip01({lipOpening} / 2.5);");
-        source.AppendLine($"{name}_tract_shape_back = {shapeBack};");
-        source.AppendLine($"{name}_tract_shape_middle = {shapeMiddle};");
-        source.AppendLine($"{name}_tract_shape_front = {shapeFront};");
-        source.AppendLine($"{name}_tract_shape_min = {shapeMinimum};");
-        source.AppendLine($"{name}_tract_reflection_energy = {reflectionEnergy};");
-        source.AppendLine($"{name}_tract_q = 2.0 + {tenseness} * 10.0 + {name}_tract_constriction_close * 8.0 + {name}_tract_reflection_energy * 4.0;");
-        source.AppendLine($"{name}_tract_f1 = max(90.0, 260.0 + {name}_tract_lip * 720.0 - {name}_tract_tongue_close * 260.0 + ({name}_tract_shape_back - 1.35) * 210.0 - (1.0 - {name}_tract_shape_min) * 120.0 + {velum} * 120.0);");
-        source.AppendLine($"{name}_tract_f2 = max(180.0, 820.0 + {name}_tract_tongue_pos * 1850.0 - {name}_tract_tongue_close * 640.0 + ({name}_tract_shape_middle - 1.5) * 360.0 - (1.0 - {name}_tract_lip) * 260.0);");
-        source.AppendLine($"{name}_tract_f3 = max(500.0, 1900.0 + {name}_tract_constriction_pos * 2600.0 + {name}_tract_tongue_close * 700.0 + ({name}_tract_shape_front - 1.5) * 520.0);");
-        source.AppendLine($"{name}_tract_lf_open = select2({name}_tract_phase < (0.42 + {glottalSkew} * 0.36), -0.28 * sin(ma.PI * ({name}_tract_phase - (0.42 + {glottalSkew} * 0.36)) / max(0.001, 1.0 - (0.42 + {glottalSkew} * 0.36))), sin(ma.PI * {name}_tract_phase / max(0.001, 0.42 + {glottalSkew} * 0.36)));");
-        source.AppendLine($"{name}_tract_lf = ({name}_tract_lf_open - (0.12 + {tenseness} * 0.62) * sin(4.0 * ma.PI * {name}_tract_phase)) * {intensity} * (0.45 + 0.75 * pow(max(0.0, {tenseness}), 0.35));");
-        source.AppendLine($"{name}_tract_aspiration = no.noise * {intensity} * {aspiration} * (1.0 - sqrt(max(0.0, {tenseness}))) * (0.08 + 0.22 * {name}_tract_constriction_close);");
-        source.AppendLine($"{name}_tract_frication = no.noise * max({turbulence} * {name}_tract_constriction_close, {injectionTurbulence} * {name}_tract_injection_close) * {intensity} * (0.25 + 0.75 * {name}_tract_injection_pos) * (0.2 + 0.8 * {tenseness});");
-        source.AppendLine($"{name}_tract_prev_injection_close = {name}_tract_injection_close : mem;");
-        source.AppendLine($"{name}_tract_obstructed = select2({injectionDiameter} < {obstructionThreshold}, 0.0, 1.0);");
-        source.AppendLine($"{name}_tract_prev_obstructed = {name}_tract_obstructed : mem;");
-        source.AppendLine($"{name}_tract_release_opening = max(0.0, {name}_tract_prev_injection_close - {name}_tract_injection_close) * {name}_tract_prev_obstructed;");
-        source.AppendLine($"{name}_tract_release_memory = {name}_tract_release_opening : + ~ *(0.935);");
-        source.AppendLine($"{name}_tract_burst = no.noise * {name}_tract_release_memory * {injectionBurst} * {intensity};");
-        source.AppendLine($"{name}_tract_excitation = ({name}_tract_lf + {name}_tract_aspiration + {name}_tract_burst) * (0.55 + 0.45 * abs({glottalReflection}));");
-        source.AppendLine($"{name}_tract_injection_pressure = {name}_tract_frication * (0.55 + 0.45 * abs({glottalReflection}));");
-        source.AppendLine($"{name}_tract_raw = {name}_tract_excitation + {name}_tract_injection_pressure;");
-        if (tract.Propagation == TractPropagationMode.Waveguide && areaFunction is not null)
-        {
-            return TractWaveguideExpression(
-                source,
-                tract,
-                areaFunction,
-                name,
-                glottalReflection,
-                lipReflection,
-                velum,
-                injectionWidth,
-                tongueIndex,
-                tongueDiameter,
-                constrictionIndex,
-                constrictionDiameter,
-                lipOpening,
-                shapeReturn,
-                motion is not null && (
-                    parameters.IsBound(tongueIndexPath) ||
-                    parameters.IsBound(tongueDiameterPath) ||
-                    parameters.IsBound(constrictionIndexPath) ||
-                    parameters.IsBound(constrictionDiameterPath) ||
-                    parameters.IsBound(lipOpeningPath)));
-        }
-
-        source.AppendLine($"{name}_tract_oral = {name}_tract_raw * 0.18 + ({name}_tract_raw : fi.resonbp({name}_tract_f1, {name}_tract_q, 1.0)) * (0.75 + {name}_tract_lip * 0.65) + ({name}_tract_raw : fi.resonbp({name}_tract_f2, {name}_tract_q, 1.0)) * (0.85 + {name}_tract_tongue_close) + ({name}_tract_raw : fi.resonbp({name}_tract_f3, {name}_tract_q, 1.0)) * (0.35 + {name}_tract_constriction_close);");
-        if (hasNose)
-        {
-            source.AppendLine($"{name}_tract_nose = ({name}_tract_raw : fi.resonbp(260.0 + {velum} * 560.0, 3.0 + {velum} * 9.0, 1.0) : fi.lowpass(2, 2400.0 + {velum} * 1200.0)) * {velum};");
-        }
-        else
-        {
-            source.AppendLine($"{name}_tract_nose = 0.0;");
-        }
-        source.AppendLine($"{name}_tract_radiated = ({name}_tract_oral * (0.65 + 0.35 * abs({lipReflection})) + {name}_tract_nose);");
-        return $"{name}_tract_radiated";
-
-        string ScaleIndex(string expression) =>
-            tract.IndexScale == 1 ? expression : $"(({expression}) * {indexScale})";
-    }
-
-    private static string SmoothControl(TractMotion? motion, ParameterMap parameters, string fieldPath, string rate, string expression) =>
-        motion is not null && parameters.IsBound(fieldPath) ? $"slew({rate}, {expression})" : expression;
-
-    private static string TractWaveguideExpression(
-        StringBuilder source,
-        VocalTract tract,
-        TractAreaFunction areaFunction,
-        string name,
-        string glottalReflection,
-        string lipReflection,
-        string velum,
-        string injectionWidth,
-        string tongueIndex,
-        string tongueDiameter,
-        string constrictionIndex,
-        string constrictionDiameter,
-        string lipOpening,
-        string shapeReturn,
-        bool smoothShape)
-    {
-        var sections = areaFunction.Sections;
-        var loss = F(Math.Clamp(tract.WaveguideLoss, 0, 1));
-        var substeps = Math.Max(1, tract.Substeps);
-        source.AppendLine($"{name}_wg_loss = {loss};");
-        source.AppendLine($"{name}_wg_substeps = {substeps};");
-        source.AppendLine($"{name}_wg_substep_drive = 1.0 / {name}_wg_substeps;");
-        source.AppendLine($"{name}_wg_substep_loss = pow({name}_wg_loss, {name}_wg_substeps);");
-        source.AppendLine($"{name}_wg_injection_cell = {name}_tract_injection_pos * {F(sections)};");
-        for (var i = 0; i < sections; i++)
-        {
-            var rest = F(areaFunction.Diameters[i]);
-            var tongueWidth = F(Math.Max(1, sections * 0.18));
-            var constrictionWidth = F(Math.Max(1, sections * 0.09));
-            if (smoothShape)
-            {
-                source.AppendLine($"{name}_wg_tongue_weight_{i} = exp(0.0 - pow(({F(i)} - {tongueIndex}) / {tongueWidth}, 2.0));");
-                source.AppendLine($"{name}_wg_constriction_weight_{i} = exp(0.0 - pow(({F(i)} - {constrictionIndex}) / {constrictionWidth}, 2.0));");
-                source.AppendLine(i == sections - 1
-                    ? $"{name}_wg_diameter_base_{i} = {lipOpening};"
-                    : $"{name}_wg_diameter_base_{i} = {rest} + ({tongueDiameter} - {rest}) * {name}_wg_tongue_weight_{i};");
-                source.AppendLine($"{name}_wg_diameter_target_{i} = max(0.0, min({name}_wg_diameter_base_{i}, {constrictionDiameter} + max(0.0, {name}_wg_diameter_base_{i} - {constrictionDiameter}) * (1.0 - {name}_wg_constriction_weight_{i})));");
-            }
-            else
-            {
-                source.AppendLine($"{name}_wg_diameter_target_{i} = {F(StaticWaveguideDiameter(tract, areaFunction, i, sections))};");
-            }
-            source.AppendLine(smoothShape
-                ? $"{name}_wg_diameter_{i} = slew({shapeReturn}, {name}_wg_diameter_target_{i});"
-                : $"{name}_wg_diameter_{i} = {name}_wg_diameter_target_{i};");
-            source.AppendLine($"{name}_wg_area_{i} = max(0.000001, {name}_wg_diameter_{i} * {name}_wg_diameter_{i});");
-            source.AppendLine($"{name}_wg_inject_{i} = {name}_tract_injection_pressure * {name}_wg_substep_drive * clip01(1.0 - abs({name}_wg_injection_cell - {F(i)}) / {injectionWidth});");
-        }
-        for (var i = 1; i < sections; i++)
-        {
-            source.AppendLine($"{name}_wg_k_{i} = ({name}_wg_area_{i - 1} - {name}_wg_area_{i}) / ({name}_wg_area_{i - 1} + {name}_wg_area_{i});");
-        }
-
-        var nasal = tract.Nasal is { AreaFunction: { } } ? tract.Nasal : null;
-        var noseSections = nasal?.AreaFunction is { } nasalFunction ? nasalFunction.Sections : 0;
-        var nasalJunction = nasal is null ? -1 : Math.Clamp(nasal.JunctionIndex, 1, sections - 2);
-        var stateCount = sections * 2 + noseSections * 2;
-        var stateInputs = new List<string>(stateCount);
-        stateInputs.AddRange(Enumerable.Range(0, sections).Select(i => $"r{i}"));
-        stateInputs.AddRange(Enumerable.Range(0, sections).Select(i => $"l{i}"));
-        stateInputs.AddRange(Enumerable.Range(0, noseSections).Select(i => $"nr{i}"));
-        stateInputs.AddRange(Enumerable.Range(0, noseSections).Select(i => $"nl{i}"));
-        var nextStates = new List<string>(stateCount);
-
-        source.AppendLine($"{name}_wg(x) = {name}_wg_loop ~ si.bus({stateCount}) : (si.block({stateCount}), _) with {{");
-        source.AppendLine($"  {name}_wg_loop({string.Join(", ", stateInputs)}) = {string.Join(", ", nextStatesPlaceholder(stateCount))}, {name}_wg_out with {{");
-        source.AppendLine($"    {name}_wg_jr0 = (x * {name}_wg_substep_drive + {name}_wg_inject_0 * 0.5 + l0 * {glottalReflection});");
-        for (var i = 1; i < sections; i++)
-        {
-            if (i == nasalJunction)
-            {
-                continue;
-            }
-
-            source.AppendLine($"    {name}_wg_scatter_{i} = {name}_wg_k_{i} * (r{i - 1} + l{i});");
-            source.AppendLine($"    {name}_wg_jr{i} = r{i - 1} - {name}_wg_scatter_{i} + {name}_wg_inject_{i} * 0.5;");
-            source.AppendLine($"    {name}_wg_jl{i - 1} = l{i} + {name}_wg_scatter_{i} + {name}_wg_inject_{i - 1} * 0.5;");
-        }
-
-        source.AppendLine($"    {name}_wg_jl{sections - 1} = r{sections - 1} * {lipReflection};");
-        var noseOutput = "0.0";
-        if (nasal?.AreaFunction is { } noseShape)
-        {
-            var junction = nasalJunction;
-            var noseReflections = noseShape.ReflectionCoefficients;
-            var noseLoss = F(Math.Clamp(nasal.Loss, 0, 1));
-            var noseReflection = F(nasal.Reflection);
-            source.AppendLine($"    {name}_nose_loss = {noseLoss};");
-            for (var i = 0; i < Math.Min(noseReflections.Count, noseSections - 1); i++)
-            {
-                source.AppendLine($"    {name}_nose_k_{i + 1} = {F(noseReflections[i])};");
-            }
-            source.AppendLine($"    {name}_nose_area = max(0.000001, (0.01 + {velum} * 0.39) * (0.01 + {velum} * 0.39));");
-            source.AppendLine($"    {name}_nose_sum = {name}_wg_area_{junction - 1} + {name}_wg_area_{junction} + {name}_nose_area;");
-            source.AppendLine($"    {name}_nose_reflect_left = (2.0 * {name}_wg_area_{junction - 1} - {name}_nose_sum) / {name}_nose_sum;");
-            source.AppendLine($"    {name}_nose_reflect_right = (2.0 * {name}_wg_area_{junction} - {name}_nose_sum) / {name}_nose_sum;");
-            source.AppendLine($"    {name}_nose_reflect_nose = (2.0 * {name}_nose_area - {name}_nose_sum) / {name}_nose_sum;");
-            source.AppendLine($"    {name}_wg_jl{junction - 1} = ({name}_nose_reflect_left * r{junction - 1}) + (1.0 + {name}_nose_reflect_left) * (l{junction} + nl0) + {name}_wg_inject_{junction - 1} * 0.5;");
-            source.AppendLine($"    {name}_wg_jr{junction} = ({name}_nose_reflect_right * l{junction}) + (1.0 + {name}_nose_reflect_right) * (r{junction - 1} + nl0) + {name}_wg_inject_{junction} * 0.5;");
-            source.AppendLine($"    {name}_nose_jr0 = ({name}_nose_reflect_nose * nl0) + (1.0 + {name}_nose_reflect_nose) * (l{junction} + r{junction - 1});");
-            for (var i = 1; i < noseSections; i++)
-            {
-                source.AppendLine($"    {name}_nose_scatter_{i} = {name}_nose_k_{i} * (nr{i - 1} + nl{i});");
-                source.AppendLine($"    {name}_nose_jr{i} = nr{i - 1} - {name}_nose_scatter_{i};");
-                source.AppendLine($"    {name}_nose_jl{i - 1} = nl{i} + {name}_nose_scatter_{i};");
-            }
-            source.AppendLine($"    {name}_nose_jl{noseSections - 1} = nr{noseSections - 1} * {noseReflection};");
-            noseOutput = $"{name}_nose_next_r{noseSections - 1}";
-        }
-
-        for (var i = 0; i < sections; i++)
-        {
-            source.AppendLine($"    {name}_next_r{i} = {name}_wg_jr{i} * {name}_wg_substep_loss;");
-            source.AppendLine($"    {name}_next_l{i} = {name}_wg_jl{i} * {name}_wg_substep_loss;");
-            nextStates.Add($"{name}_next_r{i}");
-        }
-        nextStates.AddRange(Enumerable.Range(0, sections).Select(i => $"{name}_next_l{i}"));
-        if (noseSections > 0)
-        {
-            for (var i = 0; i < noseSections; i++)
-            {
-                source.AppendLine($"    {name}_nose_next_r{i} = {name}_nose_jr{i} * {name}_nose_loss;");
-                source.AppendLine($"    {name}_nose_next_l{i} = {name}_nose_jl{i} * {name}_nose_loss;");
-                nextStates.Add($"{name}_nose_next_r{i}");
-            }
-            nextStates.AddRange(Enumerable.Range(0, noseSections).Select(i => $"{name}_nose_next_l{i}"));
-        }
-        source.Replace(string.Join(", ", nextStatesPlaceholder(stateCount)), string.Join(", ", nextStates));
-        source.AppendLine($"    {name}_tract_oral_waveguide = {name}_next_r{sections - 1} + {name}_next_l{sections - 1} * 0.05;");
-        source.AppendLine($"    {name}_tract_nose_waveguide = {noseOutput};");
-        source.AppendLine($"    {name}_wg_out = {name}_tract_oral_waveguide * (0.65 + 0.35 * abs({lipReflection})) + {name}_tract_nose_waveguide;");
-        source.AppendLine("  };");
-        source.AppendLine("};");
-        source.AppendLine($"{name}_tract_radiated_raw = {name}_wg({name}_tract_excitation);");
-        source.AppendLine($"{name}_tract_radiated = {name}_tract_radiated_raw;");
-        return $"{name}_tract_radiated";
-
-        static IEnumerable<string> nextStatesPlaceholder(int count) =>
-            Enumerable.Range(0, count).Select(i => $"__next_state_{i}__");
-    }
-
-    private static float StaticWaveguideDiameter(VocalTract tract, TractAreaFunction areaFunction, int index, int emittedSections)
-    {
-        var restIndex = Math.Min(index, areaFunction.Diameters.Count - 1);
-        var diameter = areaFunction.Diameters[restIndex];
-        if (index == emittedSections - 1)
-        {
-            diameter = tract.LipOpening;
-        }
-        else
-        {
-            var tongueWidth = Math.Max(1, emittedSections * 0.18f);
-            var tongueWeight = MathF.Exp(0 - MathF.Pow((index - tract.TongueIndex) / tongueWidth, 2));
-            diameter = diameter + (tract.TongueDiameter - diameter) * tongueWeight;
-        }
-
-        var constrictionWidth = Math.Max(1, emittedSections * 0.09f);
-        var constrictionWeight = MathF.Exp(0 - MathF.Pow((index - tract.ConstrictionIndex) / constrictionWidth, 2));
-        diameter = Math.Min(diameter, tract.ConstrictionDiameter + Math.Max(0, diameter - tract.ConstrictionDiameter) * (1 - constrictionWeight));
-        return Math.Max(0, diameter);
     }
 
     private static void EmitOperatorGraph(StringBuilder source, Playback playback, OperatorGraph graph, string name, ParameterMap parameters, List<string> warnings)

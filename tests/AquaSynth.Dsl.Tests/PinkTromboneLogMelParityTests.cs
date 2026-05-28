@@ -486,7 +486,7 @@ public sealed class PinkTromboneLogMelParityTests
         nasal_branch name=nose length_cm=12 junction=17 velum=@/pink/velum reflection=@/pink/lip/reflection loss=.999 diameters=0.01,0.35,0.5,0.65,0.8,0.95,1.1,1.25,1.4,1.55,1.7,1.8,1.9,1.9,1.85,1.75,1.65,1.55,1.45,1.35,1.25,1.15,1.05,0.95,0.85,0.75,0.65,0.55
         tract_motion name=motion diameter_slew=18 shape_return=8 constriction_slew=24 velum_slew=16 obstruction_threshold=.05
 
-        tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation=graph waveguide_loss=.999 freq=@/pink/frequency gain=@/pink/gain intensity=@/pink/intensity tenseness=@/pink/tenseness attack=.03 sustain={{F(fixture.DurationSeconds)}} decay=.05 tongue_index=@/pink/tongue/index tongue_diameter=@/pink/tongue/diameter constriction_index=@/pink/constriction/index constriction_diameter=@/pink/constriction/diameter turbulence=@/pink/turbulence velum=@/pink/velum lip=@/pink/lip/opening burst=@/pink/burst glottal_reflection=@/pink/glottal/reflection lip_reflection=@/pink/lip/reflection
+        tract shape=human glottis=modal injection=inj nasal_branch=nose motion=motion propagation=graph loss=.999 freq=@/pink/frequency gain=@/pink/gain intensity=@/pink/intensity tenseness=@/pink/tenseness attack=.03 sustain={{F(fixture.DurationSeconds)}} decay=.05 tongue_index=@/pink/tongue/index tongue_diameter=@/pink/tongue/diameter constriction_index=@/pink/constriction/index constriction_diameter=@/pink/constriction/diameter turbulence=@/pink/turbulence velum=@/pink/velum lip=@/pink/lip/opening burst=@/pink/burst glottal_reflection=@/pink/glottal/reflection lip_reflection=@/pink/lip/reflection
         """;
 
     private static string UtteranceControlCsv(PinkTromboneUtteranceFixture fixture)

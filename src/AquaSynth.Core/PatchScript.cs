@@ -1212,11 +1212,17 @@ public static class PatchScript
             var injection = ParseTractInjectionReference(fields, ownerPath, line);
             var nasal = ParseNasalBranchReference(fields, ownerPath, line);
             var motion = ParseTractMotionReference(fields, ownerPath, line);
-            var propagation = ParseTractPropagationMode(GetAny(fields, ["propagation", "model"], "resonator"), line);
+            if (HasAny(fields, "waveguide_loss"))
+            {
+                throw new PatchScriptException(line, "`waveguide_loss` has been removed; use graph `loss`");
+            }
+            if (HasAny(fields, "substeps", "steps"))
+            {
+                throw new PatchScriptException(line, "`substeps` has been removed; graph timing is owned by path length and wave_clock");
+            }
+            var propagation = ParseTractPropagationMode(GetAny(fields, ["propagation", "model"], "graph"), line);
             var originalSections = areaFunction?.Sections ?? 44;
-            var defaultSections = propagation == TractPropagationMode.Waveguide && areaFunction is not null && !HasAny(fields, "sections", "cells")
-                ? areaFunction.AcousticUnitDelaySections(44100, 343, 4)
-                : originalSections;
+            var defaultSections = originalSections;
             var sections = GetBoundInt(fields, line, defaultSections, OwnerField(ownerPath, "tract/sections"), "sections", "cells");
             if (sections < 4)
             {
@@ -1226,9 +1232,7 @@ public static class PatchScript
                 ? areaFunction.Resample(sections)
                 : areaFunction;
             var indexScale = originalSections <= 0 ? 1 : sections / (float)originalSections;
-            var defaultNoseSections = propagation == TractPropagationMode.Waveguide && nasal?.AreaFunction is { } nasalArea && !HasAny(fields, "nose_sections", "nose_cells")
-                ? nasalArea.AcousticUnitDelaySections(44100, 343, 1)
-                : nasal?.AreaFunction?.Sections ?? 28;
+            var defaultNoseSections = nasal?.AreaFunction?.Sections ?? 28;
             var noseSections = GetBoundInt(fields, line, defaultNoseSections, OwnerField(ownerPath, "tract/nose_sections"), "nose_sections", "nose_cells");
             if (noseSections < 0)
             {
@@ -1259,8 +1263,7 @@ public static class PatchScript
                 nasal,
                 motion,
                 propagation,
-                GetBoundFloat(fields, line, 0.999f, OwnerField(ownerPath, "tract/waveguide_loss"), "waveguide_loss", "loss"),
-                GetBoundInt(fields, line, 1, OwnerField(ownerPath, "tract/substeps"), "substeps", "steps"),
+                GetBoundFloat(fields, line, 0.999f, OwnerField(ownerPath, "tract/loss"), "loss", "propagation_loss"),
                 indexScale);
             var acousticNetwork = EnsureTractAcousticNetwork(ownerPath, tract);
 
@@ -1300,7 +1303,7 @@ public static class PatchScript
                 primaryPathName,
                 oralArea,
                 343,
-                tract.WaveguideLoss,
+                tract.PropagationLoss,
                 new AcousticAreaControl(
                     tract.TongueIndex,
                     tract.TongueDiameter,
@@ -1365,21 +1368,14 @@ public static class PatchScript
             if (tract.Injection is { } injection)
             {
                 var injectionName = string.IsNullOrWhiteSpace(injection.Name) ? $"{prefix}_injection" : $"{prefix}_{injection.Name}";
-                if (tract.Propagation == TractPropagationMode.Graph)
+                var sourceWidth = Math.Max(0.25f, injection.Width);
+                var sourceIndexScale = tract.IndexScale / Math.Max(1, tract.Sections);
+                for (var section = 1; section < tract.Sections; section++)
                 {
-                    var sourceWidth = Math.Max(0.25f, injection.Width);
-                    var sourceIndexScale = tract.IndexScale / Math.Max(1, tract.Sections);
-                    for (var section = 1; section < tract.Sections; section++)
-                    {
-                        AddTractInjectionSource(
-                            $"{injectionName}_{section}",
-                            (section + 0.5f) / Math.Max(1, tract.Sections),
-                            new AcousticSourcePositionControl(tract.ConstrictionIndex, sourceWidth, sourceIndexScale));
-                    }
-                }
-                else
-                {
-                    AddTractInjectionSource(injectionName, NormalizeTractIndex(injection.Position, tract.Sections), null);
+                    AddTractInjectionSource(
+                        $"{injectionName}_{section}",
+                        (section + 0.5f) / Math.Max(1, tract.Sections),
+                        new AcousticSourcePositionControl(tract.ConstrictionIndex, sourceWidth, sourceIndexScale));
                 }
 
                 void AddTractInjectionSource(string name, float position, AcousticSourcePositionControl? positionControl)
@@ -1498,11 +1494,7 @@ public static class PatchScript
             var clockName = $"{prefix}_clock";
             AddWaveClockRecord(new WaveClockPolicy(
                 clockName,
-                tract.Propagation == TractPropagationMode.Waveguide
-                    ? WaveClockDelayStrategy.UnitGrid
-                    : tract.Propagation == TractPropagationMode.Graph
-                    ? WaveClockDelayStrategy.FractionalLinear
-                    : WaveClockDelayStrategy.FractionalLinear));
+                WaveClockDelayStrategy.FractionalLinear));
 
             var network = new AcousticPortNetwork(
                 $"{prefix}_network",
@@ -2592,11 +2584,11 @@ public static class PatchScript
         _ => target.ToString().ToLowerInvariant()
     };
 
-        private static TractPropagationMode ParseTractPropagationMode(string value, int line) => value.ToLowerInvariant() switch
+    private static TractPropagationMode ParseTractPropagationMode(string value, int line) => value.ToLowerInvariant() switch
     {
-        "resonator" or "proxy" or "formant" => TractPropagationMode.Resonator,
-        "waveguide" or "kl" or "kelly-lochbaum" or "kelly_lochbaum" or "tube" => TractPropagationMode.Waveguide,
         "graph" or "acoustic_graph" or "network" => TractPropagationMode.Graph,
+        "resonator" or "proxy" or "formant" or "waveguide" or "kl" or "kelly-lochbaum" or "kelly_lochbaum" or "tube" =>
+            throw new PatchScriptException(line, $"legacy tract propagation mode `{value}` has been removed; use `propagation=graph`"),
         _ => throw new PatchScriptException(line, $"unknown tract propagation mode `{value}`")
     };
 

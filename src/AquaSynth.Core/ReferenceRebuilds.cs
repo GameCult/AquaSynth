@@ -133,7 +133,7 @@ public static class ReferenceRebuildCatalog
 
     public static readonly IReadOnlyList<ReferenceRebuild> PinkTromboneRebuilds =
     [
-        PinkTromboneReference.CurrentAquaSynthProxy()
+        PinkTromboneReference.CurrentAquaSynthGraph()
     ];
 
     public static IEnumerable<ReferenceRebuild> All()

@@ -48,7 +48,7 @@ modules:
   vocal_tract_learning: src/AquaSynth.Core/VocalTractLearning.cs
   tract_voice_model: src/AquaSynth.Core/Model.cs
   tract_shape_model: src/AquaSynth.Core/Model.cs
-  tract_waveguide_lowering: src/AquaSynth.Core/FaustExport.cs
+  acoustic_graph_lowering: src/AquaSynth.Core/FaustExport.cs
   pink_trombone_parity_fixtures: src/AquaSynth.Core/PinkTromboneParityFixtures.cs
   pink_trombone_utterance_fixtures: src/AquaSynth.Core/PinkTromboneUtteranceFixtures.cs
   pink_trombone_logmel_parity_tests: tests/AquaSynth.Dsl.Tests/PinkTromboneLogMelParityTests.cs
