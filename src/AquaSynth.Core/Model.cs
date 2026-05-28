@@ -240,6 +240,13 @@ public enum AcousticSourceModel
     TissueValve
 }
 
+public enum AcousticValveLaw
+{
+    OneMass,
+    TwoMass,
+    BodyCover
+}
+
 public enum AcousticBranchKind
 {
     SideBranch,
@@ -256,6 +263,24 @@ public enum AcousticRadiationKind
     Beak,
     Vent,
     Membrane
+}
+
+public enum AcousticLossModel
+{
+    Custom,
+    None,
+    Viscous,
+    Birkholz2024,
+    Wall
+}
+
+public enum AcousticRadiationModel
+{
+    SimpleReflection,
+    LipPiston,
+    Beak,
+    Nostril,
+    Wall
 }
 
 public enum WaveClockDelayStrategy
@@ -293,7 +318,11 @@ public sealed record AcousticPath(
     TractAreaFunction AreaFunction,
     float PropagationSpeedMetersPerSecond = 343,
     float Loss = 0.999f,
-    AcousticAreaControl? AreaControl = null);
+    AcousticAreaControl? AreaControl = null,
+    string AreaCurve = "",
+    AcousticLossModel LossModel = AcousticLossModel.Custom);
+
+public sealed record AcousticAreaCurve(string Name, TractAreaFunction AreaFunction);
 
 public sealed record AcousticAreaControl(
     float TongueIndex = 12.9f,
@@ -327,7 +356,18 @@ public sealed record AcousticSourcePort(
     float Saturation = 0.8f,
     float Drive = 1,
     float LoadCoupling = 0.35f,
-    float RestOpening = 0.02f);
+    float RestOpening = 0.02f,
+    AcousticValveLaw Law = AcousticValveLaw.OneMass,
+    float UpperMass = 0.20f,
+    float LowerMass = 0.35f,
+    float UpperStiffness = 0,
+    float LowerStiffness = 0,
+    float CouplingStiffness = 0.08f,
+    float CollisionStiffness = 0.6f,
+    float CollisionDamping = 0.15f,
+    float VerticalPhase = 0.18f,
+    float ReservoirPressure = 1,
+    float DownstreamPressure = 0);
 
 public sealed record AcousticSourcePositionControl(
     float Index = 0,
@@ -352,7 +392,8 @@ public sealed record AcousticRadiationPort(
     AcousticRadiationKind Kind = AcousticRadiationKind.Lip,
     float Opening = 1,
     float Reflection = -0.85f,
-    float Loss = 1);
+    float Loss = 1,
+    AcousticRadiationModel Model = AcousticRadiationModel.SimpleReflection);
 
 public sealed record AcousticTerminal(
     string Name,
@@ -538,6 +579,15 @@ public sealed record ControlCurve(
     public IReadOnlyList<ControlCurvePoint> Points { get; init; } = Points ?? Array.Empty<ControlCurvePoint>();
 }
 
+public sealed record GestureGroup(
+    string Name,
+    IReadOnlyList<string> Curves,
+    float Depth = 1,
+    bool Enabled = true)
+{
+    public IReadOnlyList<string> Curves { get; init; } = Curves ?? Array.Empty<string>();
+}
+
 public enum ParameterBindingTransform
 {
     Identity,
@@ -714,6 +764,7 @@ public sealed record SynthPatch
     public IReadOnlyList<TractInjection> TractInjections { get; init; } = Array.Empty<TractInjection>();
     public IReadOnlyList<NasalBranch> NasalBranches { get; init; } = Array.Empty<NasalBranch>();
     public IReadOnlyList<TractMotion> TractMotions { get; init; } = Array.Empty<TractMotion>();
+    public IReadOnlyList<AcousticAreaCurve> AcousticAreaCurves { get; init; } = Array.Empty<AcousticAreaCurve>();
     public IReadOnlyList<AcousticPath> AcousticPaths { get; init; } = Array.Empty<AcousticPath>();
     public IReadOnlyList<AcousticSourcePort> AcousticSourcePorts { get; init; } = Array.Empty<AcousticSourcePort>();
     public IReadOnlyList<AcousticBranch> AcousticBranches { get; init; } = Array.Empty<AcousticBranch>();
@@ -726,6 +777,7 @@ public sealed record SynthPatch
     public IReadOnlyList<ControlLane> Controls { get; init; } = Array.Empty<ControlLane>();
     public IReadOnlyList<PatchParameter> Parameters { get; init; } = Array.Empty<PatchParameter>();
     public IReadOnlyList<ControlCurve> ControlCurves { get; init; } = Array.Empty<ControlCurve>();
+    public IReadOnlyList<GestureGroup> GestureGroups { get; init; } = Array.Empty<GestureGroup>();
     public IReadOnlyList<ParameterBinding> ParameterBindings { get; init; } = Array.Empty<ParameterBinding>();
     public Playback Playback { get; init; } = new();
     public Repeat? Repeat { get; init; }

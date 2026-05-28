@@ -33,6 +33,7 @@ public static class PatchScript
         private readonly List<OperatorGraph> _operatorGraphs = [];
         private readonly List<PatchParameter> _parameters = [];
         private readonly List<ControlCurve> _controlCurves = [];
+        private readonly List<GestureGroup> _gestureGroups = [];
         private readonly List<ParameterBinding> _parameterBindings = [];
         private readonly List<PatchLayer> _layers = [];
         private readonly List<HarmonicBank> _harmonicBanks = [];
@@ -47,6 +48,8 @@ public static class PatchScript
         private readonly Dictionary<string, NasalBranch> _nasalBranchesByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<TractMotion> _tractMotions = [];
         private readonly Dictionary<string, TractMotion> _tractMotionsByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<AcousticAreaCurve> _acousticAreaCurves = [];
+        private readonly Dictionary<string, AcousticAreaCurve> _acousticAreaCurvesByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<AcousticPath> _acousticPaths = [];
         private readonly Dictionary<string, AcousticPath> _acousticPathsByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<AcousticSourcePort> _acousticSourcePorts = [];
@@ -89,6 +92,7 @@ public static class PatchScript
                 TractInjections = _tractInjections,
                 NasalBranches = _nasalBranches,
                 TractMotions = _tractMotions,
+                AcousticAreaCurves = _acousticAreaCurves,
                 AcousticPaths = _acousticPaths,
                 AcousticSourcePorts = _acousticSourcePorts,
                 AcousticBranches = _acousticBranches,
@@ -101,6 +105,7 @@ public static class PatchScript
                 Controls = _controls,
                 Parameters = _parameters,
                 ControlCurves = _controlCurves,
+                GestureGroups = _gestureGroups,
                 ParameterBindings = _parameterBindings,
                 Playback = Playback,
                 Repeat = Repeat,
@@ -168,6 +173,10 @@ public static class PatchScript
                 case "tract_motion":
                     FlushPendingOperatorGraph();
                     AddTractMotion(fields, line);
+                    break;
+                case "area_curve":
+                    FlushPendingOperatorGraph();
+                    AddAcousticAreaCurve(fields, line);
                     break;
                 case "acoustic_path":
                     FlushPendingOperatorGraph();
@@ -240,6 +249,10 @@ public static class PatchScript
                 case "curve":
                     FlushPendingOperatorGraph();
                     AddControlCurve(fields, line);
+                    break;
+                case "gesture":
+                    FlushPendingOperatorGraph();
+                    AddGestureGroup(fields, line);
                     break;
                 case "sfxr":
                     FlushPendingOperatorGraph();
@@ -382,7 +395,8 @@ public static class PatchScript
                 name,
                 areaFunction,
                 GetBoundFloat(fields, line, 343, $"/acoustic/paths/{_acousticPaths.Count}/speed", "speed", "wave_speed", "propagation_speed"),
-                GetBoundFloat(fields, line, 0.999f, $"/acoustic/paths/{_acousticPaths.Count}/loss", "loss")));
+                GetBoundFloat(fields, line, 0.999f, $"/acoustic/paths/{_acousticPaths.Count}/loss", "loss"),
+                LossModel: ParseAcousticLossModel(GetAny(fields, ["loss_model", "loss_kind"], "custom"), line)));
         }
 
         private void AddGlottalSource(IReadOnlyDictionary<string, string> fields, int line)
@@ -402,7 +416,7 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.42f, $"/glottis/{_glottalSources.Count}/skew", "skew", "open_phase"));
             _glottalSources.Add(glottis);
             _glottalSourcesByName[name] = glottis;
-            if (TryGetAny(fields, ["path"], out var path))
+                if (TryGetAny(fields, ["path"], out var path))
             {
                 RequireAcousticPath(path, line);
                 AddAcousticSourcePortRecord(new AcousticSourcePort(
@@ -413,7 +427,10 @@ public static class PatchScript
                     glottis.Intensity,
                     glottis.Tenseness,
                     glottis.Skew,
-                    glottis.Aspiration));
+                    glottis.Aspiration,
+                    Model: AcousticSourceModel.TissueValve,
+                    Law: AcousticValveLaw.TwoMass,
+                    ReservoirPressure: 1));
             }
         }
 
@@ -514,13 +531,30 @@ public static class PatchScript
                 throw new PatchScriptException(line, $"duplicate acoustic path `{name}`");
             }
 
+            var areaFunction = ParseTractAreaFunction(fields, line, 17);
+            var areaCurve = GetAny(fields, ["area_curve", "curve"], "");
             var path = new AcousticPath(
                 name,
-                ParseTractAreaFunction(fields, line, 17),
+                areaFunction,
                 GetBoundFloat(fields, line, 343, $"/acoustic/paths/{_acousticPaths.Count}/speed", "speed", "wave_speed", "propagation_speed"),
                 GetBoundFloat(fields, line, 0.999f, $"/acoustic/paths/{_acousticPaths.Count}/loss", "loss"),
-                ParseAcousticAreaControl(fields, line, _acousticPaths.Count));
+                ParseAcousticAreaControl(fields, line, _acousticPaths.Count),
+                areaCurve,
+                ParseAcousticLossModel(GetAny(fields, ["loss_model", "loss_kind"], "custom"), line));
             AddAcousticPathRecord(path);
+        }
+
+        private void AddAcousticAreaCurve(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_acousticAreaCurvesByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate area curve `{name}`");
+            }
+
+            var curve = new AcousticAreaCurve(name, ParseTractAreaFunction(fields, line, 17));
+            _acousticAreaCurves.Add(curve);
+            _acousticAreaCurvesByName[name] = curve;
         }
 
         private static bool HasAcousticAreaControl(IReadOnlyDictionary<string, string> fields) =>
@@ -593,7 +627,18 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.8f, $"/acoustic/sources/{_acousticSourcePorts.Count}/saturation", "saturation", "sat"),
                 GetBoundFloat(fields, line, 1, $"/acoustic/sources/{_acousticSourcePorts.Count}/drive", "drive", "flow_gain"),
                 GetBoundFloat(fields, line, 0.35f, $"/acoustic/sources/{_acousticSourcePorts.Count}/load_coupling", "load_coupling", "load_feedback"),
-                GetBoundFloat(fields, line, 0.02f, $"/acoustic/sources/{_acousticSourcePorts.Count}/rest_opening", "rest_opening", "rest_aperture"));
+                GetBoundFloat(fields, line, 0.02f, $"/acoustic/sources/{_acousticSourcePorts.Count}/rest_opening", "rest_opening", "rest_aperture"),
+                ParseAcousticValveLaw(GetAny(fields, ["law", "valve_law"], kind == AcousticSourceKind.Glottal ? "two_mass" : "one_mass"), line),
+                GetBoundFloat(fields, line, 0.20f, $"/acoustic/sources/{_acousticSourcePorts.Count}/upper_mass", "upper_mass"),
+                GetBoundFloat(fields, line, 0.35f, $"/acoustic/sources/{_acousticSourcePorts.Count}/lower_mass", "lower_mass"),
+                GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/upper_stiffness", "upper_stiffness"),
+                GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/lower_stiffness", "lower_stiffness"),
+                GetBoundFloat(fields, line, 0.08f, $"/acoustic/sources/{_acousticSourcePorts.Count}/coupling_stiffness", "coupling_stiffness", "coupling_spring"),
+                GetBoundFloat(fields, line, 0.6f, $"/acoustic/sources/{_acousticSourcePorts.Count}/collision_stiffness", "collision_stiffness"),
+                GetBoundFloat(fields, line, 0.15f, $"/acoustic/sources/{_acousticSourcePorts.Count}/collision_damping", "collision_damping"),
+                GetBoundFloat(fields, line, 0.18f, $"/acoustic/sources/{_acousticSourcePorts.Count}/vertical_phase", "vertical_phase"),
+                GetBoundFloat(fields, line, 1, $"/acoustic/sources/{_acousticSourcePorts.Count}/reservoir_pressure", "reservoir_pressure", "subglottal_pressure", "bronchial_pressure"),
+                GetBoundFloat(fields, line, 0, $"/acoustic/sources/{_acousticSourcePorts.Count}/downstream_pressure", "downstream_pressure", "supraglottal_pressure"));
             AddAcousticSourcePortRecord(port);
             AddAcousticTerminalRecord(new AcousticTerminal(
                 port.Name,
@@ -682,7 +727,8 @@ public static class PatchScript
                 ParseAcousticRadiationKind(GetAny(fields, ["kind", "radiation_kind"], "lip"), line),
                 GetBoundFloat(fields, line, 1, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/opening", "opening", "open"),
                 GetBoundFloat(fields, line, -0.85f, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/reflection", "reflection"),
-                GetBoundFloat(fields, line, 1, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/loss", "loss"));
+                GetBoundFloat(fields, line, 1, $"/acoustic/radiation/{_acousticRadiationPorts.Count}/loss", "loss"),
+                ParseAcousticRadiationModel(GetAny(fields, ["model", "radiation_model"], "simple_reflection"), line));
             AddAcousticRadiationPortRecord(port);
             AddAcousticTerminalRecord(new AcousticTerminal(
                 port.Name,
@@ -1356,7 +1402,10 @@ public static class PatchScript
                 1,
                 true,
                 null,
-                0.10f);
+                0.10f,
+                Model: AcousticSourceModel.TissueValve,
+                Law: AcousticValveLaw.TwoMass,
+                ReservoirPressure: 1);
             var sourceIndex = _acousticSourcePorts.Count;
             AddAcousticSourcePortRecord(source);
             MirrorParameterBinding(OwnerField(tractPath, "intensity"), $"/acoustic/sources/{sourceIndex}/pressure");
@@ -1474,7 +1523,8 @@ public static class PatchScript
                     AcousticRadiationKind.Nostril,
                     1,
                     nasal.Reflection,
-                    nasal.Loss);
+                    nasal.Loss,
+                    AcousticRadiationModel.Nostril);
                 var nasalRadiationIndex = _acousticRadiationPorts.Count;
                 AddAcousticRadiationPortRecord(nasalRadiation);
                 MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/radiation/{nasalRadiationIndex}/reflection");
@@ -1499,7 +1549,8 @@ public static class PatchScript
                 AcousticRadiationKind.Lip,
                 1,
                 tract.LipReflection,
-                1);
+                1,
+                AcousticRadiationModel.LipPiston);
             var lipIndex = _acousticRadiationPorts.Count;
             AddAcousticRadiationPortRecord(lip);
             MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/radiation/{lipIndex}/reflection");
@@ -1803,6 +1854,34 @@ public static class PatchScript
                 GetAny(fields, ["rate", "automation", "automation_rate"], "control")));
         }
 
+        private void AddGestureGroup(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = Required(fields, "name", line);
+            if (_gestureGroups.Any(group => group.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new PatchScriptException(line, $"duplicate gesture group `{name}`");
+            }
+
+            var curveNames = ParseNameList(RequiredAny(fields, ["curves", "curve"], line));
+            if (curveNames.Count == 0)
+            {
+                throw new PatchScriptException(line, "gesture group needs at least one curve");
+            }
+            foreach (var curveName in curveNames)
+            {
+                if (_controlCurves.All(curve => !curve.Name.Equals(curveName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    throw new PatchScriptException(line, $"gesture group references unknown curve `{curveName}`");
+                }
+            }
+
+            _gestureGroups.Add(new GestureGroup(
+                name,
+                curveNames,
+                GetFloat(fields, line, 1, "depth", "amount", "mix"),
+                TryGetAny(fields, ["enabled", "active"], out var enabled) ? ParseBool(enabled, line) : true));
+        }
+
         private float GetBoundFloat(
             IReadOnlyDictionary<string, string> fields,
             int line,
@@ -2094,13 +2173,23 @@ public static class PatchScript
                 GetBoundFloat(fields, line, fallback.ObstructionThreshold, OwnerField(ownerPath, "tract/motion/obstruction_threshold"), "obstruction_threshold", "closure"));
         }
 
-        private static TractAreaFunction ParseTractAreaFunction(IReadOnlyDictionary<string, string> fields, int line, float defaultLengthCentimeters)
+        private TractAreaFunction ParseTractAreaFunction(IReadOnlyDictionary<string, string> fields, int line, float defaultLengthCentimeters)
         {
+            if (TryGetAny(fields, ["area_curve", "curve"], out var curveName))
+            {
+                if (!_acousticAreaCurvesByName.TryGetValue(curveName, out var curve))
+                {
+                    throw new PatchScriptException(line, $"unknown area curve `{curveName}`");
+                }
+
+                return curve.AreaFunction;
+            }
+
             var hasDiameters = TryGetAny(fields, ["diameters", "diameter"], out var diametersText);
             var hasAreas = TryGetAny(fields, ["areas", "area"], out var areasText);
             if (hasDiameters == hasAreas)
             {
-                throw new PatchScriptException(line, "tract shape needs exactly one of diameters or areas");
+                throw new PatchScriptException(line, "tract shape needs exactly one of diameters, areas, or area_curve");
             }
 
             var samples = ParseFloatList(hasDiameters ? diametersText! : areasText!, line, hasDiameters ? "diameters" : "areas");
@@ -2536,6 +2625,7 @@ public static class PatchScript
         "harmonics" or "partials" or "drawbars" => "harmonics",
         "spectrum" or "spectral" or "padsource" or "pad_source" => "spectrum",
         "tractshape" or "tract_shape" or "area_function" or "tract_area" => "tract_shape",
+        "area_curve" or "areacurve" or "morphology_curve" or "morph_curve" => "area_curve",
         "glottis" or "glottal" or "excitation" => "glottis",
         "tract_injection" or "injection" or "frication" or "burst" => "tract_injection",
         "nasal_branch" or "nose_branch" or "nasal" => "nasal_branch",
@@ -2558,7 +2648,8 @@ public static class PatchScript
         "mod" or "wob" or "wobble" or "bus" => "mod",
         "lfo" or "control" => "control",
         "param" or "parameter" => "param",
-        "curve" or "control_curve" or "automation" or "gesture" => "curve",
+        "curve" or "control_curve" or "automation" => "curve",
+        "gesture" or "gesture_group" or "gesturegroup" => "gesture",
         "s" or "sfxr" => "sfxr",
         _ => command
     };
@@ -2664,17 +2755,29 @@ public static class PatchScript
     {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return kind == AcousticSourceKind.Labial ? AcousticSourceModel.TissueValve : AcousticSourceModel.Default;
+            return kind is AcousticSourceKind.Labial or AcousticSourceKind.Glottal
+                ? AcousticSourceModel.TissueValve
+                : AcousticSourceModel.Default;
         }
 
         return value.ToLowerInvariant() switch
         {
-            "default" or "auto" => kind == AcousticSourceKind.Labial ? AcousticSourceModel.TissueValve : AcousticSourceModel.Default,
+            "default" or "auto" => kind is AcousticSourceKind.Labial or AcousticSourceKind.Glottal
+                ? AcousticSourceModel.TissueValve
+                : AcousticSourceModel.Default,
             "legacy" or "proxy" => AcousticSourceModel.Legacy,
             "tissue_valve" or "tissue-valve" or "valve" or "labial_oscillator" or "labial-oscillator" => AcousticSourceModel.TissueValve,
             _ => throw new PatchScriptException(line, $"unknown acoustic source model `{value}`")
         };
     }
+
+    private static AcousticValveLaw ParseAcousticValveLaw(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "one" or "1" or "one_mass" or "one-mass" or "single_mass" or "single-mass" => AcousticValveLaw.OneMass,
+        "two" or "2" or "two_mass" or "two-mass" => AcousticValveLaw.TwoMass,
+        "body_cover" or "body-cover" or "cover" => AcousticValveLaw.BodyCover,
+        _ => throw new PatchScriptException(line, $"unknown acoustic valve law `{value}`")
+    };
 
     private static AcousticBranchKind ParseAcousticBranchKind(string value, int line) => value.ToLowerInvariant() switch
     {
@@ -2694,6 +2797,26 @@ public static class PatchScript
         "vent" => AcousticRadiationKind.Vent,
         "membrane" => AcousticRadiationKind.Membrane,
         _ => throw new PatchScriptException(line, $"unknown acoustic radiation kind `{value}`")
+    };
+
+    private static AcousticLossModel ParseAcousticLossModel(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "custom" or "default" or "auto" => AcousticLossModel.Custom,
+        "none" or "ideal" => AcousticLossModel.None,
+        "viscous" or "viscosity" => AcousticLossModel.Viscous,
+        "birkholz_2024" or "birkholz-2024" or "birkholz" => AcousticLossModel.Birkholz2024,
+        "wall" or "wall_loss" or "wall-loss" => AcousticLossModel.Wall,
+        _ => throw new PatchScriptException(line, $"unknown acoustic loss model `{value}`")
+    };
+
+    private static AcousticRadiationModel ParseAcousticRadiationModel(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "simple" or "simple_reflection" or "simple-reflection" or "reflection" => AcousticRadiationModel.SimpleReflection,
+        "lip_piston" or "lip-piston" or "piston" => AcousticRadiationModel.LipPiston,
+        "beak" => AcousticRadiationModel.Beak,
+        "nostril" or "nose" => AcousticRadiationModel.Nostril,
+        "wall" => AcousticRadiationModel.Wall,
+        _ => throw new PatchScriptException(line, $"unknown acoustic radiation model `{value}`")
     };
 
     private static AcousticTerminalKind ParseAcousticTerminalKind(string value, int line) => value.ToLowerInvariant() switch

@@ -70,17 +70,25 @@ The clean Aqua approach is hybrid:
 
 ## Implementation Direction
 
-Next model records should likely be:
+The live DSL now points at the realtime-core version of this map:
 
-- `AcousticPath`: name, length, area curve, wave speed, loss.
-- `AcousticSourcePort`: path, normalized position, source type, pressure,
-  tension/opening/noise controls.
+- `area_curve`: named continuous tract morphology, resampled into graph
+  segments during lowering.
+- `AcousticPath`: name, area function or `area_curve` reference, physical
+  length, wave speed, live area-control deformation, and named loss model.
+- `AcousticSourcePort`: path, normalized position, source kind, `model`, valve
+  `law`, pressure reservoir/downstream pressure, tension, aperture/opening,
+  mass/damping/stiffness, saturation, load coupling, and layered upper/lower
+  parameters for two-mass/body-cover approximations.
 - `AcousticBranch`: source path/position, target path/position, opening,
   coupling, passivity constraints.
 - `AcousticRadiationPort`: path/position, opening, reflection, radiation
-  filter/loss.
+  model, filter behavior, and loss.
 - `WaveClockPolicy`: delay strategy, fractional-delay order, max delay, and
   smoothing mode.
+- `gesture`: a group of parameter-targeting control curves. It is an authoring
+  and controller surface only; the stable `param path=` remains the single
+  realtime authority that Faust exposes to hosts.
 
 Pink Trombone then becomes one larynx-shaped preset over these primitives:
 one glottal source port, one oral path, one nasal branch, and two radiation
@@ -107,8 +115,9 @@ but public transcripts were not exposed by their pages as of 2026-05-26.
 - Which fractional-delay family is best for realtime moving morphology:
   first-order Thiran/allpass for magnitude preservation, Lagrange for FIR-like
   behavior, or crossfaded variable delay for fast geometry motion.
-- How to constrain branch/source/radiation controls so learned parameters remain
-  passive or bounded enough to avoid explosive acoustic networks.
-- How to expose syrinx-specific controls without hardcoding "bird mode":
-  paired source balance, independent tension/pressure, bronchial coupling, and
-  shared tract loading seem like source-port/topology controls.
+- How strict the default passivity clamp should be once the new loss/radiation
+  probes are used by training. The default graph should stay bounded, but
+  high-drive research patches need explicit room to destabilize.
+- How far to push `law=body_cover` inside Faust before the model should defer
+  to an offline calibration renderer. The runtime version should remain a
+  layered valve, not a hidden finite-element throat.

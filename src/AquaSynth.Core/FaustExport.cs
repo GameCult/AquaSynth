@@ -788,9 +788,10 @@ public static class FaustEmitter
                 var admittance = $"{name}_graph_radiation_admittance_{safeTerminal}";
                 var flow = $"({string.Join(" + ", ports.Select(port => $"({GraphIncoming(name, port)} - {GraphOutgoing(name, port)})"))})";
                 var flowName = $"{name}_graph_radiation_flow_{safeTerminal}";
-                source.AppendLine($"    {referenceArea} = {RadiationReferenceAreaExpression(radiationPort.Kind, opening)};");
-                source.AppendLine($"    {differentiation} = {RadiationDifferentiationExpression(radiationPort.Kind, opening)};");
-                source.AppendLine($"    {highpass} = {RadiationHighpassExpression(radiationPort.Kind, opening, true)};");
+                source.AppendLine($"    {name}_graph_radiation_model_{safeTerminal} = {F((int)EffectiveRadiationModel(radiationPort))};");
+                source.AppendLine($"    {referenceArea} = {RadiationReferenceAreaExpression(radiationPort, opening)};");
+                source.AppendLine($"    {differentiation} = {RadiationDifferentiationExpression(radiationPort, opening)};");
+                source.AppendLine($"    {highpass} = {RadiationHighpassExpression(radiationPort, opening, true)};");
                 source.AppendLine($"    {admittance} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/admittance", $"sqrt(clip01(({terminalArea}) / max(0.000001, ({terminalArea}) + ({referenceArea}))))", 0, 1)};");
                 source.AppendLine($"    {flowName} = {ProbeSignal(options, $"/debug/{name}/radiation/{terminal.Name}/flow", flow, -2, 2)};");
                 radiated.Add($"(({flowName} * (1.0 - ({differentiation})) + ({flowName} : fi.highpass(1, {highpass})) * ({differentiation})) * {loss} * {admittance})");
@@ -801,10 +802,10 @@ public static class FaustEmitter
         {
             var delayExpression = SegmentDelayExpression(segment);
             var maxDelay = SegmentMaxDelay(segment, waveClock);
-            var loss = SegmentLossExpression(name, segment);
             source.AppendLine($"    {name}_graph_delay_{segment.Index} = {delayExpression};");
-            source.AppendLine($"    {name}_graph_next_r{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, true))} : {WaveClockDelayExpression(waveClock, maxDelay, $"{name}_graph_delay_{segment.Index}")} * {loss};");
-            source.AppendLine($"    {name}_graph_next_l{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, false))} : {WaveClockDelayExpression(waveClock, maxDelay, $"{name}_graph_delay_{segment.Index}")} * {loss};");
+            source.AppendLine($"    {name}_graph_segment_loss_{segment.Index} = {SegmentLossExpression(name, segment)};");
+            source.AppendLine($"    {name}_graph_next_r{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, true))} : {WaveClockDelayExpression(waveClock, maxDelay, $"{name}_graph_delay_{segment.Index}")} * {name}_graph_segment_loss_{segment.Index};");
+            source.AppendLine($"    {name}_graph_next_l{segment.Index} = {GraphOutgoing(name, new AcousticGraphPort(segment, false))} : {WaveClockDelayExpression(waveClock, maxDelay, $"{name}_graph_delay_{segment.Index}")} * {name}_graph_segment_loss_{segment.Index};");
             nextStates.Add($"{name}_graph_next_r{segment.Index}");
         }
         nextStates.AddRange(segments.Select(segment => $"{name}_graph_next_l{segment.Index}"));
@@ -847,36 +848,47 @@ public static class FaustEmitter
         return $"(({closedReflection}) * (1.0 - clip01({aperture})) + ({openReflection}) * clip01({aperture}))";
     }
 
-    private static string RadiationReferenceAreaExpression(AcousticRadiationKind kind, string aperture) => kind switch
+    private static AcousticRadiationModel EffectiveRadiationModel(AcousticRadiationPort port) =>
+        port.Model != AcousticRadiationModel.SimpleReflection
+            ? port.Model
+            : port.Kind switch
+            {
+                AcousticRadiationKind.Beak => AcousticRadiationModel.Beak,
+                AcousticRadiationKind.Nostril => AcousticRadiationModel.Nostril,
+                AcousticRadiationKind.Membrane or AcousticRadiationKind.Vent => AcousticRadiationModel.Wall,
+                _ => AcousticRadiationModel.SimpleReflection
+            };
+
+    private static string RadiationReferenceAreaExpression(AcousticRadiationPort port, string aperture) => EffectiveRadiationModel(port) switch
     {
-        AcousticRadiationKind.Lip or AcousticRadiationKind.Beak => $"max(0.18, 1.50 * 1.50 * (0.35 + 0.65 * clip01({aperture})))",
-        AcousticRadiationKind.Nostril => $"max(0.08, 0.70 * 0.70 * (0.50 + 0.50 * clip01({aperture})))",
-        AcousticRadiationKind.Membrane => "0.35",
-        AcousticRadiationKind.Vent => "0.80",
+        AcousticRadiationModel.LipPiston => $"max(0.18, 1.90 * 1.90 * (0.30 + 0.70 * clip01({aperture})))",
+        AcousticRadiationModel.Beak => $"max(0.10, 1.10 * 1.10 * (0.25 + 0.75 * clip01({aperture})))",
+        AcousticRadiationModel.Nostril => $"max(0.08, 0.70 * 0.70 * (0.50 + 0.50 * clip01({aperture})))",
+        AcousticRadiationModel.Wall => "0.35",
         _ => "1.0"
     };
 
-    private static string RadiationDifferentiationExpression(AcousticRadiationKind kind, string aperture) => kind switch
+    private static string RadiationDifferentiationExpression(AcousticRadiationPort port, string aperture) => EffectiveRadiationModel(port) switch
     {
-        AcousticRadiationKind.Lip or AcousticRadiationKind.Beak => $"(0.55 + 0.25 * clip01({aperture}))",
-        AcousticRadiationKind.Nostril => $"(0.45 + 0.20 * clip01({aperture}))",
-        AcousticRadiationKind.Membrane => "0.20",
-        AcousticRadiationKind.Vent => $"(0.30 + 0.20 * clip01({aperture}))",
+        AcousticRadiationModel.LipPiston => $"(0.62 + 0.24 * clip01({aperture}))",
+        AcousticRadiationModel.Beak => $"(0.50 + 0.22 * clip01({aperture}))",
+        AcousticRadiationModel.Nostril => $"(0.45 + 0.20 * clip01({aperture}))",
+        AcousticRadiationModel.Wall => "0.18",
         _ => "0.50"
     };
 
-    private static string RadiationHighpassExpression(AcousticRadiationKind kind, string aperture, bool graph) => kind switch
+    private static string RadiationHighpassExpression(AcousticRadiationPort port, string aperture, bool graph) => EffectiveRadiationModel(port) switch
     {
-        AcousticRadiationKind.Lip or AcousticRadiationKind.Beak => graph
+        AcousticRadiationModel.LipPiston => graph
             ? $"(120.0 + 180.0 * clip01({aperture}))"
             : $"(60.0 + 50.0 * clip01({aperture}))",
-        AcousticRadiationKind.Nostril => graph
+        AcousticRadiationModel.Beak => graph
+            ? $"(180.0 + 220.0 * clip01({aperture}))"
+            : $"(90.0 + 90.0 * clip01({aperture}))",
+        AcousticRadiationModel.Nostril => graph
             ? $"(55.0 + 75.0 * clip01({aperture}))"
             : $"(30.0 + 30.0 * clip01({aperture}))",
-        AcousticRadiationKind.Membrane => "15.0",
-        AcousticRadiationKind.Vent => graph
-            ? $"(20.0 + 35.0 * clip01({aperture}))"
-            : $"(15.0 + 20.0 * clip01({aperture}))",
+        AcousticRadiationModel.Wall => "15.0",
         _ => "20.0"
     };
 
@@ -947,7 +959,7 @@ public static class FaustEmitter
 
     private static bool IsTissueValveSource(AcousticSourcePort port) =>
         port.Model == AcousticSourceModel.TissueValve ||
-        port.Model == AcousticSourceModel.Default && port.Kind == AcousticSourceKind.Labial;
+        port.Model == AcousticSourceModel.Default && port.Kind is AcousticSourceKind.Labial or AcousticSourceKind.Glottal;
 
     private static string TissueValveInlineExpression(
         string frequency,
@@ -1342,8 +1354,15 @@ public static class FaustEmitter
     {
         var baseLoss = F(Math.Clamp(segment.Path.Loss, 0, 1));
         var area = $"{voiceName}_graph_segment_area_{segment.Index}";
-        var apertureLoss = $"sqrt(clip01(({area}) / max(0.000001, ({area}) + 0.02)))";
-        return $"({baseLoss}) * ({apertureLoss})";
+        var apertureLoss = segment.Path.LossModel switch
+        {
+            AcousticLossModel.None => "1.0",
+            AcousticLossModel.Viscous => $"sqrt(clip01(({area}) / max(0.000001, ({area}) + 0.020)))",
+            AcousticLossModel.Birkholz2024 => $"sqrt(clip01(({area}) / max(0.000001, ({area}) + 0.012))) * (0.998 - 0.010 * clip01(0.080 / max(0.000001, ({area}) + 0.080)))",
+            AcousticLossModel.Wall => $"(0.996 - 0.018 * clip01(0.050 / max(0.000001, ({area}) + 0.050)))",
+            _ => $"sqrt(clip01(({area}) / max(0.000001, ({area}) + 0.02)))"
+        };
+        return $"clip01(({baseLoss}) * ({apertureLoss}))";
     }
 
     private static int SegmentMaxDelay(AcousticGraphSegment segment, WaveClockPolicy waveClock)
@@ -1604,15 +1623,48 @@ public static class FaustEmitter
         var drive = $"max(0.0, {parameters.Expression(OwnerField(path, "drive"), port.Drive)})";
         var loadCoupling = $"max(0.0, {parameters.Expression(OwnerField(path, "load_coupling"), port.LoadCoupling)})";
         var restOpening = $"max(0.0, {parameters.Expression(OwnerField(path, "rest_opening"), port.RestOpening)})";
+        var upperMass = $"max(0.02, {parameters.Expression(OwnerField(path, "upper_mass"), port.UpperMass)})";
+        var lowerMass = $"max(0.02, {parameters.Expression(OwnerField(path, "lower_mass"), port.LowerMass)})";
+        var upperStiffness = $"max(0.0, {parameters.Expression(OwnerField(path, "upper_stiffness"), port.UpperStiffness)})";
+        var lowerStiffness = $"max(0.0, {parameters.Expression(OwnerField(path, "lower_stiffness"), port.LowerStiffness)})";
+        var couplingStiffness = $"max(0.0, {parameters.Expression(OwnerField(path, "coupling_stiffness"), port.CouplingStiffness)})";
+        var collisionStiffness = $"max(0.0, {parameters.Expression(OwnerField(path, "collision_stiffness"), port.CollisionStiffness)})";
+        var collisionDamping = $"max(0.0, {parameters.Expression(OwnerField(path, "collision_damping"), port.CollisionDamping)})";
+        var verticalPhase = $"clip01({parameters.Expression(OwnerField(path, "vertical_phase"), port.VerticalPhase)})";
+        var reservoirPressure = $"max(0.0, {parameters.Expression(OwnerField(path, "reservoir_pressure"), port.ReservoirPressure)})";
+        var downstreamPressure = $"max(0.0, {parameters.Expression(OwnerField(path, "downstream_pressure"), port.DownstreamPressure)})";
 
         source.AppendLine($"    {prefix}_stiffness_hint = max(0.00002, min(0.16, pow(2.0 * ma.PI * max(20.0, {frequency}) / ma.SR, 2.0)));");
+        source.AppendLine($"    {prefix}_reservoir_pressure = ({pressure}) * ({drive}) * ({reservoirPressure});");
+        source.AppendLine($"    {prefix}_downstream_pressure = ({downstreamPressure}) + ({loadCoupling}) * {prefix}_load_pressure;");
+        source.AppendLine($"    {prefix}_pressure_drive = max(0.0, {prefix}_reservoir_pressure - {prefix}_downstream_pressure);");
         source.AppendLine($"    {prefix}_stiffness = max(({stiffness}), {prefix}_stiffness_hint * (0.35 + 1.65 * ({tension})));");
-        source.AppendLine($"    {prefix}_pressure_drive = max(0.0, ({pressure}) * ({drive}) - ({loadCoupling}) * {prefix}_load_pressure);");
-        source.AppendLine($"    {prefix}_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.008 + 0.08 * ({damping})) / ({mass}))));");
-        source.AppendLine($"    {prefix}_displacement_decay = min(0.9998, max(0.20, 1.0 - 0.0008 / ({mass})));");
-        source.AppendLine($"    {prefix}_force = ({prefix}_pressure_drive * (0.0004 + 0.0024 * (1.0 - clip01({opening}))) - ({loadCoupling}) * {prefix}_load_pressure * 0.001) / ({mass});");
-        source.AppendLine($"    {prefix}_velocity = {prefix}_force : + ~ *({prefix}_velocity_decay / (1.0 + 10.0 * {prefix}_stiffness + 0.4 * ({saturation})));");
-        source.AppendLine($"    {prefix}_displacement = {prefix}_velocity : + ~ *({prefix}_displacement_decay / (1.0 + 1.5 * {prefix}_stiffness));");
+        switch (port.Law)
+        {
+            case AcousticValveLaw.TwoMass:
+            case AcousticValveLaw.BodyCover:
+                source.AppendLine($"    {prefix}_upper_stiffness_effective = max(({upperStiffness}), {prefix}_stiffness * (0.80 + 0.45 * ({tension})));");
+                source.AppendLine($"    {prefix}_lower_stiffness_effective = max(({lowerStiffness}), {prefix}_stiffness * (1.05 + 0.55 * ({tension})));");
+                source.AppendLine($"    {prefix}_coupling_stiffness = ({couplingStiffness}) * (1.0 + 1.5 * ({tension}));");
+                source.AppendLine($"    {prefix}_lower_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.010 + 0.090 * ({damping}) + 0.040 * ({collisionDamping})) / ({lowerMass}))));");
+                source.AppendLine($"    {prefix}_upper_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.012 + 0.105 * ({damping}) + 0.030 * ({collisionDamping})) / ({upperMass}))));");
+                source.AppendLine($"    {prefix}_lower_force = ({prefix}_pressure_drive * (0.0005 + 0.0028 * (1.0 - clip01({opening}))) - ({loadCoupling}) * {prefix}_load_pressure * 0.0012) / ({lowerMass});");
+                source.AppendLine($"    {prefix}_upper_force = ({prefix}_pressure_drive * (0.0003 + 0.0018 * (1.0 - clip01({opening}))) - ({loadCoupling}) * {prefix}_load_pressure * 0.0008) / ({upperMass});");
+                source.AppendLine($"    {prefix}_lower_velocity = {prefix}_lower_force : + ~ *({prefix}_lower_velocity_decay / (1.0 + 10.0 * {prefix}_lower_stiffness_effective + {prefix}_coupling_stiffness + 0.4 * ({saturation})));");
+                source.AppendLine($"    {prefix}_upper_velocity = ({prefix}_upper_force + {prefix}_lower_velocity * {prefix}_coupling_stiffness * 0.35) : + ~ *({prefix}_upper_velocity_decay / (1.0 + 10.0 * {prefix}_upper_stiffness_effective + {prefix}_coupling_stiffness + 0.4 * ({saturation})));");
+                source.AppendLine($"    {prefix}_lower_displacement = {prefix}_lower_velocity : + ~ *(min(0.9998, max(0.20, 1.0 - 0.0008 / ({lowerMass}))));");
+                source.AppendLine($"    {prefix}_upper_displacement = {prefix}_upper_velocity : + ~ *(min(0.9998, max(0.20, 1.0 - 0.0008 / ({upperMass}))));");
+                source.AppendLine($"    {prefix}_collision = ({collisionStiffness}) * max(0.0, 0.0 - (({restOpening}) + ({opening}) + {prefix}_upper_displacement));");
+                source.AppendLine($"    {prefix}_displacement = {prefix}_lower_displacement * (1.0 - ({verticalPhase})) + ({prefix}_upper_displacement - {prefix}_collision) * ({verticalPhase});");
+                break;
+            default:
+                source.AppendLine($"    {prefix}_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.008 + 0.08 * ({damping})) / ({mass}))));");
+                source.AppendLine($"    {prefix}_displacement_decay = min(0.9998, max(0.20, 1.0 - 0.0008 / ({mass})));");
+                source.AppendLine($"    {prefix}_force = ({prefix}_pressure_drive * (0.0004 + 0.0024 * (1.0 - clip01({opening}))) - ({loadCoupling}) * {prefix}_load_pressure * 0.001) / ({mass});");
+                source.AppendLine($"    {prefix}_velocity = {prefix}_force : + ~ *({prefix}_velocity_decay / (1.0 + 10.0 * {prefix}_stiffness + 0.4 * ({saturation})));");
+                source.AppendLine($"    {prefix}_displacement = {prefix}_velocity : + ~ *({prefix}_displacement_decay / (1.0 + 1.5 * {prefix}_stiffness));");
+                break;
+        }
         source.AppendLine($"    {prefix}_aperture = max(0.0, ({restOpening}) + ({opening}) + {prefix}_displacement - ({saturation}) * pow({prefix}_displacement, 3.0));");
         source.AppendLine($"    {prefix}_turbulence = no.noise : fi.highpass(2, 1200.0 + 2800.0 * clip01(1.0 - {prefix}_aperture));");
         source.AppendLine($"    {prefix}_flow = ma.tanh({prefix}_pressure_drive * {prefix}_aperture * (2.0 + 10.0 * ({drive})));");

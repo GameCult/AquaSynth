@@ -169,10 +169,31 @@ Current authority map:
 
 The reusable primitive is `model=tissue_valve`: a Faust-friendly nonlinear
 valve state with pressure drive, delayed velocity/displacement state, cubic
-aperture saturation, and incident-pressure load feedback. A syrinx is two such
-valves feeding an acoustic graph; a larynx is one such valve feeding a tract.
-Different species should change morphology and gestures, not add hidden source
-renderers.
+aperture saturation, and incident-pressure load feedback. `law=one_mass`,
+`law=two_mass`, and `law=body_cover` are layered approximations over the same
+source authority. Two-mass/body-cover lowering exposes upper/lower mass,
+upper/lower stiffness, coupling stiffness, collision stiffness/damping, and
+vertical phase as physical control surfaces. A syrinx is two such valves feeding
+an acoustic graph; a larynx is one such valve feeding a tract. Different species
+should change morphology and gestures, not add hidden source renderers.
+
+Morphology is now owned by continuous `area_curve` records plus acoustic graph
+paths. A `path` may inline diameters/areas or reference `area_curve=...`; the
+compiler resamples that continuous area function into graph segments while
+runtime-safe shape controls deform the segment area expressions through stable
+parameters. Topology remains compile-time: adding or removing valves, paths,
+branches, terminals, or radiation ports requires recompilation. Length, opening,
+constriction, tongue/body deformation, velum/branch aperture, and lip/beak
+opening remain runtime control surfaces when represented as parameters.
+
+Loss and radiation are named physical choices, not anonymous gain patches.
+`loss=none|viscous|birkholz_2024|wall|custom` chooses the segment attenuation
+law. `radiation=simple_reflection|lip_piston|beak|nostril|wall` chooses the
+opening-to-reference-area, differentiation, and high-pass behavior at acoustic
+boundaries. Generated Faust must keep named locals for segment loss, radiation
+model, radiation flow, source injected flow, source load pressure, and junction
+energy probes so bad sounds have an inspectable path back to the component that
+made them.
 
 General control curves are a parameter-layer primitive. They target stable
 `param path=` values, not random downstream fields, so authored gestures,
@@ -238,6 +259,13 @@ Useful metrics:
 Do not confuse high metric agreement with musical success. The game context,
 the reference sound, and the user’s ear still outrank the spreadsheet. Annoying,
 but civilization has survived worse.
+
+During the generalized vocal-core expansion, Pink Trombone log-mel tests are
+diagnostic artifact writers, not acceptance gates. They must prove the graph
+renders bounded/nonzero audio and preserve WAV/report artifacts for inspection.
+Hard PT thresholds return only after the shared physical primitives have passed
+structural, passivity, and render-smoke checks; otherwise the test suite rewards
+parity whack-a-mole over a coherent voice machine.
 
 ## Source Distillations
 

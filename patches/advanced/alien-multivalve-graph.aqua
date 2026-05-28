@@ -1,0 +1,28 @@
+patch gain=0.36 soft_clip=true
+
+param path=/alien/core/pressure default=.74 min=0 max=1.5 step=.001 rate=audio
+param path=/alien/side/pressure default=.52 min=0 max=1.5 step=.001 rate=audio
+param path=/alien/core/opening default=.24 min=0 max=1 step=.001 rate=audio
+param path=/alien/side/opening default=.30 min=0 max=1 step=.001 rate=audio
+param path=/alien/aperture default=.85 min=0 max=2 step=.001
+param path=/alien/branch/opening default=.46 min=0 max=1 step=.001
+
+curve name=core_breath path=/alien/core/pressure points=0:.08,.10:.76,.50:.82,.90:.22 mode=blend depth=.9 rate=audio
+curve name=side_breath path=/alien/side/pressure points=0:.02,.18:.54,.38:.22,.62:.70,.90:.12 mode=blend depth=.9 rate=audio
+curve name=mouth_shape path=/alien/aperture points=0:.42,.22:1.1,.55:.62,.90:.9 mode=blend depth=.8
+gesture name=braided_call curves=core_breath,side_breath,mouth_shape depth=1
+
+area_curve name=core_tube length_cm=20 diameters=.48,.72,1.05,.92,.68,.44
+area_curve name=side_resonator length_cm=9 diameters=.20,.36,.54,.44,.18
+
+path name=core area_curve=core_tube loss=.996 loss_model=birkholz_2024 constriction_index=3.4 constriction_diameter=@/alien/aperture lip=@/alien/aperture
+path name=side area_curve=side_resonator loss=.994 loss_model=wall
+
+source_port name=core_valve path=core kind=synthetic model=tissue_valve law=body_cover position=0 pressure=@/alien/core/pressure tension=.44 opening=@/alien/core/opening noise=.05 upper_mass=.18 lower_mass=.30 coupling_stiffness=.12 collision_stiffness=.45 collision_damping=.12 vertical_phase=.42 reservoir_pressure=1 downstream_pressure=.03 load_coupling=.38 rest_opening=.03 drive=1.10
+source_port name=side_valve path=side kind=labial law=one_mass position=0 pressure=@/alien/side/pressure tension=.34 opening=@/alien/side/opening noise=.04 mass=.22 damping=.15 stiffness=.026 reservoir_pressure=1 downstream_pressure=.02 load_coupling=.34 rest_opening=.04 drive=.95
+
+branch name=side_coupler from_path=core from_position=.58 to_path=side to_position=1 kind=resonator opening=@/alien/branch/opening coupling=.62 passive=true
+radiation_port name=aperture path=core kind=vent model=wall position=1 opening=@/alien/aperture reflection=-.58 loss=.96
+wave_clock name=alien_clock strategy=linear max_delay=4096 smoothing_ms=4
+acoustic_network name=alien_multivalve path=core wave_clock=alien_clock sources=core_valve,side_valve branches=side_coupler radiation=aperture
+acoustic network=alien_multivalve freq=190 gain=.20 sustain=.9 decay=.12

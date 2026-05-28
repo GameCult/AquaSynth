@@ -598,6 +598,70 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsLayeredValveAreaCurveLossRadiationAndGestureGroups()
+    {
+        var patch = PatchScript.Parse("""
+            param path=/human/subglottal default=.82 min=0 max=1.5 step=.001 rate=audio
+            param path=/human/opening default=.18 min=0 max=1 step=.001 rate=audio
+            param path=/human/lip default=1.2 min=0 max=2 step=.001
+            curve name=pressure_path path=/human/subglottal points=0:.12,.08:.82,.28:.55 mode=blend depth=.7 rate=audio
+            curve name=opening_path path=/human/opening points=0:.04,.1:.22,.3:.12 mode=blend depth=.6 rate=audio
+            gesture name=vowel_onset curves=pressure_path,opening_path depth=.9
+            area_curve name=oral_vowel length_cm=17 diameters=.55,.75,1.15,1.55,1.35,.8
+            path name=trachea length_cm=12 diameters=.35,.52,.68,.72 loss_model=viscous
+            path name=oral area_curve=oral_vowel loss=.997 loss_model=birkholz_2024 tongue_index=3 tongue_diameter=1.1 constriction_index=4 constriction_diameter=.8 lip=@/human/lip
+            source_port name=folds path=trachea kind=glottal position=1 pressure=@/human/subglottal tension=.58 opening=@/human/opening noise=.03 law=two_mass upper_mass=.22 lower_mass=.36 upper_stiffness=.04 lower_stiffness=.06 coupling_stiffness=.09 collision_stiffness=.62 collision_damping=.18 vertical_phase=.24 reservoir_pressure=.95 downstream_pressure=.08 load_coupling=.42
+            terminal name=trachea_top path=trachea position=1 kind=junction
+            terminal name=oral_back path=oral position=0 kind=junction
+            connect name=larynx_to_tract terminals=folds,trachea_top,oral_back coupling=.92
+            radiation_port name=mouth path=oral kind=lip model=lip_piston position=1 opening=@/human/lip reflection=-.82
+            wave_clock name=continuous strategy=linear max_delay=4096
+            acoustic_network name=human_layered path=oral wave_clock=continuous sources=folds radiation=mouth terminals=trachea_top,oral_back connections=larynx_to_tract
+            acoustic network=human_layered freq=150 gain=.12
+            """);
+
+        var areaCurve = Assert.Single(patch.AcousticAreaCurves);
+        Assert.Equal("oral_vowel", areaCurve.Name);
+        Assert.Equal(17, areaCurve.AreaFunction.LengthCentimeters);
+
+        var oralPath = patch.AcousticPaths.Single(path => path.Name == "oral");
+        Assert.Equal("oral_vowel", oralPath.AreaCurve);
+        Assert.Equal(AcousticLossModel.Birkholz2024, oralPath.LossModel);
+        Assert.NotNull(oralPath.AreaControl);
+        Assert.Equal(AcousticLossModel.Viscous, patch.AcousticPaths.Single(path => path.Name == "trachea").LossModel);
+
+        var source = Assert.Single(patch.AcousticSourcePorts);
+        Assert.Equal(AcousticSourceModel.TissueValve, source.Model);
+        Assert.Equal(AcousticValveLaw.TwoMass, source.Law);
+        Assert.Equal(.22f, source.UpperMass, 5);
+        Assert.Equal(.36f, source.LowerMass, 5);
+        Assert.Equal(.09f, source.CouplingStiffness, 5);
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/pressure");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/opening");
+
+        var radiation = Assert.Single(patch.AcousticRadiationPorts);
+        Assert.Equal(AcousticRadiationModel.LipPiston, radiation.Model);
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/radiation/0/opening");
+
+        var gesture = Assert.Single(patch.GestureGroups);
+        Assert.Equal("vowel_onset", gesture.Name);
+        Assert.Equal(["pressure_path", "opening_path"], gesture.Curves);
+        Assert.Equal(.9f, gesture.Depth, 5);
+
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions("layered_voice"));
+        Assert.Contains("_reservoir_pressure", export.Source);
+        Assert.Contains("_downstream_pressure", export.Source);
+        Assert.Contains("_upper_displacement", export.Source);
+        Assert.Contains("_lower_displacement", export.Source);
+        Assert.Contains("_coupling_stiffness", export.Source);
+        Assert.Contains("graph_segment_loss_", export.Source);
+        Assert.Contains("graph_radiation_model_mouth", export.Source);
+        Assert.Contains("hslider(\"/curves/pressure_path/depth\"", export.Source);
+        Assert.Contains("hslider(\"/curves/opening_path/depth\"", export.Source);
+        Assert.DoesNotContain("os.phasor(1.0, layered_voice_freq", export.Source);
+    }
+
+    [Fact]
     public void ParserRejectsUnknownParameterReferences()
     {
         var exception = Assert.Throws<PatchScriptException>(() =>
