@@ -127,38 +127,50 @@ Verdict: keep the scatter law. Revisit source injection weighting separately.
 
 What it simulates: PT-style oral/nasal side branch scattering.
 
-Current state: coherent for the one common case: two same-path ports plus one
-side branch. Removing the hidden `0.15` velum damper fixed a real nasal failure.
+Current state: replaced. The old recognized three-port branch path has been
+collapsed into the same general N-port scatter law used for every area
+scattering connection.
 
 Smells:
 
-- The implementation recognizes one special topology shape. It is not yet a
-  general N-port passive junction.
 - Source injection is added per port inside the branch law. That needs a clearer
   impedance story if sources can live at branch nodes.
+- The new general law still uses scalar terminal area/admittance, not a
+  frequency-dependent junction impedance.
 
-Verdict: good enough for nasal branches, not enough for arbitrary alien tract
-graphs. General N-port scattering should replace the shape-specific path.
+Verdict: keep the generalization. It removes the PT-shaped topology shortcut,
+but source impedance at junction nodes still needs a named model.
 
 ### Generic Connection Fallback
 
 What it simulates: arbitrary connection scattering when a connection is not the
 recognized three-port branch.
 
-Current state: suspect. It computes a pressure-like expression, applies a
-handmade port admittance blend, mixes with bypassed incoming waves, and injects
-sources. This is exactly the kind of helper that survives because it is useful,
-not because it has a single physical invariant.
+Current state: cut. The lowering no longer emits
+`graph_connection_pressure_*`, no longer uses the handmade
+`0.6 + 0.4 * sqrt(...)` port-admittance blend, and no longer keeps a
+shape-specific three-port branch path. Area-scattering connections now emit one
+passive N-port traveling-wave law:
+
+`r_p = (2 * A_p - sum(A)) / sum(A)`
+
+`out_p = r_p * in_p + (1 + r_p) * sum(other inputs)`
+
+Connection coupling now crossfades between that scattered wave and the local
+incoming wave. Bypass remains explicitly bypass.
 
 Smells:
 
-- `0.6 + 0.4 * sqrt(...)` is an unexplained compensator.
-- It mixes pressure-continuity language into a graph whose main convention is
-  KL/PT traveling waves.
-- It has no passivity proof.
+- Port area selection is still simple: ordinary isolated junction labels use
+  adjacent segment area, while branch/radiation/source terminals use their
+  declared terminal area. That is coherent enough for the present graph, but it
+  should be documented as terminal admittance ownership before more exotic
+  junctions rely on it.
+- Source injection is still added as node pressure energy after scattering,
+  divided by local node port count. That is not a full source impedance law.
 
-Verdict: highest-priority Jenga. Replace with a general passive scattering law
-or restrict supported connections until that exists.
+Verdict: the highest-priority fallback Jenga is gone. Keep passivity probes on
+this law while cutting source impedance and closure storage next.
 
 ### Glottal Source
 
@@ -280,11 +292,15 @@ faster than global scores.
 
 Cut or replace these before piling on more tuning:
 
-1. Generic connection fallback pressure/admittance blend.
-2. Unowned radiation constants: 30/70 high-pass blend and `area + 1.0`.
-3. Unowned segment contact-loss constant `0.02`.
-4. Turbulence/release scalar constants without a named pressure-flow model.
-5. Nearest-node source attachment as the only interior source placement model.
+1. Unowned radiation constants: 30/70 high-pass blend and `area + 1.0`.
+2. Unowned segment contact-loss constant `0.02`.
+3. Turbulence/release scalar constants without a named pressure-flow model.
+4. Nearest-node source attachment as the only interior source placement model.
+
+Cut in the 2026-05-28 N-port pass:
+
+- Generic connection fallback pressure/admittance blend.
+- Shape-specific three-port branch scattering path.
 
 ## Keep List
 
@@ -300,11 +316,10 @@ These foundations deserve to stay:
 
 ## Next Coherent Build
 
-The next implementation should not be another gain pass. Build a general
-passive N-port junction and a closure reservoir primitive:
+The next implementation should not be another gain pass. The general passive
+N-port junction now exists; the remaining build targets are closure storage and
+radiation impedance:
 
-- N-port junction: one law for any connection group, using each connected port's
-  admittance/area, with a passivity probe and no shape-specific fallback.
 - Closure reservoir: a stateful pressure store attached to a constriction owner,
   charged while local area is sealed and released through the graph when area
   opens.
@@ -313,3 +328,25 @@ passive N-port junction and a closure reservoir primitive:
 
 Until those exist, the graph can imitate some Pink Trombone pressure, but it is
 not yet a clean general vocal-acoustic machine.
+
+## 2026-05-28 N-Port Connection Cut
+
+The first audit cut replaced connection fallback lowering with one general
+area-scattering law for all non-bypass acoustic connections. This removes two
+old authorities at once: the pressure-like fallback expression and the
+PT-shaped three-port branch recognizer.
+
+Latest utterance artifact:
+`artifacts/parity/pink-trombone-utterance-logmel/20260528T113334390`.
+The change keeps smoke tests passing. `thrombosis` improves slightly to cosine
+`0.4555`, while `mama/papa` remain differentiated (`candidateLogMel=0.2469`
+versus reference `0.3791`) but still under-articulated and quiet.
+
+Latest static artifact:
+`artifacts/parity/pink-trombone-logmel/20260528T113334415`.
+Static fixtures still pass; `closure-release` remains sealed-static evidence
+with peak `0.000009`.
+
+This is not a victory lap. It is a floor repair. The next real smells are still
+radiation impedance constants, graph-native closure reservoir state, and source
+impedance at junction nodes.

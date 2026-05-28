@@ -751,30 +751,7 @@ public static class FaustEmitter
             }
 
             var safeConnection = SafeIdentifier(connection.Name);
-            if (TryEmitThreePortBranchScatter(source, name, connection, safeConnection, ports, options, debugProbeKeepAlive))
-            {
-                continue;
-            }
-
-            var connectionPressure = ConnectionPressureExpression(name, connection, ports);
-            var connectionMaxArea = MaxExpression(ports.Select(item => ConnectionPortAreaExpression(name, item.terminal, item.nodePortCount)));
-            source.AppendLine($"    {name}_graph_connection_pressure_{safeConnection} = {connectionPressure};");
-            foreach (var (node, terminal, port, nodePortCount) in ports)
-            {
-                var incoming = GraphIncoming(name, port);
-                var outgoing = GraphOutgoing(name, port);
-                var sourceInjection = NodeSourceIdentifier(name, node);
-                var portCoupling = $"{name}_graph_connection_coupling_{safeConnection}";
-                var portArea = ConnectionPortAreaExpression(name, terminal, nodePortCount);
-                var portAdmittance = $"(0.6 + 0.4 * sqrt(clip01({portArea} / max(0.000001, {connectionMaxArea}))))";
-                var bypassInput = ports.Count == 1
-                    ? incoming
-                    : $"(({string.Join(" + ", ports.Where(item => item.port != port).Select(item => GraphIncoming(name, item.port)))}) / {F(ports.Count - 1)})";
-                var scattered = connection.Law == AcousticConnectionLaw.Bypass
-                    ? bypassInput
-                    : $"({name}_graph_connection_pressure_{safeConnection} - {incoming})";
-                source.AppendLine($"    {outgoing} = (({scattered}) * ({portCoupling}) * {portAdmittance} + {incoming} * (1.0 - ({portCoupling}) * {portAdmittance}) + ({sourceInjection}) / {F(Math.Max(1, incident[node.Name].Count))}) * {name}_graph_connection_loss_{safeConnection};");
-            }
+            EmitConnectionScatter(source, name, connection, safeConnection, ports, options, debugProbeKeepAlive);
         }
 
         var radiated = new List<string>();
@@ -1645,26 +1622,10 @@ public static class FaustEmitter
             _ => 0.000001f
         };
 
-    private static string ConnectionPressureExpression(
-        string voiceName,
-        AcousticConnection connection,
-        IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports)
-    {
-        if (connection.Law == AcousticConnectionLaw.PressureContinuity)
-        {
-            return $"2.0 * ({string.Join(" + ", ports.Select(item => GraphIncoming(voiceName, item.port)))}) / {F(Math.Max(1, ports.Count))}";
-        }
-
-        var weightedIncoming = ports
-            .Select(item => $"{ConnectionPortAreaExpression(voiceName, item.terminal, item.nodePortCount)} * {GraphIncoming(voiceName, item.port)}");
-        var areaSum = ports.Select(item => ConnectionPortAreaExpression(voiceName, item.terminal, item.nodePortCount));
-        return $"2.0 * ({string.Join(" + ", weightedIncoming)}) / max(0.000001, {string.Join(" + ", areaSum)})";
-    }
-
     private static string ConnectionPortAreaExpression(string voiceName, AcousticTerminal terminal, int nodePortCount) =>
         $"({voiceName}_graph_terminal_area_{SafeIdentifier(terminal.Name)} / {F(Math.Max(1, nodePortCount))})";
 
-    private static bool TryEmitThreePortBranchScatter(
+    private static void EmitConnectionScatter(
         StringBuilder source,
         string voiceName,
         AcousticConnection connection,
@@ -1673,42 +1634,22 @@ public static class FaustEmitter
         FaustExportOptions options,
         List<string> debugProbeKeepAlive)
     {
-        if (ports.Count != 3 || connection.Law != AcousticConnectionLaw.AreaScattering)
+        if (connection.Law == AcousticConnectionLaw.Bypass)
         {
-            return false;
+            EmitBypassConnection(source, voiceName, connection, safeConnection, ports);
+            return;
         }
 
-        var pathGroups = ports
-            .GroupBy(item => item.port.Segment.Path.Name, StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(group => group.Count())
-            .ToList();
-        if (pathGroups.Count != 2 || pathGroups[0].Count() != 2 || pathGroups[1].Count() != 1)
-        {
-            return false;
-        }
-
-        var through = pathGroups[0].ToList();
-        if (!through[0].node.Name.Equals(through[1].node.Name, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var side = pathGroups[1].Single();
-        var orderedThrough = through.OrderBy(item => item.port.Segment.StartPosition).ToList();
-        var portItems = new List<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)>
-        {
-            orderedThrough[0],
-            orderedThrough[1],
-            side
-        };
+        var portItems = ports.ToList();
         var areaExpressions = new Dictionary<AcousticGraphPort, string>();
-        foreach (var item in through)
+        foreach (var item in portItems)
         {
-            areaExpressions[item.port] = GraphPortArea(voiceName, item.port);
+            areaExpressions[item.port] = ConnectionAreaExpression(voiceName, item);
         }
-        areaExpressions[side.port] = ConnectionPortAreaExpression(voiceName, side.terminal, side.nodePortCount);
 
         var areaSum = string.Join(" + ", portItems.Select(item => areaExpressions[item.port]));
+        var coupling = $"{voiceName}_graph_connection_coupling_{safeConnection}";
+        var loss = $"{voiceName}_graph_connection_loss_{safeConnection}";
         foreach (var item in portItems)
         {
             var incoming = GraphIncoming(voiceName, item.port);
@@ -1716,8 +1657,10 @@ public static class FaustEmitter
             var sourceInjection = NodeSourceIdentifier(voiceName, item.node);
             var reflection = $"{voiceName}_graph_connection_reflection_{safeConnection}_{SafeIdentifier(item.terminal.Name)}_{item.port.Segment.Index}_{(item.port.AtStart ? "start" : "end")}";
             var otherIncoming = string.Join(" + ", portItems.Where(other => other.port != item.port).Select(other => GraphIncoming(voiceName, other.port)));
+            var scattered = $"{voiceName}_graph_connection_scattered_{safeConnection}_{SafeIdentifier(item.terminal.Name)}_{item.port.Segment.Index}_{(item.port.AtStart ? "start" : "end")}";
             source.AppendLine($"    {reflection} = (2.0 * ({areaExpressions[item.port]}) - ({areaSum})) / max(0.000001, {areaSum});");
-            source.AppendLine($"    {outgoing} = ({reflection} * {incoming} + (1.0 + {reflection}) * ({otherIncoming}) + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {voiceName}_graph_connection_loss_{safeConnection};");
+            source.AppendLine($"    {scattered} = {reflection} * {incoming} + (1.0 + {reflection}) * ({otherIncoming});");
+            source.AppendLine($"    {outgoing} = (({scattered}) * ({coupling}) + {incoming} * (1.0 - ({coupling})) + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {loss};");
         }
         var energyIn = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphIncoming(voiceName, item.port)}, 2.0)"));
         var energyOut = string.Join(" + ", portItems.Select(item => $"({areaExpressions[item.port]}) * pow({GraphOutgoing(voiceName, item.port)}, 2.0)"));
@@ -1725,9 +1668,37 @@ public static class FaustEmitter
         source.AppendLine($"    {voiceName}_graph_connection_energy_out_{safeConnection} = {ProbeSignal(options, $"/debug/{voiceName}/connection/{connection.Name}/energy_out", energyOut, 0, 4)};");
         debugProbeKeepAlive.Add($"{voiceName}_graph_connection_energy_in_{safeConnection}");
         debugProbeKeepAlive.Add($"{voiceName}_graph_connection_energy_out_{safeConnection}");
-
-        return true;
     }
+
+    private static void EmitBypassConnection(
+        StringBuilder source,
+        string voiceName,
+        AcousticConnection connection,
+        string safeConnection,
+        IReadOnlyList<(AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount)> ports)
+    {
+        var coupling = $"{voiceName}_graph_connection_coupling_{safeConnection}";
+        var loss = $"{voiceName}_graph_connection_loss_{safeConnection}";
+        foreach (var item in ports)
+        {
+            var incoming = GraphIncoming(voiceName, item.port);
+            var outgoing = GraphOutgoing(voiceName, item.port);
+            var sourceInjection = NodeSourceIdentifier(voiceName, item.node);
+            var otherIncoming = ports.Count == 1
+                ? incoming
+                : $"(({string.Join(" + ", ports.Where(other => other.port != item.port).Select(other => GraphIncoming(voiceName, other.port)))}) / {F(ports.Count - 1)})";
+            source.AppendLine($"    {outgoing} = (({otherIncoming}) * ({coupling}) + {incoming} * (1.0 - ({coupling})) + ({sourceInjection}) / {F(Math.Max(1, item.nodePortCount))}) * {loss};");
+        }
+    }
+
+    private static string ConnectionAreaExpression(
+        string voiceName,
+        (AcousticGraphNode node, AcousticTerminal terminal, AcousticGraphPort port, int nodePortCount) item) =>
+        item.terminal.Kind == AcousticTerminalKind.Junction &&
+        item.terminal.Port.Length == 0 &&
+        item.node.Terminals.Count == 1
+            ? GraphPortArea(voiceName, item.port)
+            : ConnectionPortAreaExpression(voiceName, item.terminal, item.nodePortCount);
 
     private static bool TryEmitTwoPortPathScatter(
         StringBuilder source,

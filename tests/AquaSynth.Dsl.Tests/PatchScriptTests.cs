@@ -208,7 +208,9 @@ public sealed class PatchScriptTests
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("syrinxish"));
         Assert.Contains("acoustic_graph_radiated", export.Source);
         Assert.Contains("graph_loop", export.Source);
-        Assert.Contains("graph_connection_pressure_throat_connection", export.Source);
+        Assert.Contains("graph_connection_reflection_throat_connection", export.Source);
+        Assert.Contains("graph_connection_energy_in_throat_connection", export.Source);
+        Assert.DoesNotContain("graph_connection_pressure_throat_connection", export.Source);
         Assert.Contains("graph_terminal_area_throat_from", export.Source);
         Assert.Contains("graph_node_area_left_labium_right_labium", export.Source);
         Assert.Contains("graph_source_right_labium", export.Source);
@@ -251,7 +253,9 @@ public sealed class PatchScriptTests
 
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("humanish"));
         Assert.Contains("acoustic_graph_radiated", export.Source);
-        Assert.Contains("graph_connection_pressure_velopharynx", export.Source);
+        Assert.Contains("graph_connection_reflection_velopharynx", export.Source);
+        Assert.Contains("graph_connection_energy_in_velopharynx", export.Source);
+        Assert.DoesNotContain("graph_connection_pressure_velopharynx", export.Source);
         Assert.Contains("graph_terminal_area_nasal_gate", export.Source);
         Assert.Contains("sqrt(clip01", export.Source);
         Assert.Contains("graph_source_folds", export.Source);
@@ -717,7 +721,7 @@ public sealed class PatchScriptTests
             Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
             Assert.Contains(patch.AcousticConnections, connection => connection.Name.Contains("_nose_connection", StringComparison.Ordinal) && MathF.Abs(connection.Coupling - 1f) < 0.0001f);
             Assert.DoesNotContain(patch.ParameterBindings, binding => binding.FieldPath.StartsWith("/acoustic/connections/", StringComparison.OrdinalIgnoreCase) && binding.FieldPath.EndsWith("/coupling", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains("graph_connection_pressure_voices_0_nose_connection", export.Source);
+            Assert.Contains("graph_connection_reflection_voices_0_nose_connection", export.Source);
             Assert.Contains("acoustic_graph_radiated", export.Source);
             Assert.Contains("graph_terminal_area_voices_0_area_", export.Source);
             Assert.DoesNotContain("wg_diameter_target_", export.Source);
