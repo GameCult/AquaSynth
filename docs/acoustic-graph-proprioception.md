@@ -240,10 +240,14 @@ PT/SndKit comparison report:
   path, branch, contact, and radiation timeline fields from its own arrays, and
   `PrimitiveReferenceReport.ComparePinkTromboneTimeline` role-normalizes those
   fields against Aqua primitive timelines.
+- `PinkTrombonePrimitiveTimelineComparisonWritesArtifacts` writes per-fixture
+  Aqua timelines, PT internal timelines, comparison CSVs, and a summary under
+  `artifacts/parity/primitive-vocal-timeline`.
 
 The next implementation pass should harden the primitives further:
 
-- turn the timeline comparison into artifact reports for the PT fixture suite;
+- use the artifact reports to choose the first physical-law correction in the
+  primitive machine;
 - add optional VTL/ArtiSynth adapters only as artifact comparators, not default
   CI dependencies;
 - keep `mama`, `papa`, and `thrombosis` as downstream witnesses until primitive

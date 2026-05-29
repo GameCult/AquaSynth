@@ -40,6 +40,11 @@ Current slice:
   can role-normalize Aqua primitive timeline samples against PT timeline samples
   for oral/nasal path, velopharynx branch, obstruction contact, and lip
   radiation signals. `PatchScript` tests pass 88/88.
+- Added `PinkTrombonePrimitiveTimelineComparisonWritesArtifacts`; it writes
+  per-fixture `aqua-primitive-timeline.csv`, `pt-internal-timeline.csv`,
+  `comparison.csv`, and `summary.txt` under
+  `artifacts/parity/primitive-vocal-timeline/<timestamp>`. Focused artifact
+  test passes.
 
 - Proprioception correction after user rejected baby-word golf as the rebuild
   owner. Diagnosis is now durable in

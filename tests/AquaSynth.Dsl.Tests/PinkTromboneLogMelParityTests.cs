@@ -165,6 +165,40 @@ public sealed class PinkTromboneLogMelParityTests
         Assert.All(rendered, item => Assert.True(item.CandidateSamples.Any(sample => MathF.Abs(sample) > 0.00001f), item.Id));
     }
 
+    [Fact]
+    public void PinkTrombonePrimitiveTimelineComparisonWritesArtifacts()
+    {
+        var artifactDir = ArtifactPath("parity", "primitive-vocal-timeline", DateTimeOffset.UtcNow.ToString("yyyyMMddTHHmmssfff", CultureInfo.InvariantCulture));
+        var renderer = new PinkTromboneReferenceRenderer();
+        var summaries = new List<string>();
+
+        foreach (var fixture in PinkTromboneParityFixtures.All)
+        {
+            var patch = PatchScript.Parse(fixture.AquaScript);
+            var aqua = ProbeTimelineReport.Build(patch, "voices_0_network", blocks: 2);
+            var reference = renderer.RenderTimeline(fixture.Controls, durationSeconds: .04f, blockSize: 128);
+            var comparison = PrimitiveReferenceReport.ComparePinkTromboneTimeline(aqua, reference);
+            var fixtureDir = Path.Combine(artifactDir, fixture.Id);
+            Directory.CreateDirectory(fixtureDir);
+            File.WriteAllText(Path.Combine(fixtureDir, "aqua-primitive-timeline.csv"), ProbeTimelineReport.ToCsv(aqua));
+            File.WriteAllText(Path.Combine(fixtureDir, "pt-internal-timeline.csv"), PinkTromboneTimelineCsv(reference));
+            File.WriteAllText(Path.Combine(fixtureDir, "comparison.csv"), PrimitiveReferenceReport.ToCsv(comparison));
+
+            Assert.NotEmpty(comparison);
+            Assert.Contains(comparison, row => row.Primitive == "path:oral" && row.Signal == "energy_in");
+            Assert.Contains(comparison, row => row.Primitive == "radiation:lip" && row.Signal == "flow");
+            Assert.All(comparison, row => Assert.True(
+                float.IsFinite(row.Candidate) && float.IsFinite(row.Expected) && float.IsFinite(row.Error),
+                $"{fixture.Id} emitted non-finite primitive comparison row"));
+
+            var meanAbsoluteError = comparison.Average(row => MathF.Abs(row.Error));
+            summaries.Add($"{fixture.Id}: rows={comparison.Count} meanAbsError={meanAbsoluteError:0.######}");
+        }
+
+        Directory.CreateDirectory(artifactDir);
+        File.WriteAllLines(Path.Combine(artifactDir, "summary.txt"), summaries);
+    }
+
     [Fact(Skip = "PT native probe diagnostics are parked while the generalized graph vocal core owns acceptance.")]
     public void PinkTromboneGraphDebugProbesWritePassivityReportWhenNativeFaustIsInstalled()
     {
@@ -632,6 +666,24 @@ public sealed class PinkTromboneLogMelParityTests
 
     private static string Escape(string value) =>
         value.Contains(',') || value.Contains('"') ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"" : value;
+
+    private static string PinkTromboneTimelineCsv(IReadOnlyList<PinkTromboneReferenceTimelineSample> samples)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("block,primitive,signal,value");
+        foreach (var sample in samples)
+        {
+            builder.Append(sample.Block);
+            builder.Append(',');
+            builder.Append(Escape(sample.Primitive));
+            builder.Append(',');
+            builder.Append(Escape(sample.Signal));
+            builder.Append(',');
+            builder.AppendLine(sample.Value.ToString("0.######", CultureInfo.InvariantCulture));
+        }
+
+        return builder.ToString();
+    }
 
     private static void WriteFixtureArtifacts(
         string artifactDir,
