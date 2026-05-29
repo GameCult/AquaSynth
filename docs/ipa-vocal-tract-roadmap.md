@@ -704,6 +704,18 @@ specific, comparable, falsifiable, and reusable by the next round. A pretty
 report with vague receipts is a failed science artifact even if it obeys the
 file-count contract.
 
+Five prompt-optimization smokes on 2026-05-29 sharpened that contract. The best
+agent output came from a fixed receipt packet and a constrained reasoning pass,
+not from letting an external agent wander the store while thinking. Production
+workers therefore have to earn each seam claim with a contrast pair, exact
+metric values from `show`, primitive-timeline excerpts when available, a
+class-consistent reference matrix, and an owner sentence of the form
+`X owns Y so Z remains true`. A seam is not actionable until the next family
+proposes at least five micro-sweep perturbations across it. A new candidate
+family must move a new owner, control axis, timing contour, or primitive
+relationship; loudness, burst gain, and recording-condition dressing alone are
+parity tools, not loss-landscape novelty.
+
 ## CultMesh Render/Scoring Work
 
 CultMesh is the transport, admission, and worker-orchestration layer for speech

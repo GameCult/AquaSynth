@@ -121,9 +121,9 @@
     "binding_rule": "Parameter binding uses field-site references such as `lpf=@/macro/brightness` and `/opgraphs/0/operators/2/level`; the field owns meaning and the parameter owns the runtime value. Avoid target-routing semantics unless a new graph authority is deliberately mapped."
   },
   "last_verified": {
-    "command": "dotnet test tests\\AquaSynth.Dsl.Tests\\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter \"FullyQualifiedName~PatchScriptTests\" -v minimal",
-    "result": "IPA trial render orchestration added. Opt-in five-seed trial run passed with Faust installed and wrote artifacts/parity/ipa-trials/20260529T214127955/five-seed-trials. Focused PatchScriptTests plus IpaTrialResultsRoundTripThroughCultCache pass 94/94. Earlier full unfiltered runs hit the five-minute wall after leaving orphan dotnet workers; focused suites are the current reliable verification path.",
-    "commit": "pending ipa trial orchestration"
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File tools\\run-ipa-trial-loop.ps1 -Rounds 0 -SkipLocalTrialRun; node -e \"JSON.parse(require('fs').readFileSync('state/memory.json','utf8')); console.log('memory-json-ok')\"; git diff --check",
+    "result": "Five IPA prompt-optimization passes hardened the external trial-loop prompts around evidence quality: contrast pairs, show-backed metrics, primitive timeline excerpts or explicit missing, class-consistent references, owner sentences, five micro-sweep perturbations, and novelty gates. Loop skeleton, memory JSON parse, and whitespace diff check pass.",
+    "commit": "pending ipa prompt evidence quality"
   }
 }
 

@@ -238,8 +238,14 @@ The backing store is:
 $storePath
 
 Use the worker as your search organ. Do not ask for crude full dumps unless retrieval fails:
-dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "<your evidence question>" --limit 20 --output "$roundDir/search-<topic>.md"
-dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- show --store "$storePath" --trial-id "<trial id from search>" --output "$roundDir/detail-<candidate>.md"
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "<your evidence question>" --limit 20 --output "$roundDir/search-<topic>.md"
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- show --store "$storePath" --trial-id "<trial id from search>" --output "$roundDir/detail-<candidate>.md"
+
+Retrieval failure policy:
+- A failed search/show command is itself evidence about the worker environment, but it is low-quality evidence for speech hypotheses.
+- Fallback artifact reads may appear in `Weakest Missing Evidence`, but they do not satisfy the search/show receipt counts.
+- Do not write patches until live `search` and `show` receipts exist.
+- Search-summary-only claims are low-quality until corroborated by a `show` receipt with concrete metric values or artifact paths.
 
 Useful repo surfaces:
 - docs/ipa-vocal-tract-roadmap.md
@@ -250,13 +256,16 @@ Useful repo surfaces:
 
 Before writing candidates:
 0. Open $preEvidence and include a `PreEvidence Digest` section in $roundDir/hypotheses.md with five metric-bearing facts from it.
-1. Run at least three targeted semantic searches and save the outputs under ${roundDir}:
+1. Run exactly three targeted semantic searches and save the outputs under ${roundDir}:
    - one for weakest stop/plosive closure evidence;
    - one for best vowel/nasal/fricative transferable successes;
    - one for dressing/FM/AM/noise versus articulation-owner failures.
-2. Open at least three detailed trial records with `show`: one weak stop/plosive, one transferable success, and one dressing-vs-articulation case when available.
+2. Open exactly three detailed trial records with `show`: one weak stop/plosive, one transferable success, and one dressing-vs-articulation case when available.
 3. In $roundDir/hypotheses.md, include a `Retrieval Receipts` section listing the exact search/show files you used.
 4. If fewer than three search receipts and three show receipts exist on disk, stop and create the missing retrieval artifacts before writing `.aqua` files.
+5. Do not run additional retrieval unless one of the six required receipts is empty or unrelated; spend the rest of the turn reasoning over the evidence.
+6. For every seam you name, cite at least one contrast pair: a weak record and a stronger related record, or two variants that isolate one axis. If the receipts do not contain a contrast pair, mark the seam `not actionable`.
+7. Extract primitive timeline facts when available: closure duration, burst/release window, voicing onset, constriction window, branch admittance, radiation flow, or passivity/energy. If timelines are absent, mark timeline evidence `missing` instead of implying it.
 
 Task:
 1. Read the current loss landscape across gesture, log-mel, RMS, articulation, and primitive timeline evidence.
@@ -287,14 +296,20 @@ Candidate design contract:
 - Only edit source if two or more retrieved trials indicate the same owner-layer failure pattern; otherwise `Source Edit Decision: none`.
 - If Source edits allowed is False, do not edit any file outside $patchDir and $roundDir/hypotheses.md.
 - Before finishing, list $patchDir and verify exact count, target coverage, and filename schema in `Acceptance Checklist`.
+- A seam claim must use an owner sentence: `X owns Y so Z remains true`.
+- A seam is actionable only if the next candidate family proposes at least five micro-sweep perturbations across that seam, spread across target lanes when possible.
+- Novelty gate: a family must move a new owner, control axis, timing contour, or primitive relationship. Raising loudness, burst gain, or dressing alone is not novel.
+- Include a class-consistent reference matrix that maps each target id to the exact reference trial or fixture id used for comparison; mixed-set evidence cannot silently stand in for single-phoneme evidence.
 
 Required `$roundDir/hypotheses.md` shape:
 - `PreEvidence Digest`: five facts with exact metric keys and values from $preEvidence.
 - `Retrieval Receipts`: search/show files used.
 - `Loss Landscape Read`: strongest and weakest evidence by family.
-- `Hypothesis Families`: 3-5 families, each with owner layer, transfer status, evidence_refs, cited trial_ids, at least one concrete metric key/value from `show`, and predicted metric movement using `gesture:+/-/flat`, `logmel:+/-/flat`, `articulation:+/-/flat`, `rms:+/-/flat`, `timeline:+/-/flat/risk`.
-- `Claim Audit`: one row per family: claim -> evidence file(s) -> metric key/value(s) -> predicted movement.
+- `Reference Matrix`: one row per target id with reference trial/fixture id, candidate baseline if known, and whether the evidence is class-consistent or mixed/weak.
+- `Hypothesis Families`: 3-5 families, each with owner layer, transfer status, evidence_refs, cited trial_ids, at least one concrete metric key/value from `show`, a contrast pair, an owner sentence of the form `X owns Y so Z remains true`, five planned micro-sweep perturbations, and predicted metric movement using `gesture:+/-/flat`, `logmel:+/-/flat`, `articulation:+/-/flat`, `rms:+/-/flat`, `timeline:+/-/flat/risk`.
+- `Claim Audit`: one row per family: claim -> evidence file(s) -> contrast pair -> metric key/value(s) -> primitive timeline excerpt or `missing` -> predicted movement.
 - `Evidence Quality Ledger`: one row per family with specificity, comparability, falsifiability, reuse value for the next round, and the weakest missing evidence. Use `high`, `medium`, or `low` for each quality field.
+- `Novelty Gate`: one row per family saying which new owner/control axis/timing contour/primitive relationship is being explored; write `dressing-only` if the family mainly changes loudness/FM/AM/noise/envelopes.
 - `Candidate Matrix`: exactly 25 rows with target id, filename, family, expected metric movement, and risk.
 - `Source Edit Decision`: `none` unless source edits are allowed and justified by evidence.
 - `Acceptance Checklist`: 25 files, one per target id, filename schema, required report sections, >=3 search receipts, >=3 show receipts.
@@ -386,10 +401,15 @@ Before judging:
 3. If the hypothesis worker skipped the required 25-lane matrix or retrieval receipts, mark orchestration/prompt compliance as failed even if some audio metrics improved.
 
 Use the worker as your search organ:
-dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "$roundId external-codex-$roundId current round candidates" --limit 30 --output "$roundDir/eval-search-current-round.md"
-dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "weak regression failed articulation stop plosive source tract radiation" --limit 30 --output "$roundDir/eval-search-weak.md"
-dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "promising transfer generalization vowel nasal fricative articulation" --limit 30 --output "$roundDir/eval-search-promising.md"
-dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- show --store "$storePath" --trial-id "<trial id from current round search>" --output "$roundDir/eval-detail-<candidate>.md"
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "$roundId external-codex-$roundId current round candidates" --limit 30 --output "$roundDir/eval-search-current-round.md"
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "weak regression failed articulation stop plosive source tract radiation" --limit 30 --output "$roundDir/eval-search-weak.md"
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "promising transfer generalization vowel nasal fricative articulation" --limit 30 --output "$roundDir/eval-search-promising.md"
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- show --store "$storePath" --trial-id "<trial id from current round search>" --output "$roundDir/eval-detail-<candidate>.md"
+
+Retrieval failure policy:
+- Failed search/show commands do not count as evidence receipts for family verdicts.
+- If live worker retrieval fails, set `Round Compliance: failed` and focus the report on the retrieval blocker instead of inventing metric conclusions.
+- Search-summary-only claims are low-quality until corroborated by `show` receipts.
 
 Verify compliance from disk as well as the hypothesis report:
 - count .aqua files under $patchDir;
@@ -398,7 +418,9 @@ Verify compliance from disk as well as the hypothesis report:
 - validate filename schema <targetId>__<family>__<hypothesis-name>.aqua.
 - validate family ids are lowercase kebab-case.
 - derive canonical family ids only from the filename family segment; ignore prose family names when they disagree.
-- If any required section, receipt class, per-target validation, filename validation, or family extraction is incomplete, set `Round Compliance: failed`.
+- validate that each actionable seam has a contrast pair, a primitive timeline excerpt or explicit `missing`, an owner sentence, and at least five planned micro-sweep perturbations.
+- validate that the hypothesis report includes a class-consistent reference matrix and a novelty gate.
+- If any required section, receipt class, per-target validation, filename validation, family extraction, reference matrix, contrast pair, owner sentence, or novelty gate is incomplete, set `Round Compliance: failed`.
 
 Task:
 1. Evaluate whether the worker's proposed hypotheses follow from the measured evidence.
@@ -410,9 +432,11 @@ $roundDir/evaluation.md
 Required `$roundDir/evaluation.md` shape:
 - `Retrieval Receipts`: exactly five receipts: three search outputs plus one weak show output and one promising show output. Cite no other evidence files in this section. Only cite claims backed by these file paths; write `unknown` when evidence is absent.
 - `Commands Run`: exact search/show commands and output paths used to support claims.
-- `Round Compliance`: passed/failed, candidate count, target coverage, naming validity, family extraction, and whether the report had the required matrix.
+- `Round Compliance`: passed/failed, candidate count, target coverage, naming validity, family extraction, reference matrix, contrast-pair coverage, owner-sentence coverage, micro-sweep coverage, novelty gate, and whether the report had the required matrix.
 - `Family Verdicts`: one row per canonical filename family with improved/flat/regressed/unknown metrics. Treat |delta| < 0.01 as flat; if deltas are not present in cited show artifacts, write `unknown` and reason=`no delta in receipts`.
-- `Evidence Quality Verdicts`: one row per family with specificity, comparability, falsifiability, reuse value, and weakest missing evidence. Penalize vague receipts even when metrics improve.
+- `Evidence Quality Verdicts`: one row per family with specificity, comparability, falsifiability, reuse value, primitive timeline support, and weakest missing evidence. Penalize vague receipts, search-summary-only claims, missing contrast pairs, missing reference ids, and missing timeline excerpts even when metrics improve.
+- `Seam Audit`: one row per named seam with owner sentence, contrast pair, timeline excerpt, planned perturbation count, and verdict `actionable` or `not actionable`; fewer than five perturbations means `not actionable`.
+- `Novelty Audit`: one row per family saying whether it moves a new owner/control axis/timing contour/primitive relationship or is mainly loudness/dressing.
 - `Generalization Read`: whether effects transferred across target sets or overfit one phoneme.
 - `Dressing Audit`: articulation evidence requires movement in gesture/articulation/primitive timeline metrics; FM/AM/noise/envelope evidence without those is dressing.
 - `Next Target`: exactly one markdown bullet, final line of the file, and no continuation text: `<file-or-module> | <invariant> | <expected metric movement>`.

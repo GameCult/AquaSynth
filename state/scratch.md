@@ -2,6 +2,23 @@
 
 Current slice:
 
+- Ran five IPA prompt-optimization passes against the external trial-loop
+  agent prompts. Pass 1 produced useful seam science but treated fallback file
+  reads as evidence after `dotnet run` failed. Pass 2 proved live search/show
+  receipts could work but showed retrieval wandering eats the turn. Pass 3
+  showed capped live retrieval was still too slow for prompt iteration through
+  external `codex exec`. Pass 4 exposed an incoherent "do not run commands"
+  boundary because the agent could neither read receipts nor write a report.
+  Pass 5 succeeded with a fixed six-receipt packet and a reasoning-only
+  boundary, producing sharper seam evidence: stop release ownership, voicing
+  loudness leak, fricative place collapse, mixed-set contamination, and
+  single-candidate optimizer ownership. Production prompts now require contrast
+  pairs, `show` metric values, primitive timeline excerpts or explicit
+  `missing`, class-consistent reference matrices, `X owns Y so Z remains true`
+  owner sentences, at least five micro-sweep perturbations before a seam is
+  actionable, and a novelty gate that rejects loudness/dressing-only families
+  as loss-landscape novelty.
+
 - Added the external IPA trial loop as a real worker boundary instead of an
   in-chat report shuffle. `tools/IpaTrialWorker` now exposes `seed`, `score`,
   `search`, `show`, and audit-only `dump` commands over a shared
