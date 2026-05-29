@@ -278,6 +278,15 @@ The separate gesture/timeline owner is now the live direction:
   back into the primitive's physical field.
 - Explicit old `@/param` field bindings remain compatibility base controls;
   spline deltas apply on top of that base instead of bypassing it.
+- `ControlSurfaceCatalog.FromPatch(patch)` is the public gesture discovery API.
+  Hosts can query surfaces by normalized path/owner/field/range, create a
+  `ControlSplineTimeline`, edit future points, and call `ControlValuesAt(t)` to
+  stream ordinary surface controls without recompiling. This is the runtime path
+  for clients that want to author their own gestures.
+- `AquaSynthCompiledPatch.ControlSurfaces` carries the same catalog through the
+  native Faust compile path, and `AquaSynthCompiledPatch.ControlValuesAt(...)`
+  filters timeline output to the controls actually exported by that compiled
+  DSP. The semantic catalog remains richer than optimized Faust UI zones.
 - `tract_motion` now adapts velopharynx opening into a branch `ControlSpline`.
   A generated contact-opening spline was tested and cut because PT evidence
   showed it invented an open-then-close transient; contact closure must come

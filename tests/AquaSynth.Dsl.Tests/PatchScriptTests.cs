@@ -375,6 +375,39 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ControlSurfaceCatalogIsThePublicGestureAuthoringApi()
+    {
+        var patch = PatchScript.Parse("""
+            morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.6,.9
+            waveguide_path name=oral_path morphology=oral loss=.998
+            source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.45 noise=.05 impedance=.3
+            radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
+            vocal_network name=voice paths=oral_path sources=folds radiation=mouth
+            vocal network=voice freq=150 gain=.2 sustain=.2
+            """);
+
+        var catalog = ControlSurfaceCatalog.FromPatch(patch);
+        Assert.Contains("/vocal/sources/0/pressure", catalog.SurfacePaths);
+        Assert.Contains("/vocal/radiation/0/aperture", catalog.SurfacePaths);
+
+        var pressure = catalog.Surface("/vocal/sources/0/pressure");
+        Assert.Equal("folds", pressure.Owner);
+        Assert.Equal("pressure", pressure.Field);
+        Assert.InRange(pressure.DefaultNormalized, .69f, .71f);
+
+        var timeline = catalog.CreateTimeline(includePatchSplines: false);
+        timeline.SetFuturePoint("/vocal/sources/0/pressure", timeSeconds: .016f, normalizedValue: .9f, nowSeconds: .0f);
+        timeline.SetFuturePoint("/vocal/radiation/0/aperture", timeSeconds: .016f, normalizedValue: .4f, nowSeconds: .0f);
+        var controls = timeline.ControlValuesAt(.016f);
+
+        Assert.InRange(controls["/vocal/sources/0/pressure"], .89f, .91f);
+        Assert.InRange(controls["/vocal/radiation/0/aperture"], .39f, .41f);
+        Assert.Contains(controls, pair => pair.Key == "/vocal/sources/0/tension");
+        Assert.Throws<KeyNotFoundException>(() =>
+            timeline.SetFuturePoint("/vocal/nope", timeSeconds: .02f, normalizedValue: .5f, nowSeconds: .0f));
+    }
+
+    [Fact]
     public void PrimitiveProbeTimelineReportsFlowBeforeAudioParity()
     {
         var patch = PatchScript.Parse("""

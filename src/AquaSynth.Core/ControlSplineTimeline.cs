@@ -1,12 +1,63 @@
 namespace AquaSynth.Dsl;
 
+public sealed record ControlSurfaceValue(string SurfacePath, float NormalizedValue);
+
+public sealed class ControlSurfaceCatalog
+{
+    private readonly Dictionary<string, ControlSurface> _surfacesByPath;
+
+    public ControlSurfaceCatalog(IEnumerable<ControlSurface> surfaces, IEnumerable<ControlSpline>? splines = null)
+    {
+        Surfaces = surfaces.OrderBy(surface => surface.Path, StringComparer.OrdinalIgnoreCase).ToArray();
+        Splines = (splines ?? Array.Empty<ControlSpline>())
+            .OrderBy(spline => spline.Name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        _surfacesByPath = Surfaces.ToDictionary(surface => surface.Path, StringComparer.OrdinalIgnoreCase);
+    }
+
+    public IReadOnlyList<ControlSurface> Surfaces { get; }
+
+    public IReadOnlyList<ControlSpline> Splines { get; }
+
+    public IReadOnlyList<string> SurfacePaths => Surfaces.Select(surface => surface.Path).ToArray();
+
+    public static ControlSurfaceCatalog FromPatch(SynthPatch patch) =>
+        new(patch.ControlSurfaces, patch.ControlSplines);
+
+    public bool TryGetSurface(string path, out ControlSurface surface) =>
+        _surfacesByPath.TryGetValue(path, out surface!);
+
+    public ControlSurface Surface(string path) =>
+        TryGetSurface(path, out var surface)
+            ? surface
+            : throw new KeyNotFoundException($"unknown control surface `{path}`");
+
+    public ControlSplineTimeline CreateTimeline(bool includePatchSplines = true) =>
+        new(this, includePatchSplines ? Splines : Array.Empty<ControlSpline>());
+
+    public IReadOnlyDictionary<string, float> Defaults() =>
+        Surfaces.ToDictionary(surface => surface.Path, surface => surface.DefaultNormalized, StringComparer.OrdinalIgnoreCase);
+}
+
 public sealed class ControlSplineTimeline
 {
+    private readonly ControlSurfaceCatalog? catalog;
     private readonly Dictionary<string, List<ControlSplinePoint>> _pointsBySurface;
 
     public ControlSplineTimeline(IEnumerable<ControlSpline> splines)
     {
-        _pointsBySurface = splines
+        catalog = null;
+        _pointsBySurface = BuildPointsBySurface(splines);
+    }
+
+    public ControlSplineTimeline(ControlSurfaceCatalog catalog, IEnumerable<ControlSpline>? splines = null)
+    {
+        this.catalog = catalog;
+        _pointsBySurface = BuildPointsBySurface(splines ?? Array.Empty<ControlSpline>());
+    }
+
+    private static Dictionary<string, List<ControlSplinePoint>> BuildPointsBySurface(IEnumerable<ControlSpline> splines) =>
+        splines
             .Where(spline => spline.Enabled)
             .GroupBy(spline => spline.SurfacePath, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
@@ -16,12 +67,18 @@ public sealed class ControlSplineTimeline
                     .OrderBy(point => point.TimeSeconds)
                     .ToList(),
                 StringComparer.OrdinalIgnoreCase);
-    }
 
     public IReadOnlyList<string> SurfacePaths => _pointsBySurface.Keys.ToArray();
 
+    public void SetFuturePoint(string surfacePath, float timeSeconds, float normalizedValue, float nowSeconds) =>
+        SetFuturePoint(surfacePath, new ControlSplinePoint(timeSeconds, normalizedValue), nowSeconds);
+
     public void SetFuturePoint(string surfacePath, ControlSplinePoint point, float nowSeconds)
     {
+        if (catalog is not null && !catalog.TryGetSurface(surfacePath, out _))
+        {
+            throw new KeyNotFoundException($"unknown control surface `{surfacePath}`");
+        }
         if (point.TimeSeconds < nowSeconds)
         {
             throw new ArgumentOutOfRangeException(nameof(point), "future spline edits must not rewrite past control points");
@@ -55,6 +112,31 @@ public sealed class ControlSplineTimeline
 
         return Evaluate(points, timeSeconds);
     }
+
+    public IReadOnlyDictionary<string, float> ControlValuesAt(float timeSeconds)
+    {
+        if (catalog is null)
+        {
+            return _pointsBySurface.ToDictionary(
+                pair => pair.Key,
+                pair => Evaluate(pair.Value, timeSeconds),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        var controls = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        foreach (var surface in catalog.Surfaces)
+        {
+            controls[surface.Path] = ValueAt(surface.Path, timeSeconds, surface.DefaultNormalized);
+        }
+
+        return controls;
+    }
+
+    public IReadOnlyList<ControlSurfaceValue> SurfaceValuesAt(float timeSeconds) =>
+        ControlValuesAt(timeSeconds)
+            .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(pair => new ControlSurfaceValue(pair.Key, pair.Value))
+            .ToArray();
 
     public static float Evaluate(ControlSpline spline, float timeSeconds, float fallback = 0)
     {

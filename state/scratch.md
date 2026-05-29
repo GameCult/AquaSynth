@@ -2,6 +2,15 @@
 
 Current slice:
 
+- Public gesture API pass implemented. `ControlSurfaceCatalog.FromPatch(patch)`
+  is the host-facing discovery surface for normalized controls; hosts can create
+  `ControlSplineTimeline`, edit future points, and call `ControlValuesAt(t)` to
+  stream ordinary surface controls into Faust without recompiling. Native Faust
+  compiled patches now expose `AquaSynthCompiledPatch.ControlSurfaces` and a
+  safe `ControlValuesAt(timeline,t)` helper that filters the semantic timeline
+  to UI zones actually exported by the optimized DSP. Verification:
+  `PatchScriptTests` pass 91/91 and `NativeFaustRuntimeTests` pass 5/5.
+
 - Implemented the gesture/timeline owner cut for primitive vocals.
   `ControlSurface` now exposes normalized runtime controls for primitive fields,
   and `ControlSpline` owns linear/hold/Bezier motion over those surfaces.

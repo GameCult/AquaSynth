@@ -133,4 +133,45 @@ public sealed class NativeFaustRuntimeTests
             Assert.Contains(stream.SnapshotProbes(), pair => pair.Key == "debug/level" && pair.Value >= 0.0f);
         }
     }
+
+    [Fact]
+    public void NativeFaustCompiledPatchExposesPrimitiveControlSurfaceCatalogWhenToolchainIsAvailable()
+    {
+        const string script = """
+            morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.5,.9
+            waveguide_path name=oral_path morphology=oral loss=.998
+            source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.45 noise=.05 impedance=.3
+            radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
+            vocal_network name=voice paths=oral_path sources=folds radiation=mouth
+            vocal network=voice freq=150 gain=.2 sustain=.05 decay=.04
+            """;
+
+        using var compiler = new AquaSynthPatchCompiler();
+        if (!compiler.TryCompileScript(new AquaSynthCompileIdentity("native_surface_smoke", "native_surface_smoke", script), out var patch, out var error))
+        {
+            if (error?.Contains("Faust toolchain not found", StringComparison.OrdinalIgnoreCase) == true ||
+                error?.Contains("Faust DLL not found", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return;
+            }
+
+            Assert.Fail($"AquaSynth native Faust surface compile failed: {error}");
+        }
+
+        using (patch)
+        {
+            Assert.Contains("/vocal/sources/0/pressure", patch!.ControlSurfaces.SurfacePaths);
+            Assert.Contains("vocal/sources/0/pressure", patch.ControlPaths);
+
+            var timeline = patch.ControlSurfaces.CreateTimeline(includePatchSplines: false);
+            timeline.SetFuturePoint("/vocal/sources/0/pressure", timeSeconds: .01f, normalizedValue: .9f, nowSeconds: 0);
+            var controls = patch.ControlValuesAt(timeline, .01f);
+            var samples = patch.Render(controls);
+
+            Assert.Contains("/vocal/sources/0/pressure", controls.Keys);
+            Assert.DoesNotContain("/vocal/radiation/0/reflection", controls.Keys);
+            Assert.True(samples.Length > 1024);
+            Assert.Contains(samples, sample => MathF.Abs(sample) > 0.0001f);
+        }
+    }
 }

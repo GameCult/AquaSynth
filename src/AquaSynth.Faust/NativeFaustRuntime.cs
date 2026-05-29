@@ -48,13 +48,15 @@ public sealed class AquaSynthCompiledPatch : IDisposable
         IntPtr factory,
         AquaSynthNativeManifest manifest,
         IReadOnlyList<string> controlPaths,
-        IReadOnlyList<string> probePaths)
+        IReadOnlyList<string> probePaths,
+        ControlSurfaceCatalog? controlSurfaceCatalog = null)
     {
         this.toolchain = toolchain;
         this.factory = factory;
         Manifest = manifest;
         ControlPaths = controlPaths;
         ProbePaths = probePaths;
+        ControlSurfaces = controlSurfaceCatalog ?? new ControlSurfaceCatalog([]);
     }
 
     public AquaSynthNativeManifest Manifest { get; }
@@ -62,6 +64,16 @@ public sealed class AquaSynthCompiledPatch : IDisposable
     public IReadOnlyList<string> ControlPaths { get; }
 
     public IReadOnlyList<string> ProbePaths { get; }
+
+    public ControlSurfaceCatalog ControlSurfaces { get; }
+
+    public IReadOnlyDictionary<string, float> ControlValuesAt(ControlSplineTimeline timeline, float timeSeconds)
+    {
+        var exported = ControlPaths.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return timeline.ControlValuesAt(timeSeconds)
+            .Where(pair => exported.Contains(pair.Key) || exported.Contains(pair.Key.TrimStart('/')))
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
+    }
 
     public float[] Render(float gain = 1.0f) => Render(null, gain);
 
@@ -501,7 +513,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
         var export = FaustEmitter.Emit(patch, new FaustExportOptions(faustName));
         var duration = EstimateDuration(patch, options);
         var sourcePath = WriteDspSource(identity.Id, export.Source, options.DspSourceDirectory);
-        return CompileSource(identity, faustName, export.Source, duration, sourcePath);
+        return CompileSource(identity, faustName, export.Source, duration, sourcePath, ControlSurfaceCatalog.FromPatch(patch));
     }
 
     public AquaSynthCompiledPatch CompileSource(
@@ -509,7 +521,8 @@ public sealed class AquaSynthNativeCompiler : IDisposable
         string faustName,
         string source,
         float durationSeconds,
-        string? dspSourcePath = null)
+        string? dspSourcePath = null,
+        ControlSurfaceCatalog? controlSurfaceCatalog = null)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         var stopwatch = Stopwatch.StartNew();
@@ -566,7 +579,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
                     toolchain.Version,
                     toolchain.Home,
                     dspSourcePath);
-                return new AquaSynthCompiledPatch(toolchain, factory, manifest, controlPaths, probePaths);
+                return new AquaSynthCompiledPatch(toolchain, factory, manifest, controlPaths, probePaths, controlSurfaceCatalog);
             }
             finally
             {
