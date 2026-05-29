@@ -412,12 +412,15 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_radiation_reference_area_voices_0_lip", export.Source);
         Assert.Contains("graph_radiation_differentiation_voices_0_lip", export.Source);
         Assert.Contains("graph_radiation_admittance_voices_0_lip", export.Source);
+        Assert.Contains("graph_radiation_boundary_load_voices_0_lip", export.Source);
+        Assert.Contains("graph_radiation_reflected_loaded_voices_0_lip", export.Source);
         Assert.Contains("graph_radiation_flow_voices_0_lip", export.Source);
         Assert.Contains("patch_param_0) * (patch_param_0", export.Source);
 
         var debugExport = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph_boundaries_debug", DebugProbeUi: true));
         Assert.Contains("vbargraph(\"/debug/voice_0/node/", debugExport.Source);
         Assert.Contains("vbargraph(\"/debug/voice_0/connection/voices_0_nose_connection/energy_in\"", debugExport.Source);
+        Assert.Contains("vbargraph(\"/debug/voice_0/radiation/voices_0_lip/boundary_load\"", debugExport.Source);
         Assert.Contains("vbargraph(\"/debug/voice_0/radiation/voices_0_lip/flow\"", debugExport.Source);
         Assert.Contains("process = ", debugExport.Source);
     }
@@ -444,6 +447,24 @@ public sealed class PatchScriptTests
             Assert.NotNull(source.PositionControl);
             Assert.Equal(1f / 6f, source.PositionControl!.IndexScale, 4);
         });
+    }
+
+    [Fact]
+    public void InteriorRadiationUsesAreaNodeScatterInsteadOfPressureFallback()
+    {
+        var export = FaustEmitter.EmitScript("""
+            path name=tube length_cm=18 diameters=.55,.8,1.1,.9
+            source_port name=reed path=tube kind=reed position=0 pressure=.55 tension=.4 opening=.35
+            radiation_port name=side_tap path=tube kind=vent position=.5 opening=.4 reflection=-.35
+            radiation_port name=mouth path=tube kind=lip position=1 opening=1.1 reflection=-.82
+            acoustic_network name=tapped path=tube sources=reed radiation=side_tap,mouth
+            acoustic network=tapped freq=180 gain=.1
+            """, new FaustExportOptions("interior_radiation_node", DebugProbeUi: true));
+
+        Assert.Contains("graph_node_area_scattered_", export.Source);
+        Assert.Contains("graph_node_area_energy_in_", export.Source);
+        Assert.Contains("vbargraph(\"/debug/voice_0/node/", export.Source);
+        Assert.DoesNotContain("graph_node_pressure_", export.Source);
     }
 
     [Fact]

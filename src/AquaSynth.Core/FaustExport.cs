@@ -756,20 +756,18 @@ public static class FaustEmitter
 
             var sourceInjection = NodeSourceIdentifier(name, node);
             var reflection = $"{name}_graph_node_reflection_{node.Name}";
-            if (TryEmitTwoPortPathScatter(source, name, node, ports, sourceInjection, options, debugProbeKeepAlive))
+            if (TryEmitRadiationBoundaryScatter(source, patch, name, node, ports, sourceInjection, radiation, parameters, options, debugProbeKeepAlive))
+            {
+                // Emitted as a radiation boundary load, so reflected energy is
+                // shaped before it re-enters the graph.
+            }
+            else if (TryEmitTwoPortPathScatter(source, name, node, ports, sourceInjection, options, debugProbeKeepAlive))
             {
                 // Emitted as a local area-discontinuity junction.
             }
             else if (ports.Count > 1)
             {
-                var nodePressure = $"{name}_graph_node_pressure_{node.Name}";
-                source.AppendLine($"    {nodePressure} = 2.0 * ({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) / {F(ports.Count)};");
-                foreach (var port in ports)
-                {
-                    var outgoing = GraphOutgoing(name, port);
-                    var incoming = GraphIncoming(name, port);
-                    source.AppendLine($"    {outgoing} = ({nodePressure} - {incoming}) * (1.0 - min(0.98, abs({reflection}))) + {incoming} * {reflection} + ({sourceInjection}) / {F(ports.Count)};");
-                }
+                EmitUnconnectedNodeAreaScatter(source, name, node, ports, sourceInjection, options, debugProbeKeepAlive);
             }
             else foreach (var port in ports)
             {
@@ -1527,6 +1525,86 @@ public static class FaustEmitter
         debugProbeKeepAlive.Add($"{voiceName}_graph_area_energy_in_{node.Name}");
         debugProbeKeepAlive.Add($"{voiceName}_graph_area_energy_out_{node.Name}");
         return true;
+    }
+
+    private static bool TryEmitRadiationBoundaryScatter(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        AcousticGraphNode node,
+        IReadOnlyList<AcousticGraphPort> ports,
+        string sourceInjection,
+        IReadOnlyDictionary<string, AcousticRadiationPort> radiation,
+        ParameterMap parameters,
+        FaustExportOptions options,
+        List<string> debugProbeKeepAlive)
+    {
+        if (ports.Count != 1)
+        {
+            return false;
+        }
+
+        var terminal = node.Terminals.FirstOrDefault(terminal =>
+            terminal.Kind == AcousticTerminalKind.Radiation &&
+            radiation.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port));
+        if (terminal is null)
+        {
+            return false;
+        }
+
+        var radiationPort = radiation[terminal.Port.Length == 0 ? terminal.Name : terminal.Port];
+        var radiationIndex = AcousticRadiationPortIndex(patch, radiationPort);
+        var radiationPath = $"/acoustic/radiation/{radiationIndex}";
+        var safeTerminal = SafeIdentifier(terminal.Name);
+        var port = ports[0];
+        var incoming = GraphIncoming(voiceName, port);
+        var outgoing = GraphOutgoing(voiceName, port);
+        var reflection = $"{voiceName}_graph_terminal_reflection_{safeTerminal}";
+        var loss = $"clip01({parameters.Expression(OwnerField(radiationPath, "loss"), radiationPort.Loss)})";
+        var highpass = $"{voiceName}_graph_radiation_highpass_{safeTerminal}";
+        var admittance = $"{voiceName}_graph_radiation_admittance_{safeTerminal}";
+        var differentiation = $"{voiceName}_graph_radiation_differentiation_{safeTerminal}";
+        var load = $"{voiceName}_graph_radiation_boundary_load_{safeTerminal}";
+        var raw = $"{voiceName}_graph_radiation_reflected_raw_{safeTerminal}";
+        var loaded = $"{voiceName}_graph_radiation_reflected_loaded_{safeTerminal}";
+
+        source.AppendLine($"    {load} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{terminal.Name}/boundary_load", $"clip01(({admittance}) * ({differentiation}) * ({loss}))", 0, 1)};");
+        source.AppendLine($"    {raw} = ({incoming}) * ({reflection}) + ({sourceInjection});");
+        source.AppendLine($"    {loaded} = ({raw}) * (1.0 - ({load})) + (({raw}) : fi.lowpass(1, {highpass})) * ({load});");
+        source.AppendLine($"    {outgoing} = {loaded};");
+        debugProbeKeepAlive.Add(load);
+        return true;
+    }
+
+    private static void EmitUnconnectedNodeAreaScatter(
+        StringBuilder source,
+        string voiceName,
+        AcousticGraphNode node,
+        IReadOnlyList<AcousticGraphPort> ports,
+        string sourceInjection,
+        FaustExportOptions options,
+        List<string> debugProbeKeepAlive)
+    {
+        var areaSum = string.Join(" + ", ports.Select(port => GraphPortArea(voiceName, port)));
+        foreach (var port in ports)
+        {
+            var incoming = GraphIncoming(voiceName, port);
+            var outgoing = GraphOutgoing(voiceName, port);
+            var area = GraphPortArea(voiceName, port);
+            var reflection = $"{voiceName}_graph_node_area_reflection_{node.Name}_{port.Segment.Index}_{(port.AtStart ? "start" : "end")}";
+            var otherIncoming = string.Join(" + ", ports.Where(other => other != port).Select(other => GraphIncoming(voiceName, other)));
+            var scattered = $"{voiceName}_graph_node_area_scattered_{node.Name}_{port.Segment.Index}_{(port.AtStart ? "start" : "end")}";
+            source.AppendLine($"    {reflection} = (2.0 * ({area}) - ({areaSum})) / max(0.000001, {areaSum});");
+            source.AppendLine($"    {scattered} = {reflection} * {incoming} + (1.0 + {reflection}) * ({otherIncoming});");
+            source.AppendLine($"    {outgoing} = {scattered} + ({sourceInjection}) / {F(Math.Max(1, ports.Count))};");
+        }
+
+        var energyIn = string.Join(" + ", ports.Select(port => $"({GraphPortArea(voiceName, port)}) * pow({GraphIncoming(voiceName, port)}, 2.0)"));
+        var energyOut = string.Join(" + ", ports.Select(port => $"({GraphPortArea(voiceName, port)}) * pow({GraphOutgoing(voiceName, port)}, 2.0)"));
+        source.AppendLine($"    {voiceName}_graph_node_area_energy_in_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/node/{node.Name}/area_energy_in", energyIn, 0, 4)};");
+        source.AppendLine($"    {voiceName}_graph_node_area_energy_out_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/node/{node.Name}/area_energy_out", energyOut, 0, 4)};");
+        debugProbeKeepAlive.Add($"{voiceName}_graph_node_area_energy_in_{node.Name}");
+        debugProbeKeepAlive.Add($"{voiceName}_graph_node_area_energy_out_{node.Name}");
     }
 
     private static string ProbeSignal(FaustExportOptions options, string label, string expression, float min, float max) =>

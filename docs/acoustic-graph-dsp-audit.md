@@ -514,3 +514,40 @@ Metrics still do not move. That is useful and damning: the source-local
 reservoir sign/direction is no longer the main missing piece. The graph needs a
 contact/closure primitive that participates in scattering and flow, not a
 separate source pulse hoping the node will turn it into articulation.
+
+## 2026-05-29 Radiation Boundary Load And Node-Law Cut
+
+Radiation terminals are no longer output-only observers at one-port boundaries.
+For a boundary radiation node, graph lowering now emits a named
+`graph_radiation_boundary_load_*` value from the radiation admittance,
+differentiation, and loss. The reflected boundary wave is filtered before it
+returns to the delay line:
+
+`reflected = raw * (1 - load) + lowpass(raw, radiation_cutoff) * load`
+
+The output still reads boundary flow as `incoming - outgoing`, but the outgoing
+wave now carries radiation load back into the tract. This is not a full
+frequency-dependent radiation impedance model. It is the first graph-owned
+load term that changes the pressure field instead of only coloring the output.
+
+The remaining unconnected multi-port node fallback was also cut. Multi-port
+nodes not owned by an explicit connection now use the same area-scattering
+wave convention and emit node area-energy probes. The old
+`graph_node_pressure_*` expression should not reappear as a quiet fallback.
+
+Latest graph probe:
+`artifacts/parity/pink-trombone-graph-thrombosis-probes/20260529T112805836`.
+The new lip boundary load peaks at `0.516196`, lip flow remains alive at
+`0.586863`, modal source out is `1.234403`, and the sibilant area-34 source
+out is `0.099318`.
+
+Latest utterance artifact:
+`artifacts/parity/pink-trombone-utterance-logmel/20260529T112806745`.
+The accepted-utterance diagnostic still fails articulation. `thrombosis`
+cosine is `0.3287`, RMS ratio is `0.0770`, active ratio is `0.3151`, and
+silence mismatch is `0.7205`. This confirms the boundary-load cut is a
+coherence repair, not the missing speech primitive.
+
+Next pressure remains contact as constrained-flow history and source impedance
+as a port law. Do not interpret this pass as permission to restore global
+drive or output EQ.
