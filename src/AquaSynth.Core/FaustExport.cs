@@ -1034,7 +1034,8 @@ public static class FaustEmitter
         var indexScale = parameters.Expression(OwnerField(path, "position/index_scale"), control.IndexScale);
         var target = $"clip01(({index}) * max(0.0, {indexScale}))";
         var radius = $"max(0.000001, ({width}) * max(0.0, {indexScale}))";
-        return $"clip01(1.0 - abs({F(port.Position)} - ({target})) / ({radius}))";
+        var distance = $"abs({F(port.Position)} - ({target})) / ({radius})";
+        return $"select2(({distance}) < 1.0, 0.0, 0.5 + 0.5 * cos(ma.PI * ({distance})))";
     }
 
     private static void EmitOperatorGraph(StringBuilder source, Playback playback, OperatorGraph graph, string name, ParameterMap parameters, List<string> warnings)

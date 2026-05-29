@@ -155,6 +155,14 @@ about `1m33s`; `mama/papa/thrombosis` cosine is `0.8324/0.7730/0.3176`.
 Thrombosis RMS improved to `0.1715`, but active ratio fell to `0.1598` and
 silence mismatch rose to `0.7811`, so articulation remains the live failure.
 
+Follow-up: source placement now uses a raised-cosine kernel instead of a hard
+triangular weight over the compact source bank. It keeps the same graph size
+while making moving injection ownership continuous enough for DSP. Artifact
+`artifacts/parity/pink-trombone-utterance-logmel/20260529T140038717` nudges
+thrombosis active ratio to `0.1826`, silence mismatch to `0.7643`, and
+speech-band ratio to `0.2704`; still not accepted, but the improvement came
+without restoring discrete source density.
+
 ## Component Audit
 
 ### Topology Construction
