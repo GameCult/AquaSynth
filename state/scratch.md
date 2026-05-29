@@ -17,10 +17,11 @@ Current slice:
 - Active IPA exploration shape: vowels `a/i/u/e/o`,
   nasals/approximants `m/n/ng/l/r`, fricatives `s/z/f/v/th`, stops
   `p/b/t/d/k`, and mixed generalization `mix-a/mix-m/mix-s/mix-p/mix-u`.
-  Agent patch files must be named `<targetId>__<hypothesis-name>.aqua` so the
-  scorer can bind them to target/reference lanes. Full-patch dressing remains
-  allowed, but evaluator reports must say when it is compensating for failed
-  primitive or gesture evidence.
+  Agent patch files must be named
+  `<targetId>__<family>__<hypothesis-name>.aqua` so the scorer can bind them
+  to target/reference lanes and the evaluator can group hypothesis families.
+  Full-patch dressing remains allowed, but evaluator reports must say when it
+  is compensating for failed primitive or gesture evidence.
 - Verification so far: `dotnet build tools\IpaTrialWorker\IpaTrialWorker.csproj
   --disable-build-servers -p:UseSharedCompilation=false
   -p:BuildInParallel=false -v minimal` passes; `IpaTrialWorker search` returns
@@ -29,6 +30,16 @@ Current slice:
   `tools\run-ipa-trial-loop.ps1 -Rounds 0 -SkipLocalTrialRun` creates a loop
   skeleton. Need final focused tests and optionally a one-round external Codex
   smoke if time/tooling allows.
+- Prompt QA pass: ran three dry single-turn external Codex smoke probes for
+  both hypothesizer and evaluator prompts under
+  `artifacts/parity/ipa-prompt-smoke/pass-{1,2,3}`. The refinements removed
+  contradictory count/name instructions, hardened candidate naming to
+  `<targetId>__<family>__<hypothesis>.aqua`, made family ids lowercase
+  kebab-case, required exact 25-lane output, added pre-evidence digest and
+  claim-audit sections, forced semantic-search/show receipts, and made the
+  evaluator fail closed when receipts, target coverage, filename validation, or
+  family extraction are incomplete. Final script syntax smoke passes with
+  `tools\run-ipa-trial-loop.ps1 -Rounds 0 -SkipLocalTrialRun`.
 
 - Implemented the first IPA trial render/scoring orchestration. Core now has
   typed `IpaTrialResult` CultCache records plus `IpaTrialResultCultCacheStore`;

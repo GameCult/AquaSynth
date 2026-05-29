@@ -117,8 +117,8 @@ function Assert-CandidateBatch {
         @("mix-a", "mix-m", "mix-s", "mix-p", "mix-u")
     )
     $files = @(Get-ChildItem -LiteralPath $PatchDirectory -Filter "*.aqua" -File -Recurse)
-    if ($files.Count -lt 25) {
-        throw "Hypothesis worker wrote $($files.Count) .aqua candidates; expected at least 25."
+    if ($files.Count -ne 25) {
+        throw "Hypothesis worker wrote $($files.Count) .aqua candidates; expected exactly 25."
     }
 
     $stems = $files | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_.Name) }
@@ -133,8 +133,19 @@ function Assert-CandidateBatch {
             }
 
             if (-not $covered) {
-                throw "Hypothesis worker did not write a candidate for target '$target'. Candidate files must be named <targetId>__<hypothesis-name>.aqua."
+                throw "Hypothesis worker did not write a candidate for target '$target'. Candidate files must be named <targetId>__<family>__<hypothesis-name>.aqua."
             }
+        }
+    }
+
+    foreach ($stem in $stems) {
+        $parts = $stem.Split([string[]]@("__"), [StringSplitOptions]::None)
+        if ($parts.Count -lt 3 -or [string]::IsNullOrWhiteSpace($parts[1]) -or [string]::IsNullOrWhiteSpace($parts[2])) {
+            throw "Candidate '$stem' does not follow <targetId>__<family>__<hypothesis-name>.aqua."
+        }
+
+        if ($parts[1] -cnotmatch '^[a-z0-9]+(-[a-z0-9]+)*$') {
+            throw "Candidate '$stem' uses invalid family '$($parts[1])'. Family ids must be lowercase kebab-case."
         }
     }
 }
@@ -159,7 +170,7 @@ Set-Content -LiteralPath $indexPath -Value @"
 - allow_source_edits: $AllowCodexSourceEdits
 - trial_results_store: $storePath
 - worker: $workerProject
-- trial_shape: five rounds, each asking for five five-phoneme target-set candidates
+- trial_shape: five rounds, exactly 25 candidates per round, one per phoneme lane
 
 "@
 
@@ -237,21 +248,55 @@ Useful repo surfaces:
 - src/AquaSynth.Faust/IpaTrialOrchestrator.cs
 - artifacts under $loopRoot
 
+Before writing candidates:
+0. Open $preEvidence and include a `PreEvidence Digest` section in $roundDir/hypotheses.md with five metric-bearing facts from it.
+1. Run at least three targeted semantic searches and save the outputs under ${roundDir}:
+   - one for weakest stop/plosive closure evidence;
+   - one for best vowel/nasal/fricative transferable successes;
+   - one for dressing/FM/AM/noise versus articulation-owner failures.
+2. Open at least three detailed trial records with `show`: one weak stop/plosive, one transferable success, and one dressing-vs-articulation case when available.
+3. In $roundDir/hypotheses.md, include a `Retrieval Receipts` section listing the exact search/show files you used.
+4. If fewer than three search receipts and three show receipts exist on disk, stop and create the missing retrieval artifacts before writing `.aqua` files.
+
 Task:
 1. Read the current loss landscape across gesture, log-mel, RMS, articulation, and primitive timeline evidence.
-2. Invent the next candidate patches across five five-phoneme target sets. Cover at least one target from each set, and prefer all 25 when the evidence points to reusable changes:
+2. Invent the next candidate patches across five five-phoneme target sets:
    vowels: a, i, u, e, o
    nasals/approximants: m, n, ng, l, r
    fricatives: s, z, f, v, th
    stops: p, b, t, d, k
    mixed generalization: mix-a, mix-m, mix-s, mix-p, mix-u
-3. Write at least twenty-five new .aqua candidates under:
+3. Write exactly twenty-five new .aqua candidates under:
 $patchDir
-   Name each file <targetId>__<hypothesis-name>.aqua so the scorer can infer the reference target.
+   Name each file <targetId>__<family>__<hypothesis-name>.aqua so the scorer can infer the reference target and hypothesis family.
 4. Make the candidates test transferable hypotheses, not one-off phoneme golf. Reuse the same contour idea across multiple places/manners when that is the claim being tested.
 5. If source edits are allowed, refine the DSL or lowering code only when the evidence says the graph owner is wrong rather than the patch values.
 6. Write a concise hypothesis report to:
 $roundDir/hypotheses.md
+
+Candidate design contract:
+- Produce exactly 25 files: exactly one candidate for each target lane. No extras.
+- Use 3-5 named hypothesis families across the 25 files, for example source-carrier, constriction-place, stop-release, nasal-branch, and dressing-control.
+- Filename schema is mandatory: <targetId>__<family>__<hypothesis-name>.aqua.
+- Family ids must be lowercase kebab-case and reused verbatim in filenames and `Hypothesis Families`.
+- The family segment in filenames is the canonical hypothesis-family id used by the evaluator.
+- The same family name should appear in filenames across multiple target sets when you are testing generalization.
+- A family is transferable only if it appears in at least three target sets; otherwise label it exploratory in the report.
+- Keep `.aqua` scripts parseable and self-contained. Prefer modifying values and gesture contours already visible in seed candidates before inventing new syntax.
+- Do not use source edits as a way to rescue malformed candidate patches.
+- Only edit source if two or more retrieved trials indicate the same owner-layer failure pattern; otherwise `Source Edit Decision: none`.
+- If Source edits allowed is False, do not edit any file outside $patchDir and $roundDir/hypotheses.md.
+- Before finishing, list $patchDir and verify exact count, target coverage, and filename schema in `Acceptance Checklist`.
+
+Required `$roundDir/hypotheses.md` shape:
+- `PreEvidence Digest`: five facts with exact metric keys and values from $preEvidence.
+- `Retrieval Receipts`: search/show files used.
+- `Loss Landscape Read`: strongest and weakest evidence by family.
+- `Hypothesis Families`: 3-5 families, each with owner layer, transfer status, evidence_refs, cited trial_ids, at least one concrete metric key/value from `show`, and predicted metric movement using `gesture:+/-/flat`, `logmel:+/-/flat`, `articulation:+/-/flat`, `rms:+/-/flat`, `timeline:+/-/flat/risk`.
+- `Claim Audit`: one row per family: claim -> evidence file(s) -> metric key/value(s) -> predicted movement.
+- `Candidate Matrix`: exactly 25 rows with target id, filename, family, expected metric movement, and risk.
+- `Source Edit Decision`: `none` unless source edits are allowed and justified by evidence.
+- `Acceptance Checklist`: 25 files, one per target id, filename schema, required report sections, >=3 search receipts, >=3 show receipts.
 
 Authority boundary:
 - Source edits allowed: $AllowCodexSourceEdits
@@ -331,12 +376,44 @@ $hypothesisOutput
 Round artifacts are under:
 $roundDir
 
+Before judging:
+1. Run at least three targeted semantic searches into ${roundDir}:
+   - current round candidates by hypothesizer id or round id;
+   - weak regressions / failed articulation;
+   - promising transfer / generalization.
+2. Use `show` on at least one promising and one weak candidate from the current round.
+3. If the hypothesis worker skipped the required 25-lane matrix or retrieval receipts, mark orchestration/prompt compliance as failed even if some audio metrics improved.
+
+Use the worker as your search organ:
+dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "$roundId external-codex-$roundId current round candidates" --limit 30 --output "$roundDir/eval-search-current-round.md"
+dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "weak regression failed articulation stop plosive source tract radiation" --limit 30 --output "$roundDir/eval-search-weak.md"
+dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "promising transfer generalization vowel nasal fricative articulation" --limit 30 --output "$roundDir/eval-search-promising.md"
+dotnet run --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- show --store "$storePath" --trial-id "<trial id from current round search>" --output "$roundDir/eval-detail-<candidate>.md"
+
+Verify compliance from disk as well as the hypothesis report:
+- count .aqua files under $patchDir;
+- validate exactly 25 files;
+- validate one target each for a, i, u, e, o, m, n, ng, l, r, s, z, f, v, th, p, b, t, d, k, mix-a, mix-m, mix-s, mix-p, mix-u;
+- validate filename schema <targetId>__<family>__<hypothesis-name>.aqua.
+- validate family ids are lowercase kebab-case.
+- derive canonical family ids only from the filename family segment; ignore prose family names when they disagree.
+- If any required section, receipt class, per-target validation, filename validation, or family extraction is incomplete, set `Round Compliance: failed`.
+
 Task:
 1. Evaluate whether the worker's proposed hypotheses follow from the measured evidence.
 2. Call out any hypothesis that is likely full-patch dressing impersonating articulation.
 3. Recommend exactly one next implementation/refinement target, with file/module owner and why.
 4. Write your evaluator report to:
 $roundDir/evaluation.md
+
+Required `$roundDir/evaluation.md` shape:
+- `Retrieval Receipts`: exactly five receipts: three search outputs plus one weak show output and one promising show output. Cite no other evidence files in this section. Only cite claims backed by these file paths; write `unknown` when evidence is absent.
+- `Commands Run`: exact search/show commands and output paths used to support claims.
+- `Round Compliance`: passed/failed, candidate count, target coverage, naming validity, family extraction, and whether the report had the required matrix.
+- `Family Verdicts`: one row per canonical filename family with improved/flat/regressed/unknown metrics. Treat |delta| < 0.01 as flat; if deltas are not present in cited show artifacts, write `unknown` and reason=`no delta in receipts`.
+- `Generalization Read`: whether effects transferred across target sets or overfit one phoneme.
+- `Dressing Audit`: articulation evidence requires movement in gesture/articulation/primitive timeline metrics; FM/AM/noise/envelope evidence without those is dressing.
+- `Next Target`: exactly one markdown bullet, final line of the file, and no continuation text: `<file-or-module> | <invariant> | <expected metric movement>`.
 
 Authority boundary:
 - Do not edit source files.

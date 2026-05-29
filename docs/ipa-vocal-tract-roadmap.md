@@ -692,11 +692,13 @@ The trial shape is five target sets with five phoneme lanes each:
 - mixed generalization: `mix-a`, `mix-m`, `mix-s`, `mix-p`, `mix-u`.
 
 Agent-authored candidates must be named
-`<targetId>__<hypothesis-name>.aqua`. The point is not one-patch golf. A useful
-round tests whether a contour, source, tract, radiation, or DSL-lowering idea
-generalizes across the target sets. Full-patch FM/AM/noise dressing is allowed
-as parity pressure, but the evaluator must label it as dressing when primitive
-or gesture evidence does not improve.
+`<targetId>__<family>__<hypothesis-name>.aqua`, where `family` is lowercase
+kebab-case and is the canonical hypothesis-family id for evaluator grouping.
+Each round writes exactly 25 candidates: one per target lane. The point is not
+one-patch golf. A useful round tests whether a contour, source, tract,
+radiation, or DSL-lowering idea generalizes across the target sets. Full-patch
+FM/AM/noise dressing is allowed as parity pressure, but the evaluator must
+label it as dressing when primitive or gesture evidence does not improve.
 
 ## CultMesh Render/Scoring Work
 
