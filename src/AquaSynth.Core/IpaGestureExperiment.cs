@@ -201,19 +201,19 @@ public static class IpaGestureExperiment
         var frequency = DescriptorTokens(target.Descriptor).Contains("vowel") ? 150 : 135;
 
         return $$"""
-            patch gain=.22
+            patch gain=.45
             morphology name=oral length_cm=17 diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.2
             morphology name=nasal length_cm=12 diameters=.04,.28,.52,.72
             waveguide_path name=oral_path morphology=oral strategy=thiran order=1 max_delay=4096 loss=.998
             waveguide_path name=nasal_path morphology=nasal strategy=thiran order=1 max_delay=4096 loss=.997
-            source_port name=folds path=oral_path kind=glottal position=0 pressure=.66 tension=.54 opening=.42 noise=.04 impedance=.32 flow_scale=.02
+            source_port name=folds path=oral_path kind=glottal position=0 pressure=.66 tension=.54 opening=.42 noise=.04 impedance=.32 flow_scale=.12
             branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
             constriction_contact name=contact path=oral_path position=.92 opening=.5 resistance=.45 stored_pressure=.12
             radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-.82 impedance=.28
             probe_timeline name=flow network=voice blocks=12 block_size=64
             vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=contact branches=velopharynx radiation=mouth probe=flow
             phoneme_gesture name={{SafeDslName(target.Id)}} ipa={{target.Ipa}} descriptor={{descriptor}} start=0 dur={{Format(duration)}} intensity={{Format(intensity)}}
-            vocal network=voice freq={{Format(frequency)}} gain=.2 sustain={{Format(sustain)}}
+            vocal network=voice freq={{Format(frequency)}} gain=.7 sustain={{Format(sustain)}}
             """;
     }
 

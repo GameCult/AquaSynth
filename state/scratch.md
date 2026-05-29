@@ -2,6 +2,28 @@
 
 Current slice:
 
+- Implemented the first IPA trial render/scoring orchestration. Core now has
+  typed `IpaTrialResult` CultCache records plus `IpaTrialResultCultCacheStore`;
+  Faust now has `IpaTrialOrchestrator.RunAsync`, which generates candidate
+  patches through `IpaGestureExperiment`, renders them with Faust, compares
+  spectrogram/articulation evidence against local PT fixture references, writes
+  WAV/report artifacts, and stores the general trial-result `.cc` database.
+  The opt-in five-seed run wrote
+  `artifacts/parity/ipa-trials/20260529T214127955/five-seed-trials`.
+- First run showed the pipeline worked but vowels/nasals were effectively
+  silent despite decent gesture scores. The refinement was architectural:
+  primitive `SourcePort` Faust lowering now emits an oscillatory voiced carrier
+  tied to the network frequency, instead of feeding mostly DC pressure into a
+  high-passed radiation load. Seed patch defaults now use stronger clean
+  primitive source flow. Second run moved the intended layer: open `a`
+  log-mel cosine `0.5693`, `m` `0.5199`, `s` `0.5498` with articulation
+  `0.4111`; plosive `p` remains weak at `-0.1024`, pointing to closure/release
+  ownership rather than source loudness.
+- Verification: opt-in
+  `IpaTrialOrchestratorWritesFiveSeedTrialsWhenEnabled` passed with Faust
+  installed; focused
+  `PatchScriptTests|IpaTrialResultsRoundTripThroughCultCache` pass 94/94.
+
 - Added the first scalable IPA gesture experiment harness.
   `IpaGestureExperiment.WriteRound` writes a frozen round bundle with
   `manifest.yaml`, candidate `.aqua` scripts, primitive timeline CSVs from
@@ -1504,4 +1526,3 @@ Next likely slice:
   current frequency/gate controls.
 - Keep tests focused on structure first, then add rendered audio comparison once
   the render path is explicit.
-

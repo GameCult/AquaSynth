@@ -699,10 +699,13 @@ public static class FaustEmitter
         var impedance = parameters.Expression(OwnerField(owner, "impedance"), port.Impedance);
         var flowScale = parameters.Expression(OwnerField(owner, "flow_scale"), port.FlowScale);
         var load = $"{voiceName}_primitive_source_{safe}_load_pressure";
+        var voiced = $"{voiceName}_primitive_source_{safe}_voiced";
         var flow = $"{voiceName}_primitive_source_{safe}_flow";
         source.AppendLine($"    {load} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/load_pressure", $"({impedance}) * ({pressure})", 0, 2)};");
-        source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * ma.tanh((({pressure}) * max(0.0, {opening}) * (0.5 + {tension}) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)}) / max(0.05, {impedance}))", -2, 2)};");
+        source.AppendLine($"    {voiced} = os.osc({frequency}) * clip01({opening}) * clip01(0.25 + {tension});");
+        source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * (({voiced}) * ma.tanh((({pressure}) * (0.5 + {tension})) / max(0.05, {impedance})) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)})", -2, 2)};");
         keepAlive.Add(load);
+        keepAlive.Add(voiced);
         keepAlive.Add(flow);
         return flow;
     }

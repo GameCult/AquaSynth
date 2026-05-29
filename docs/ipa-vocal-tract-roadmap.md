@@ -629,6 +629,37 @@ The intended scale-out loop is brutally simple:
    `gesture_score` first, then `clean_vocal_score`, then
    `full_parity_score`.
 
+### IPA Trial Render Workers
+
+`IpaTrialOrchestrator.RunAsync` is the first local render/scoring worker for
+that loop. It takes trial target sets, asks `IpaGestureExperiment` to generate
+candidate patches, renders each candidate through Faust, compares it against a
+local PT fixture reference with `AudioAnalyzer`, writes WAV/report artifacts,
+and stores typed `IpaTrialResult` records in `ipa-trial-results.cc`.
+
+The `.cc` store is per-record CultCache MessagePack data, not a hand-written
+JSON ledger. `IpaTrialResult` records include hypothesis text, candidate patch
+URI, reference/candidate artifacts, primitive timeline URI, metrics, evaluator
+summary, verdict, known contamination, and timing receipts. This is the trial
+result database that later hypothesis workers consume.
+
+The first five seed trials were run locally on 2026-05-29 under
+`artifacts/parity/ipa-trials/20260529T214127955/five-seed-trials`. The first
+attempt proved the pipeline but showed vowels/nasals were nearly silent. The
+accepted refinement moved voiced source excitation into primitive `SourcePort`
+lowering instead of relying on radiation to high-pass DC flow. After that cut:
+
+- open `a`: log-mel cosine `0.5693`, RMS ratio `0.3033`;
+- front `i`: log-mel cosine `0.3536`, RMS ratio `0.5721`;
+- bilabial nasal `m`: log-mel cosine `0.5199`, RMS ratio `0.2688`;
+- alveolar fricative `s`: log-mel cosine `0.5498`, articulation `0.4111`;
+- bilabial plosive `p`: still weak, log-mel cosine `-0.1024` despite RMS ratio
+  `0.6481`.
+
+The evidence says the source-carrier cut fixed the voiced-air failure. The next
+pressure is plosive closure/release ownership and stronger vowel/nasal tract
+color, not decorative full-patch dressing.
+
 ## CultMesh Render/Scoring Work
 
 CultMesh is the transport, admission, and worker-orchestration layer for speech

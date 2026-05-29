@@ -59,6 +59,8 @@ modules:
   primitive_control_spline_timeline: src/AquaSynth.Core/ControlSplineTimeline.cs
   primitive_vocal_reference_report: src/AquaSynth.Core/PrimitiveReferenceReport.cs
   ipa_gesture_experiment: src/AquaSynth.Core/IpaGestureExperiment.cs
+  ipa_trial_results: src/AquaSynth.Core/IpaTrialResults.cs
+  ipa_trial_orchestrator: src/AquaSynth.Faust/IpaTrialOrchestrator.cs
   acoustic_graph_missing_pieces_audit: docs/acoustic-graph-missing-pieces-audit.md
   acoustic_graph_proprioception: docs/acoustic-graph-proprioception.md
   pink_trombone_parity_fixtures: src/AquaSynth.Core/PinkTromboneParityFixtures.cs
