@@ -2,6 +2,34 @@
 
 Current slice:
 
+- Added graph-native debug probes for vocal source internals when
+  `DebugProbeUi` is enabled: tissue-valve pressure drive, modal tissue,
+  aperture, flow, and output; turbulence-source reservoir/release/output; and
+  contact reservoir/release/output. These are observation only, not audio-law
+  changes.
+- Added opt-in `PinkTromboneThrombosisGraphDebugProbesWriteTimelineWhenNativeFaustIsInstalled`.
+  It runs only when `AQUASYNTH_RUN_GRAPH_PROBES=1`, compiles the generated
+  `thrombosis` graph through native Faust debug UI, steps the streaming patch
+  block by block, and writes `candidate-debug.dsp`, `controls.csv`,
+  `timeline.csv`, and `probe-peaks.txt`.
+- Latest probe artifact:
+  `artifacts/parity/pink-trombone-graph-thrombosis-probes/20260529T011547091`.
+  Key peaks: modal source out `1.335230`, modal flow `0.791726`, modal pressure
+  drive `0.741528`, lip radiation flow `0.337191`, lip radiation admittance
+  `0.710362`, sibilant/injection source at area 34 out `0.099288`, lip contact
+  release out `0.032413`. The graph is not dead. The current failure is not a
+  missing generic `drive` knob or a silent source; it is weak articulation and
+  output balance after graph/radiation scaling, with contact release still
+  small and localized.
+- No acoustic-law cut was made from this evidence. Next real change should use
+  the probe timeline to decide whether to promote contact/closure into the
+  scattering law or adjust the utterance harness/radiation output owner. Do not
+  hide the finding behind a broad gain tweak.
+- Verification:
+  `AQUASYNTH_RUN_GRAPH_PROBES=1 dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter "PinkTromboneThrombosisGraphDebugProbesWriteTimelineWhenNativeFaustIsInstalled|FaustCompilerValidatesAcousticPathGraphWhenInstalled" -v minimal`
+  passed: 2 tests in 2m01s. Default focused diagnostic without the env var also
+  passed with the probe test returning immediately.
+
 - PT utterance diagnostic crash recheck: the focused test is reproducible as
   slow but passing when stale child `dotnet` processes are cleared and the test
   is run with enough wall-clock budget. Fresh verified artifact:

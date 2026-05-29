@@ -709,7 +709,7 @@ public static class FaustEmitter
                 : $"({string.Join(" + ", ports.Select(port => GraphIncoming(name, port)))}) / {F(ports.Count)}";
             var incidentName = $"{name}_graph_node_incident_pressure_{node.Name}";
             var nodeSourceName = NodeSourceIdentifier(name, node);
-            var nodeSourceExpression = EmitNodeSourceExpression(source, patch, name, node, incident[node.Name], sources, frequency, parameters);
+            var nodeSourceExpression = EmitNodeSourceExpression(source, patch, name, node, incident[node.Name], sources, frequency, parameters, options);
             source.AppendLine($"    {incidentName} = {ProbeSignal(options, $"/debug/{name}/node/{node.Name}/incident_pressure", incidentPressure, -2, 2)};");
             source.AppendLine($"    {nodeSourceName} = {ProbeSignal(options, $"/debug/{name}/node/{node.Name}/source", nodeSourceExpression, -2, 2)};");
             debugProbeKeepAlive.Add(incidentName);
@@ -1561,11 +1561,12 @@ public static class FaustEmitter
         IReadOnlyList<AcousticGraphPort> nodePorts,
         IReadOnlyDictionary<string, AcousticSourcePort> sources,
         string frequency,
-        ParameterMap parameters)
+        ParameterMap parameters,
+        FaustExportOptions options)
     {
         var contactTerms = node.Terminals
             .Where(terminal => terminal.Kind == AcousticTerminalKind.Contact)
-            .Select(terminal => EmitGraphContactSourceExpression(source, voiceName, node, nodePorts, terminal))
+            .Select(terminal => EmitGraphContactSourceExpression(source, voiceName, node, nodePorts, terminal, options))
             .ToList();
         var sourceTerms = node.Terminals
             .Where(terminal => terminal.Kind == AcousticTerminalKind.Source && sources.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port))
@@ -1574,8 +1575,8 @@ public static class FaustEmitter
                 var sourceName = terminal.Port.Length == 0 ? terminal.Name : terminal.Port;
                 var port = sources[sourceName];
                 return port.Kind == AcousticSourceKind.TurbulenceJet
-                    ? EmitGraphTurbulenceSourceExpression(source, patch, voiceName, node, nodePorts, sourceName, port, parameters)
-                    : EmitGraphLoadedSourceExpression(source, patch, voiceName, node, sourceName, port, frequency, parameters);
+                    ? EmitGraphTurbulenceSourceExpression(source, patch, voiceName, node, nodePorts, sourceName, port, parameters, options)
+                    : EmitGraphLoadedSourceExpression(source, patch, voiceName, node, sourceName, port, frequency, parameters, options);
             })
             .ToList();
         sourceTerms.AddRange(contactTerms);
@@ -1590,7 +1591,8 @@ public static class FaustEmitter
         string sourceName,
         AcousticSourcePort port,
         string frequency,
-        ParameterMap parameters)
+        ParameterMap parameters,
+        FaustExportOptions options)
     {
         var safeSource = SafeIdentifier(sourceName);
         var safeNode = SafeIdentifier(node.Name);
@@ -1599,7 +1601,7 @@ public static class FaustEmitter
         source.AppendLine($"    {prefix}_load_pressure = {localPressure};");
         if (IsTissueValveSource(port))
         {
-            EmitGraphTissueValveSourceExpression(source, patch, voiceName, node, sourceName, port, frequency, parameters, localPressure);
+            EmitGraphTissueValveSourceExpression(source, patch, voiceName, node, sourceName, port, frequency, parameters, localPressure, options);
         }
         else
         {
@@ -1617,7 +1619,8 @@ public static class FaustEmitter
         AcousticSourcePort port,
         string frequency,
         ParameterMap parameters,
-        string localPressure)
+        string localPressure,
+        FaustExportOptions options)
     {
         var index = AcousticSourcePortIndex(patch, port);
         var path = $"/acoustic/sources/{index}";
@@ -1661,7 +1664,7 @@ public static class FaustEmitter
         source.AppendLine($"    {prefix}_flow_loss = {flowLoss};");
         source.AppendLine($"    {prefix}_reservoir_pressure = ({pressure}) * ({reservoirPressure});");
         source.AppendLine($"    {prefix}_downstream_pressure = ({downstreamPressure}) + ({loadCoupling}) * ma.tanh({prefix}_load_pressure);");
-        source.AppendLine($"    {prefix}_pressure_drive = max(0.0, {prefix}_reservoir_pressure - {prefix}_downstream_pressure);");
+        source.AppendLine($"    {prefix}_pressure_drive = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/pressure_drive", $"max(0.0, {prefix}_reservoir_pressure - {prefix}_downstream_pressure)", 0, 1)};");
         source.AppendLine($"    {prefix}_stiffness = {effectiveStiffness};");
         source.AppendLine($"    {prefix}_modal_frequency = max(45.0, min(10000.0, (ma.SR / (2.0 * ma.PI)) * sqrt(max(0.00002, {prefix}_stiffness) / ({mass}))));");
         source.AppendLine($"    {prefix}_load_detune = 1.0 - 0.035 * ma.tanh({prefix}_load_pressure * ({loadCoupling}));");
@@ -1671,7 +1674,7 @@ public static class FaustEmitter
         source.AppendLine($"    {prefix}_modal_seed = (no.noise * 0.018 + {prefix}_pressure_drive * max(0.0, 0.22 - clip01({opening})) * 0.16);");
         source.AppendLine($"    {prefix}_modal_ring = {prefix}_modal_seed : fi.resonbp({prefix}_modal_frequency, {prefix}_modal_q, 1);");
         source.AppendLine($"    {prefix}_modal_oscillator = os.osc({prefix}_modal_frequency * {prefix}_load_detune) * {prefix}_oscillation_gate;");
-        source.AppendLine($"    {prefix}_modal_tissue = ({prefix}_modal_oscillator * (0.70 + 0.80 * ({tension})) + {prefix}_modal_ring * 0.35) * max(0.0, 1.0 - 0.35 * ({damping}) - 0.45 * {prefix}_tissue_loss);");
+        source.AppendLine($"    {prefix}_modal_tissue = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/modal_tissue", $"({prefix}_modal_oscillator * (0.70 + 0.80 * ({tension})) + {prefix}_modal_ring * 0.35) * max(0.0, 1.0 - 0.35 * ({damping}) - 0.45 * {prefix}_tissue_loss)", -1, 1)};");
         switch (port.Law)
         {
             case AcousticValveLaw.TwoMass:
@@ -1699,13 +1702,13 @@ public static class FaustEmitter
                 break;
         }
         source.AppendLine($"    {prefix}_aperture_linear = max(0.0, ({restOpening}) + ({opening}) + {prefix}_displacement - ({saturation}) * pow({prefix}_displacement, 3.0));");
-        source.AppendLine($"    {prefix}_aperture = {prefix}_aperture_linear * (1.0 - 0.55 * {prefix}_aperture_shape) + pow({prefix}_aperture_linear, 2.0) * (0.55 * {prefix}_aperture_shape);");
+        source.AppendLine($"    {prefix}_aperture = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/aperture", $"{prefix}_aperture_linear * (1.0 - 0.55 * {prefix}_aperture_shape) + pow({prefix}_aperture_linear, 2.0) * (0.55 * {prefix}_aperture_shape)", 0, 2)};");
         source.AppendLine($"    {prefix}_flow_resistance = 1.0 + {prefix}_flow_loss * (0.35 + 1.8 / max(0.035, {prefix}_aperture + ({restOpening})));");
         source.AppendLine($"    {prefix}_turbulence = no.noise : fi.highpass(2, 1200.0 + 2800.0 * clip01(1.0 - {prefix}_aperture));");
         source.AppendLine($"    {prefix}_voicing = {prefix}_modal_tissue * (0.18 + 1.45 * ({tension}));");
-        source.AppendLine($"    {prefix}_flow = ma.tanh((({prefix}_pressure_drive * {prefix}_aperture * (1.5 + 3.5 * {prefix}_flow_scale)) + ({prefix}_voicing * {prefix}_pressure_drive * (0.45 + 1.55 * ({tension})))) / {prefix}_flow_resistance);");
+        source.AppendLine($"    {prefix}_flow = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/flow", $"ma.tanh((({prefix}_pressure_drive * {prefix}_aperture * (1.5 + 3.5 * {prefix}_flow_scale)) + ({prefix}_voicing * {prefix}_pressure_drive * (0.45 + 1.55 * ({tension})))) / {prefix}_flow_resistance)", -1, 1)};");
         source.AppendLine($"    {prefix}_noise = {prefix}_turbulence * ({noise}) * {prefix}_pressure_drive * clip01({prefix}_aperture) * (1.0 - 0.55 * ({tension})) / {prefix}_flow_resistance;");
-        source.AppendLine($"    {prefix}_out = ({prefix}_flow * {prefix}_flow_scale * (0.55 + 2.6 * {prefix}_pressure_drive) + {prefix}_noise) * ({balance});");
+        source.AppendLine($"    {prefix}_out = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/out", $"({prefix}_flow * {prefix}_flow_scale * (0.55 + 2.6 * {prefix}_pressure_drive) + {prefix}_noise) * ({balance})", -2, 2)};");
     }
 
     private static string EmitGraphContactSourceExpression(
@@ -1713,7 +1716,8 @@ public static class FaustEmitter
         string voiceName,
         AcousticGraphNode node,
         IReadOnlyList<AcousticGraphPort> nodePorts,
-        AcousticTerminal terminal)
+        AcousticTerminal terminal,
+        FaustExportOptions options)
     {
         var safeTerminal = SafeIdentifier(terminal.Name);
         var prefix = $"{voiceName}_graph_contact_{safeTerminal}_{node.Name}";
@@ -1721,11 +1725,11 @@ public static class FaustEmitter
         var localPressure = $"{voiceName}_graph_node_incident_pressure_{node.Name}";
         var drive = ContactReservoirDriveExpression(voiceName, node, nodePorts, localPressure);
         source.AppendLine($"    {prefix}_closure = clip01((0.0144 - ({terminalArea})) / 0.0144);");
-        source.AppendLine($"    {prefix}_release = (max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.992));");
+        source.AppendLine($"    {prefix}_release = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/release", $"(max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.992))", 0, 1)};");
         source.AppendLine($"    {prefix}_reservoir_drive = {drive};");
-        source.AppendLine($"    {prefix}_reservoir = {prefix}_reservoir_drive * {prefix}_closure : + ~ *(0.994);");
+        source.AppendLine($"    {prefix}_reservoir = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/reservoir", $"{prefix}_reservoir_drive * {prefix}_closure : + ~ *(0.994)", 0, 2)};");
         source.AppendLine($"    {prefix}_release_pressure = 0.12 + 3.20 * clip01({prefix}_reservoir);");
-        source.AppendLine($"    {prefix}_out = {prefix}_release * {prefix}_release_pressure * (0.35 + 0.65 * clip01(abs({voiceName}_graph_terminal_reflection_{safeTerminal})));");
+        source.AppendLine($"    {prefix}_out = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/out", $"{prefix}_release * {prefix}_release_pressure * (0.35 + 0.65 * clip01(abs({voiceName}_graph_terminal_reflection_{safeTerminal})))", -2, 2)};");
         return $"{prefix}_out";
     }
 
@@ -1737,7 +1741,8 @@ public static class FaustEmitter
         IReadOnlyList<AcousticGraphPort> nodePorts,
         string sourceName,
         AcousticSourcePort port,
-        ParameterMap parameters)
+        ParameterMap parameters,
+        FaustExportOptions options)
     {
         var index = AcousticSourcePortIndex(patch, port);
         var path = $"/acoustic/sources/{index}";
@@ -1753,9 +1758,9 @@ public static class FaustEmitter
         var reservoirDrive = ClosureReservoirDriveExpression(voiceName, node, nodePorts, port, localPressure);
 
         source.AppendLine($"    {prefix}_closure = clip01((0.12 - ({opening})) / 0.12);");
-        source.AppendLine($"    {prefix}_release = (max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.995));");
+        source.AppendLine($"    {prefix}_release = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/release", $"(max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.995))", 0, 1)};");
         source.AppendLine($"    {prefix}_reservoir_drive = {reservoirDrive};");
-        source.AppendLine($"    {prefix}_reservoir = {prefix}_reservoir_drive * {prefix}_closure : + ~ *(0.992);");
+        source.AppendLine($"    {prefix}_reservoir = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/reservoir", $"{prefix}_reservoir_drive * {prefix}_closure : + ~ *(0.992)", 0, 2)};");
         source.AppendLine($"    {prefix}_pressure_drive = 0.50 + 1.50 * clip01(abs({localPressure}));");
         source.AppendLine($"    {prefix}_release_pressure = 0.20 + 2.80 * clip01({prefix}_reservoir);");
         source.AppendLine($"    {prefix}_noise_gate = min(clip01((0.85 - ({opening})) / 0.85), clip01(25.0 * (({opening}) - 0.04)));");
@@ -1764,7 +1769,7 @@ public static class FaustEmitter
         source.AppendLine($"    {prefix}_sustained = {prefix}_turbulence * {noise} * {pressure} * {prefix}_pressure_drive * {prefix}_noise_gate * 0.62;");
         source.AppendLine($"    {prefix}_burst_noise = {prefix}_turbulence * {noise} * {transient} * {prefix}_pressure_drive * {prefix}_release_gate * 1.2;");
         source.AppendLine($"    {prefix}_release_pulse = {transient} * {pressure} * {prefix}_release * {prefix}_release_pressure * 0.58 * (0.8 + 0.8 * clip01(({opening}) / 0.8));");
-        source.AppendLine($"    {prefix}_out = ({prefix}_sustained + {prefix}_burst_noise + {prefix}_release_pulse) * {balance};");
+        source.AppendLine($"    {prefix}_out = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/out", $"({prefix}_sustained + {prefix}_burst_noise + {prefix}_release_pulse) * {balance}", -2, 2)};");
         return $"{prefix}_out";
     }
 

@@ -318,6 +318,104 @@ public sealed class PinkTromboneLogMelParityTests
         }
     }
 
+    [Fact]
+    public void PinkTromboneThrombosisGraphDebugProbesWriteTimelineWhenNativeFaustIsInstalled()
+    {
+        if (Environment.GetEnvironmentVariable("AQUASYNTH_RUN_GRAPH_PROBES") != "1")
+        {
+            return;
+        }
+
+        var fixture = PinkTromboneUtteranceFixtures.ById("thrombosis");
+        var source = AutomatedGraphSource(fixture, DebugProbeUi: true);
+        var artifactDir = ArtifactPath("parity", "pink-trombone-graph-thrombosis-probes", DateTimeOffset.UtcNow.ToString("yyyyMMddTHHmmssfff", CultureInfo.InvariantCulture));
+
+        using var compiler = new AquaSynthPatchCompiler();
+        if (!compiler.TryCompileSource(
+            new AquaSynthCompileIdentity("pt_probe_thrombosis", "pt_probe_thrombosis", source),
+            source,
+            fixture.DurationSeconds,
+            out var patch,
+            out var error))
+        {
+            if (error?.Contains("Faust toolchain not found", StringComparison.OrdinalIgnoreCase) == true ||
+                error?.Contains("Faust DLL not found", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return;
+            }
+
+            Assert.Fail($"Native Faust graph thrombosis probe compile failed: {error}{Environment.NewLine}artifacts: {artifactDir}");
+        }
+
+        Directory.CreateDirectory(artifactDir);
+        File.WriteAllText(Path.Combine(artifactDir, "candidate-debug.dsp"), source);
+        File.WriteAllText(Path.Combine(artifactDir, "controls.csv"), UtteranceControlCsv(fixture));
+
+        using (patch)
+        using (var stream = patch!.CreateStreamingPatch())
+        {
+            var probePaths = stream.ProbePaths
+                .Where(IsThrombosisTimelineProbe)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            Assert.Contains(probePaths, path => path.Contains("/source/", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(probePaths, path => path.Contains("/radiation/", StringComparison.OrdinalIgnoreCase));
+            Assert.Contains(probePaths, path => path.Contains("/node/", StringComparison.OrdinalIgnoreCase));
+
+            var blockSize = 128;
+            var frames = Math.Max(1, (int)MathF.Ceiling(fixture.DurationSeconds * patch.Manifest.SampleRate));
+            var inputs = Enumerable.Range(0, stream.InputCount).Select(_ => new float[blockSize]).ToArray();
+            var outputs = Enumerable.Range(0, stream.OutputCount).Select(_ => new float[blockSize]).ToArray();
+            var peaks = probePaths.ToDictionary(path => path, _ => 0.0f, StringComparer.Ordinal);
+            var timeline = new List<string>
+            {
+                "time,output_peak,output_rms," + string.Join(",", probePaths.Select(Escape))
+            };
+
+            for (var offset = 0; offset < frames; offset += blockSize)
+            {
+                var count = Math.Min(blockSize, frames - offset);
+                stream.ProcessBlock(inputs, outputs, count);
+                var snapshot = stream.SnapshotProbes();
+                var outputPeak = 0.0f;
+                var outputEnergy = 0.0f;
+                for (var channel = 0; channel < outputs.Length; channel++)
+                {
+                    for (var sample = 0; sample < count; sample++)
+                    {
+                        outputPeak = Math.Max(outputPeak, MathF.Abs(outputs[channel][sample]));
+                        outputEnergy += outputs[channel][sample] * outputs[channel][sample];
+                    }
+                }
+
+                var values = new List<string>
+                {
+                    F(offset / (float)patch.Manifest.SampleRate),
+                    F(outputPeak),
+                    F(MathF.Sqrt(outputEnergy / Math.Max(1, count * Math.Max(1, outputs.Length))))
+                };
+                foreach (var path in probePaths)
+                {
+                    var value = snapshot.GetValueOrDefault(path);
+                    peaks[path] = Math.Max(peaks[path], MathF.Abs(value));
+                    values.Add(F(value));
+                }
+
+                timeline.Add(string.Join(",", values));
+            }
+
+            var peakLines = peaks
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => string.Create(CultureInfo.InvariantCulture, $"{pair.Key},peak={pair.Value:0.000000}"))
+                .ToArray();
+            File.WriteAllLines(Path.Combine(artifactDir, "timeline.csv"), timeline);
+            File.WriteAllLines(Path.Combine(artifactDir, "probe-peaks.txt"), peakLines);
+
+            Assert.Contains(peakLines, line => line.Contains("/source/", StringComparison.OrdinalIgnoreCase) && !line.EndsWith("peak=0.000000", StringComparison.Ordinal));
+            Assert.Contains(peakLines, line => line.Contains("/radiation/", StringComparison.OrdinalIgnoreCase) && !line.EndsWith("peak=0.000000", StringComparison.Ordinal));
+        }
+    }
+
     private static string Report(PinkTromboneParityFixture fixture, AudioComparison comparison, string candidate) =>
         string.Create(
             CultureInfo.InvariantCulture,
@@ -395,6 +493,12 @@ public sealed class PinkTromboneLogMelParityTests
     }
 
     private readonly record struct ProbePeak(float EnergyIn, float EnergyOut);
+
+    private static bool IsThrombosisTimelineProbe(string path) =>
+        path.Contains("/node/", StringComparison.OrdinalIgnoreCase) ||
+        path.Contains("/source/", StringComparison.OrdinalIgnoreCase) ||
+        path.Contains("/contact/", StringComparison.OrdinalIgnoreCase) ||
+        path.Contains("/radiation/", StringComparison.OrdinalIgnoreCase);
 
     private static string AutomatedGraphSource(PinkTromboneUtteranceFixture fixture, bool DebugProbeUi = false)
     {
