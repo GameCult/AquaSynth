@@ -408,6 +408,42 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void PhonemeGestureDslEmitsAnatomicalControlSplines()
+    {
+        var patch = PatchScript.Parse("""
+            morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.5
+            morphology name=nasal length_cm=12 diameters=.05,.35,.6,.8
+            waveguide_path name=oral_path morphology=oral loss=.998
+            waveguide_path name=nasal_path morphology=nasal loss=.997
+            source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.45 noise=.05 impedance=.3
+            branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
+            constriction_contact name=contact path=oral_path position=.92 opening=.5 resistance=.4 stored_pressure=.1
+            radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
+            vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=contact branches=velopharynx radiation=mouth
+            phoneme_gesture name=ma ipa=m start=0 dur=.16 intensity=.8
+            phoneme_gesture name=hw ipa=ʍ descriptor=voiceless_labial-velar_fricative start=.2 dur=.12 intensity=.9
+            phoneme_gesture name=vowel ipa=a start=.34 dur=.20 intensity=.7
+            vocal network=voice freq=150 gain=.2 sustain=.6
+            """);
+
+        Assert.Equal(3, patch.PhonemeGestures.Count);
+        Assert.Contains(patch.PhonemeGestures, gesture => gesture.Name == "hw" && gesture.Descriptor.Contains("labial-velar", StringComparison.Ordinal));
+        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("ma_velum", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/branches/0/opening");
+        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("ma_contact", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/contacts/0/opening");
+        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("hw_source_noise", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/sources/0/noise");
+        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("hw_constriction_index", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/areas/0/area/constriction_index");
+        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("vowel_tongue_index", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/areas/0/area/tongue_index");
+
+        var catalog = ControlSurfaceCatalog.FromPatch(patch);
+        var timeline = catalog.CreateTimeline();
+        var nasalControls = timeline.ControlValuesAt(.08f);
+        var fricativeControls = timeline.ControlValuesAt(.24f);
+
+        Assert.True(nasalControls["/vocal/branches/0/opening"] > fricativeControls["/vocal/branches/0/opening"]);
+        Assert.True(fricativeControls["/vocal/sources/0/noise"] > nasalControls["/vocal/sources/0/noise"]);
+    }
+
+    [Fact]
     public void PrimitiveProbeTimelineReportsFlowBeforeAudioParity()
     {
         var patch = PatchScript.Parse("""

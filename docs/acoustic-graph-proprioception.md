@@ -291,8 +291,27 @@ The separate gesture/timeline owner is now the live direction:
   A generated contact-opening spline was tested and cut because PT evidence
   showed it invented an open-then-close transient; contact closure must come
   from articulator/area control, not a compensating contact-port story.
+- `phoneme_gesture` is the first IPA/anatomy sugar layer. It accepts known IPA
+  symbols or explicit descriptors such as
+  `descriptor=voiceless_labial-velar_fricative`, identifies the primary organs
+  from place/manner/voicing labels, and emits ordinary `ControlSpline`s onto
+  source, area, branch, contact, and radiation surfaces. It is a deterministic
+  seed, not truth: local reference audio/articulation datasets golf the DSL
+  defaults and the patch's voice code.
 
-Latest focused evidence: `PatchScriptTests` pass 90/90, and
+Example:
+
+```aqua
+phoneme_gesture name=ma ipa=m start=0 dur=.16 intensity=.8
+phoneme_gesture name=hw ipa=ʍ descriptor=voiceless_labial-velar_fricative start=.2 dur=.12
+phoneme_gesture name=vowel ipa=a start=.34 dur=.20
+```
+
+Patches may still use normal FM, AM, modulators, envelopes, filters, and
+post-voice processing around the anatomical control stream. Those tools shape
+expression; they do not replace the phoneme-to-surface ownership map.
+
+Latest focused evidence: `PatchScriptTests` pass 92/92, and
 `PinkTrombonePrimitiveTimelineComparisonWritesArtifacts` writes artifact
 `artifacts/parity/primitive-vocal-timeline/20260529T185955965`, where
 `closure-release` returns to `0.155925` mean absolute primitive timeline error

@@ -2,6 +2,15 @@
 
 Current slice:
 
+- Added the first IPA/anatomy gesture DSL layer. `phoneme_gesture` accepts
+  known IPA symbols or explicit descriptors like
+  `descriptor=voiceless_labial-velar_fricative`, maps place/manner/voicing to
+  the primary anatomical surfaces, and emits ordinary `ControlSpline`s. This is
+  deterministic seed material for local dataset golf, not a claim that IPA
+  labels contain exact numeric targets. Patches remain free to use normal
+  FM/AM/modulators/envelopes/filters around the anatomical control stream.
+  Verification: `PatchScriptTests` pass 92/92.
+
 - Public gesture API pass implemented. `ControlSurfaceCatalog.FromPatch(patch)`
   is the host-facing discovery surface for normalized controls; hosts can create
   `ControlSplineTimeline`, edit future points, and call `ControlValuesAt(t)` to

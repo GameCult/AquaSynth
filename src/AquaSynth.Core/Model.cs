@@ -539,6 +539,14 @@ public sealed record ControlSpline(
     public IReadOnlyList<ControlSplinePoint> Points { get; init; } = Points ?? Array.Empty<ControlSplinePoint>();
 }
 
+public sealed record PhonemeGesture(
+    string Name,
+    string Ipa,
+    string Descriptor,
+    float StartSeconds,
+    float DurationSeconds,
+    float Intensity = 1);
+
 public sealed record VocalNetwork(
     string Name,
     IReadOnlyList<string>? Paths = null,
@@ -907,6 +915,7 @@ public sealed record SynthPatch
     public IReadOnlyList<ControlCurve> ControlCurves { get; init; } = Array.Empty<ControlCurve>();
     public IReadOnlyList<ControlSurface> ControlSurfaces { get; init; } = Array.Empty<ControlSurface>();
     public IReadOnlyList<ControlSpline> ControlSplines { get; init; } = Array.Empty<ControlSpline>();
+    public IReadOnlyList<PhonemeGesture> PhonemeGestures { get; init; } = Array.Empty<PhonemeGesture>();
     public IReadOnlyList<GestureGroup> GestureGroups { get; init; } = Array.Empty<GestureGroup>();
     public IReadOnlyList<ParameterBinding> ParameterBindings { get; init; } = Array.Empty<ParameterBinding>();
     public Playback Playback { get; init; } = new();

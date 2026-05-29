@@ -38,6 +38,7 @@ public static class PatchScript
         private readonly Dictionary<string, ControlSurface> _controlSurfacesByPath = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<ControlSpline> _controlSplines = [];
         private readonly Dictionary<string, ControlSpline> _controlSplinesByName = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<PhonemeGesture> _phonemeGestures = [];
         private readonly List<GestureGroup> _gestureGroups = [];
         private readonly List<ParameterBinding> _parameterBindings = [];
         private readonly List<PatchLayer> _layers = [];
@@ -136,6 +137,7 @@ public static class PatchScript
                 ControlCurves = _controlCurves,
                 ControlSurfaces = _controlSurfaces,
                 ControlSplines = _controlSplines,
+                PhonemeGestures = _phonemeGestures,
                 GestureGroups = _gestureGroups,
                 ParameterBindings = _parameterBindings,
                 Playback = Playback,
@@ -320,6 +322,10 @@ public static class PatchScript
                 case "control_spline":
                     FlushPendingOperatorGraph();
                     AddControlSpline(fields, line);
+                    break;
+                case "phoneme_gesture":
+                    FlushPendingOperatorGraph();
+                    AddPhonemeGesture(fields, line);
                     break;
                 case "gesture":
                     FlushPendingOperatorGraph();
@@ -1320,6 +1326,190 @@ public static class PatchScript
             _controlSplinesByName[name] = spline;
         }
 
+        private void AddAuthoredSpline(
+            string name,
+            string surfacePath,
+            float start,
+            float duration,
+            params (float time, float value)[] points)
+        {
+            if (!_controlSurfacesByPath.TryGetValue(surfacePath, out var surface))
+            {
+                return;
+            }
+
+            var splineName = UniqueSplineName(name);
+            var clamped = points.Length == 0
+                ? [(0f, surface.DefaultNormalized), (1f, surface.DefaultNormalized)]
+                : points;
+            var splinePoints = clamped
+                .Select(point =>
+                    new ControlSplinePoint(
+                        start + Math.Clamp(point.time, 0, 1) * duration,
+                        Math.Clamp(point.value, 0, 1),
+                        duration * 0.25f,
+                        Math.Clamp(point.value, 0, 1),
+                        duration * 0.25f,
+                        Math.Clamp(point.value, 0, 1)))
+                .ToArray();
+            var spline = new ControlSpline(splineName, surfacePath, splinePoints, ControlSplineInterpolation.Bezier);
+            _controlSplines.Add(spline);
+            _controlSplinesByName[spline.Name] = spline;
+        }
+
+        private string UniqueSplineName(string name)
+        {
+            var safe = SafeName(name);
+            if (!_controlSplinesByName.ContainsKey(safe))
+            {
+                return safe;
+            }
+
+            for (var i = 1; ; i++)
+            {
+                var candidate = $"{safe}_{i}";
+                if (!_controlSplinesByName.ContainsKey(candidate))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        private void EmitPhonemeGestureSplines(string name, string descriptor, float start, float duration, float intensity)
+        {
+            var tokens = DescriptorTokens(descriptor);
+            var voiced = tokens.Contains("voiced") || tokens.Contains("vowel") || tokens.Contains("nasal") || tokens.Contains("approximant");
+            if (tokens.Contains("voiceless"))
+            {
+                voiced = false;
+            }
+
+            var place = PlaceTarget(tokens);
+            var constriction = ConstrictionTarget(tokens);
+            var pressure = Math.Clamp(0.45f + 0.30f * intensity, 0, 1);
+            AddAuthoredSpline($"{name}_source_pressure", "/vocal/sources/0/pressure", start, duration, (0, 0.4f), (0.2f, pressure), (1, pressure * 0.85f));
+            AddAuthoredSpline($"{name}_source_tension", "/vocal/sources/0/tension", start, duration, (0, voiced ? 0.55f : 0.18f), (1, voiced ? 0.62f : 0.20f));
+            AddAuthoredSpline($"{name}_source_opening", "/vocal/sources/0/opening", start, duration, (0, voiced ? 0.45f : 0.25f), (1, voiced ? 0.48f : 0.28f));
+            AddAuthoredSpline($"{name}_source_noise", "/vocal/sources/0/noise", start, duration, (0, tokens.Contains("fricative") ? 0.45f : 0.05f), (1, tokens.Contains("fricative") ? 0.55f : 0.05f));
+
+            if (tokens.Contains("vowel"))
+            {
+                EmitVowelGesture(name, tokens, start, duration, intensity);
+                return;
+            }
+
+            AddAuthoredSpline($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, (0, place), (1, place));
+            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, constriction), (0.5f, constriction), (1, Math.Min(0.65f, constriction + 0.2f)));
+
+            if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial") || tokens.Contains("rounded"))
+            {
+                var lipTarget = tokens.Contains("approximant") ? 0.38f : tokens.Contains("fricative") ? 0.18f : 0.04f;
+                AddAuthoredSpline($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, (0, lipTarget), (0.7f, lipTarget), (1, 0.45f));
+                AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, lipTarget), (0.7f, lipTarget), (1, 0.75f));
+            }
+
+            if (tokens.Contains("nasal"))
+            {
+                AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.7f), (0.8f, 0.7f), (1, 0.25f));
+                AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.03f), (0.8f, 0.03f), (1, 0.25f));
+            }
+            else if (tokens.Contains("plosive") || tokens.Contains("stop"))
+            {
+                AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.02f), (0.65f, 0.02f), (1, 0.9f));
+                AddAuthoredSpline($"{name}_stored_pressure", "/vocal/contacts/0/stored_pressure", start, duration, (0, 0.4f), (0.65f, 0.75f), (1, 0.05f));
+                AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
+            }
+            else if (tokens.Contains("fricative"))
+            {
+                AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.18f), (1, 0.22f));
+                AddAuthoredSpline($"{name}_contact_resistance", "/vocal/contacts/0/resistance", start, duration, (0, 0.75f), (1, 0.85f));
+                AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
+            }
+            else
+            {
+                AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.55f), (1, 0.65f));
+            }
+        }
+
+        private void EmitVowelGesture(string name, HashSet<string> tokens, float start, float duration, float intensity)
+        {
+            var frontness = tokens.Contains("front") ? 0.70f : tokens.Contains("back") ? 0.30f : 0.50f;
+            var openness = tokens.Contains("close") ? 0.30f : tokens.Contains("mid") ? 0.50f : tokens.Contains("open") ? 0.78f : 0.55f;
+            var rounding = tokens.Contains("rounded") ? 0.35f : tokens.Contains("unrounded") ? 0.72f : 0.60f;
+            AddAuthoredSpline($"{name}_tongue_index", "/vocal/areas/0/area/tongue_index", start, duration, (0, frontness), (1, frontness));
+            AddAuthoredSpline($"{name}_tongue_diameter", "/vocal/areas/0/area/tongue_diameter", start, duration, (0, openness), (1, openness));
+            AddAuthoredSpline($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, (0, rounding), (1, rounding));
+            AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, Math.Clamp(rounding + 0.1f * intensity, 0, 1)), (1, Math.Clamp(rounding + 0.1f * intensity, 0, 1)));
+            AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
+        }
+
+        private static string GestureDescriptor(string ipa, IReadOnlyDictionary<string, string> fields)
+        {
+            var explicitDescriptor = GetAny(fields, ["descriptor", "desc", "features"], "");
+            if (explicitDescriptor.Length > 0)
+            {
+                return explicitDescriptor;
+            }
+
+            var place = GetAny(fields, ["place"], "");
+            var manner = GetAny(fields, ["manner"], "");
+            var phonation = GetAny(fields, ["voice", "voicing", "phonation"], "");
+            if (place.Length + manner.Length + phonation.Length > 0)
+            {
+                return $"{phonation}_{place}_{manner}";
+            }
+
+            return ipa switch
+            {
+                "p" => "voiceless_bilabial_plosive",
+                "b" => "voiced_bilabial_plosive",
+                "m" => "voiced_bilabial_nasal",
+                "s" => "voiceless_alveolar_fricative",
+                "z" => "voiced_alveolar_fricative",
+                "ʃ" => "voiceless_postalveolar_fricative",
+                "ʒ" => "voiced_postalveolar_fricative",
+                "ʍ" => "voiceless_labial_velar_fricative",
+                "w" => "voiced_labial_velar_approximant",
+                "i" => "voiced_close_front_unrounded_vowel",
+                "u" => "voiced_close_back_rounded_vowel",
+                "a" or "ɑ" => "voiced_open_back_unrounded_vowel",
+                "æ" => "voiced_open_front_unrounded_vowel",
+                "ə" => "voiced_mid_central_unrounded_vowel",
+                _ => "voiced_alveolar_approximant"
+            };
+        }
+
+        private static HashSet<string> DescriptorTokens(string descriptor) =>
+            descriptor
+                .ToLowerInvariant()
+                .Replace('-', '_')
+                .Split(['_', ',', '+', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        private static float PlaceTarget(HashSet<string> tokens)
+        {
+            if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial")) return 0.96f;
+            if (tokens.Contains("dental")) return 0.88f;
+            if (tokens.Contains("alveolar")) return 0.78f;
+            if (tokens.Contains("postalveolar") || tokens.Contains("palatoalveolar")) return 0.70f;
+            if (tokens.Contains("retroflex")) return 0.64f;
+            if (tokens.Contains("palatal")) return 0.56f;
+            if (tokens.Contains("velar")) return 0.44f;
+            if (tokens.Contains("uvular")) return 0.34f;
+            if (tokens.Contains("pharyngeal") || tokens.Contains("epiglottal")) return 0.20f;
+            if (tokens.Contains("glottal")) return 0.05f;
+            return 0.70f;
+        }
+
+        private static float ConstrictionTarget(HashSet<string> tokens)
+        {
+            if (tokens.Contains("plosive") || tokens.Contains("stop") || tokens.Contains("nasal")) return 0.03f;
+            if (tokens.Contains("fricative")) return 0.16f;
+            if (tokens.Contains("approximant")) return 0.48f;
+            if (tokens.Contains("trill") || tokens.Contains("tap") || tokens.Contains("flap")) return 0.24f;
+            return 0.55f;
+        }
+
         private void AddAcousticConnectionRecord(AcousticConnection connection)
         {
             if (_acousticConnectionsByName.ContainsKey(connection.Name)) return;
@@ -2293,6 +2483,21 @@ public static class PatchScript
             _controlSplinesByName[name] = _controlSplines[^1];
         }
 
+        private void AddPhonemeGesture(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var ipa = RequiredAny(fields, ["ipa", "symbol", "phone", "phoneme"], line);
+            var start = GetFloat(fields, line, 0, "start", "time", "at");
+            var duration = Math.Max(0.001f, GetFloat(fields, line, 0.12f, "dur", "duration", "length"));
+            var intensity = Math.Clamp(GetFloat(fields, line, 1, "intensity", "gain", "strength"), 0, 2);
+            var descriptor = GestureDescriptor(ipa, fields);
+            var name = TryGetAny(fields, ["name", "n"], out var nameText)
+                ? nameText
+                : $"ipa_{SafeName(ipa)}_{_phonemeGestures.Count}";
+
+            _phonemeGestures.Add(new PhonemeGesture(name, ipa, descriptor, start, duration, intensity));
+            EmitPhonemeGestureSplines(name, descriptor, start, duration, intensity);
+        }
+
         private void AddControlCurve(IReadOnlyDictionary<string, string> fields, int line)
         {
             var parameterPath = Required(fields, "path", line);
@@ -2418,6 +2623,13 @@ public static class PatchScript
 
         private static string FieldNameFromFieldPath(string fieldPath) =>
             fieldPath.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? fieldPath;
+
+        private static string SafeName(string value)
+        {
+            var chars = value.Select(ch => char.IsLetterOrDigit(ch) ? ch : '_').ToArray();
+            var safe = new string(chars).Trim('_');
+            return safe.Length == 0 ? "gesture" : safe;
+        }
 
         private static List<OperatorNode> ParseOperatorNodes(string value, int line) =>
             value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -3159,6 +3371,7 @@ public static class PatchScript
         "control_surface" or "surface" or "controlsurface" => "control_surface",
         "curve" or "control_curve" or "automation" => "curve",
         "control_spline" or "spline" or "gesture_spline" or "gesturespline" => "control_spline",
+        "phoneme_gesture" or "phone_gesture" or "ipa_gesture" or "phoneme" or "phone" => "phoneme_gesture",
         "gesture" or "gesture_group" or "gesturegroup" => "gesture",
         "s" or "sfxr" => "sfxr",
         _ => command
