@@ -466,7 +466,8 @@ public sealed record SourcePort(
     float Tension = 0.6f,
     float Opening = 0.5f,
     float Noise = 0.08f,
-    float Impedance = 0.35f);
+    float Impedance = 0.35f,
+    float FlowScale = 0.02f);
 
 public sealed record ConstrictionContact(
     string Name,

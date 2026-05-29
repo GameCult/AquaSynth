@@ -45,6 +45,15 @@ Current slice:
   `comparison.csv`, and `summary.txt` under
   `artifacts/parity/primitive-vocal-timeline/<timestamp>`. Focused artifact
   test passes.
+- First comparison-driven law correction: `SourcePort` now owns `FlowScale`
+  (default `.02`) instead of primitive source flow silently emitting unit-scale
+  waves; primitive radiation reflection now reports/uses declared
+  `RadiationLoad.Reflection` instead of aperture-modulating the coefficient;
+  `ProbeTimelineReport` radiation flow now uses the path outgoing wave, matching
+  the Faust law. New artifact `20260529T155613895` drops suite mean absolute
+  timeline error from roughly `1.2-1.3` to `0.15-0.27`. Remaining obvious drift
+  is branch/contact dynamics, which raises a real owner question: gesture slew
+  inside ports or separate gesture/timeline primitive.
 
 - Proprioception correction after user rejected baby-word golf as the rebuild
   owner. Diagnosis is now durable in

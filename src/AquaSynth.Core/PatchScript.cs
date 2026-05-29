@@ -781,7 +781,8 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.6f, $"/vocal/sources/{_sourcePorts.Count}/tension", "tension", "tenseness", "tense"),
                 GetBoundFloat(fields, line, 0.5f, $"/vocal/sources/{_sourcePorts.Count}/opening", "opening", "open"),
                 GetBoundFloat(fields, line, 0.08f, $"/vocal/sources/{_sourcePorts.Count}/noise", "noise", "aspiration"),
-                GetBoundFloat(fields, line, 0.35f, $"/vocal/sources/{_sourcePorts.Count}/impedance", "impedance", "load", "source_impedance"));
+                GetBoundFloat(fields, line, 0.35f, $"/vocal/sources/{_sourcePorts.Count}/impedance", "impedance", "load", "source_impedance"),
+                GetBoundFloat(fields, line, 0.02f, $"/vocal/sources/{_sourcePorts.Count}/flow_scale", "flow_scale", "scale"));
             _sourcePorts.Add(port);
             _sourcePortsByName[name] = port;
         }
@@ -1692,7 +1693,8 @@ public static class PatchScript
                 tract.Tenseness,
                 tract.Glottis?.Skew ?? 0.42f,
                 tract.Glottis?.Aspiration ?? 0.08f,
-                0.10f);
+                0.10f,
+                0.02f);
             if (!_sourcePortsByName.ContainsKey(source.Name))
             {
                 _sourcePorts.Add(source);

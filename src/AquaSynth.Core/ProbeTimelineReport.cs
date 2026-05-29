@@ -20,6 +20,7 @@ public static class ProbeTimelineReport
 
         for (var block = 0; block < Math.Max(1, blocks); block++)
         {
+            var outgoingByPath = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             foreach (var pathName in network.Paths)
             {
                 var path = paths[pathName];
@@ -28,6 +29,7 @@ public static class ProbeTimelineReport
                 var delay = area.Shape.LengthMeters / Math.Max(1, path.PropagationSpeedMetersPerSecond) * 48000;
                 var incoming = PathIncomingFlow(network, sources, contacts, branches, path.Name);
                 var outgoing = incoming * Math.Clamp(path.Loss, 0, 1);
+                outgoingByPath[path.Name] = outgoing;
                 var energyIn = pathArea * incoming * incoming;
                 var energyOut = pathArea * outgoing * outgoing;
                 Add(samples, block, $"path:{path.Name}", "area", pathArea);
@@ -43,8 +45,9 @@ public static class ProbeTimelineReport
             foreach (var sourceName in network.Sources)
             {
                 var source = sources[sourceName];
-                var flow = MathF.Tanh(source.Pressure * Math.Max(0, source.Opening) * (0.5f + source.Tension) / Math.Max(0.05f, source.Impedance));
+                var flow = SourceFlow(source);
                 Add(samples, block, $"source:{source.Name}", "load_pressure", source.Pressure * source.Impedance);
+                Add(samples, block, $"source:{source.Name}", "flow_scale", source.FlowScale);
                 Add(samples, block, $"source:{source.Name}", "flow", flow);
             }
 
@@ -71,8 +74,9 @@ public static class ProbeTimelineReport
             {
                 var load = radiation[loadName];
                 var aperture = Math.Clamp(load.Aperture, 0, 1);
-                var flow = aperture / Math.Max(0.05f, load.Impedance);
-                Add(samples, block, $"radiation:{load.Name}", "reflection", load.Reflection * (1 - 0.65f * aperture));
+                var pathWave = outgoingByPath.GetValueOrDefault(load.Path, 0);
+                var flow = pathWave * aperture / Math.Max(0.05f, load.Impedance);
+                Add(samples, block, $"radiation:{load.Name}", "reflection", load.Reflection);
                 Add(samples, block, $"radiation:{load.Name}", "boundary_flow", flow);
                 Add(samples, block, $"radiation:{load.Name}", "flow", flow);
                 Add(samples, block, $"radiation:{load.Name}", "output", flow);
@@ -113,7 +117,7 @@ public static class ProbeTimelineReport
         var sourceFlow = network.Sources
             .Select(name => sources[name])
             .Where(source => source.Path.Equals(pathName, StringComparison.OrdinalIgnoreCase))
-            .Sum(source => MathF.Tanh(source.Pressure * Math.Max(0, source.Opening) * (0.5f + source.Tension) / Math.Max(0.05f, source.Impedance)));
+            .Sum(SourceFlow);
         var contactFlow = network.Contacts
             .Select(name => contacts[name])
             .Where(contact => contact.Path.Equals(pathName, StringComparison.OrdinalIgnoreCase))
@@ -129,6 +133,9 @@ public static class ProbeTimelineReport
             .Sum(branch => -Math.Clamp(branch.Opening, 0, 1) * Math.Clamp(branch.Coupling, 0, 1) * 0.05f);
         return sourceFlow + contactFlow + branchFlow;
     }
+
+    private static float SourceFlow(SourcePort source) =>
+        source.FlowScale * MathF.Tanh(source.Pressure * Math.Max(0, source.Opening) * (0.5f + source.Tension) / Math.Max(0.05f, source.Impedance));
 
     private static string Escape(string value) =>
         value.Contains(',') || value.Contains('"') ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"" : value;

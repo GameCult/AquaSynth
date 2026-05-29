@@ -243,11 +243,15 @@ PT/SndKit comparison report:
 - `PinkTrombonePrimitiveTimelineComparisonWritesArtifacts` writes per-fixture
   Aqua timelines, PT internal timelines, comparison CSVs, and a summary under
   `artifacts/parity/primitive-vocal-timeline`.
+- The first comparison-driven correction demoted hidden source unit gain into
+  explicit `SourcePort.FlowScale`, stopped aperture from rewriting
+  `RadiationLoad.Reflection`, and fixed `ProbeTimelineReport` radiation flow to
+  observe path wave flow rather than `aperture / impedance` alone.
 
 The next implementation pass should harden the primitives further:
 
-- use the artifact reports to choose the first physical-law correction in the
-  primitive machine;
+- decide where gesture slew lives: inside primitive ports or in a separate
+  gesture/timeline owner;
 - add optional VTL/ArtiSynth adapters only as artifact comparators, not default
   CI dependencies;
 - keep `mama`, `papa`, and `thrombosis` as downstream witnesses until primitive

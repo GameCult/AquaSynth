@@ -254,7 +254,7 @@ public sealed class PatchScriptTests
             param path=/mouth/open default=.9 min=0 max=1 step=.001
             morphology name=human length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9 emit_sections=6 tongue_diameter=1.4 constriction_diameter=.8 lip_opening=@/mouth/open
             waveguide_path name=oral morphology=human strategy=thiran order=1 max_delay=4096 loss=.998
-            source_port name=modal path=oral kind=glottal position=0 pressure=.72 tension=.58 opening=.45 noise=.04 impedance=.32
+            source_port name=modal path=oral kind=glottal position=0 pressure=.72 tension=.58 opening=.45 noise=.04 impedance=.32 flow_scale=.02
             constriction_contact name=lip_stop path=oral position=.94 opening=@/mouth/open resistance=.45 stored_pressure=.8
             radiation_load name=mouth path=oral kind=lip position=1 aperture=@/mouth/open reflection=-.82 impedance=.28
             probe_timeline name=flow network=human blocks=2 block_size=32
@@ -271,6 +271,7 @@ public sealed class PatchScriptTests
         Assert.Equal("human", path.AreaFunction);
         Assert.Equal(WaveClockDelayStrategy.FractionalThiran, path.DelayStrategy);
         Assert.Single(patch.SourcePorts);
+        Assert.Equal(.02f, Assert.Single(patch.SourcePorts).FlowScale, 5);
         Assert.Single(patch.ConstrictionContacts);
         Assert.Single(patch.RadiationLoads);
         Assert.Single(patch.ProbeTimelines);
@@ -327,6 +328,7 @@ public sealed class PatchScriptTests
         Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "energy_out");
         Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "passivity_ratio");
         Assert.Contains(samples, sample => sample.Primitive == "source:modal" && sample.Signal == "flow");
+        Assert.Contains(samples, sample => sample.Primitive == "source:modal" && sample.Signal == "flow_scale");
         Assert.Contains(samples, sample => sample.Primitive == "contact:lip_stop" && sample.Signal == "resistance");
         Assert.Contains(samples, sample => sample.Primitive == "contact:lip_stop" && sample.Signal == "released_flow");
         Assert.Contains(samples, sample => sample.Primitive == "radiation:mouth" && sample.Signal == "output");

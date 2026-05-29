@@ -598,10 +598,11 @@ public static class FaustEmitter
         var tension = parameters.Expression(OwnerField(owner, "tension"), port.Tension);
         var opening = parameters.Expression(OwnerField(owner, "opening"), port.Opening);
         var impedance = parameters.Expression(OwnerField(owner, "impedance"), port.Impedance);
+        var flowScale = parameters.Expression(OwnerField(owner, "flow_scale"), port.FlowScale);
         var load = $"{voiceName}_primitive_source_{safe}_load_pressure";
         var flow = $"{voiceName}_primitive_source_{safe}_flow";
         source.AppendLine($"    {load} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/load_pressure", $"({impedance}) * ({pressure})", 0, 2)};");
-        source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"ma.tanh((({pressure}) * max(0.0, {opening}) * (0.5 + {tension}) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)}) / max(0.05, {impedance}))", -2, 2)};");
+        source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * ma.tanh((({pressure}) * max(0.0, {opening}) * (0.5 + {tension}) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)}) / max(0.05, {impedance}))", -2, 2)};");
         keepAlive.Add(load);
         keepAlive.Add(flow);
         return flow;
@@ -671,7 +672,7 @@ public static class FaustEmitter
         var boundary = $"{voiceName}_primitive_radiation_{safe}_boundary_flow";
         var flow = $"{voiceName}_primitive_radiation_{safe}_flow";
         var output = $"{voiceName}_primitive_radiation_{safe}_output";
-        source.AppendLine($"    {voiceName}_primitive_radiation_{safe}_reflection = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/reflection", $"({reflection}) * (1.0 - 0.65 * {aperture})", -1, 1)};");
+        source.AppendLine($"    {voiceName}_primitive_radiation_{safe}_reflection = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/reflection", reflection, -1, 1)};");
         source.AppendLine($"    {boundary} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/boundary_flow", $"({wave}) * {aperture} / max(0.05, {impedance})", -4, 4)};");
         source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/flow", boundary, -4, 4)};");
         source.AppendLine($"    {output} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/output", $"{flow} : fi.highpass(1, 40.0 + 500.0 * {aperture})", -4, 4)};");
