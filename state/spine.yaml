@@ -1,6 +1,6 @@
 project: AquaSynth
 spine_version: 1
-updated: 2026-05-28T13:05:00+01:00
+updated: 2026-05-29T12:12:57+01:00
 
 prime_directive: >
   Build coherent synth machinery. References exist to reveal missing structure,
@@ -47,6 +47,7 @@ current_mechanism:
   pink_trombone_dsl_parity_plan: docs/pink-trombone-dsl-parity-plan.md
   physical_voice_modeling_research: docs/physical-voice-modeling-research.md
   acoustic_graph_dsp_audit: docs/acoustic-graph-dsp-audit.md
+  acoustic_graph_missing_pieces_audit: docs/acoustic-graph-missing-pieces-audit.md
   physical_voice_modeling_packet: research/physical-voice-modeling
   parameter_contracts: src/AquaSynth.Core/Model.cs
 
