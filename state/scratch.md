@@ -2,6 +2,24 @@
 
 Current slice:
 
+- Implemented the gesture/timeline owner cut for primitive vocals.
+  `ControlSurface` now exposes normalized runtime controls for primitive fields,
+  and `ControlSpline` owns linear/hold/Bezier motion over those surfaces.
+  Primitive Faust lowering maps effective normalized surface values back into
+  physical fields; explicit old `@/param` bindings remain base controls so PT
+  fixture controls are not bypassed. `ControlSplineTimeline` supports future
+  point edits for realtime clients.
+- `tract_motion` now adapts velopharynx motion into a branch-opening
+  `ControlSpline`. A generated contact-opening spline was tested and deleted:
+  PT timeline evidence showed the obstruction was already closed at block zero,
+  so an invented open-then-close contact story was a compensator. Contact
+  closure should come from articulator/area ownership, not local contact slew.
+- Verification for this cut: `PatchScriptTests` pass 90/90. Focused primitive
+  timeline artifact test passes and writes
+  `artifacts/parity/primitive-vocal-timeline/20260529T185955965`; summary:
+  open-vowel 0.267624, front-vowel 0.246432, nasal-vowel 0.223792,
+  bilabial-nasal-ma 0.226266, sibilant 0.177032, closure-release 0.155925.
+
 - First primitive vocal teardown cut implemented. `AreaFunction`,
   `WaveguidePath`, `SourcePort`, `ConstrictionContact`, `BranchPort`,
   `RadiationLoad`, `ProbeTimeline`, and `VocalNetwork` are model records with

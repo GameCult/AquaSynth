@@ -43,6 +43,8 @@ public static class FaustEmitter
         source.AppendLine("release_start(a,d,g) = max(g, a + d);");
         source.AppendLine("oneshot_adsr(a,d,s,r,g) = select2(age < a, select2(age < a + d, select2(age < release_start(a,d,g), select2(age < release_start(a,d,g) + r, 0.0, s * (1.0 - (age - release_start(a,d,g)) / max(0.0001, r))), s), 1.0 - (1.0 - s) * ((age - a) / max(0.0001, d))), age / max(0.0001, a));");
         source.AppendLine("seg(t,t0,d,a,b) = a + (b - a) * clip01((t - t0) / max(0.0001, d));");
+        source.AppendLine("bez(t,a,b,c,d) = (1.0 - t) * (1.0 - t) * (1.0 - t) * a + 3.0 * (1.0 - t) * (1.0 - t) * t * b + 3.0 * (1.0 - t) * t * t * c + t * t * t * d;");
+        source.AppendLine("seg_bez(t,t0,d,a,b,c,e) = bez(clip01((t - t0) / max(0.0001, d)), a, b, c, e);");
         source.AppendLine("smooth01(x) = clip01(x) * clip01(x) * (3.0 - 2.0 * clip01(x));");
         source.AppendLine("seg_smooth(t,t0,d,a,b) = a + (b - a) * smooth01((t - t0) / max(0.0001, d));");
         source.AppendLine("seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));");
@@ -65,6 +67,12 @@ public static class FaustEmitter
 
         EmitParameterControls(source, patch, parameters);
         if (patch.Parameters.Count > 0)
+        {
+            source.AppendLine();
+        }
+
+        EmitControlSurfaces(source, patch, parameters);
+        if (patch.ControlSurfaces.Count > 0)
         {
             source.AppendLine();
         }
@@ -132,6 +140,97 @@ public static class FaustEmitter
                 : $"{baseId} * (1.0 - {depthId}) + {curveId}_value * {depthId}";
             source.AppendLine($"{parameterId} = min({F(parameter.Max)}, max({F(parameter.Min)}, {blended}));");
         }
+    }
+
+    private static void EmitControlSurfaces(StringBuilder source, SynthPatch patch, ParameterMap parameters)
+    {
+        for (var i = 0; i < patch.ControlSurfaces.Count; i++)
+        {
+            var surface = patch.ControlSurfaces[i];
+            var id = ControlSurfaceIdentifier(i);
+            var baseId = $"{id}_base";
+            var normalized = $"{id}_normalized";
+            var physical = $"{id}_physical";
+            var publicControl = $"hslider(\"{Escape(surface.Path)}\", {F(surface.DefaultNormalized)}, 0, 1, 0.001) : si.smoo";
+            var boundControl = parameters.TryBindingExpression(surface.FieldPath, out var bindingExpression)
+                ? $"clip01(({bindingExpression} - {F(surface.MinValue)}) / max(0.000001, {F(surface.MaxValue - surface.MinValue)}))"
+                : publicControl;
+            source.AppendLine($"{baseId} = {boundControl};");
+
+            var splines = patch.ControlSplines
+                .Where(spline => spline.Enabled && spline.SurfacePath.Equals(surface.Path, StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (splines.Length == 0)
+            {
+                source.AppendLine($"{normalized} = clip01({baseId});");
+            }
+            else
+            {
+                var terms = new List<string>();
+                for (var splineIndex = 0; splineIndex < splines.Length; splineIndex++)
+                {
+                    var spline = splines[splineIndex];
+                    var splineId = $"{id}_spline_{splineIndex}";
+                    EmitControlSpline(source, spline, splineId, surface.DefaultNormalized);
+                    var depth = $"{splineId}_depth";
+                    source.AppendLine($"{depth} = hslider(\"/splines/{Escape(spline.Name)}/depth\", 1, 0, 1, 0.001) : si.smoo;");
+                    terms.Add($"(({splineId}_value - {F(surface.DefaultNormalized)}) * {depth})");
+                }
+
+                source.AppendLine($"{normalized} = clip01({baseId} + {string.Join(" + ", terms)});");
+            }
+
+            source.AppendLine($"{physical} = {F(surface.MinValue)} + ({F(surface.MaxValue - surface.MinValue)}) * {normalized};");
+            parameters.BindSurface(surface.FieldPath, physical);
+        }
+    }
+
+    private static void EmitControlSpline(StringBuilder source, ControlSpline spline, string splineId, float fallback)
+    {
+        var points = spline.Points.OrderBy(point => point.TimeSeconds).ToArray();
+        if (points.Length == 0)
+        {
+            source.AppendLine($"{splineId}_value = {F(fallback)};");
+            return;
+        }
+
+        for (var i = 0; i < points.Length; i++)
+        {
+            var point = points[i];
+            source.AppendLine($"{splineId}_p{i}_time = hslider(\"/splines/{Escape(spline.Name)}/{i}/time\", {F(point.TimeSeconds)}, 0, 120, 0.001);");
+            source.AppendLine($"{splineId}_p{i}_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/value\", {F(Math.Clamp(point.Value, 0, 1))}, 0, 1, 0.001) : si.smoo;");
+            source.AppendLine($"{splineId}_p{i}_out_time = hslider(\"/splines/{Escape(spline.Name)}/{i}/out_time\", {F(Math.Max(0, point.OutTimeOffsetSeconds))}, 0, 10, 0.001);");
+            source.AppendLine($"{splineId}_p{i}_out_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/out_value\", {F(point.OutValue == 0 ? point.Value : Math.Clamp(point.OutValue, 0, 1))}, 0, 1, 0.001) : si.smoo;");
+            source.AppendLine($"{splineId}_p{i}_in_time = hslider(\"/splines/{Escape(spline.Name)}/{i}/in_time\", {F(Math.Max(0, point.InTimeOffsetSeconds))}, 0, 10, 0.001);");
+            source.AppendLine($"{splineId}_p{i}_in_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/in_value\", {F(point.InValue == 0 ? point.Value : Math.Clamp(point.InValue, 0, 1))}, 0, 1, 0.001) : si.smoo;");
+        }
+
+        if (points.Length == 1)
+        {
+            source.AppendLine($"{splineId}_value = {splineId}_p0_value;");
+            return;
+        }
+
+        var lastPoint = points.Length - 1;
+        var lastTime = Math.Max(points[^1].TimeSeconds, 0.0001f);
+        var splineTime = spline.Loop
+            ? $"wrap01(age / {F(lastTime)}) * {F(lastTime)}"
+            : "age";
+        var expression = $"{splineId}_p{lastPoint}_value";
+        for (var i = points.Length - 2; i >= 0; i--)
+        {
+            var from = $"{splineId}_p{i}";
+            var to = $"{splineId}_p{i + 1}";
+            var segment = spline.Interpolation switch
+            {
+                ControlSplineInterpolation.Hold => $"{from}_value",
+                ControlSplineInterpolation.Linear => $"seg({splineTime}, {from}_time, max(0.0001, {to}_time - {from}_time), {from}_value, {to}_value)",
+                _ => $"seg_bez({splineTime}, {from}_time, max(0.0001, {to}_time - {from}_time), {from}_value, {from}_out_value, {to}_in_value, {to}_value)"
+            };
+            expression = $"select2({splineTime} < {to}_time, {expression}, {segment})";
+        }
+
+        source.AppendLine($"{splineId}_value = clip01({expression});");
     }
 
     private static void EmitControlCurve(StringBuilder source, ControlCurve curve, PatchParameter parameter, string curveId)
@@ -1483,6 +1582,8 @@ public static class FaustEmitter
 
     private static string ParameterIdentifier(int index) => $"patch_param_{index}";
 
+    private static string ControlSurfaceIdentifier(int index) => $"control_surface_{index}";
+
     private static string VoicePath(int voiceIndex) => $"/voices/{voiceIndex}";
 
     private static string SpectralPath(int spectralIndex) => $"/spectral/{spectralIndex}";
@@ -2356,6 +2457,7 @@ public static class FaustEmitter
     {
         private readonly Dictionary<string, int> _parameterIndexes = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, ParameterBinding> _bindings = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _surfaceExpressions = new(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _boundParameterPaths = new(StringComparer.OrdinalIgnoreCase);
 
         public ParameterMap(SynthPatch patch, List<string> warnings)
@@ -2388,13 +2490,37 @@ public static class FaustEmitter
 
         public bool IsBound(string fieldPath) => _bindings.ContainsKey(fieldPath);
 
+        public void BindSurface(string fieldPath, string expression) => _surfaceExpressions[fieldPath] = expression;
+
+        public bool TryBindingExpression(string fieldPath, out string expression)
+        {
+            if (!_bindings.TryGetValue(fieldPath, out var binding))
+            {
+                expression = "";
+                return false;
+            }
+
+            expression = BindingExpression(binding);
+            return true;
+        }
+
         public string Expression(string fieldPath, float fallback)
         {
+            if (_surfaceExpressions.TryGetValue(fieldPath, out var surfaceExpression))
+            {
+                return surfaceExpression;
+            }
+
             if (!_bindings.TryGetValue(fieldPath, out var binding))
             {
                 return F(fallback);
             }
 
+            return BindingExpression(binding);
+        }
+
+        private string BindingExpression(ParameterBinding binding)
+        {
             var parameter = ParameterIdentifier(_parameterIndexes[binding.ParameterPath]);
             var transformed = binding.Transform switch
             {

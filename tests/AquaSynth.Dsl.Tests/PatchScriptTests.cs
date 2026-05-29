@@ -307,6 +307,74 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void PrimitiveVocalGraphExposesNormalizedControlSurfacesAndSplineGestures()
+    {
+        var patch = PatchScript.Parse("""
+            morphology name=oral length_cm=17 diameters=.6,.9,1.2,1.4,1.1,.8
+            morphology name=nasal length_cm=12 diameters=.05,.35,.6,.8
+            waveguide_path name=oral_path morphology=oral loss=.998
+            waveguide_path name=nasal_path morphology=nasal loss=.997
+            source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.45 noise=.05 impedance=.3
+            branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
+            constriction_contact name=labial path=oral_path position=.92 opening=.05 resistance=.8 stored_pressure=.4
+            radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
+            probe_timeline name=flow network=voice blocks=4 block_size=64
+            vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=labial branches=velopharynx radiation=mouth probe=flow
+            control_spline name=velum_open surface=/vocal/branches/0/opening interp=bezier points=0:.01:.02:.01,0.08:.75:.02:.75
+            gesture name=labial_release surface=/vocal/contacts/0/opening interp=linear points=0:.05,0.04:.9
+            vocal network=voice freq=150 gain=.2 sustain=.2
+            """);
+
+        Assert.Contains(patch.ControlSurfaces, surface =>
+            surface.Path == "/vocal/branches/0/opening" &&
+            surface.FieldPath == "/vocal/branches/0/opening" &&
+            surface.DefaultNormalized < .02f);
+        Assert.Contains(patch.ControlSurfaces, surface => surface.Path == "/vocal/contacts/0/opening");
+        Assert.Contains(patch.ControlSurfaces, surface => surface.Path == "/vocal/radiation/0/aperture");
+        Assert.Equal(2, patch.ControlSplines.Count);
+
+        var timeline = new ControlSplineTimeline(patch.ControlSplines);
+        timeline.SetFuturePoint("/vocal/branches/0/opening", new ControlSplinePoint(.12f, .2f), nowSeconds: .1f);
+        Assert.InRange(timeline.ValueAt("/vocal/branches/0/opening", .12f), .19f, .21f);
+
+        var early = ProbeTimelineReport.Build(patch, "voice", blocks: 1)
+            .Single(sample => sample.Primitive == "branch:velopharynx" && sample.Signal == "admittance")
+            .Value;
+        var late = ProbeTimelineReport.Build(patch, "voice", blocks: 80)
+            .Last(sample => sample.Primitive == "branch:velopharynx" && sample.Signal == "admittance")
+            .Value;
+        Assert.True(late > early, $"expected spline gesture to open velopharynx, early={early} late={late}");
+
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions("primitive_spline"));
+        Assert.Contains("control_surface_0", export.Source);
+        Assert.Contains("/vocal/branches/0/opening", export.Source);
+        Assert.Contains("/splines/velum_open/0/value", export.Source);
+        Assert.Contains("seg_bez", export.Source);
+    }
+
+    [Fact]
+    public void TractMotionAdapterEmitsPrimitiveControlSplinesInsteadOfLocalSlew()
+    {
+        var patch = PatchScript.Parse("""
+            tract_shape name=human length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9
+            nasal_branch name=nose length_cm=12 junction=3 velum=.35 diameters=.01,.35,.6,.8
+            tract_motion name=motion velum_slew=16 constriction_slew=24
+            tract shape=human nasal_branch=nose motion=motion propagation=graph sections=6 velum=.35 freq=140 sustain=.2
+            """);
+
+        var branchSurface = Assert.Single(patch.ControlSurfaces, surface => surface.Path == "/vocal/branches/0/opening");
+        Assert.Equal("/vocal/branches/0/opening", branchSurface.FieldPath);
+        var branchMotion = Assert.Single(patch.ControlSplines, spline => spline.SurfacePath == "/vocal/branches/0/opening");
+        Assert.Contains("velopharynx", branchMotion.Name);
+        Assert.Equal(ControlSplineInterpolation.Bezier, branchMotion.Interpolation);
+
+        var first = Assert.Single(branchMotion.Points, point => point.TimeSeconds == 0);
+        var last = branchMotion.Points.OrderBy(point => point.TimeSeconds).Last();
+        Assert.InRange(first.Value, .009f, .011f);
+        Assert.InRange(last.Value, .34f, .36f);
+    }
+
+    [Fact]
     public void PrimitiveProbeTimelineReportsFlowBeforeAudioParity()
     {
         var patch = PatchScript.Parse("""

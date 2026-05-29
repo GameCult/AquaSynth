@@ -34,6 +34,10 @@ public static class PatchScript
         private readonly List<OperatorGraph> _operatorGraphs = [];
         private readonly List<PatchParameter> _parameters = [];
         private readonly List<ControlCurve> _controlCurves = [];
+        private readonly List<ControlSurface> _controlSurfaces = [];
+        private readonly Dictionary<string, ControlSurface> _controlSurfacesByPath = new(StringComparer.OrdinalIgnoreCase);
+        private readonly List<ControlSpline> _controlSplines = [];
+        private readonly Dictionary<string, ControlSpline> _controlSplinesByName = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<GestureGroup> _gestureGroups = [];
         private readonly List<ParameterBinding> _parameterBindings = [];
         private readonly List<PatchLayer> _layers = [];
@@ -130,6 +134,8 @@ public static class PatchScript
                 Controls = _controls,
                 Parameters = _parameters,
                 ControlCurves = _controlCurves,
+                ControlSurfaces = _controlSurfaces,
+                ControlSplines = _controlSplines,
                 GestureGroups = _gestureGroups,
                 ParameterBindings = _parameterBindings,
                 Playback = Playback,
@@ -303,13 +309,28 @@ public static class PatchScript
                     FlushPendingOperatorGraph();
                     AddParameter(fields, line);
                     break;
+                case "control_surface":
+                    FlushPendingOperatorGraph();
+                    AddControlSurface(fields, line);
+                    break;
                 case "curve":
                     FlushPendingOperatorGraph();
                     AddControlCurve(fields, line);
                     break;
+                case "control_spline":
+                    FlushPendingOperatorGraph();
+                    AddControlSpline(fields, line);
+                    break;
                 case "gesture":
                     FlushPendingOperatorGraph();
-                    AddGestureGroup(fields, line);
+                    if (HasAny(fields, "surface", "surface_path", "target"))
+                    {
+                        AddControlSpline(fields, line);
+                    }
+                    else
+                    {
+                        AddGestureGroup(fields, line);
+                    }
                     break;
                 case "sfxr":
                     FlushPendingOperatorGraph();
@@ -629,6 +650,7 @@ public static class PatchScript
                 GetBoundInt(fields, line, 8, $"/vocal/areas/{_areaFunctions.Count}/emit_sections", "emit_sections", "sections", "samples"));
             _areaFunctions.Add(area);
             _areaFunctionsByName[name] = area;
+            RegisterAreaFunctionSurfaces(_areaFunctions.Count - 1, area);
         }
 
         private void AddWaveguidePath(IReadOnlyDictionary<string, string> fields, int line)
@@ -655,6 +677,8 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.999f, $"/vocal/paths/{_waveguidePaths.Count}/loss", "loss"));
             _waveguidePaths.Add(path);
             _waveguidePathsByName[name] = path;
+            RegisterNormalizedPrimitiveSurface($"/vocal/paths/{_waveguidePaths.Count - 1}/speed", name, "speed", path.PropagationSpeedMetersPerSecond, 100, 1000, "m/s");
+            RegisterNormalizedPrimitiveSurface($"/vocal/paths/{_waveguidePaths.Count - 1}/loss", name, "loss", path.Loss);
         }
 
         private static bool HasAcousticAreaControl(IReadOnlyDictionary<string, string> fields) =>
@@ -785,6 +809,7 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.02f, $"/vocal/sources/{_sourcePorts.Count}/flow_scale", "flow_scale", "scale"));
             _sourcePorts.Add(port);
             _sourcePortsByName[name] = port;
+            RegisterSourcePortSurfaces(_sourcePorts.Count - 1, port);
         }
 
         private void AddConstrictionContact(IReadOnlyDictionary<string, string> fields, int line)
@@ -811,6 +836,7 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0, $"/vocal/contacts/{_constrictionContacts.Count}/release_flow", "release_flow", "release"));
             _constrictionContacts.Add(contact);
             _constrictionContactsByName[name] = contact;
+            RegisterContactSurfaces(_constrictionContacts.Count - 1, contact);
         }
 
         private void AddBranchPort(IReadOnlyDictionary<string, string> fields, int line)
@@ -835,6 +861,7 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 1, $"/vocal/branches/{_branchPorts.Count}/coupling", "coupling"));
             _branchPorts.Add(branch);
             _branchPortsByName[name] = branch;
+            RegisterBranchSurfaces(_branchPorts.Count - 1, branch);
         }
 
         private void AddRadiationLoad(IReadOnlyDictionary<string, string> fields, int line)
@@ -861,6 +888,7 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.35f, $"/vocal/radiation/{_radiationLoads.Count}/impedance", "impedance", "load"));
             _radiationLoads.Add(load);
             _radiationLoadsByName[name] = load;
+            RegisterRadiationSurfaces(_radiationLoads.Count - 1, load);
         }
 
         private void AddProbeTimeline(IReadOnlyDictionary<string, string> fields, int line)
@@ -1165,6 +1193,131 @@ public static class PatchScript
             }
 
             _parameterBindings.Add(new ParameterBinding(targetFieldPath, source.ParameterPath, transform, scale));
+        }
+
+        private void RegisterControlSurface(
+            string path,
+            string fieldPath,
+            string owner,
+            string field,
+            float defaultValue,
+            float minValue,
+            float maxValue,
+            string label = "",
+            string unit = "",
+            string automationRate = "control")
+        {
+            if (!path.StartsWith('/'))
+            {
+                path = "/" + path;
+            }
+
+            if (_controlSurfacesByPath.ContainsKey(path))
+            {
+                return;
+            }
+
+            var normalized = Math.Clamp((defaultValue - minValue) / Math.Max(0.000001f, maxValue - minValue), 0, 1);
+            var surface = new ControlSurface(
+                path,
+                fieldPath,
+                owner,
+                field,
+                normalized,
+                minValue,
+                maxValue,
+                label.Length == 0 ? field : label,
+                unit,
+                automationRate);
+            _controlSurfaces.Add(surface);
+            _controlSurfacesByPath[path] = surface;
+        }
+
+        private void RegisterNormalizedPrimitiveSurface(
+            string fieldPath,
+            string owner,
+            string field,
+            float defaultValue,
+            float minValue = 0,
+            float maxValue = 1,
+            string unit = "") =>
+            RegisterControlSurface(fieldPath, fieldPath, owner, field, defaultValue, minValue, maxValue, field, unit);
+
+        private void RegisterSourcePortSurfaces(int index, SourcePort port)
+        {
+            var owner = $"/vocal/sources/{index}";
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "pressure"), port.Name, "pressure", port.Pressure);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "tension"), port.Name, "tension", port.Tension);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "opening"), port.Name, "opening", port.Opening);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "noise"), port.Name, "noise", port.Noise);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "impedance"), port.Name, "impedance", port.Impedance, 0.05f, 2);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "flow_scale"), port.Name, "flow_scale", port.FlowScale, 0, 0.2f);
+        }
+
+        private void RegisterAreaFunctionSurfaces(int index, AreaFunction area)
+        {
+            if (area.Deformation is null)
+            {
+                return;
+            }
+
+            var owner = $"/vocal/areas/{index}/area";
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "tongue_index"), area.Name, "tongue_index", area.Deformation.TongueIndex, 0, Math.Max(1, area.Shape.Sections));
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "tongue_diameter"), area.Name, "tongue_diameter", area.Deformation.TongueDiameter, 0, 4, "cm");
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "constriction_index"), area.Name, "constriction_index", area.Deformation.ConstrictionIndex, 0, Math.Max(1, area.Shape.Sections));
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "constriction_diameter"), area.Name, "constriction_diameter", area.Deformation.ConstrictionDiameter, 0, 4, "cm");
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "lip_opening"), area.Name, "lip_opening", area.Deformation.LipOpening, 0, 4, "cm");
+        }
+
+        private void RegisterContactSurfaces(int index, ConstrictionContact contact)
+        {
+            var owner = $"/vocal/contacts/{index}";
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "opening"), contact.Name, "opening", contact.Opening);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "resistance"), contact.Name, "resistance", contact.Resistance, 0, 2);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "stored_pressure"), contact.Name, "stored_pressure", contact.StoredPressure, 0, 2);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "release_flow"), contact.Name, "release_flow", contact.ReleaseFlow, 0, 2);
+        }
+
+        private void RegisterBranchSurfaces(int index, BranchPort branch)
+        {
+            var owner = $"/vocal/branches/{index}";
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "opening"), branch.Name, "opening", branch.Opening);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "coupling"), branch.Name, "coupling", branch.Coupling);
+        }
+
+        private void RegisterRadiationSurfaces(int index, RadiationLoad load)
+        {
+            var owner = $"/vocal/radiation/{index}";
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "aperture"), load.Name, "aperture", load.Aperture);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "reflection"), load.Name, "reflection", load.Reflection, -1, 1);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "impedance"), load.Name, "impedance", load.Impedance, 0.05f, 2);
+        }
+
+        private void AddGeneratedControlSpline(
+            string name,
+            string surfacePath,
+            float initial,
+            float target,
+            float slewPerSecond,
+            ControlSplineInterpolation interpolation = ControlSplineInterpolation.Bezier)
+        {
+            if (!_controlSurfacesByPath.ContainsKey(surfacePath) || _controlSplinesByName.ContainsKey(name))
+            {
+                return;
+            }
+
+            var duration = Math.Clamp(Math.Abs(target - initial) / Math.Max(0.0001f, slewPerSecond), 0.005f, 0.25f);
+            var handle = duration * 0.35f;
+            var spline = new ControlSpline(
+                name,
+                surfacePath,
+                [
+                    new ControlSplinePoint(0, Math.Clamp(initial, 0, 1), handle, Math.Clamp(initial, 0, 1)),
+                    new ControlSplinePoint(duration, Math.Clamp(target, 0, 1), 0, 0, handle, Math.Clamp(target, 0, 1))
+                ],
+                interpolation);
+            _controlSplines.Add(spline);
+            _controlSplinesByName[name] = spline;
         }
 
         private void AddAcousticConnectionRecord(AcousticConnection connection)
@@ -1665,6 +1818,7 @@ public static class PatchScript
             {
                 _areaFunctions.Add(area);
                 _areaFunctionsByName[area.Name] = area;
+                RegisterAreaFunctionSurfaces(areaIndex, area);
             }
             MirrorParameterBinding(OwnerField(tractPath, "tongue_index"), $"/vocal/areas/{areaIndex}/area/tongue_index");
             MirrorParameterBinding(OwnerField(tractPath, "tongue_diameter"), $"/vocal/areas/{areaIndex}/area/tongue_diameter");
@@ -1679,6 +1833,8 @@ public static class PatchScript
             {
                 _waveguidePaths.Add(path);
                 _waveguidePathsByName[path.Name] = path;
+                RegisterNormalizedPrimitiveSurface($"/vocal/paths/{pathIndex}/speed", path.Name, "speed", path.PropagationSpeedMetersPerSecond, 100, 1000, "m/s");
+                RegisterNormalizedPrimitiveSurface($"/vocal/paths/{pathIndex}/loss", path.Name, "loss", path.Loss);
             }
             MirrorParameterBinding(OwnerField(tractPath, "loss"), $"/vocal/paths/{pathIndex}/loss");
 
@@ -1699,6 +1855,7 @@ public static class PatchScript
             {
                 _sourcePorts.Add(source);
                 _sourcePortsByName[source.Name] = source;
+                RegisterSourcePortSurfaces(sourceIndex, source);
             }
             MirrorParameterBinding(OwnerField(tractPath, "intensity"), $"/vocal/sources/{sourceIndex}/pressure");
             MirrorParameterBinding(OwnerField(tractPath, "tenseness"), $"/vocal/sources/{sourceIndex}/tension");
@@ -1724,6 +1881,7 @@ public static class PatchScript
                 {
                     _constrictionContacts.Add(contact);
                     _constrictionContactsByName[contact.Name] = contact;
+                    RegisterContactSurfaces(contactIndex, contact);
                 }
                 MirrorParameterBinding(OwnerField(tractPath, "constriction_diameter"), $"/vocal/contacts/{contactIndex}/opening");
                 MirrorParameterBinding(OwnerField(tractPath, "turbulence"), $"/vocal/contacts/{contactIndex}/resistance");
@@ -1744,6 +1902,8 @@ public static class PatchScript
                 {
                     _waveguidePaths.Add(new WaveguidePath(nasalPathName, nasalAreaName, Loss: nasal.Loss));
                     _waveguidePathsByName[nasalPathName] = _waveguidePaths[^1];
+                    RegisterNormalizedPrimitiveSurface($"/vocal/paths/{_waveguidePaths.Count - 1}/speed", nasalPathName, "speed", _waveguidePaths[^1].PropagationSpeedMetersPerSecond, 100, 1000, "m/s");
+                    RegisterNormalizedPrimitiveSurface($"/vocal/paths/{_waveguidePaths.Count - 1}/loss", nasalPathName, "loss", _waveguidePaths[^1].Loss);
                 }
                 var branchName = $"{prefix}_velopharynx";
                 var branchIndex = _branchPorts.Count;
@@ -1758,6 +1918,16 @@ public static class PatchScript
                         nasal.Velum,
                         1));
                     _branchPortsByName[branchName] = _branchPorts[^1];
+                    RegisterBranchSurfaces(branchIndex, _branchPorts[^1]);
+                }
+                if (tract.Motion is { } motion)
+                {
+                    AddGeneratedControlSpline(
+                        $"{branchName}_opening_motion",
+                        $"/vocal/branches/{branchIndex}/opening",
+                        0.01f,
+                        Math.Clamp(nasal.Velum, 0, 1),
+                        motion.VelumSlewPerSecond);
                 }
                 MirrorParameterBinding(OwnerField(tractPath, "velum"), $"/vocal/branches/{branchIndex}/opening");
                 branchNames.Add(branchName);
@@ -1777,6 +1947,7 @@ public static class PatchScript
             {
                 _radiationLoads.Add(radiation);
                 _radiationLoadsByName[radiation.Name] = radiation;
+                RegisterRadiationSurfaces(radiationIndex, radiation);
             }
             MirrorParameterBinding(OwnerField(tractPath, "lip_opening"), $"/vocal/radiation/{radiationIndex}/aperture");
             MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/vocal/radiation/{radiationIndex}/reflection");
@@ -2061,6 +2232,67 @@ public static class PatchScript
                 GetAny(fields, ["notes", "note"], "")));
         }
 
+        private void AddControlSurface(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var fieldPath = RequiredAny(fields, ["field", "field_path", "target"], line);
+            if (!fieldPath.StartsWith('/'))
+            {
+                throw new PatchScriptException(line, "control surface field must start with `/`");
+            }
+
+            var path = GetAny(fields, ["path", "surface", "surface_path"], fieldPath);
+            var min = GetFloat(fields, line, 0, "min", "minimum");
+            var max = GetFloat(fields, line, 1, "max", "maximum");
+            if (max <= min)
+            {
+                throw new PatchScriptException(line, "control surface max must be greater than min");
+            }
+
+            var defaultValue = GetFloat(fields, line, min, "default", "value");
+            RegisterControlSurface(
+                path,
+                fieldPath,
+                GetAny(fields, ["owner"], OwnerNameFromFieldPath(fieldPath)),
+                GetAny(fields, ["control", "field_name"], FieldNameFromFieldPath(fieldPath)),
+                defaultValue,
+                min,
+                max,
+                GetAny(fields, ["label"], ""),
+                GetAny(fields, ["unit"], ""),
+                GetAny(fields, ["rate", "automation", "automation_rate"], "control"));
+        }
+
+        private void AddControlSpline(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var surfacePath = RequiredAny(fields, ["surface", "surface_path", "target"], line);
+            if (!surfacePath.StartsWith('/'))
+            {
+                throw new PatchScriptException(line, "control spline surface must start with `/`");
+            }
+            if (!_controlSurfacesByPath.ContainsKey(surfacePath))
+            {
+                throw new PatchScriptException(line, $"control spline targets unknown surface `{surfacePath}`");
+            }
+
+            var name = TryGetAny(fields, ["name", "n"], out var nameText)
+                ? nameText
+                : surfacePath.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? "spline";
+            if (_controlSplinesByName.ContainsKey(name))
+            {
+                throw new PatchScriptException(line, $"duplicate control spline `{name}`");
+            }
+
+            var points = ParseControlSplinePoints(RequiredAny(fields, ["points", "pts", "values"], line), line);
+            _controlSplines.Add(new ControlSpline(
+                name,
+                surfacePath,
+                points,
+                ParseControlSplineInterpolation(GetAny(fields, ["interp", "interpolation"], "bezier"), line),
+                TryGetAny(fields, ["loop"], out var loop) && ParseBool(loop, line),
+                TryGetAny(fields, ["enabled", "active"], out var enabled) ? ParseBool(enabled, line) : true));
+            _controlSplinesByName[name] = _controlSplines[^1];
+        }
+
         private void AddControlCurve(IReadOnlyDictionary<string, string> fields, int line)
         {
             var parameterPath = Required(fields, "path", line);
@@ -2177,6 +2409,15 @@ public static class PatchScript
         private static string VoicePath(int voiceIndex) => $"/voices/{voiceIndex}";
 
         private static string OwnerField(string ownerPath, string field) => $"{ownerPath}/{field}";
+
+        private static string OwnerNameFromFieldPath(string fieldPath)
+        {
+            var parts = fieldPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            return parts.Length <= 1 ? fieldPath : string.Join("/", parts.Take(parts.Length - 1));
+        }
+
+        private static string FieldNameFromFieldPath(string fieldPath) =>
+            fieldPath.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? fieldPath;
 
         private static List<OperatorNode> ParseOperatorNodes(string value, int line) =>
             value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -2915,7 +3156,9 @@ public static class PatchScript
         "mod" or "wob" or "wobble" or "bus" => "mod",
         "lfo" or "control" => "control",
         "param" or "parameter" => "param",
+        "control_surface" or "surface" or "controlsurface" => "control_surface",
         "curve" or "control_curve" or "automation" => "curve",
+        "control_spline" or "spline" or "gesture_spline" or "gesturespline" => "control_spline",
         "gesture" or "gesture_group" or "gesturegroup" => "gesture",
         "s" or "sfxr" => "sfxr",
         _ => command
@@ -3159,6 +3402,37 @@ public static class PatchScript
         return points;
     }
 
+    private static IReadOnlyList<ControlSplinePoint> ParseControlSplinePoints(string value, int line)
+    {
+        var points = value
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part =>
+            {
+                var pieces = part.Split(':', StringSplitOptions.TrimEntries);
+                if (pieces.Length is not (2 or 4 or 6))
+                {
+                    throw new PatchScriptException(line, $"bad control spline point `{part}`");
+                }
+
+                return new ControlSplinePoint(
+                    ParseFloat(pieces[0], line),
+                    ParseFloat(pieces[1], line),
+                    pieces.Length >= 4 ? ParseFloat(pieces[2], line) : 0,
+                    pieces.Length >= 4 ? ParseFloat(pieces[3], line) : 0,
+                    pieces.Length >= 6 ? ParseFloat(pieces[4], line) : 0,
+                    pieces.Length >= 6 ? ParseFloat(pieces[5], line) : 0);
+            })
+            .OrderBy(point => point.TimeSeconds)
+            .ToArray();
+
+        if (points.Length == 0)
+        {
+            throw new PatchScriptException(line, "control spline needs at least one point");
+        }
+
+        return points;
+    }
+
     private static ControlCurveMode ParseControlCurveMode(string value, int line) => value.ToLowerInvariant() switch
     {
         "blend" or "replace" or "absolute" => ControlCurveMode.Blend,
@@ -3172,6 +3446,14 @@ public static class PatchScript
         "hold" or "step" or "sample_hold" => ControlCurveInterpolation.Hold,
         "smooth" or "smoothstep" or "ease" or "eased" => ControlCurveInterpolation.Smooth,
         _ => throw new PatchScriptException(line, $"unknown control curve interpolation `{value}`")
+    };
+
+    private static ControlSplineInterpolation ParseControlSplineInterpolation(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "linear" or "lin" => ControlSplineInterpolation.Linear,
+        "hold" or "step" or "sample_hold" => ControlSplineInterpolation.Hold,
+        "bezier" or "cubic" or "spline" => ControlSplineInterpolation.Bezier,
+        _ => throw new PatchScriptException(line, $"unknown control spline interpolation `{value}`")
     };
 
     private static string Required(IReadOnlyDictionary<string, string> fields, string key, int line) =>

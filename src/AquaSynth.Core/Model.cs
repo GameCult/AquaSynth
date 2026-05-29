@@ -501,6 +501,44 @@ public sealed record ProbeTimeline(string Name, IReadOnlyList<string>? Networks 
     public IReadOnlyList<string> Networks { get; init; } = Networks ?? Array.Empty<string>();
 }
 
+public sealed record ControlSurface(
+    string Path,
+    string FieldPath,
+    string Owner,
+    string Field,
+    float DefaultNormalized,
+    float MinValue,
+    float MaxValue,
+    string Label = "",
+    string Unit = "",
+    string AutomationRate = "control");
+
+public enum ControlSplineInterpolation
+{
+    Linear,
+    Hold,
+    Bezier
+}
+
+public sealed record ControlSplinePoint(
+    float TimeSeconds,
+    float Value,
+    float OutTimeOffsetSeconds = 0,
+    float OutValue = 0,
+    float InTimeOffsetSeconds = 0,
+    float InValue = 0);
+
+public sealed record ControlSpline(
+    string Name,
+    string SurfacePath,
+    IReadOnlyList<ControlSplinePoint> Points,
+    ControlSplineInterpolation Interpolation = ControlSplineInterpolation.Bezier,
+    bool Loop = false,
+    bool Enabled = true)
+{
+    public IReadOnlyList<ControlSplinePoint> Points { get; init; } = Points ?? Array.Empty<ControlSplinePoint>();
+}
+
 public sealed record VocalNetwork(
     string Name,
     IReadOnlyList<string>? Paths = null,
@@ -867,6 +905,8 @@ public sealed record SynthPatch
     public IReadOnlyList<ControlLane> Controls { get; init; } = Array.Empty<ControlLane>();
     public IReadOnlyList<PatchParameter> Parameters { get; init; } = Array.Empty<PatchParameter>();
     public IReadOnlyList<ControlCurve> ControlCurves { get; init; } = Array.Empty<ControlCurve>();
+    public IReadOnlyList<ControlSurface> ControlSurfaces { get; init; } = Array.Empty<ControlSurface>();
+    public IReadOnlyList<ControlSpline> ControlSplines { get; init; } = Array.Empty<ControlSpline>();
     public IReadOnlyList<GestureGroup> GestureGroups { get; init; } = Array.Empty<GestureGroup>();
     public IReadOnlyList<ParameterBinding> ParameterBindings { get; init; } = Array.Empty<ParameterBinding>();
     public Playback Playback { get; init; } = new();

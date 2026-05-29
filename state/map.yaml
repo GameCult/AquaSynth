@@ -56,6 +56,7 @@ modules:
   primitive_vocal_model: src/AquaSynth.Core/Model.cs
   primitive_vocal_lowering: src/AquaSynth.Core/FaustExport.cs
   primitive_vocal_timeline: src/AquaSynth.Core/ProbeTimelineReport.cs
+  primitive_control_spline_timeline: src/AquaSynth.Core/ControlSplineTimeline.cs
   primitive_vocal_reference_report: src/AquaSynth.Core/PrimitiveReferenceReport.cs
   acoustic_graph_missing_pieces_audit: docs/acoustic-graph-missing-pieces-audit.md
   acoustic_graph_proprioception: docs/acoustic-graph-proprioception.md

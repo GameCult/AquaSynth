@@ -169,6 +169,12 @@ Create or document the target primitives before adding another acoustic law:
 - `BranchPort`: side-port admittance and coupling.
 - `RadiationLoad`: boundary reflection, aperture, impedance, and radiated flow.
 - `ProbeTimeline`: dev/test-only sampling of the primitive state above.
+- `ControlSurface`: the public normalized control for a primitive field. The
+  primitive owns the physical law; the surface owns the runtime knob and maps
+  `0..1` into the primitive field's physical range.
+- `ControlSpline`: the gesture timeline over a `ControlSurface`. It owns
+  future-time motion, including linear, hold, and Bezier segments. Primitives do
+  not hide local slew.
 
 If an existing record cannot be mapped onto one of these owners, it should be
 deleted, demoted to authoring sugar, or kept only as a compatibility shim that
@@ -250,9 +256,35 @@ PT/SndKit comparison report:
 
 The next implementation pass should harden the primitives further:
 
-- decide where gesture slew lives: inside primitive ports or in a separate
-  gesture/timeline owner;
+- harden articulator/area spline ownership now that velopharynx motion lowers
+  through `ControlSpline` instead of primitive-local smoothing;
 - add optional VTL/ArtiSynth adapters only as artifact comparators, not default
   CI dependencies;
 - keep `mama`, `papa`, and `thrombosis` as downstream witnesses until primitive
   flow evidence improves.
+
+## Gesture Surface Cut
+
+The separate gesture/timeline owner is now the live direction:
+
+- Primitive vocal lowering auto-publishes normalized `ControlSurface` records
+  for path speed/loss, area deformation fields, source pressure/tension/opening,
+  contact opening/resistance/storage, branch opening/coupling, and radiation
+  aperture/reflection/impedance.
+- `control_surface` can declare an explicit surface, and `control_spline`
+  or `gesture surface=...` can attach linear, hold, or Bezier point timelines.
+- Faust lowering emits normalized surface controls and spline point controls
+  under `/splines/<name>/<point>/...`, then maps the effective normalized value
+  back into the primitive's physical field.
+- Explicit old `@/param` field bindings remain compatibility base controls;
+  spline deltas apply on top of that base instead of bypassing it.
+- `tract_motion` now adapts velopharynx opening into a branch `ControlSpline`.
+  A generated contact-opening spline was tested and cut because PT evidence
+  showed it invented an open-then-close transient; contact closure must come
+  from articulator/area control, not a compensating contact-port story.
+
+Latest focused evidence: `PatchScriptTests` pass 90/90, and
+`PinkTrombonePrimitiveTimelineComparisonWritesArtifacts` writes artifact
+`artifacts/parity/primitive-vocal-timeline/20260529T185955965`, where
+`closure-release` returns to `0.155925` mean absolute primitive timeline error
+after removing the bogus contact spline.
