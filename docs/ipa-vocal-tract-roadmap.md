@@ -699,6 +699,10 @@ one-patch golf. A useful round tests whether a contour, source, tract,
 radiation, or DSL-lowering idea generalizes across the target sets. Full-patch
 FM/AM/noise dressing is allowed as parity pressure, but the evaluator must
 label it as dressing when primitive or gesture evidence does not improve.
+The loop also judges evidence quality directly: retrieval receipts should be
+specific, comparable, falsifiable, and reusable by the next round. A pretty
+report with vague receipts is a failed science artifact even if it obeys the
+file-count contract.
 
 ## CultMesh Render/Scoring Work
 

@@ -294,6 +294,7 @@ Required `$roundDir/hypotheses.md` shape:
 - `Loss Landscape Read`: strongest and weakest evidence by family.
 - `Hypothesis Families`: 3-5 families, each with owner layer, transfer status, evidence_refs, cited trial_ids, at least one concrete metric key/value from `show`, and predicted metric movement using `gesture:+/-/flat`, `logmel:+/-/flat`, `articulation:+/-/flat`, `rms:+/-/flat`, `timeline:+/-/flat/risk`.
 - `Claim Audit`: one row per family: claim -> evidence file(s) -> metric key/value(s) -> predicted movement.
+- `Evidence Quality Ledger`: one row per family with specificity, comparability, falsifiability, reuse value for the next round, and the weakest missing evidence. Use `high`, `medium`, or `low` for each quality field.
 - `Candidate Matrix`: exactly 25 rows with target id, filename, family, expected metric movement, and risk.
 - `Source Edit Decision`: `none` unless source edits are allowed and justified by evidence.
 - `Acceptance Checklist`: 25 files, one per target id, filename schema, required report sections, >=3 search receipts, >=3 show receipts.
@@ -411,6 +412,7 @@ Required `$roundDir/evaluation.md` shape:
 - `Commands Run`: exact search/show commands and output paths used to support claims.
 - `Round Compliance`: passed/failed, candidate count, target coverage, naming validity, family extraction, and whether the report had the required matrix.
 - `Family Verdicts`: one row per canonical filename family with improved/flat/regressed/unknown metrics. Treat |delta| < 0.01 as flat; if deltas are not present in cited show artifacts, write `unknown` and reason=`no delta in receipts`.
+- `Evidence Quality Verdicts`: one row per family with specificity, comparability, falsifiability, reuse value, and weakest missing evidence. Penalize vague receipts even when metrics improve.
 - `Generalization Read`: whether effects transferred across target sets or overfit one phoneme.
 - `Dressing Audit`: articulation evidence requires movement in gesture/articulation/primitive timeline metrics; FM/AM/noise/envelope evidence without those is dressing.
 - `Next Target`: exactly one markdown bullet, final line of the file, and no continuation text: `<file-or-module> | <invariant> | <expected metric movement>`.

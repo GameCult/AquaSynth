@@ -36,9 +36,10 @@ Current slice:
   contradictory count/name instructions, hardened candidate naming to
   `<targetId>__<family>__<hypothesis>.aqua`, made family ids lowercase
   kebab-case, required exact 25-lane output, added pre-evidence digest and
-  claim-audit sections, forced semantic-search/show receipts, and made the
-  evaluator fail closed when receipts, target coverage, filename validation, or
-  family extraction are incomplete. Final script syntax smoke passes with
+  claim-audit sections, forced semantic-search/show receipts, added evidence
+  quality ledgers/verdicts for specificity/comparability/falsifiability/reuse,
+  and made the evaluator fail closed when receipts, target coverage, filename
+  validation, or family extraction are incomplete. Final script syntax smoke passes with
   `tools\run-ipa-trial-loop.ps1 -Rounds 0 -SkipLocalTrialRun`.
 
 - Implemented the first IPA trial render/scoring orchestration. Core now has
