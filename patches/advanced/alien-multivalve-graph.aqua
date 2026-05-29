@@ -18,8 +18,8 @@ area_curve name=side_resonator length_cm=9 diameters=.20,.36,.54,.44,.18
 path name=core area_curve=core_tube loss=.996 loss_model=birkholz_2024 constriction_index=3.4 constriction_diameter=@/alien/aperture lip=@/alien/aperture
 path name=side area_curve=side_resonator loss=.994 loss_model=wall
 
-source_port name=core_valve path=core kind=synthetic model=tissue_valve law=body_cover position=0 pressure=@/alien/core/pressure tension=.44 opening=@/alien/core/opening noise=.05 upper_mass=.18 lower_mass=.30 coupling_stiffness=.12 collision_stiffness=.45 collision_damping=.12 vertical_phase=.42 reservoir_pressure=1 downstream_pressure=.03 load_coupling=.38 rest_opening=.03 drive=1.10
-source_port name=side_valve path=side kind=labial law=one_mass position=0 pressure=@/alien/side/pressure tension=.34 opening=@/alien/side/opening noise=.04 mass=.22 damping=.15 stiffness=.026 reservoir_pressure=1 downstream_pressure=.02 load_coupling=.34 rest_opening=.04 drive=.95
+source_port name=core_valve path=core kind=synthetic model=tissue_valve law=body_cover position=0 pressure=@/alien/core/pressure tension=.44 opening=@/alien/core/opening noise=.05 upper_mass=.18 lower_mass=.30 coupling_stiffness=.12 collision_stiffness=.45 collision_damping=.12 vertical_phase=.42 flow_scale=1.10 tissue_loss=.18 aperture_shape=.44 flow_loss=.38 reservoir_pressure=1 downstream_pressure=.03 load_coupling=.38 rest_opening=.03
+source_port name=side_valve path=side kind=labial law=one_mass position=0 pressure=@/alien/side/pressure tension=.34 opening=@/alien/side/opening noise=.04 mass=.22 damping=.15 stiffness=.026 flow_scale=.95 tissue_loss=.22 aperture_shape=.40 flow_loss=.36 reservoir_pressure=1 downstream_pressure=.02 load_coupling=.34 rest_opening=.04
 
 branch name=side_coupler from_path=core from_position=.58 to_path=side to_position=1 kind=resonator opening=@/alien/branch/opening coupling=.62 passive=true
 radiation_port name=aperture path=core kind=vent model=wall position=1 opening=@/alien/aperture reflection=-.58 loss=.96

@@ -155,9 +155,10 @@ Current authority map:
 
 - Owner: `AcousticSourcePort` owns local excitation semantics at a graph
   terminal.
-- Inputs: pressure, tension, aperture/opening, mass, damping, stiffness,
-  saturation, drive, load coupling, rest opening, balance, source position, and
-  the incident pressure at the graph node.
+- Inputs: reservoir/source pressure, downstream pressure, tension,
+  aperture/opening, mass, damping, stiffness, saturation, tissue loss, aperture
+  shaping, flow loss/resistance, flow scale, load coupling, rest opening,
+  balance, source position, and the incident pressure at the graph node.
 - Outputs: source flow injected into the acoustic graph; rendered pitch is an
   outcome of valve state plus tract/radiation load.
 - Derived state: `kind=syrinx` and `kind=labial` are authoring aliases for
@@ -176,6 +177,14 @@ upper/lower stiffness, coupling stiffness, collision stiffness/damping, and
 vertical phase as physical control surfaces. A syrinx is two such valves feeding
 an acoustic graph; a larynx is one such valve feeding a tract. Different species
 should change morphology and gestures, not add hidden source renderers.
+
+For graph tissue valves, pressure owns energy input. `drive` is not a vocal
+physics owner; authoring `drive=` is accepted only as a compatibility alias for
+`flow_scale`, which is an output calibration/control-lane scalar. It must not
+multiply reservoir pressure, lower the phonation threshold, or brighten a direct
+displacement term. Ease of oscillation and harmonic richness belong to pressure,
+mass, stiffness/tension, damping, tissue/collision loss, aperture shaping,
+flow resistance, and acoustic load.
 
 Morphology is now owned by continuous `area_curve` records plus acoustic graph
 paths. A `path` may inline diameters/areas or reference `area_curve=...`; the

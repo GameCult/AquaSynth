@@ -23,8 +23,8 @@ path name=left_bronchus area_curve=left_bronchus_curve loss=.996 loss_model=wall
 path name=right_bronchus area_curve=right_bronchus_curve loss=.996 loss_model=wall
 path name=trachea area_curve=trachea_curve loss=.997 loss_model=viscous
 
-source_port name=left_labium path=left_bronchus kind=syrinx law=one_mass position=0 pressure=@/bird/left/pressure tension=@/bird/left/tension opening=@/bird/left/opening noise=.018 mass=.24 damping=.11 stiffness=.032 saturation=.82 reservoir_pressure=1 downstream_pressure=.02 load_coupling=.46 rest_opening=.018 drive=1.22
-source_port name=right_labium path=right_bronchus kind=syrinx law=one_mass position=0 pressure=@/bird/right/pressure tension=@/bird/right/tension opening=@/bird/right/opening noise=.016 balance=.94 mass=.25 damping=.12 stiffness=.036 saturation=.84 reservoir_pressure=1 downstream_pressure=.02 load_coupling=.46 rest_opening=.018 drive=1.18
+source_port name=left_labium path=left_bronchus kind=syrinx law=one_mass position=0 pressure=@/bird/left/pressure tension=@/bird/left/tension opening=@/bird/left/opening noise=.018 mass=.24 damping=.11 stiffness=.032 saturation=.82 flow_scale=1.22 tissue_loss=.16 aperture_shape=.38 flow_loss=.32 reservoir_pressure=1 downstream_pressure=.02 load_coupling=.46 rest_opening=.018
+source_port name=right_labium path=right_bronchus kind=syrinx law=one_mass position=0 pressure=@/bird/right/pressure tension=@/bird/right/tension opening=@/bird/right/opening noise=.016 balance=.94 mass=.25 damping=.12 stiffness=.036 saturation=.84 flow_scale=1.18 tissue_loss=.18 aperture_shape=.38 flow_loss=.32 reservoir_pressure=1 downstream_pressure=.02 load_coupling=.46 rest_opening=.018
 
 terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
 terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1

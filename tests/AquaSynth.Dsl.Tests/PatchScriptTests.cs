@@ -161,15 +161,16 @@ public sealed class PatchScriptTests
             param path=/voice/left_mass default=.32 min=.02 max=2 step=.001
             param path=/voice/left_damping default=.16 min=0 max=2 step=.001
             param path=/voice/left_stiffness default=.03 min=0 max=1 step=.001
-            param path=/voice/left_drive default=1.2 min=0 max=4 step=.001
+            param path=/voice/left_flow default=1.2 min=0 max=4 step=.001
+            param path=/voice/left_loss default=.22 min=0 max=1 step=.001
             param path=/voice/left_load_coupling default=.44 min=0 max=2 step=.001
             param path=/voice/left_rest_opening default=.03 min=0 max=1 step=.001
             param path=/voice/throat_opening default=.8 min=0 max=1 step=.001
             param path=/voice/mouth_opening default=1.2 min=0 max=2 step=.001
             path name=trachea length_cm=12 diameters=.4,.7,1,1
             path name=oral length_cm=17 diameters=.6,1.1,1.6,1.2,.8
-            source_port name=left_labium path=trachea model=tissue_valve position=0 pressure=@/voice/left_pressure tension=.55 opening=.4 noise=.02 impedance=@/voice/source_load mass=@/voice/left_mass damping=@/voice/left_damping stiffness=@/voice/left_stiffness saturation=.9 drive=@/voice/left_drive load_coupling=@/voice/left_load_coupling rest_opening=@/voice/left_rest_opening
-            source_port name=right_labium path=trachea kind=labial position=0 pressure=.65 tension=.5 opening=.45 noise=.03 balance=.8 position_index=.12 position_width=.05 position_index_scale=1
+            source_port name=left_labium path=trachea model=tissue_valve position=0 pressure=@/voice/left_pressure tension=.55 opening=.4 noise=.02 impedance=@/voice/source_load mass=@/voice/left_mass damping=@/voice/left_damping stiffness=@/voice/left_stiffness saturation=.9 flow_scale=@/voice/left_flow tissue_loss=@/voice/left_loss aperture_shape=.42 flow_loss=.55 load_coupling=@/voice/left_load_coupling rest_opening=@/voice/left_rest_opening
+            source_port name=right_labium path=trachea kind=labial position=0 pressure=.65 tension=.5 opening=.45 noise=.03 balance=.8 position_index=.12 position_width=.05 position_index_scale=1 drive=.8
             branch name=throat from_path=trachea from_position=.9 to_path=oral kind=bronchial opening=@/voice/throat_opening coupling=.7
             radiation_port name=mouth path=oral kind=lip position=1 opening=@/voice/mouth_opening reflection=-.82
             wave_clock name=continuous strategy=thiran order=1 max_delay=4096 smoothing_ms=3
@@ -196,6 +197,11 @@ public sealed class PatchScriptTests
         Assert.Equal(AcousticSourceKind.Labial, patch.AcousticSourcePorts[1].Kind);
         Assert.All(patch.AcousticSourcePorts, port => Assert.Equal(AcousticSourceModel.TissueValve, port.Model));
         Assert.Equal(.9f, patch.AcousticSourcePorts[0].Saturation, 5);
+        Assert.Equal(1.2f, patch.AcousticSourcePorts[0].FlowScale, 5);
+        Assert.Equal(.22f, patch.AcousticSourcePorts[0].TissueLoss, 5);
+        Assert.Equal(.42f, patch.AcousticSourcePorts[0].ApertureShape, 5);
+        Assert.Equal(.55f, patch.AcousticSourcePorts[0].FlowLoss, 5);
+        Assert.Equal(.8f, patch.AcousticSourcePorts[1].FlowScale, 5);
         Assert.NotNull(patch.AcousticSourcePorts[1].PositionControl);
         Assert.Equal(AcousticBranchKind.Bronchial, Assert.Single(patch.AcousticBranches).Kind);
         Assert.Equal(AcousticRadiationKind.Lip, Assert.Single(patch.AcousticRadiationPorts).Kind);
@@ -205,7 +211,8 @@ public sealed class PatchScriptTests
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/mass");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/damping");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/stiffness");
-        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/drive");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/flow_scale");
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/tissue_loss");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/load_coupling");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/sources/0/rest_opening");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/branches/0/opening");
@@ -225,6 +232,10 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_source_right_labium", export.Source);
         Assert.Contains("_load_pressure", export.Source);
         Assert.Contains("_pressure_drive", export.Source);
+        Assert.Contains("_flow_scale", export.Source);
+        Assert.Contains("_tissue_loss", export.Source);
+        Assert.Contains("_aperture_shape", export.Source);
+        Assert.Contains("_flow_resistance", export.Source);
         Assert.Contains("_velocity", export.Source);
         Assert.Contains("_displacement", export.Source);
         Assert.Contains("_aperture", export.Source);
@@ -657,6 +668,10 @@ public sealed class PatchScriptTests
         Assert.Contains("_modal_frequency", export.Source);
         Assert.Contains("_modal_tissue", export.Source);
         Assert.Contains("_voicing", export.Source);
+        Assert.Contains("_flow_scale", export.Source);
+        Assert.Contains("_tissue_loss", export.Source);
+        Assert.Contains("_flow_resistance", export.Source);
+        Assert.DoesNotContain("_reservoir_pressure = (clip01(param_0)) * (", export.Source);
         Assert.Contains("graph_segment_loss_", export.Source);
         Assert.Contains("graph_radiation_model_mouth", export.Source);
         Assert.Contains("hslider(\"/curves/pressure_path/depth\"", export.Source);
@@ -1578,8 +1593,8 @@ public sealed class PatchScriptTests
             path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
             path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
             path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
-            source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure=.82 tension=.44 opening=.22 noise=.015 impedance=.7 mass=.32 damping=.14 stiffness=.025 saturation=.9 drive=1.2 load_coupling=.42 rest_opening=.025
-            source_port name=right_labium path=right_bronchus kind=syrinx position=0 pressure=.70 tension=.51 opening=.20 noise=.015 balance=.96 impedance=.7 mass=.34 damping=.16 stiffness=.03 saturation=.9 drive=1.1 load_coupling=.42 rest_opening=.025
+            source_port name=left_labium path=left_bronchus kind=syrinx position=0 pressure=.82 tension=.44 opening=.22 noise=.015 impedance=.7 mass=.32 damping=.14 stiffness=.025 saturation=.9 flow_scale=1.2 tissue_loss=.18 aperture_shape=.4 flow_loss=.35 load_coupling=.42 rest_opening=.025
+            source_port name=right_labium path=right_bronchus kind=syrinx position=0 pressure=.70 tension=.51 opening=.20 noise=.015 balance=.96 impedance=.7 mass=.34 damping=.16 stiffness=.03 saturation=.9 flow_scale=1.1 tissue_loss=.2 aperture_shape=.4 flow_loss=.35 load_coupling=.42 rest_opening=.025
             terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
             terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1
             terminal name=trachea_base path=trachea position=0 kind=junction area_scale=1

@@ -917,7 +917,10 @@ public static class FaustEmitter
         var damping = $"max(0.0, {parameters.Expression(OwnerField(path, "damping"), port.Damping)})";
         var stiffness = $"max(0.0, {parameters.Expression(OwnerField(path, "stiffness"), port.Stiffness)})";
         var saturation = $"max(0.0, {parameters.Expression(OwnerField(path, "saturation"), port.Saturation)})";
-        var drive = $"max(0.0, {parameters.Expression(OwnerField(path, "drive"), port.Drive)})";
+        var flowScale = $"max(0.0, {parameters.Expression(OwnerField(path, "flow_scale"), port.FlowScale * MathF.Max(0, port.Drive))})";
+        var tissueLoss = $"clip01({parameters.Expression(OwnerField(path, "tissue_loss"), port.TissueLoss)})";
+        var apertureShape = $"clip01({parameters.Expression(OwnerField(path, "aperture_shape"), port.ApertureShape)})";
+        var flowLoss = $"max(0.0, {parameters.Expression(OwnerField(path, "flow_loss"), port.FlowLoss)})";
         var loadCoupling = $"max(0.0, {parameters.Expression(OwnerField(path, "load_coupling"), port.LoadCoupling)})";
         var restOpening = $"max(0.0, {parameters.Expression(OwnerField(path, "rest_opening"), port.RestOpening)})";
         var effectivePressure = localPressure is null
@@ -941,7 +944,7 @@ public static class FaustEmitter
         var releaseBurstGate = $"clip01({opening} / 0.8) * {release}";
         if (IsTissueValveSource(port))
         {
-            return TissueValveInlineExpression(frequency, pressure, tension, opening, noise, balance, mass, damping, stiffness, saturation, drive, loadCoupling, restOpening, localPressure);
+            return TissueValveInlineExpression(frequency, pressure, tension, opening, noise, balance, mass, damping, stiffness, saturation, flowScale, tissueLoss, apertureShape, flowLoss, loadCoupling, restOpening, localPressure);
         }
 
         return port.Kind switch
@@ -977,7 +980,10 @@ public static class FaustEmitter
         string damping,
         string stiffness,
         string saturation,
-        string drive,
+        string flowScale,
+        string tissueLoss,
+        string apertureShape,
+        string flowLoss,
         string loadCoupling,
         string restOpening,
         string? localPressure)
@@ -985,14 +991,16 @@ public static class FaustEmitter
         var loadPressure = localPressure ?? "0.0";
         var stiffnessHint = $"max(0.00002, min(0.16, pow(2.0 * ma.PI * max(20.0, {frequency}) / ma.SR, 2.0)))";
         var effectiveStiffness = $"max(({stiffness}), ({stiffnessHint}) * (0.35 + 1.65 * ({tension})))";
-        var pressureDrive = $"max(0.0, ({pressure}) * ({drive}) - ({loadCoupling}) * ({loadPressure}))";
-        var velocityDecay = $"min(0.9995, max(0.20, 1.0 - ((0.008 + 0.08 * ({damping})) / ({mass}))))";
+        var pressureDrive = $"max(0.0, ({pressure}) - ({loadCoupling}) * ma.tanh({loadPressure}))";
+        var velocityDecay = $"min(0.9995, max(0.20, 1.0 - ((0.008 + 0.08 * ({damping}) + 0.055 * ({tissueLoss})) / ({mass}))))";
         var displacementDecay = $"min(0.9998, max(0.20, 1.0 - 0.0008 / ({mass})))";
         var velocity = $"((({pressureDrive}) * (0.0004 + 0.0024 * (1.0 - clip01({opening}))) - ({loadCoupling}) * ({loadPressure}) * 0.001) : + ~ *(({velocityDecay}) / (1.0 + 10.0 * ({effectiveStiffness}) + 0.4 * ({saturation}))))";
         var displacement = $"(({velocity}) : + ~ *(({displacementDecay}) / (1.0 + 1.5 * ({effectiveStiffness}))))";
-        var aperture = $"max(0.0, ({restOpening}) + ({opening}) + ({displacement}) - ({saturation}) * pow(({displacement}), 3.0))";
+        var linearAperture = $"max(0.0, ({restOpening}) + ({opening}) + ({displacement}) - ({saturation}) * pow(({displacement}), 3.0))";
+        var aperture = $"(({linearAperture}) * (1.0 - 0.55 * ({apertureShape})) + pow(({linearAperture}), 2.0) * (0.55 * ({apertureShape})))";
+        var flowResistance = $"(1.0 + ({flowLoss}) * (0.35 + 1.8 / max(0.035, ({aperture}) + ({restOpening}))))";
         var turbulence = $"(no.noise : fi.highpass(2, 1200.0 + 2800.0 * clip01(1.0 - ({aperture}))))";
-        return $"(ma.tanh(({pressureDrive}) * ({aperture}) * (2.0 + 10.0 * ({drive}))) + ({turbulence}) * ({noise}) * ({pressureDrive}) * clip01({aperture}) * (1.0 - 0.55 * ({tension}))) * ({balance})";
+        return $"(ma.tanh((({pressureDrive}) * ({aperture}) * (1.5 + 3.5 * ({flowScale}))) / ({flowResistance})) * ({flowScale}) + ({turbulence}) * ({noise}) * ({pressureDrive}) * clip01({aperture}) * (1.0 - 0.55 * ({tension})) / ({flowResistance})) * ({balance})";
     }
 
     private static string GlottalSourceExpression(
@@ -1625,7 +1633,10 @@ public static class FaustEmitter
         var damping = $"max(0.0, {parameters.Expression(OwnerField(path, "damping"), port.Damping)})";
         var stiffness = $"max(0.0, {parameters.Expression(OwnerField(path, "stiffness"), port.Stiffness)})";
         var saturation = $"max(0.0, {parameters.Expression(OwnerField(path, "saturation"), port.Saturation)})";
-        var drive = $"max(0.0, {parameters.Expression(OwnerField(path, "drive"), port.Drive)})";
+        var flowScale = $"max(0.0, {parameters.Expression(OwnerField(path, "flow_scale"), port.FlowScale * MathF.Max(0, port.Drive))})";
+        var tissueLoss = $"clip01({parameters.Expression(OwnerField(path, "tissue_loss"), port.TissueLoss)})";
+        var apertureShape = $"clip01({parameters.Expression(OwnerField(path, "aperture_shape"), port.ApertureShape)})";
+        var flowLoss = $"max(0.0, {parameters.Expression(OwnerField(path, "flow_loss"), port.FlowLoss)})";
         var loadCoupling = $"max(0.0, {parameters.Expression(OwnerField(path, "load_coupling"), port.LoadCoupling)})";
         var restOpening = $"max(0.0, {parameters.Expression(OwnerField(path, "rest_opening"), port.RestOpening)})";
         var upperMass = $"max(0.02, {parameters.Expression(OwnerField(path, "upper_mass"), port.UpperMass)})";
@@ -1644,18 +1655,23 @@ public static class FaustEmitter
             : $"{prefix}_stiffness_hint * (0.35 + 1.65 * ({tension}))";
 
         source.AppendLine($"    {prefix}_stiffness_hint = max(0.00002, min(0.16, pow(2.0 * ma.PI * max(20.0, {frequency}) / ma.SR, 2.0)));");
-        source.AppendLine($"    {prefix}_reservoir_pressure = ({pressure}) * ({drive}) * ({reservoirPressure});");
+        source.AppendLine($"    {prefix}_flow_scale = {flowScale};");
+        source.AppendLine($"    {prefix}_tissue_loss = {tissueLoss};");
+        source.AppendLine($"    {prefix}_aperture_shape = {apertureShape};");
+        source.AppendLine($"    {prefix}_flow_loss = {flowLoss};");
+        source.AppendLine($"    {prefix}_reservoir_pressure = ({pressure}) * ({reservoirPressure});");
         source.AppendLine($"    {prefix}_downstream_pressure = ({downstreamPressure}) + ({loadCoupling}) * ma.tanh({prefix}_load_pressure);");
         source.AppendLine($"    {prefix}_pressure_drive = max(0.0, {prefix}_reservoir_pressure - {prefix}_downstream_pressure);");
         source.AppendLine($"    {prefix}_stiffness = {effectiveStiffness};");
         source.AppendLine($"    {prefix}_modal_frequency = max(45.0, min(10000.0, (ma.SR / (2.0 * ma.PI)) * sqrt(max(0.00002, {prefix}_stiffness) / ({mass}))));");
         source.AppendLine($"    {prefix}_load_detune = 1.0 - 0.035 * ma.tanh({prefix}_load_pressure * ({loadCoupling}));");
-        source.AppendLine($"    {prefix}_oscillation_gate = clip01(({prefix}_pressure_drive - 0.035 - 0.18 * clip01({opening})) * (2.4 + 2.6 * ({drive})));");
-        source.AppendLine($"    {prefix}_modal_q = 3.0 + 24.0 * clip01(({pressure}) * (1.0 - 0.45 * ({damping})) + 0.35 * ({tension}));");
+        source.AppendLine($"    {prefix}_oscillation_threshold = 0.030 + 0.070 * ({damping}) + 0.080 * {prefix}_tissue_loss + 0.18 * clip01({opening});");
+        source.AppendLine($"    {prefix}_oscillation_gate = clip01(({prefix}_pressure_drive - {prefix}_oscillation_threshold) * (3.0 + 1.6 * max(0.0, 1.0 - ({damping}))));");
+        source.AppendLine($"    {prefix}_modal_q = 3.0 + 22.0 * clip01(({pressure}) * (1.0 - 0.45 * ({damping}) - 0.35 * {prefix}_tissue_loss) + 0.35 * ({tension}));");
         source.AppendLine($"    {prefix}_modal_seed = (no.noise * 0.018 + {prefix}_pressure_drive * max(0.0, 0.22 - clip01({opening})) * 0.16);");
         source.AppendLine($"    {prefix}_modal_ring = {prefix}_modal_seed : fi.resonbp({prefix}_modal_frequency, {prefix}_modal_q, 1);");
         source.AppendLine($"    {prefix}_modal_oscillator = os.osc({prefix}_modal_frequency * {prefix}_load_detune) * {prefix}_oscillation_gate;");
-        source.AppendLine($"    {prefix}_modal_tissue = ({prefix}_modal_oscillator * (0.70 + 0.80 * ({tension})) + {prefix}_modal_ring * 0.35) * (1.0 - 0.35 * ({damping}));");
+        source.AppendLine($"    {prefix}_modal_tissue = ({prefix}_modal_oscillator * (0.70 + 0.80 * ({tension})) + {prefix}_modal_ring * 0.35) * max(0.0, 1.0 - 0.35 * ({damping}) - 0.45 * {prefix}_tissue_loss);");
         switch (port.Law)
         {
             case AcousticValveLaw.TwoMass:
@@ -1663,8 +1679,8 @@ public static class FaustEmitter
                 source.AppendLine($"    {prefix}_upper_stiffness_effective = max(({upperStiffness}), {prefix}_stiffness * (0.80 + 0.45 * ({tension})));");
                 source.AppendLine($"    {prefix}_lower_stiffness_effective = max(({lowerStiffness}), {prefix}_stiffness * (1.05 + 0.55 * ({tension})));");
                 source.AppendLine($"    {prefix}_coupling_stiffness = ({couplingStiffness}) * (1.0 + 1.5 * ({tension}));");
-                source.AppendLine($"    {prefix}_lower_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.010 + 0.090 * ({damping}) + 0.040 * ({collisionDamping})) / ({lowerMass}))));");
-                source.AppendLine($"    {prefix}_upper_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.012 + 0.105 * ({damping}) + 0.030 * ({collisionDamping})) / ({upperMass}))));");
+                source.AppendLine($"    {prefix}_lower_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.010 + 0.090 * ({damping}) + 0.040 * ({collisionDamping}) + 0.055 * {prefix}_tissue_loss) / ({lowerMass}))));");
+                source.AppendLine($"    {prefix}_upper_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.012 + 0.105 * ({damping}) + 0.030 * ({collisionDamping}) + 0.055 * {prefix}_tissue_loss) / ({upperMass}))));");
                 source.AppendLine($"    {prefix}_lower_force = ({prefix}_pressure_drive * (0.0005 + 0.0028 * (1.0 - clip01({opening}))) - ({loadCoupling}) * {prefix}_load_pressure * 0.0012) / ({lowerMass});");
                 source.AppendLine($"    {prefix}_upper_force = ({prefix}_pressure_drive * (0.0003 + 0.0018 * (1.0 - clip01({opening}))) - ({loadCoupling}) * {prefix}_load_pressure * 0.0008) / ({upperMass});");
                 source.AppendLine($"    {prefix}_lower_velocity = {prefix}_lower_force : + ~ *({prefix}_lower_velocity_decay / (1.0 + 10.0 * {prefix}_lower_stiffness_effective + {prefix}_coupling_stiffness + 0.4 * ({saturation})));");
@@ -1675,19 +1691,21 @@ public static class FaustEmitter
                 source.AppendLine($"    {prefix}_displacement = {prefix}_lower_displacement * (1.0 - ({verticalPhase})) + ({prefix}_upper_displacement - {prefix}_collision) * ({verticalPhase});");
                 break;
             default:
-                source.AppendLine($"    {prefix}_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.008 + 0.08 * ({damping})) / ({mass}))));");
+                source.AppendLine($"    {prefix}_velocity_decay = min(0.9995, max(0.20, 1.0 - ((0.008 + 0.08 * ({damping}) + 0.055 * {prefix}_tissue_loss) / ({mass}))));");
                 source.AppendLine($"    {prefix}_displacement_decay = min(0.9998, max(0.20, 1.0 - 0.0008 / ({mass})));");
                 source.AppendLine($"    {prefix}_force = ({prefix}_pressure_drive * (0.0004 + 0.0024 * (1.0 - clip01({opening}))) - ({loadCoupling}) * {prefix}_load_pressure * 0.001) / ({mass});");
                 source.AppendLine($"    {prefix}_velocity = {prefix}_force : + ~ *({prefix}_velocity_decay / (1.0 + 10.0 * {prefix}_stiffness + 0.4 * ({saturation})));");
                 source.AppendLine($"    {prefix}_displacement = {prefix}_velocity : + ~ *({prefix}_displacement_decay / (1.0 + 1.5 * {prefix}_stiffness));");
                 break;
         }
-        source.AppendLine($"    {prefix}_aperture = max(0.0, ({restOpening}) + ({opening}) + {prefix}_displacement - ({saturation}) * pow({prefix}_displacement, 3.0));");
+        source.AppendLine($"    {prefix}_aperture_linear = max(0.0, ({restOpening}) + ({opening}) + {prefix}_displacement - ({saturation}) * pow({prefix}_displacement, 3.0));");
+        source.AppendLine($"    {prefix}_aperture = {prefix}_aperture_linear * (1.0 - 0.55 * {prefix}_aperture_shape) + pow({prefix}_aperture_linear, 2.0) * (0.55 * {prefix}_aperture_shape);");
+        source.AppendLine($"    {prefix}_flow_resistance = 1.0 + {prefix}_flow_loss * (0.35 + 1.8 / max(0.035, {prefix}_aperture + ({restOpening})));");
         source.AppendLine($"    {prefix}_turbulence = no.noise : fi.highpass(2, 1200.0 + 2800.0 * clip01(1.0 - {prefix}_aperture));");
-        source.AppendLine($"    {prefix}_voicing = {prefix}_modal_tissue * (0.18 + 1.45 * ({tension})) + {prefix}_displacement * (0.03 + 0.18 * ({drive}));");
-        source.AppendLine($"    {prefix}_flow = ma.tanh(({prefix}_pressure_drive * {prefix}_aperture * (1.2 + 5.0 * ({drive}))) + ({prefix}_voicing * {prefix}_pressure_drive * (0.55 + 2.6 * ({drive}))));");
-        source.AppendLine($"    {prefix}_noise = {prefix}_turbulence * ({noise}) * {prefix}_pressure_drive * clip01({prefix}_aperture) * (1.0 - 0.55 * ({tension}));");
-        source.AppendLine($"    {prefix}_out = ({prefix}_flow * (0.55 + 2.6 * {prefix}_pressure_drive) + {prefix}_noise) * ({balance});");
+        source.AppendLine($"    {prefix}_voicing = {prefix}_modal_tissue * (0.18 + 1.45 * ({tension}));");
+        source.AppendLine($"    {prefix}_flow = ma.tanh((({prefix}_pressure_drive * {prefix}_aperture * (1.5 + 3.5 * {prefix}_flow_scale)) + ({prefix}_voicing * {prefix}_pressure_drive * (0.45 + 1.55 * ({tension})))) / {prefix}_flow_resistance);");
+        source.AppendLine($"    {prefix}_noise = {prefix}_turbulence * ({noise}) * {prefix}_pressure_drive * clip01({prefix}_aperture) * (1.0 - 0.55 * ({tension})) / {prefix}_flow_resistance;");
+        source.AppendLine($"    {prefix}_out = ({prefix}_flow * {prefix}_flow_scale * (0.55 + 2.6 * {prefix}_pressure_drive) + {prefix}_noise) * ({balance});");
     }
 
     private static string EmitGraphContactSourceExpression(
