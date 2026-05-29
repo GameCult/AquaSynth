@@ -163,6 +163,17 @@ thrombosis active ratio to `0.1826`, silence mismatch to `0.7643`, and
 speech-band ratio to `0.2704`; still not accepted, but the improvement came
 without restoring discrete source density.
 
+Follow-up: generated lip radiation now mirrors live tract lip opening into
+`/acoustic/radiation/*/opening`. Before this, path-end area followed the mouth
+gesture but the radiation aperture stayed at its default, splitting ownership
+between geometry and output. Artifact
+`artifacts/parity/pink-trombone-utterance-logmel/20260529T141822464` improves
+`papa` RMS ratio `0.3242 -> 0.8369`, cosine `0.7725 -> 0.7996`, and motor-band
+ratio `0.5238 -> 0.0555`, which matches the listening complaint that plosives
+were drum hits. `mama` remains wrong and `thrombosis` remains mostly absent, so
+the next vowel cut is tract/radiation color and vowel body, not more plosive
+gain.
+
 ## Component Audit
 
 ### Topology Construction

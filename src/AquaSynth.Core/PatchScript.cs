@@ -1581,6 +1581,7 @@ public static class PatchScript
                 AcousticRadiationModel.LipPiston);
             var lipIndex = _acousticRadiationPorts.Count;
             AddAcousticRadiationPortRecord(lip);
+            MirrorParameterBinding(OwnerField(tractPath, "lip_opening"), $"/acoustic/radiation/{lipIndex}/opening");
             MirrorParameterBinding(OwnerField(tractPath, "lip_reflection"), $"/acoustic/radiation/{lipIndex}/reflection");
             AddAcousticTerminalRecord(new AcousticTerminal(
                 lip.Name,

@@ -528,10 +528,11 @@ public sealed class PatchScriptTests
     public void GraphTractPreservesDeclaredMorphologyGrid()
     {
         var patch = PatchScript.Parse("""
+            param path=/pink/lip/opening default=1.4 min=0 max=2.5 step=.001
             tract_shape name=human length_cm=17 diameters=.6,.6,.8,1,1.2,1.4,1.5,1.5,1.5,1.5,1.4,1.2,1,.8,.7,.6,.6,.8,1,1.2,1.4,1.5,1.5,1.5,1.5,1.4,1.2,1,.8,.7,.6,.6,.8,1,1.2,1.4,1.5,1.5,1.5,1.5,1.4,1.2,1,.8
             nasal_branch name=nose length_cm=12 junction=17 diameters=.01,.35,.5,.65,.8,.95,1.1,1.25,1.4,1.55,1.7,1.8,1.9,1.9,1.85,1.75,1.65,1.55,1.45,1.35,1.25,1.15,1.05,.95,.85,.75,.65,.55
             tract_injection name=inj position=32 width=1
-            tract shape=human nasal_branch=nose injection=inj propagation=graph tongue_index=12.9 constriction_index=32
+            tract shape=human nasal_branch=nose injection=inj propagation=graph tongue_index=12.9 constriction_index=32 lip=@/pink/lip/opening
             """);
 
         var tract = Assert.Single(patch.Voices).Tract;
@@ -552,6 +553,7 @@ public sealed class PatchScriptTests
         Assert.Equal(4, patch.AcousticTerminals.Count(terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal)));
         Assert.Equal(8, patch.AcousticSourcePorts.Count(port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal)));
         Assert.Equal(44, patch.AcousticPaths.Single(path => path.Name == "voices_0_oral").AreaFunction.Sections);
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/radiation/1/opening" && binding.ParameterPath == "/pink/lip/opening");
 
         var faust = FaustEmitter.Emit(patch, new FaustExportOptions("graph_declared_grid")).Source;
         Assert.Contains("graph_loop ~ si.bus", faust);
