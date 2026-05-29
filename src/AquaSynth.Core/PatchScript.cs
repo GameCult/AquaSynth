@@ -8,6 +8,10 @@ public sealed class PatchScriptException(int line, string message) : Exception($
 }
 public static class PatchScript
 {
+    private const int GeneratedTractInteriorTerminalLimit = 10;
+    private const int GeneratedTractInjectionSourceLimit = 8;
+    private const int GeneratedTractContactLimit = 4;
+
     public static SynthPatch Parse(string script)
     {
         var compiler = new Compiler();
@@ -1425,7 +1429,8 @@ public static class PatchScript
             MirrorParameterBinding(OwnerField(tractPath, "glottal_reflection"), $"/acoustic/terminals/{_acousticTerminals.Count - 1}/reflection");
             sourceNames.Add(sourceName);
 
-            for (var section = 1; section < Math.Max(2, tract.Sections - 1); section++)
+            var areaSections = SparseSectionRange(1, tract.Sections - 2, GeneratedTractInteriorTerminalLimit);
+            foreach (var section in areaSections)
             {
                 var position = section / (float)Math.Max(1, tract.Sections - 1);
                 var terminal = new AcousticTerminal(
@@ -1460,13 +1465,16 @@ public static class PatchScript
             {
                 var injectionName = string.IsNullOrWhiteSpace(injection.Name) ? $"{prefix}_injection" : $"{prefix}_{injection.Name}";
                 var sourceWidth = Math.Max(0.25f, injection.Width);
+                var sourceSections = SparseSectionRange(1, tract.Sections - 1, GeneratedTractInjectionSourceLimit);
+                var sourceSectionSpacing = tract.Sections / (float)Math.Max(1, sourceSections.Count);
+                var sourceControlWidth = Math.Max(sourceWidth, sourceSectionSpacing * 1.15f);
                 var sourceIndexScale = tract.IndexScale / Math.Max(1, tract.Sections);
-                for (var section = 1; section < tract.Sections; section++)
+                foreach (var section in sourceSections)
                 {
                     AddTractInjectionSource(
                         $"{injectionName}_{section}",
                         (section + 0.5f) / Math.Max(1, tract.Sections),
-                        new AcousticSourcePositionControl(tract.ConstrictionIndex, sourceWidth, sourceIndexScale));
+                        new AcousticSourcePositionControl(tract.ConstrictionIndex, sourceControlWidth, sourceIndexScale));
                 }
 
                 void AddTractInjectionSource(string name, float position, AcousticSourcePositionControl? positionControl)
@@ -1607,24 +1615,27 @@ public static class PatchScript
             sections <= 0 ? 0 : Math.Clamp(index / Math.Max(1, sections - 1), 0, 1);
 
         private static IReadOnlyList<int> SparseContactSections(int sections)
+            => SparseSectionRange(1, sections - 2, GeneratedTractContactLimit);
+
+        private static IReadOnlyList<int> SparseSectionRange(int first, int last, int maxCount)
         {
-            var interior = Math.Max(0, sections - 2);
-            if (interior == 0)
+            if (last < first || maxCount <= 0)
             {
                 return Array.Empty<int>();
             }
 
-            var contactCount = Math.Min(4, interior);
-            if (contactCount == 1)
+            var available = last - first + 1;
+            var count = Math.Min(maxCount, available);
+            if (count == 1)
             {
-                return [1];
+                return [first];
             }
 
             var result = new SortedSet<int>();
-            for (var i = 0; i < contactCount; i++)
+            for (var i = 0; i < count; i++)
             {
-                var section = 1 + (int)MathF.Round(i * (interior - 1) / (float)(contactCount - 1));
-                result.Add(Math.Clamp(section, 1, sections - 2));
+                var section = first + (int)MathF.Round(i * (available - 1) / (float)(count - 1));
+                result.Add(Math.Clamp(section, first, last));
             }
 
             return result.ToArray();

@@ -548,6 +548,10 @@ public sealed class PatchScriptTests
         Assert.Equal(32, tract.Injection?.Position);
         Assert.Equal(1, tract.Injection?.Width);
         Assert.Equal(WaveClockDelayStrategy.FractionalLinear, Assert.Single(patch.WaveClocks).Strategy);
+        Assert.Equal(10, patch.AcousticTerminals.Count(terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal)));
+        Assert.Equal(4, patch.AcousticTerminals.Count(terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal)));
+        Assert.Equal(8, patch.AcousticSourcePorts.Count(port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal)));
+        Assert.Equal(44, patch.AcousticPaths.Single(path => path.Name == "voices_0_oral").AreaFunction.Sections);
 
         var faust = FaustEmitter.Emit(patch, new FaustExportOptions("graph_declared_grid")).Source;
         Assert.Contains("graph_loop ~ si.bus", faust);

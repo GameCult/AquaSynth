@@ -120,6 +120,41 @@ articulation: `mama/papa/thrombosis` cosine `0.8302/0.7865/0.3218`, with
 thrombosis RMS ratio `0.0770`, active ratio `0.3151`, and silence mismatch
 `0.7205`.
 
+## 2026-05-29 Compact Generated Tract Graph
+
+Owner: generated `tract` authoring owns the translation from high-resolution
+tract morphology into a Faust-sized graph. `VocalTract.Sections` still owns
+morphology and index semantics; generated acoustic terminals/source ports own
+only the compiled approximation.
+
+Inputs: full tract area function, tract section count, live tongue/constriction
+and lip controls, nasal branch position, and injection position/width.
+
+Outputs: at most ten generated oral area junctions, at most eight generated
+injection source ports, and at most four generated contact terminals. Source
+position weighting is widened to the compact source spacing so a moving
+constriction remains represented without one source port per tract cell.
+
+Derived state: generated `voices_0_area_*` and `voices_0_inj_*` records are no
+longer a one-record-per-section discretization. They are backend lowering
+samples of the continuous tract owner.
+
+Forbidden writers: the Faust backend must not be forced to compile the full
+authoring grid. If a future change needs more articulatory precision, it should
+improve the continuous area/source/contact heuristics or add a named compact
+primitive, not restore a 44-node/43-source generated graph by default.
+
+Evidence: latest opt-in thrombosis debug DSP
+`artifacts/parity/pink-trombone-graph-thrombosis-probes/20260529T125048965`
+dropped from `1652` lines to `532`: source-related graph lines `687 -> 162`,
+segment-area lines `211 -> 56`, next-state lines `89 -> 27`, and area-reflection
+lines `74 -> 12`. The opt-in native graph probe passed in about `1m15s`.
+Accepted utterance diagnostic
+`artifacts/parity/pink-trombone-utterance-logmel/20260529T125227926` passed in
+about `1m33s`; `mama/papa/thrombosis` cosine is `0.8324/0.7730/0.3176`.
+Thrombosis RMS improved to `0.1715`, but active ratio fell to `0.1598` and
+silence mismatch rose to `0.7811`, so articulation remains the live failure.
+
 ## Component Audit
 
 ### Topology Construction
