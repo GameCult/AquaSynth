@@ -51,7 +51,7 @@
       "generated DSP artifact manifests for engine hosting",
       "live patch compilation, native Faust factory lifetime, and offline sample-buffer render proof for engine hosts",
       "phonetic intent, articulatory plan, morphology capability, and constraint-report contracts for vocal tract synthesis",
-      "Pink Trombone expressive-parity path through reusable graph DSL primitives: tract_shape, glottis, tract_injection, nasal_branch, acoustic terminals/connections, radiation ports, wave-clock policy, and AcousticPortNetwork graph lowering",
+      "Pink Trombone fixture path through primitive vocal DSL records: AreaFunction, WaveguidePath, SourcePort, ConstrictionContact, BranchPort, RadiationLoad, ProbeTimeline, and VocalNetwork; tract_shape, glottis, tract_injection, nasal_branch, and tract are adapters, not DSP authority",
       "utterance parity curriculum research and docs",
       "patch script parser",
       "SFXR atoms and parameter mapping",
@@ -120,9 +120,9 @@
     "binding_rule": "Parameter binding uses field-site references such as `lpf=@/macro/brightness` and `/opgraphs/0/operators/2/level`; the field owns meaning and the parameter owns the runtime value. Avoid target-routing semantics unless a new graph authority is deliberately mapped."
   },
   "last_verified": {
-    "command": "dotnet build AquaSynth.sln --no-restore; dotnet test tests\\AquaSynth.Dsl.Tests\\AquaSynth.Dsl.Tests.csproj --no-build -v minimal; dotnet pack src\\AquaSynth.Core\\AquaSynth.Core.csproj -c Release --no-restore; dotnet pack src\\AquaSynth.Faust\\AquaSynth.Faust.csproj -c Release --no-restore",
-    "result": "AquaSynth package structure is split: AquaSynth.Core owns patch authoring and Faust source emission, AquaSynth.Faust depends on Core and owns Faust toolchain/rendering.",
-    "commit": "pending package split"
+    "command": "dotnet build tests\\AquaSynth.Dsl.Tests\\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false -v minimal; dotnet test tests\\AquaSynth.Dsl.Tests\\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter \"FullyQualifiedName~PatchScriptTests\" -v minimal; dotnet test tests\\AquaSynth.Dsl.Tests\\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter \"PinkTromboneFixturesReportLogMelParityWhenFaustIsInstalled\" -v normal; dotnet test tests\\AquaSynth.Dsl.Tests\\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter \"FaustCompilerValidatesPrimitiveVocalNetworkWhenInstalled\" -v normal",
+    "result": "Primitive vocal teardown cut builds; PatchScriptTests pass 84/84 including optional primitive Faust validation; PT Faust fixture diagnostic passes after demoting closure-release from sealed-silence authority to primitive diagnostic witness. A full unfiltered run was attempted first and hit the five-minute wall after leaving orphan dotnet workers, which were stopped before focused reruns.",
+    "commit": "pending primitive vocal teardown"
   }
 }
 

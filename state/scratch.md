@@ -2,6 +2,30 @@
 
 Current slice:
 
+- First primitive vocal teardown cut implemented. `AreaFunction`,
+  `WaveguidePath`, `SourcePort`, `ConstrictionContact`, `BranchPort`,
+  `RadiationLoad`, `ProbeTimeline`, and `VocalNetwork` are model records with
+  parser commands. PT-shaped `tract` authoring now adapts into those primitive
+  records instead of generating `voices_0_area_*`, `voices_0_contact_*`, or
+  `voices_0_inj_*` acoustic banks. The obsolete
+  `EnsureTractAcousticNetwork` generator was deleted.
+- Faust lowering now prefers a compact primitive path for `Voice.VocalNetwork`:
+  one semantic path variable per tube using `de.fdelay*` delay families, named
+  primitive source/contact/branch/radiation locals, and debug probes under
+  `/debug/voice_0/path|source|contact|branch|radiation/...`. Explicit
+  `AcousticPortNetwork` scripts still exist as a lower-level lab surface.
+- `ProbeTimelineReport` writes deterministic primitive samples as
+  `block,primitive,signal,value`; current fields include path area/delay,
+  source load pressure/flow, contact opening/resistance/reservoir/released
+  flow, branch admittance/exchanged flow, and radiation reflection,
+  boundary_flow, flow, and output. Passivity/energy samples and PT/SndKit
+  timeline comparison are next.
+- Verification for this cut:
+  `dotnet build tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false -v minimal`
+  passed. Focused primitive/tract/fixture tests passed: 8 tests covering the
+  new primitive DSL, PT tract adapter, primitive timeline, and fixture demotion
+  away from generated graph banks.
+
 - Proprioception correction after user rejected baby-word golf as the rebuild
   owner. Diagnosis is now durable in
   `docs/acoustic-graph-proprioception.md`: collapse generated graph-vocal

@@ -243,7 +243,9 @@ public static class FaustEmitter
         var dutyExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "osc/duty"), voice.Oscillator.Duty)} + {parameters.Expression(OwnerField(ownerPath, "duty/ramp"), voice.Duty.RampPerSecond)} * age + patch_mod_duty + {duty})";
         var fmIndex = $"max(0.0, {parameters.Expression(OwnerField(ownerPath, "fm/index"), voice.Fm.Index)} + patch_mod_fm_index + {fmIndexMod}) * {FmDecay(parameters.Expression(OwnerField(ownerPath, "fm/decay"), voice.Fm.IndexDecaySeconds), voice.Fm.IndexDecaySeconds, parameters.IsBound(OwnerField(ownerPath, "fm/decay")))}";
         var oscillator = oscillatorOverride ??
-                        (voice.Tract is not null && voice.AcousticNetwork is { } tractGraph
+                        (voice.VocalNetwork is { } vocalNetwork
+                             ? VocalNetworkExpression(source, patch, vocalNetwork, ownerPath, name, frequency, parameters, warnings, options)
+                             : voice.Tract is not null && voice.AcousticNetwork is { } tractGraph
                              ? AcousticNetworkExpression(source, patch, tractGraph, ownerPath, name, frequency, parameters, warnings, options)
                              : voice.Tract is not null
                              ? MissingGraphTractExpression(source, warnings, name)
@@ -445,6 +447,227 @@ public static class FaustEmitter
             Waveform.Noise => "no.noise",
             _ => throw new ArgumentOutOfRangeException()
         };
+    }
+
+    private static string VocalNetworkExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        VocalNetwork network,
+        string ownerPath,
+        string name,
+        string frequency,
+        ParameterMap parameters,
+        List<string> warnings,
+        FaustExportOptions options)
+    {
+        var paths = patch.WaveguidePaths.ToDictionary(path => path.Name, StringComparer.OrdinalIgnoreCase);
+        var areas = patch.AreaFunctions.ToDictionary(area => area.Name, StringComparer.OrdinalIgnoreCase);
+        var sourcePorts = patch.SourcePorts.ToDictionary(port => port.Name, StringComparer.OrdinalIgnoreCase);
+        var contacts = patch.ConstrictionContacts.ToDictionary(contact => contact.Name, StringComparer.OrdinalIgnoreCase);
+        var branches = patch.BranchPorts.ToDictionary(branch => branch.Name, StringComparer.OrdinalIgnoreCase);
+        var radiation = patch.RadiationLoads.ToDictionary(load => load.Name, StringComparer.OrdinalIgnoreCase);
+        var keepAlive = new List<string>();
+        var radiated = new List<string>();
+
+        source.AppendLine($"{name}_primitive_drive = 1.0;");
+        foreach (var pathName in network.Paths)
+        {
+            if (!paths.TryGetValue(pathName, out var path))
+            {
+                warnings.Add($"{name}: vocal network `{network.Name}` references missing waveguide path `{pathName}`");
+                continue;
+            }
+            if (!areas.TryGetValue(path.AreaFunction, out var area))
+            {
+                warnings.Add($"{name}: waveguide path `{path.Name}` references missing area function `{path.AreaFunction}`");
+                continue;
+            }
+
+            var safePath = SafeIdentifier(path.Name);
+            var areaIndex = AreaFunctionIndex(patch, area);
+            var pathIndex = WaveguidePathIndex(patch, path);
+            var pathField = $"/vocal/paths/{pathIndex}";
+            var representativeArea = $"{name}_primitive_path_{safePath}_area";
+            var delay = $"{name}_primitive_path_{safePath}_delay";
+            var input = $"{name}_primitive_path_{safePath}_input";
+            var wave = $"{name}_primitive_path_{safePath}_wave";
+            var loss = $"clip01({parameters.Expression(OwnerField(pathField, "loss"), path.Loss)})";
+            source.AppendLine($"    {representativeArea} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/area", PrimitiveAreaExpression(patch, parameters, area, areaIndex), 0, 8)};");
+            source.AppendLine($"    {delay} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/delay", $"({F(area.Shape.LengthMeters)} / max(1.0, {parameters.Expression(OwnerField(pathField, "speed"), path.PropagationSpeedMetersPerSecond)})) * ma.SR", 0, path.MaxDelaySamples)};");
+            keepAlive.Add(representativeArea);
+            keepAlive.Add(delay);
+
+            var sourceTerms = network.Sources
+                .Select(sourceName => sourcePorts.TryGetValue(sourceName, out var port) && port.Path.Equals(path.Name, StringComparison.OrdinalIgnoreCase)
+                    ? PrimitiveSourceExpression(source, patch, name, port, frequency, parameters, options, keepAlive)
+                    : null)
+                .Where(term => term is not null)
+                .Cast<string>()
+                .ToList();
+            var contactTerms = network.Contacts
+                .Select(contactName => contacts.TryGetValue(contactName, out var contact) && contact.Path.Equals(path.Name, StringComparison.OrdinalIgnoreCase)
+                    ? PrimitiveContactExpression(source, patch, name, contact, parameters, options, keepAlive)
+                    : null)
+                .Where(term => term is not null)
+                .Cast<string>()
+                .ToList();
+            var branchTerms = network.Branches
+                .Select(branchName => branches.TryGetValue(branchName, out var branch) && branch.FromPath.Equals(path.Name, StringComparison.OrdinalIgnoreCase)
+                    ? PrimitiveBranchExpression(source, patch, name, branch, parameters, options, keepAlive)
+                    : null)
+                .Where(term => term is not null)
+                .Cast<string>()
+                .ToList();
+            var pathInputs = sourceTerms.Concat(contactTerms).Concat(branchTerms).ToList();
+            source.AppendLine($"    {input} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/input_flow", pathInputs.Count == 0 ? "0.0" : string.Join(" + ", pathInputs), -4, 4)};");
+            source.AppendLine($"    {wave} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/outgoing_wave", $"({input}) : {PrimitiveDelayExpression(path, path.MaxDelaySamples, delay)} * {loss}", -4, 4)};");
+            keepAlive.Add(input);
+            keepAlive.Add(wave);
+
+            foreach (var loadName in network.Radiation)
+            {
+                if (radiation.TryGetValue(loadName, out var load) && load.Path.Equals(path.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    radiated.Add(PrimitiveRadiationExpression(source, patch, name, load, wave, parameters, options, keepAlive));
+                }
+            }
+        }
+
+        var output = radiated.Count == 0 ? "0.0" : string.Join(" + ", radiated);
+        if (options.DebugProbeUi && keepAlive.Count > 0)
+        {
+            output = $"attach(({output}), {string.Join(" + ", keepAlive)})";
+        }
+
+        source.AppendLine($"{name}_primitive_radiated = {output};");
+        return $"{name}_primitive_radiated";
+    }
+
+    private static string PrimitiveAreaExpression(SynthPatch patch, ParameterMap parameters, AreaFunction area, int areaIndex)
+    {
+        var baseDiameter = area.Shape.AverageDiameter(0, 1);
+        if (area.Deformation is null)
+        {
+            return F(baseDiameter * baseDiameter);
+        }
+
+        var areaPath = $"/vocal/areas/{areaIndex}";
+        var tongue = parameters.Expression(OwnerField(areaPath, "area/tongue_diameter"), area.Deformation.TongueDiameter);
+        var constriction = parameters.Expression(OwnerField(areaPath, "area/constriction_diameter"), area.Deformation.ConstrictionDiameter);
+        var lip = parameters.Expression(OwnerField(areaPath, "area/lip_opening"), area.Deformation.LipOpening);
+        return $"pow(max(0.0001, ({F(baseDiameter)} + ({tongue}) * 0.10 + ({lip}) * 0.08 + min(0.0, ({constriction}) - 1.0) * 0.35)), 2.0)";
+    }
+
+    private static string PrimitiveDelayExpression(WaveguidePath path, int maxDelay, string delay) =>
+        path.DelayStrategy switch
+        {
+            WaveClockDelayStrategy.UnitGrid => $"de.delay({maxDelay}, int(max(1.0, {delay})))",
+            WaveClockDelayStrategy.HalfSampleGrid => $"de.fdelay({maxDelay}, round(max(0.5, {delay}) * 2.0) * 0.5)",
+            WaveClockDelayStrategy.FractionalLagrange => $"de.fdelayltv({Math.Clamp(path.DelayOrder, 1, 5)}, {maxDelay}, max({F((Math.Clamp(path.DelayOrder, 1, 5) - 1) * 0.5f)}, {delay}))",
+            WaveClockDelayStrategy.FractionalThiran => $"de.fdelay{Math.Clamp(path.DelayOrder, 1, 4)}a({maxDelay}, max({F(Math.Clamp(path.DelayOrder, 1, 4) - 0.5f)}, {delay}))",
+            WaveClockDelayStrategy.CrossfadedVariable => $"de.fdelayltv({Math.Clamp(path.DelayOrder, 1, 5)}, {maxDelay}, max({F((Math.Clamp(path.DelayOrder, 1, 5) - 1) * 0.5f)}, {delay}))",
+            _ => $"de.fdelay({maxDelay}, max(0.5, {delay}))"
+        };
+
+    private static string PrimitiveSourceExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        SourcePort port,
+        string frequency,
+        ParameterMap parameters,
+        FaustExportOptions options,
+        List<string> keepAlive)
+    {
+        var index = SourcePortIndex(patch, port);
+        var owner = $"/vocal/sources/{index}";
+        var safe = SafeIdentifier(port.Name);
+        var pressure = parameters.Expression(OwnerField(owner, "pressure"), port.Pressure);
+        var tension = parameters.Expression(OwnerField(owner, "tension"), port.Tension);
+        var opening = parameters.Expression(OwnerField(owner, "opening"), port.Opening);
+        var impedance = parameters.Expression(OwnerField(owner, "impedance"), port.Impedance);
+        var load = $"{voiceName}_primitive_source_{safe}_load_pressure";
+        var flow = $"{voiceName}_primitive_source_{safe}_flow";
+        source.AppendLine($"    {load} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/load_pressure", $"({impedance}) * ({pressure})", 0, 2)};");
+        source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"ma.tanh((({pressure}) * max(0.0, {opening}) * (0.5 + {tension}) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)}) / max(0.05, {impedance}))", -2, 2)};");
+        keepAlive.Add(load);
+        keepAlive.Add(flow);
+        return flow;
+    }
+
+    private static string PrimitiveContactExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        ConstrictionContact contact,
+        ParameterMap parameters,
+        FaustExportOptions options,
+        List<string> keepAlive)
+    {
+        var index = ConstrictionContactIndex(patch, contact);
+        var owner = $"/vocal/contacts/{index}";
+        var safe = SafeIdentifier(contact.Name);
+        var opening = $"clip01({parameters.Expression(OwnerField(owner, "opening"), contact.Opening)})";
+        var resistance = parameters.Expression(OwnerField(owner, "resistance"), contact.Resistance);
+        var stored = parameters.Expression(OwnerField(owner, "stored_pressure"), contact.StoredPressure);
+        var released = $"{voiceName}_primitive_contact_{safe}_released_flow";
+        var reservoir = $"{voiceName}_primitive_contact_{safe}_reservoir";
+        source.AppendLine($"    {reservoir} = {ProbeSignal(options, $"/debug/{voiceName}/contact/{contact.Name}/reservoir", $"(({stored}) + (1.0 - {opening}) * {resistance})", 0, 2)};");
+        source.AppendLine($"    {released} = {ProbeSignal(options, $"/debug/{voiceName}/contact/{contact.Name}/released_flow", $"({reservoir}) * {opening} * (1.0 - min(0.95, {resistance} * 0.5))", -2, 2)};");
+        keepAlive.Add(reservoir);
+        keepAlive.Add(released);
+        return released;
+    }
+
+    private static string PrimitiveBranchExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        BranchPort branch,
+        ParameterMap parameters,
+        FaustExportOptions options,
+        List<string> keepAlive)
+    {
+        var index = BranchPortIndex(patch, branch);
+        var owner = $"/vocal/branches/{index}";
+        var safe = SafeIdentifier(branch.Name);
+        var admittance = $"{voiceName}_primitive_branch_{safe}_admittance";
+        var exchanged = $"{voiceName}_primitive_branch_{safe}_exchanged_flow";
+        source.AppendLine($"    {admittance} = {ProbeSignal(options, $"/debug/{voiceName}/branch/{branch.Name}/admittance", $"clip01({parameters.Expression(OwnerField(owner, "opening"), branch.Opening)}) * clip01({parameters.Expression(OwnerField(owner, "coupling"), branch.Coupling)})", 0, 1)};");
+        source.AppendLine($"    {exchanged} = {ProbeSignal(options, $"/debug/{voiceName}/branch/{branch.Name}/exchanged_flow", $"0.0 - {admittance} * 0.05", -1, 1)};");
+        keepAlive.Add(admittance);
+        keepAlive.Add(exchanged);
+        return exchanged;
+    }
+
+    private static string PrimitiveRadiationExpression(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        RadiationLoad load,
+        string wave,
+        ParameterMap parameters,
+        FaustExportOptions options,
+        List<string> keepAlive)
+    {
+        var index = RadiationLoadIndex(patch, load);
+        var owner = $"/vocal/radiation/{index}";
+        var safe = SafeIdentifier(load.Name);
+        var aperture = $"clip01({parameters.Expression(OwnerField(owner, "aperture"), load.Aperture)})";
+        var impedance = parameters.Expression(OwnerField(owner, "impedance"), load.Impedance);
+        var reflection = parameters.Expression(OwnerField(owner, "reflection"), load.Reflection);
+        var boundary = $"{voiceName}_primitive_radiation_{safe}_boundary_flow";
+        var flow = $"{voiceName}_primitive_radiation_{safe}_flow";
+        var output = $"{voiceName}_primitive_radiation_{safe}_output";
+        source.AppendLine($"    {voiceName}_primitive_radiation_{safe}_reflection = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/reflection", $"({reflection}) * (1.0 - 0.65 * {aperture})", -1, 1)};");
+        source.AppendLine($"    {boundary} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/boundary_flow", $"({wave}) * {aperture} / max(0.05, {impedance})", -4, 4)};");
+        source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/flow", boundary, -4, 4)};");
+        source.AppendLine($"    {output} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/output", $"{flow} : fi.highpass(1, 40.0 + 500.0 * {aperture})", -4, 4)};");
+        keepAlive.Add($"{voiceName}_primitive_radiation_{safe}_reflection");
+        keepAlive.Add(boundary);
+        keepAlive.Add(flow);
+        keepAlive.Add(output);
+        return output;
     }
 
     private static string AcousticNetworkExpression(
@@ -1925,6 +2148,90 @@ public static class FaustEmitter
         {
             if (ReferenceEquals(patch.AcousticConnections[i], connection) ||
                 patch.AcousticConnections[i].Name.Equals(connection.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int AreaFunctionIndex(SynthPatch patch, AreaFunction area)
+    {
+        for (var i = 0; i < patch.AreaFunctions.Count; i++)
+        {
+            if (ReferenceEquals(patch.AreaFunctions[i], area) ||
+                patch.AreaFunctions[i].Name.Equals(area.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int WaveguidePathIndex(SynthPatch patch, WaveguidePath path)
+    {
+        for (var i = 0; i < patch.WaveguidePaths.Count; i++)
+        {
+            if (ReferenceEquals(patch.WaveguidePaths[i], path) ||
+                patch.WaveguidePaths[i].Name.Equals(path.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int SourcePortIndex(SynthPatch patch, SourcePort port)
+    {
+        for (var i = 0; i < patch.SourcePorts.Count; i++)
+        {
+            if (ReferenceEquals(patch.SourcePorts[i], port) ||
+                patch.SourcePorts[i].Name.Equals(port.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int ConstrictionContactIndex(SynthPatch patch, ConstrictionContact contact)
+    {
+        for (var i = 0; i < patch.ConstrictionContacts.Count; i++)
+        {
+            if (ReferenceEquals(patch.ConstrictionContacts[i], contact) ||
+                patch.ConstrictionContacts[i].Name.Equals(contact.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int BranchPortIndex(SynthPatch patch, BranchPort branch)
+    {
+        for (var i = 0; i < patch.BranchPorts.Count; i++)
+        {
+            if (ReferenceEquals(patch.BranchPorts[i], branch) ||
+                patch.BranchPorts[i].Name.Equals(branch.Name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static int RadiationLoadIndex(SynthPatch patch, RadiationLoad load)
+    {
+        for (var i = 0; i < patch.RadiationLoads.Count; i++)
+        {
+            if (ReferenceEquals(patch.RadiationLoads[i], load) ||
+                patch.RadiationLoads[i].Name.Equals(load.Name, StringComparison.OrdinalIgnoreCase))
             {
                 return i;
             }

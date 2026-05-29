@@ -126,32 +126,29 @@ public sealed class PatchScriptTests
         Assert.Equal(motion, voice.Tract.Motion);
         Assert.Equal(TractPropagationMode.Graph, voice.Tract.Propagation);
         Assert.Equal(.998f, voice.Tract.PropagationLoss, 5);
-        Assert.NotNull(voice.AcousticNetwork);
-        Assert.NotNull(voice.Tract.AcousticNetwork);
-        Assert.Contains(patch.AcousticPaths, path => path.Name == "voices_0_oral");
-        Assert.Contains(patch.AcousticSourcePorts, port => port.Name == "voices_0_modal" && port.Kind == AcousticSourceKind.Glottal);
-        Assert.Contains(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_sibilant_", StringComparison.Ordinal) && port.Kind == AcousticSourceKind.TurbulenceJet);
-        Assert.Contains(patch.AcousticBranches, branch => branch.Name == "voices_0_nose" && branch.Kind == AcousticBranchKind.Nasal);
-        Assert.Contains(patch.AcousticRadiationPorts, port => port.Name == "voices_0_lip" && port.Kind == AcousticRadiationKind.Lip);
-        Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal) && terminal.Kind == AcousticTerminalKind.Junction);
-        Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal) && terminal.Kind == AcousticTerminalKind.Contact);
-        Assert.True(patch.AcousticTerminals.Count(terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal)) <= 4);
-        Assert.Contains(patch.WaveClocks, clock => clock.Name == "voices_0_clock" && clock.Strategy == WaveClockDelayStrategy.FractionalLinear);
+        Assert.Null(voice.AcousticNetwork);
+        Assert.NotNull(voice.VocalNetwork);
+        Assert.NotNull(voice.Tract.VocalNetwork);
+        Assert.Contains(patch.AreaFunctions, area => area.Name == "voices_0_morphology");
+        Assert.Contains(patch.WaveguidePaths, path => path.Name == "voices_0_oral");
+        Assert.Contains(patch.SourcePorts, port => port.Name == "voices_0_modal" && port.Kind == AcousticSourceKind.Glottal);
+        Assert.Contains(patch.ConstrictionContacts, contact => contact.Name == "voices_0_constriction");
+        Assert.Contains(patch.BranchPorts, branch => branch.Name == "voices_0_velopharynx");
+        Assert.Contains(patch.RadiationLoads, port => port.Name == "voices_0_lip" && port.Kind == AcousticRadiationKind.Lip);
+        Assert.DoesNotContain(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
+        Assert.DoesNotContain(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal));
+        Assert.DoesNotContain(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_sibilant_", StringComparison.Ordinal));
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/glottis/0/tenseness");
 
         var faust = FaustEmitter.Emit(patch, new FaustExportOptions("tract_voice")).Source;
-        Assert.Contains("acoustic_graph_radiated", faust);
-        Assert.Contains("graph_loop ~ si.bus", faust);
-        Assert.Contains("graph_source_voices_0_modal", faust);
-        Assert.Contains("graph_source_voices_0_sibilant_", faust);
-        Assert.Contains("graph_terminal_area_voices_0_area_", faust);
-        Assert.Contains("graph_connection_reflection_voices_0_nose_connection", faust);
-        Assert.Contains("graph_contact_voices_0_contact_", faust);
-        Assert.Contains("* 0.80", faust);
-        Assert.Contains("* 0.20", faust);
-        Assert.Contains("de.fdelay", faust);
-        Assert.Contains("_reservoir_drive", faust);
-        Assert.Contains("_release_pulse", faust);
+        Assert.Contains("primitive_radiated", faust);
+        Assert.Contains("primitive_source_voices_0_modal", faust);
+        Assert.Contains("primitive_contact_voices_0_constriction", faust);
+        Assert.Contains("primitive_branch_voices_0_velopharynx", faust);
+        Assert.Contains("primitive_radiation_voices_0_lip", faust);
+        Assert.Contains("de.fdelay1a", faust);
+        Assert.DoesNotContain("graph_loop ~ si.bus", faust);
+        Assert.DoesNotContain("graph_terminal_area_voices_0_area_", faust);
         Assert.DoesNotContain("tract_lf", faust);
         Assert.DoesNotContain("wg_", faust);
     }
@@ -251,6 +248,85 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsPrimitiveVocalNetworkWithoutGeneratedGraphBanks()
+    {
+        var patch = PatchScript.Parse("""
+            param path=/mouth/open default=.9 min=0 max=1 step=.001
+            morphology name=human length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9 emit_sections=6 tongue_diameter=1.4 constriction_diameter=.8 lip_opening=@/mouth/open
+            waveguide_path name=oral morphology=human strategy=thiran order=1 max_delay=4096 loss=.998
+            source_port name=modal path=oral kind=glottal position=0 pressure=.72 tension=.58 opening=.45 noise=.04 impedance=.32
+            constriction_contact name=lip_stop path=oral position=.94 opening=@/mouth/open resistance=.45 stored_pressure=.8
+            radiation_load name=mouth path=oral kind=lip position=1 aperture=@/mouth/open reflection=-.82 impedance=.28
+            probe_timeline name=flow network=human blocks=2 block_size=32
+            vocal_network name=human paths=oral sources=modal contacts=lip_stop radiation=mouth probe=flow
+            vocal network=human freq=140 gain=.2 sustain=.2
+            """);
+
+        var area = Assert.Single(patch.AreaFunctions);
+        Assert.Equal("human", area.Name);
+        Assert.Equal(6, area.EmitSections);
+        Assert.NotNull(area.Deformation);
+        var path = Assert.Single(patch.WaveguidePaths);
+        Assert.Equal("oral", path.Name);
+        Assert.Equal("human", path.AreaFunction);
+        Assert.Equal(WaveClockDelayStrategy.FractionalThiran, path.DelayStrategy);
+        Assert.Single(patch.SourcePorts);
+        Assert.Single(patch.ConstrictionContacts);
+        Assert.Single(patch.RadiationLoads);
+        Assert.Single(patch.ProbeTimelines);
+        var network = Assert.Single(patch.VocalNetworks);
+        Assert.Equal(["oral"], network.Paths);
+        Assert.Equal(["modal"], network.Sources);
+        Assert.Equal(["lip_stop"], network.Contacts);
+        Assert.Equal(["mouth"], network.Radiation);
+
+        Assert.DoesNotContain(patch.AcousticTerminals, terminal =>
+            terminal.Name.Contains("area_", StringComparison.OrdinalIgnoreCase) ||
+            terminal.Name.Contains("contact_", StringComparison.OrdinalIgnoreCase));
+        Assert.DoesNotContain(patch.AcousticSourcePorts, port => port.Name.Contains("inj_", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/vocal/radiation/0/aperture");
+
+        var voice = Assert.Single(patch.Voices);
+        Assert.Equal(network, voice.VocalNetwork);
+
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions("primitive_vocal", DebugProbeUi: true));
+        Assert.Contains("primitive_radiated", export.Source);
+        Assert.Contains("de.fdelay1a", export.Source);
+        Assert.Contains("/debug/voice_0/path/oral/delay", export.Source);
+        Assert.Contains("/debug/voice_0/source/modal/flow", export.Source);
+        Assert.Contains("/debug/voice_0/contact/lip_stop/released_flow", export.Source);
+        Assert.Contains("/debug/voice_0/radiation/mouth/output", export.Source);
+        Assert.DoesNotContain("graph_loop", export.Source);
+        Assert.DoesNotContain("graph_terminal_area", export.Source);
+    }
+
+    [Fact]
+    public void PrimitiveProbeTimelineReportsFlowBeforeAudioParity()
+    {
+        var patch = PatchScript.Parse("""
+            morphology name=human length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9
+            waveguide_path name=oral morphology=human strategy=thiran order=1 loss=.998
+            source_port name=modal path=oral pressure=.72 tension=.58 opening=.45 impedance=.32
+            constriction_contact name=lip_stop path=oral position=.94 opening=.4 resistance=.45 stored_pressure=.8
+            radiation_load name=mouth path=oral aperture=.9 reflection=-.82 impedance=.28
+            probe_timeline name=flow network=human blocks=2 block_size=32
+            vocal_network name=human paths=oral sources=modal contacts=lip_stop radiation=mouth probe=flow
+            vocal network=human freq=140 gain=.2 sustain=.2
+            """);
+
+        var samples = ProbeTimelineReport.Build(patch, "human", blocks: 2);
+        Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "delay_samples");
+        Assert.Contains(samples, sample => sample.Primitive == "source:modal" && sample.Signal == "flow");
+        Assert.Contains(samples, sample => sample.Primitive == "contact:lip_stop" && sample.Signal == "released_flow");
+        Assert.Contains(samples, sample => sample.Primitive == "radiation:mouth" && sample.Signal == "output");
+
+        var csv = ProbeTimelineReport.ToCsv(samples);
+        Assert.StartsWith("block,primitive,signal,value", csv, StringComparison.Ordinal);
+        Assert.Contains("source:modal,flow", csv);
+        Assert.Contains("radiation:mouth,output", csv);
+    }
+
+    [Fact]
     public void SyrinxVoiceUsesPairedLoadedLabialSourcesThroughOneGraph()
     {
         var patch = PatchScript.Parse("""
@@ -347,7 +423,7 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
-    public void TractVoiceCanLowerThroughAcousticGraph()
+    public void TractVoiceLowersThroughPrimitiveVocalNetwork()
     {
         var patch = PatchScript.Parse("""
             tract_shape name=human length_cm=17 diameters=.6,.8,1.2,1.5,1.2,.8
@@ -356,21 +432,25 @@ public sealed class PatchScriptTests
 
         var voice = Assert.Single(patch.Voices);
         Assert.Equal(TractPropagationMode.Graph, voice.Tract?.Propagation);
-        var network = Assert.Single(patch.AcousticNetworks);
-        Assert.NotEmpty(network.Terminals);
-        Assert.Contains("voices_0_source", network.Terminals);
-        Assert.Contains("voices_0_lip", network.Terminals);
-        Assert.Equal(WaveClockDelayStrategy.FractionalLinear, Assert.Single(patch.WaveClocks).Strategy);
+        var network = Assert.Single(patch.VocalNetworks);
+        Assert.Equal("voices_0_network", network.Name);
+        Assert.Equal(["voices_0_oral"], network.Paths);
+        Assert.Contains("voices_0_source", network.Sources);
+        Assert.Contains("voices_0_lip", network.Radiation);
+        Assert.Empty(patch.AcousticNetworks);
+        Assert.Empty(patch.WaveClocks);
 
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph"));
-        Assert.Contains("acoustic_graph_radiated", export.Source);
-        Assert.Contains("de.fdelay", export.Source);
-        Assert.Contains("max(0.000001,", export.Source);
+        Assert.Contains("primitive_radiated", export.Source);
+        Assert.Contains("de.fdelay1a", export.Source);
+        Assert.Contains("primitive_source_voices_0_source", export.Source);
+        Assert.Contains("primitive_radiation_voices_0_lip", export.Source);
+        Assert.DoesNotContain("acoustic_graph_radiated", export.Source);
         Assert.DoesNotContain("tract_lf", export.Source);
     }
 
     [Fact]
-    public void GeneratedTractGraphKeepsBoundaryDimensionsSeparate()
+    public void PrimitiveTractKeepsBoundaryDimensionsSeparate()
     {
         var patch = PatchScript.Parse("""
             param path=/pink/velum default=.25 min=0 max=1 step=.001
@@ -381,54 +461,47 @@ public sealed class PatchScriptTests
             tract shape=human nasal_branch=nose propagation=graph freq=140 gain=.1 sustain=.2 velum=@/pink/velum lip_opening=@/pink/lip/opening lip_reflection=@/pink/lip/reflection
             """);
 
-        Assert.Contains(patch.AcousticConnections, connection =>
-            connection.Name.Contains("_nose_connection", StringComparison.Ordinal) &&
-            MathF.Abs(connection.Coupling - 1f) < 0.0001f);
+        var network = Assert.Single(patch.VocalNetworks);
+        Assert.Contains("voices_0_oral", network.Paths);
+        Assert.Contains("voices_0_nasal", network.Paths);
+        Assert.Contains("voices_0_velopharynx", network.Branches);
+        Assert.Contains("voices_0_lip", network.Radiation);
+        Assert.Empty(patch.AcousticConnections);
         Assert.DoesNotContain(patch.ParameterBindings, binding =>
             binding.FieldPath.StartsWith("/acoustic/connections/", StringComparison.OrdinalIgnoreCase) &&
             binding.FieldPath.EndsWith("/coupling", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(patch.ParameterBindings, binding =>
-            binding.FieldPath.StartsWith("/acoustic/terminals/", StringComparison.OrdinalIgnoreCase) &&
-            binding.FieldPath.EndsWith("/area_scale", StringComparison.OrdinalIgnoreCase) &&
-            binding.ParameterPath == "/pink/velum" &&
-            binding.Transform == ParameterBindingTransform.Square &&
-            binding.Scale > 1000f);
+            binding.FieldPath == "/vocal/branches/0/opening" &&
+            binding.ParameterPath == "/pink/velum");
+        Assert.Contains(patch.ParameterBindings, binding =>
+            binding.FieldPath.StartsWith("/vocal/radiation/", StringComparison.OrdinalIgnoreCase) &&
+            binding.FieldPath.EndsWith("/aperture", StringComparison.OrdinalIgnoreCase) &&
+            binding.ParameterPath == "/pink/lip/opening");
         Assert.DoesNotContain(patch.ParameterBindings, binding =>
-            binding.FieldPath.StartsWith("/acoustic/radiation/", StringComparison.OrdinalIgnoreCase) &&
+            binding.FieldPath.StartsWith("/vocal/radiation/", StringComparison.OrdinalIgnoreCase) &&
             binding.FieldPath.EndsWith("/opening", StringComparison.OrdinalIgnoreCase) &&
             binding.ParameterPath == "/pink/velum");
         Assert.DoesNotContain(patch.ParameterBindings, binding =>
-            binding.FieldPath.StartsWith("/acoustic/terminals/", StringComparison.OrdinalIgnoreCase) &&
+            binding.FieldPath.StartsWith("/vocal/branches/", StringComparison.OrdinalIgnoreCase) &&
             binding.FieldPath.EndsWith("/area_scale", StringComparison.OrdinalIgnoreCase) &&
             binding.ParameterPath == "/pink/lip/opening");
 
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph_boundaries"));
-        Assert.Contains("graph_connection_reflection_voices_0_nose_connection", export.Source);
-        Assert.Contains("graph_connection_energy_in_voices_0_nose_connection", export.Source);
-        Assert.Contains("graph_connection_energy_out_voices_0_nose_connection", export.Source);
-        Assert.Contains("graph_node_incident_pressure_", export.Source);
-        Assert.Contains("graph_node_source_", export.Source);
-        Assert.Contains("graph_area_reflection_", export.Source);
-        Assert.Contains("graph_area_energy_in_", export.Source);
-        Assert.Contains("graph_area_energy_out_", export.Source);
-        Assert.Contains("graph_radiation_reference_area_voices_0_lip", export.Source);
-        Assert.Contains("graph_radiation_differentiation_voices_0_lip", export.Source);
-        Assert.Contains("graph_radiation_admittance_voices_0_lip", export.Source);
-        Assert.Contains("graph_radiation_boundary_load_voices_0_lip", export.Source);
-        Assert.Contains("graph_radiation_reflected_loaded_voices_0_lip", export.Source);
-        Assert.Contains("graph_radiation_flow_voices_0_lip", export.Source);
-        Assert.Contains("patch_param_0) * (patch_param_0", export.Source);
+        Assert.Contains("primitive_branch_voices_0_velopharynx", export.Source);
+        Assert.Contains("primitive_radiation_voices_0_lip", export.Source);
+        Assert.Contains("primitive_path_voices_0_oral_area", export.Source);
+        Assert.Contains("primitive_path_voices_0_nasal_area", export.Source);
+        Assert.Contains("primitive_radiated", export.Source);
+        Assert.DoesNotContain("graph_connection_reflection_voices_0_nose_connection", export.Source);
 
         var debugExport = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph_boundaries_debug", DebugProbeUi: true));
-        Assert.Contains("vbargraph(\"/debug/voice_0/node/", debugExport.Source);
-        Assert.Contains("vbargraph(\"/debug/voice_0/connection/voices_0_nose_connection/energy_in\"", debugExport.Source);
-        Assert.Contains("vbargraph(\"/debug/voice_0/radiation/voices_0_lip/boundary_load\"", debugExport.Source);
+        Assert.Contains("vbargraph(\"/debug/voice_0/branch/voices_0_velopharynx/admittance\"", debugExport.Source);
         Assert.Contains("vbargraph(\"/debug/voice_0/radiation/voices_0_lip/flow\"", debugExport.Source);
         Assert.Contains("process = ", debugExport.Source);
     }
 
     [Fact]
-    public void GeneratedGraphInjectionSourcesOccupyCellCenters()
+    public void TractInjectionLowersToSingleConstrictionContactPrimitive()
     {
         var patch = PatchScript.Parse("""
             tract_shape name=human length_cm=17 diameters=.6,.8,1.2,1.5,1.2,.8
@@ -436,19 +509,13 @@ public sealed class PatchScriptTests
             tract shape=human injection=inj propagation=graph sections=6 constriction_index=5
             """);
 
-        var injectionSources = patch.AcousticSourcePorts
-            .Where(port => port.Kind == AcousticSourceKind.TurbulenceJet)
-            .OrderBy(port => port.Position)
-            .ToArray();
-
-        Assert.Equal(5, injectionSources.Length);
-        Assert.Equal(0.25f, injectionSources[0].Position, 3);
-        Assert.Equal(0.9167f, injectionSources[^1].Position, 3);
-        Assert.All(injectionSources, source =>
-        {
-            Assert.NotNull(source.PositionControl);
-            Assert.Equal(1f / 6f, source.PositionControl!.IndexScale, 4);
-        });
+        var contact = Assert.Single(patch.ConstrictionContacts);
+        Assert.Equal("voices_0_constriction", contact.Name);
+        Assert.Equal("voices_0_oral", contact.Path);
+        Assert.Equal(1f, contact.Position, 4);
+        Assert.Equal(.8f, contact.StoredPressure, 4);
+        Assert.DoesNotContain(patch.AcousticSourcePorts, port => port.Kind == AcousticSourceKind.TurbulenceJet);
+        Assert.DoesNotContain(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -525,7 +592,7 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
-    public void GraphTractPreservesDeclaredMorphologyGrid()
+    public void PrimitiveTractPreservesDeclaredMorphologyGrid()
     {
         var patch = PatchScript.Parse("""
             param path=/pink/lip/opening default=1.4 min=0 max=2.5 step=.001
@@ -548,16 +615,29 @@ public sealed class PatchScriptTests
         Assert.Equal(32, tract.ConstrictionIndex, 2);
         Assert.Equal(32, tract.Injection?.Position);
         Assert.Equal(1, tract.Injection?.Width);
-        Assert.Equal(WaveClockDelayStrategy.FractionalLinear, Assert.Single(patch.WaveClocks).Strategy);
-        Assert.Equal(10, patch.AcousticTerminals.Count(terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal)));
-        Assert.Equal(4, patch.AcousticTerminals.Count(terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal)));
-        Assert.Equal(8, patch.AcousticSourcePorts.Count(port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal)));
-        Assert.Equal(44, patch.AcousticPaths.Single(path => path.Name == "voices_0_oral").AreaFunction.Sections);
-        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/acoustic/radiation/1/opening" && binding.ParameterPath == "/pink/lip/opening");
+        Assert.Empty(patch.WaveClocks);
+        Assert.Equal(2, patch.AreaFunctions.Count);
+        Assert.Equal(2, patch.WaveguidePaths.Count);
+        Assert.Single(patch.SourcePorts);
+        Assert.Single(patch.ConstrictionContacts);
+        Assert.Single(patch.BranchPorts);
+        Assert.Single(patch.RadiationLoads);
+        Assert.Single(patch.ProbeTimelines);
+        Assert.Single(patch.VocalNetworks);
+        Assert.Equal(44, patch.AreaFunctions.Single(area => area.Name == "voices_0_morphology").Shape.Sections);
+        Assert.Equal(28, patch.AreaFunctions.Single(area => area.Name == "voices_0_nasal_morphology").Shape.Sections);
+        Assert.Equal("voices_0_morphology", patch.WaveguidePaths.Single(path => path.Name == "voices_0_oral").AreaFunction);
+        Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/vocal/radiation/0/aperture" && binding.ParameterPath == "/pink/lip/opening");
+        Assert.DoesNotContain(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
+        Assert.DoesNotContain(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal));
+        Assert.DoesNotContain(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal));
 
         var faust = FaustEmitter.Emit(patch, new FaustExportOptions("graph_declared_grid")).Source;
-        Assert.Contains("graph_loop ~ si.bus", faust);
-        Assert.Contains("de.fdelay", faust);
+        Assert.Contains("primitive_path_voices_0_oral", faust);
+        Assert.Contains("primitive_branch_voices_0_velopharynx", faust);
+        Assert.Contains("primitive_contact_voices_0_constriction", faust);
+        Assert.Contains("de.fdelay1a", faust);
+        Assert.DoesNotContain("graph_loop ~ si.bus", faust);
         Assert.DoesNotContain("_wg_", faust);
     }
 
@@ -982,18 +1062,24 @@ public sealed class PatchScriptTests
             Assert.NotEmpty(patch.NasalBranches);
             Assert.NotEmpty(patch.TractMotions);
             Assert.Equal(TractPropagationMode.Graph, voice.Tract.Propagation);
-            Assert.Contains(patch.AcousticPaths, path => path.Name == "voices_0_oral" && path.AreaControl is not null);
-            Assert.Contains(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal) && port.Transient > 0 && port.PositionControl is not null);
-            Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
-            Assert.Contains(patch.AcousticConnections, connection => connection.Name.Contains("_nose_connection", StringComparison.Ordinal) && MathF.Abs(connection.Coupling - 1f) < 0.0001f);
+            Assert.NotNull(voice.VocalNetwork);
+            Assert.Contains(patch.AreaFunctions, area => area.Name == "voices_0_morphology" && area.Deformation is not null);
+            Assert.Contains(patch.WaveguidePaths, path => path.Name == "voices_0_oral" && path.AreaFunction == "voices_0_morphology");
+            Assert.Contains(patch.SourcePorts, port => port.Name.StartsWith("voices_0_", StringComparison.Ordinal) && port.Path == "voices_0_oral");
+            Assert.Contains(patch.ConstrictionContacts, contact => contact.Name == "voices_0_constriction" && contact.StoredPressure > 0);
+            Assert.Contains(patch.BranchPorts, branch => branch.Name == "voices_0_velopharynx" && MathF.Abs(branch.Coupling - 1f) < 0.0001f);
+            Assert.Contains(patch.RadiationLoads, radiation => radiation.Name == "voices_0_lip");
+            Assert.Contains(patch.ProbeTimelines, probe => probe.Networks is not null && probe.Networks.Contains("voices_0_network"));
+            Assert.DoesNotContain(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_inj_", StringComparison.Ordinal));
+            Assert.DoesNotContain(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal));
             Assert.DoesNotContain(patch.ParameterBindings, binding => binding.FieldPath.StartsWith("/acoustic/connections/", StringComparison.OrdinalIgnoreCase) && binding.FieldPath.EndsWith("/coupling", StringComparison.OrdinalIgnoreCase));
-            Assert.Contains("graph_connection_reflection_voices_0_nose_connection", export.Source);
-            Assert.Contains("acoustic_graph_radiated", export.Source);
-            Assert.Contains("graph_terminal_area_voices_0_area_", export.Source);
-            Assert.Contains("graph_source_", export.Source);
-            Assert.Contains("_reservoir_drive", export.Source);
-            Assert.Contains("_reservoir", export.Source);
-            Assert.Contains("_release_pulse", export.Source);
+            Assert.Contains("primitive_branch_voices_0_velopharynx", export.Source);
+            Assert.Contains("primitive_radiated", export.Source);
+            Assert.Contains("primitive_path_voices_0_oral_area", export.Source);
+            Assert.Contains("primitive_source_", export.Source);
+            Assert.Contains("primitive_contact_voices_0_constriction_reservoir", export.Source);
+            Assert.Contains("primitive_contact_voices_0_constriction_released_flow", export.Source);
+            Assert.DoesNotContain("graph_terminal_area_voices_0_area_", export.Source);
             Assert.DoesNotContain("wg_diameter_target_", export.Source);
             Assert.NotEmpty(fixture.ReferenceFeatures);
         }
@@ -1607,6 +1693,29 @@ public sealed class PatchScriptTests
             acoustic_network name=humanish path=oral wave_clock=continuous sources=folds radiation=mouth,nostril terminals=trachea_bottom,oral_back,nasal_gate connections=velopharynx
             acoustic network=humanish freq=130 gain=.1
             """, new FaustExportOptions("acoustic_graph_validation", DebugProbeUi: true));
+        var validation = await FaustCompiler.ValidateAsync(export.Source);
+
+        if (validation is null)
+        {
+            return;
+        }
+
+        Assert.True(validation.Success, validation.Stderr);
+    }
+
+    [Fact]
+    public async Task FaustCompilerValidatesPrimitiveVocalNetworkWhenInstalled()
+    {
+        var export = FaustEmitter.EmitScript("""
+            morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.5,1.2,.8 emit_sections=6
+            waveguide_path name=oral_path area=oral strategy=thiran order=1 max_delay=2048 loss=.997
+            source_port name=folds path=oral_path kind=glottal pressure=.7 tension=.55 opening=.45 noise=.05 impedance=.3
+            constriction_contact name=lips path=oral_path position=1 opening=.6 resistance=.2 stored_pressure=.1 release_flow=.02
+            radiation_load name=mouth path=oral_path position=1 aperture=.9 reflection=-.8 impedance=.35
+            probe_timeline name=primitive_flow networks=human blocks=2
+            vocal_network name=human paths=oral_path sources=folds contacts=lips radiation=mouth probes=primitive_flow
+            vocal network=human freq=130 gain=.1 sustain=.12
+            """, new FaustExportOptions("primitive_vocal_validation", DebugProbeUi: true));
         var validation = await FaustCompiler.ValidateAsync(export.Source);
 
         if (validation is null)

@@ -442,6 +442,80 @@ public sealed record AcousticPortNetwork(
     public IReadOnlyList<string> Connections { get; init; } = Connections ?? Array.Empty<string>();
 }
 
+public sealed record AreaFunction(
+    string Name,
+    TractAreaFunction Shape,
+    AcousticAreaControl? Deformation = null,
+    int EmitSections = 8);
+
+public sealed record WaveguidePath(
+    string Name,
+    string AreaFunction,
+    float PropagationSpeedMetersPerSecond = 343,
+    WaveClockDelayStrategy DelayStrategy = WaveClockDelayStrategy.FractionalThiran,
+    int DelayOrder = 1,
+    int MaxDelaySamples = 4096,
+    float Loss = 0.999f);
+
+public sealed record SourcePort(
+    string Name,
+    string Path,
+    float Position = 0,
+    AcousticSourceKind Kind = AcousticSourceKind.Glottal,
+    float Pressure = 0.72f,
+    float Tension = 0.6f,
+    float Opening = 0.5f,
+    float Noise = 0.08f,
+    float Impedance = 0.35f);
+
+public sealed record ConstrictionContact(
+    string Name,
+    string Path,
+    float Position = 0.5f,
+    float Opening = 1,
+    float Resistance = 0.35f,
+    float StoredPressure = 0,
+    float ReleaseFlow = 0);
+
+public sealed record BranchPort(
+    string Name,
+    string FromPath,
+    float FromPosition,
+    string ToPath,
+    float ToPosition = 0,
+    float Opening = 0,
+    float Coupling = 1);
+
+public sealed record RadiationLoad(
+    string Name,
+    string Path,
+    float Position = 1,
+    AcousticRadiationKind Kind = AcousticRadiationKind.Lip,
+    float Aperture = 1,
+    float Reflection = -0.85f,
+    float Impedance = 0.35f);
+
+public sealed record ProbeTimeline(string Name, IReadOnlyList<string>? Networks = null, int BlockSize = 64, int Blocks = 16)
+{
+    public IReadOnlyList<string> Networks { get; init; } = Networks ?? Array.Empty<string>();
+}
+
+public sealed record VocalNetwork(
+    string Name,
+    IReadOnlyList<string>? Paths = null,
+    IReadOnlyList<string>? Sources = null,
+    IReadOnlyList<string>? Contacts = null,
+    IReadOnlyList<string>? Branches = null,
+    IReadOnlyList<string>? Radiation = null,
+    string ProbeTimeline = "")
+{
+    public IReadOnlyList<string> Paths { get; init; } = Paths ?? Array.Empty<string>();
+    public IReadOnlyList<string> Sources { get; init; } = Sources ?? Array.Empty<string>();
+    public IReadOnlyList<string> Contacts { get; init; } = Contacts ?? Array.Empty<string>();
+    public IReadOnlyList<string> Branches { get; init; } = Branches ?? Array.Empty<string>();
+    public IReadOnlyList<string> Radiation { get; init; } = Radiation ?? Array.Empty<string>();
+}
+
 public sealed record GlottalSource(
     string Name = "",
     float Intensity = 0.72f,
@@ -541,7 +615,8 @@ public sealed record VocalTract(
     TractPropagationMode Propagation = TractPropagationMode.Graph,
     float PropagationLoss = 0.999f,
     float IndexScale = 1,
-    AcousticPortNetwork? AcousticNetwork = null);
+    AcousticPortNetwork? AcousticNetwork = null,
+    VocalNetwork? VocalNetwork = null);
 
 public sealed record PatchParameter(
     string Path,
@@ -750,6 +825,7 @@ public sealed record Voice
     public FrequencyModulation Fm { get; init; } = new();
     public VocalTract? Tract { get; init; }
     public AcousticPortNetwork? AcousticNetwork { get; init; }
+    public VocalNetwork? VocalNetwork { get; init; }
     public VoiceColor Color { get; init; } = new();
     public IReadOnlyList<Formant> Formants { get; init; } = Array.Empty<Formant>();
     public IReadOnlyList<FormantFrame> FormantFrames { get; init; } = Array.Empty<FormantFrame>();
@@ -778,6 +854,14 @@ public sealed record SynthPatch
     public IReadOnlyList<AcousticConnection> AcousticConnections { get; init; } = Array.Empty<AcousticConnection>();
     public IReadOnlyList<WaveClockPolicy> WaveClocks { get; init; } = Array.Empty<WaveClockPolicy>();
     public IReadOnlyList<AcousticPortNetwork> AcousticNetworks { get; init; } = Array.Empty<AcousticPortNetwork>();
+    public IReadOnlyList<AreaFunction> AreaFunctions { get; init; } = Array.Empty<AreaFunction>();
+    public IReadOnlyList<WaveguidePath> WaveguidePaths { get; init; } = Array.Empty<WaveguidePath>();
+    public IReadOnlyList<SourcePort> SourcePorts { get; init; } = Array.Empty<SourcePort>();
+    public IReadOnlyList<ConstrictionContact> ConstrictionContacts { get; init; } = Array.Empty<ConstrictionContact>();
+    public IReadOnlyList<BranchPort> BranchPorts { get; init; } = Array.Empty<BranchPort>();
+    public IReadOnlyList<RadiationLoad> RadiationLoads { get; init; } = Array.Empty<RadiationLoad>();
+    public IReadOnlyList<ProbeTimeline> ProbeTimelines { get; init; } = Array.Empty<ProbeTimeline>();
+    public IReadOnlyList<VocalNetwork> VocalNetworks { get; init; } = Array.Empty<VocalNetwork>();
     public IReadOnlyList<OperatorGraph> OperatorGraphs { get; init; } = Array.Empty<OperatorGraph>();
     public IReadOnlyList<ControlLane> Controls { get; init; } = Array.Empty<ControlLane>();
     public IReadOnlyList<PatchParameter> Parameters { get; init; } = Array.Empty<PatchParameter>();

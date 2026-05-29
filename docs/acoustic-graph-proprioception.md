@@ -80,25 +80,36 @@ let PT's cell grid or utterance sketches become the architecture.
 
 ## Current Mechanism
 
-`tract` authoring still preserves a high-resolution morphology surface through
-`VocalTract.Sections` and `AcousticPath.AreaControl`.
+`tract` authoring is now a PT-shaped fixture adapter. It preserves the
+high-resolution `VocalTract` authoring surface, but it no longer lowers into
+generated `voices_0_area_*`, `voices_0_contact_*`, or `voices_0_inj_*` acoustic
+banks.
 
-Generated tract lowering now compacts the Faust graph to:
+The vocal DSP owner is the primitive network:
 
-- up to ten oral area terminals;
-- up to eight moving injection source ports;
-- up to four contact terminals;
-- one lip radiation port and optional nasal branch/radiation.
+- `AreaFunction` owns continuous tract/nasal geometry, physical length, live
+  deformation controls, and the resampling policy for emitted Faust.
+- `WaveguidePath` owns propagation speed, delay strategy, loss, and semantic
+  tube identity.
+- `SourcePort` owns pressure/flow excitation and tract-load coupling.
+- `ConstrictionContact` owns opening, resistance, stored pressure, and released
+  flow.
+- `BranchPort` owns side-port admittance and exchanged flow between paths.
+- `RadiationLoad` owns aperture, impedance/reflection, boundary flow, flow, and
+  radiated output.
+- `ProbeTimeline` owns deterministic primitive telemetry for comparison before
+  utterance metrics.
+- `VocalNetwork` ties those records together as the speech-path authority.
 
-That was a necessary compile-pressure cut, but it is still a discrete
-approximation pretending to be the machine. Source placement, contacts, area
-sampling, and radiation are represented as records distributed over a generated
-graph rather than as a small set of reusable physical primitives with explicit
-instrumentation.
+Explicit `AcousticPortNetwork` scripts still exist for lower-level acoustic
+graph experiments, but PT-style `tract`, `glottis`, `tract_injection`, and
+`nasal_branch` no longer own vocal DSP by generating a banked graph. They adapt
+fixtures into primitive records.
 
 ## Invariants
 
-- `AcousticPortNetwork` owns vocal acoustics. The old proxy renderer stays dead.
+- `VocalNetwork` owns PT-shaped vocal acoustics. Explicit `AcousticPortNetwork`
+  scripts remain a lower-level lab surface, not the default tract lowering.
 - Continuous morphology owns tract shape and length. Generated section/terminal
   count is backend approximation, not anatomy.
 - Faust output must be compact and inspectable enough to compile, probe, and
@@ -195,9 +206,9 @@ This is the layer that lets us say "the tract behaves like the reference" or
 
 ### 4. Collapse Generated PT Lowering
 
-Generated PT-style tract lowering should become an authoring adapter over the
-primitive set. It may preserve PT-shaped controls for fixtures, but it should
-not decide the physical model by emitting banks of terminals where a continuous
+Generated PT-style tract lowering is now an authoring adapter over the
+primitive set. It may preserve PT-shaped controls for fixtures, but it cannot
+decide the physical model by emitting banks of terminals where a continuous
 primitive can own the same behavior.
 
 ## Cut Line
@@ -213,8 +224,15 @@ flow hidden.
 
 ## Next Work
 
-The next implementation pass should map current records and Faust locals onto
-the primitive set above, then add the first `ProbeTimeline` witness for one
-compact tract. After that, compare the primitive timelines against PT/SndKit
-and the VTL/ArtiSynth authority split before further tuning. Words can return
-as downstream witnesses once the tract body is observable.
+The first primitive cut is in place: parser/model records, primitive Faust
+lowering, tract fixture adaptation, and deterministic `ProbeTimeline` CSV
+support. The next implementation pass should harden the primitives:
+
+- make path probes report explicit incoming and outgoing wave variables;
+- add passivity/energy checks as first-class timeline samples;
+- compare Aqua primitive timelines against PT/SndKit internals for one compact
+  tract;
+- add optional VTL/ArtiSynth adapters only as artifact comparators, not default
+  CI dependencies;
+- keep `mama`, `papa`, and `thrombosis` as downstream witnesses until primitive
+  flow evidence improves.
