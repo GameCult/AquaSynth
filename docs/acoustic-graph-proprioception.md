@@ -2,162 +2,219 @@
 
 Date: 2026-05-29
 
-The failure is not lack of research. The failure is that research vocabulary
-outpaced owner contracts. The graph can name sources, contacts, radiation,
-area, losses, branches, and wave clocks, but the baby-word witness still says
-the machine does not own an open vowel, a nasal vowel transition, or a shaped
-plosive as audible speech.
+This pass corrects the direction of the rebuild. The failure is not that the
+graph lacks one more utterance target. The failure is that AquaSynth has been
+letting a large discrete PT-shaped graph survive as the working body while
+adding compensators around it. That is Jenga.
+
+The live objective is to collapse the graph into a small set of physical
+modeling primitives, instrument those primitives directly, and compare their
+sample/flow behavior against serious reference implementations: especially
+VocalTractLab, ArtiSynth, Story/TubeTalker, Smith-style waveguides, and only
+then PT/SndKit as a compact stress fixture.
+
+Baby words remain end-to-end witnesses. They are not the rebuild owner.
 
 ## Objective
 
-Make AquaSynth's graph voice able to say first words before adding more vocal
-machinery. `mama` and `papa` are not toy cases; they are the smallest useful
-truth test for vowel body, lip closure/opening, nasal/oral coupling, source
-continuity, and radiation color.
+Replace the monstrous discrete graph with as few faithful physical primitives
+as possible:
+
+- continuous tract geometry and area functions;
+- source primitives coupled to tract load;
+- branch/coupling primitives;
+- radiation/load primitives;
+- delay-line propagation and scattering primitives;
+- contact/constriction primitives;
+- graph instrumentation that exposes wave/sample flow at those owners.
+
+The target is not a better audio golf loop. The target is an acoustic machine
+whose internal behavior can be inspected and compared to reference simulators.
+
+## Research Authority Map
+
+### VocalTractLab / Birkholz
+
+Owner lesson: separate anatomy, gestures, vocal-fold/source models, acoustic
+simulation, and copy-synthesis controls.
+
+Pressure on Aqua: `tract` should not lower into many little terminal records
+that become the de facto anatomy. It should lower into continuous morphology
+and explicit primitive controls that a gesture layer can drive and diagnostics
+can observe.
+
+### Story / TubeTalker
+
+Owner lesson: continuous area functions and tract length are the compact bridge
+between anatomy and acoustics. Formants are derived evidence.
+
+Pressure on Aqua: emitted sections, sample delays, and source/contact sample
+points are lowering choices. They must not become the authoring truth.
+
+### Julius Smith / Digital Waveguides / Faust Primitives
+
+Owner lesson: bidirectional delay lines, scattering junctions, loss filters,
+fractional delay, and passive boundaries are the cheap realtime substrate.
+
+Pressure on Aqua: generated Faust should use compact waveguide and delay
+primitives where they preserve the owner contract. If custom emitted scattering
+is needed for differentiable controls, it should still look like a small
+physical primitive, not hundreds of section-local expressions.
+
+### ArtiSynth / Fels and Lloyd
+
+Owner lesson: body geometry, mechanical contacts, airflow/acoustics, timeline
+controls, and diagnostics are separate organs in an integrated simulation.
+
+Pressure on Aqua: instrumentation is not optional. We need probes that observe
+geometry, contact state, pressure/flow, wave variables, source load, radiation,
+and timeline transitions at the layer where the primitive claims authority.
+
+### Pink Trombone / SndKit
+
+Owner lesson: PT is a compact Kelly-Lochbaum stress case with oral tube, nasal
+branch, source injection, obstruction history, and radiation.
+
+Pressure on Aqua: use PT to compare behavior and catch regressions, but do not
+let PT's cell grid or utterance sketches become the architecture.
 
 ## Current Mechanism
 
-`tract` authoring builds a high-resolution morphology surface:
+`tract` authoring still preserves a high-resolution morphology surface through
+`VocalTract.Sections` and `AcousticPath.AreaControl`.
 
-- `VocalTract.Sections` owns section/index semantics.
-- `AcousticPath.AreaControl` owns live area expressions from tongue,
-  constriction, lip, and velum controls.
-- `tract_motion` parses motor-intent slew and obstruction parameters, but graph
-  area and delay lowering do not yet own those slew laws.
+Generated tract lowering now compacts the Faust graph to:
 
-Generated tract lowering then compacts that morphology into a Faust-sized graph:
-
-- up to ten oral area terminals,
-- up to eight moving injection source ports,
-- up to four contact terminals,
+- up to ten oral area terminals;
+- up to eight moving injection source ports;
+- up to four contact terminals;
 - one lip radiation port and optional nasal branch/radiation.
 
-`FaustExport` lowers the typed graph into bidirectional segment state:
-
-- segment delay and area reflection own propagation,
-- sources inject pressure/flow into nodes,
-- contact terminals store and release scalar pressure,
-- radiation ports read boundary flow and emit output,
-- probes observe selected source/contact/radiation internals.
-
-The latest artifact is
-`artifacts/parity/pink-trombone-utterance-logmel/20260529T141822464`.
-It improved the `papa` drum-hit failure after lip radiation started following
-live lip opening, but `mama` still reads as closed-mouth humming and
-`thrombosis` remains mostly absent.
+That was a necessary compile-pressure cut, but it is still a discrete
+approximation pretending to be the machine. Source placement, contacts, area
+sampling, and radiation are represented as records distributed over a generated
+graph rather than as a small set of reusable physical primitives with explicit
+instrumentation.
 
 ## Invariants
 
-- Typed `AcousticPortNetwork` is the only vocal audio authority. Do not restore
-  the old proxy tract renderer.
-- Declared morphology resolution and compiled Faust graph density are separate
-  truths. More tract sections must not imply more Faust terminals.
-- The mouth has one owner. Lip opening owns path-end geometry and radiation
-  aperture together.
-- Source placement over a compact graph must be continuous enough for moving
-  articulation. Do not restore one source terminal per tract cell by default.
-- Contact state must describe a pressure/flow event in the tract, not an output
-  click or plosive gain rescue.
-- Listening verdicts override proxy metrics. A high cosine that cannot say
-  `a` is evidence against the witness, not evidence for the voice.
+- `AcousticPortNetwork` owns vocal acoustics. The old proxy renderer stays dead.
+- Continuous morphology owns tract shape and length. Generated section/terminal
+  count is backend approximation, not anatomy.
+- Faust output must be compact and inspectable enough to compile, probe, and
+  compare.
+- Primitives must state what physical quantity they own: area, pressure, flow,
+  wave variable, delay, coupling, contact, source load, or radiation.
+- Instrumentation must observe primitive internals, not only final audio or
+  final metrics.
+- PT utterances are witnesses after the primitive behavior is legible, not the
+  steering authority.
 
 ## Jenga Findings
 
-### Research Names Outpaced Owner Tests
+### The Discrete Graph Is Still Too Much Body
 
-The code has acquired real terms from the literature: source impedance, contact
-pressure, radiation load, fractional delay, area scattering. Those names are
-useful only when each has a falsifiable owner test. Right now the graph can
-pass structural checks while failing the smallest speech task.
+The graph was reduced enough for Faust to compile, but its shape is still
+section-bank driven: area terminals, source terminals, contact terminals, and
+node-local expressions. This keeps pushing us toward local fixes because every
+generated component looks like a place to add one more rule.
 
-### The Model Has Too Many Local Truths
+### We Need Primitive Flow Probes, Not Just Audio Reports
 
-Source, contact, area, loss, radiation, and output balance each implement part
-of a pressure/flow story. They are not all wrong, but they can each be locally
-reasonable while the whole graph says "buzz", "hum", or silence. The lip
-radiation bug was the clean example: path geometry knew the mouth opened, while
-radiation aperture did not.
+Current probes can show selected source/contact/radiation values, but they do
+not yet provide a full primitive timeline: incoming/outgoing wave variables,
+segment delay states, scattering inputs/outputs, source load pressure/flow,
+contact opening/pressure, branch admittance, and radiation impedance over time.
 
-### The Vowel Body Has No Gate
+Without that, comparing to VTL/ArtiSynth/PT is mostly listening plus aggregate
+spectral evidence. That is not enough.
 
-The current parity lane can render utterance WAVs and report log-mel,
-articulation, band ratios, and silence mismatch. It does not yet have a hard
-vowel-body gate that says: before plosives, before fricatives, before
-`thrombosis`, the compact graph must sustain an open `a` and a nasal/open
-`ma` transition with audible oral vowel body.
+### Motion And Contact Are In The Wrong Shape
 
-That missing gate let complexity accumulate around the wrong failure surface.
+`tract_motion` parses gesture intent, but graph area/delay lowering does not
+own motion/passivity as a primitive. Contact release exists, but it is still a
+scalar reservoir pulse instead of a contact/constriction flow primitive that
+can be inspected as pressure, opening, resistance, and released flow.
 
-### Discrete Components Are Carrying Continuous Work
+### Faust Compile Pressure Is Architectural Evidence
 
-The compacting pass fixed the worst Faust compile pressure, but the graph still
-uses sparse banks of area terminals, source ports, and contact terminals as a
-compiled approximation of continuous articulation. That may be acceptable as a
-backend lowering choice, but the source/contact laws must become continuous
-heuristics over that compact bank. Adding density is the expensive answer and
-already proved toxic.
+When Faust refuses to compile or becomes slow enough that three toy utterances
+are painful, that is not tooling bad luck. It means the lowering is asking
+Faust to carry too many discrete local expressions. The correct response is to
+collapse into primitives, not to tune around the generated graph.
 
-### Contact Release Is Not Yet Speech Mechanics
+## Primitive Collapse Plan
 
-Graph contact release now reaches lip radiation. That was a real ownership cut.
-It is still a scalar closure/reservoir/release pulse, with directional weights
-and decay constants. A baby's `p` is a constrained-flow history through a
-changing tract aperture, not a drum trigger. The latest `papa` improvement came
-from fixing mouth ownership, not from adding release force.
+### 1. Define The Minimal Primitive Set
 
-### Motion Is Authored Outside The Acoustic Owner
+Create or document the target primitives before adding another acoustic law:
 
-`tract_motion` exists, and fixture curves smooth controls, but graph area and
-delay semantics do not own motor smoothing/passivity. Abrupt morphology changes
-can still enter fractional delay and area reflection directly. That leaves
-gesture realism outside the organ that emits sound.
+- `AreaFunction`: continuous length/area geometry with live deformation.
+- `WaveguidePath`: compact bidirectional propagation over that area function.
+- `ScatterJunction`: two-port and N-port passive scattering over admittance.
+- `SourcePort`: pressure/flow source with load coupling.
+- `ConstrictionContact`: opening, resistance, stored pressure, and released
+  flow.
+- `BranchPort`: side-port admittance and coupling.
+- `RadiationLoad`: boundary reflection, aperture, impedance, and radiated flow.
+- `ProbeTimeline`: dev/test-only sampling of the primitive state above.
 
-### The Probes Do Not Yet Watch The Missing Vowel
+If an existing record cannot be mapped onto one of these owners, it should be
+deleted, demoted to authoring sugar, or kept only as a compatibility shim that
+delegates to a primitive.
 
-Source/contact/radiation probes proved the graph is alive upstream. They do not
-yet report a vowel-body witness: formant/body energy, open-mouth radiation
-state, nasal/oral balance, and per-phone windows for `mama`/`papa`. We are
-observing the machine's organs, but not the baby-word invariant at the layer
-where the user hears the failure.
+### 2. Compare Primitive Behavior Against References
 
-### Verification Health Is Part Of The Machine
+Reference comparison should look at internal behavior, not only waveform
+similarity:
 
-The native Faust render path is slow and has needed process cleanup and larger
-timeouts. That pressure is not incidental. A graph that takes minutes to render
-three toy words and previously overflowed debug compilation is already telling
-us the implementation surface is too discrete and too costly.
+- VTL/Birkholz: gesture-to-tract/source separation and copy-synthesis control
+  surfaces.
+- ArtiSynth: body/contact/acoustic/timeline diagnostic separation.
+- Story/TubeTalker: continuous area-function parameterization and formant
+  consequences.
+- Smith/Faust: delay-line/scatter/loss/radiation primitive economics and
+  passivity.
+- PT/SndKit: compact oral/nasal KL behavior, obstruction history, and radiation
+  under known fixtures.
+
+### 3. Instrument Sample Flow Through The Graph
+
+Add a dev/test probe path that can write per-block or per-window timelines:
+
+- path area and delay samples;
+- incoming/outgoing wave variables at selected scatter sites;
+- source load pressure, source flow, and injected wave contribution;
+- contact opening/resistance/reservoir/released flow;
+- branch admittance and exchanged flow;
+- radiation boundary reflection, flow, and emitted output;
+- derived energy/passivity checks.
+
+This is the layer that lets us say "the tract behaves like the reference" or
+"this primitive is lying" before touching the final utterance.
+
+### 4. Collapse Generated PT Lowering
+
+Generated PT-style tract lowering should become an authoring adapter over the
+primitive set. It may preserve PT-shaped controls for fixtures, but it should
+not decide the physical model by emitting banks of terminals where a continuous
+primitive can own the same behavior.
 
 ## Cut Line
 
-Stop adding acoustic features until the graph passes a vowel-body proof.
+Cut any new feature whose main evidence is that it improves `mama`, `papa`, or
+`thrombosis` without making the primitive flow more legible.
 
-Before the next physics addition, add a focused witness for:
+Cut any generated component that cannot explain which primitive owner it
+serves.
 
-1. sustained open `a`,
-2. `ma` as nasal closure into open vowel,
-3. `pa` as lip closure/release into open vowel,
-4. the same windows in the accepted utterance artifacts.
-
-The witness should write listening WAVs plus a short report of active vowel
-body, speech-band energy, mouth/radiation opening, and nasal/oral balance. It
-should fail loudly when the result is closed-mouth humming, a drum hit, or
-silence.
-
-Candidate simplifications after that witness exists:
-
-- demote contact release constants into a simpler aperture-shaped constrained
-  flow primitive, or cut the scalar reservoir if it cannot prove speech value;
-- move `tract_motion` slew into graph-owned area/delay expressions;
-- replace nearest-node source attachment pressure with a continuous
-  interpolated injection primitive over adjacent segment nodes;
-- use Faust physical-modeling/delay primitives where they collapse generated
-  graph bulk without hiding owner contracts;
-- keep compact generated terminal counts unless a failed witness proves a
-  specific missing sample point.
+Cut any probe that observes final audio while leaving source/load/contact/path
+flow hidden.
 
 ## Next Work
 
-The next implementation pass should be a baby-word gate, not another graph
-feature. Once sustained `a`, `ma`, and `pa` are visibly and audibly wrong or
-right, the graph will have a clean target for cuts. Without that gate, every
-new coefficient is just another little brick in the stack.
+The next implementation pass should map current records and Faust locals onto
+the primitive set above, then add the first `ProbeTimeline` witness for one
+compact tract. After that, compare the primitive timelines against PT/SndKit
+and the VTL/ArtiSynth authority split before further tuning. Words can return
+as downstream witnesses once the tract body is observable.
