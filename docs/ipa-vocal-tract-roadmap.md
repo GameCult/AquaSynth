@@ -255,6 +255,47 @@ that it means speech shape; English semantics and PanPhon sequence evidence are
 separate inputs. AquaSynth owns the learned compression from PanPhon sequence to
 256D phonetic realization embedding.
 
+#### Gesture Score
+
+Gesture score measures the control/timeline layer before final audio. It is not
+a log-mel proxy and not a reward for decorative noise layers. It answers one
+question: did the IPA/phonetic intent become a plausible anatomical gesture over
+the public `ControlSurface`/`ControlSpline` API?
+
+The first scoring contract:
+
+- `coverage` (`0.25`): required organs and surfaces are touched, forbidden
+  surfaces remain quiet, and optional helpers are weighted lightly. A voiceless
+  labial-velar fricative should touch source voicing/noise, lip aperture, velar
+  constriction, constriction turbulence/contact, and should not open the velum
+  like a nasal.
+- `direction` (`0.25`): each touched surface moves the correct way. Plosives
+  close then release; nasals open the velum; voiceless segments reduce voicing
+  and may raise noise; vowels move tongue/lip surfaces toward
+  height/backness/rounding targets.
+- `contour_timing` (`0.20`): sampled spline shapes match the expected gesture
+  morphology. Stops need closure hold and release, fricatives need a steady
+  narrow constriction, vowels need smooth target movement, and nasals need an
+  open velum plateau.
+- `primitive_timeline` (`0.20`): `ProbeTimelineReport` shows the expected
+  physical consequences: contact opening/reservoir/released flow for stops,
+  branch admittance for nasals, source flow/noise for fricatives, and radiation
+  aperture for lip/vowel gestures.
+- `external_articulation` (`0.10`, optional): when rtMRI/video/manual landmark
+  evidence exists, compare coarse normalized trajectories such as lip aperture,
+  tongue body/front/back proxy, constriction location/opening, velum state, and
+  voicing state. When only audio exists, this term is weak evidence and should
+  mostly yield to clean/full audio scores.
+
+The weights are defaults, not scripture. They should be recorded in reports and
+made tunable per training run, but changing them is a scorer-version change.
+
+`phoneme_gesture` and future phrase templates are only spline emitters. They
+may seed the expected surface set from IPA descriptors such as
+`voiceless_labial-velar_fricative`, but local reference datasets are allowed to
+golf the numeric targets, timings, and patch code. The score must report the
+expanded splines so a passing gesture cannot hide behind a later audio helper.
+
 ### 4. Morphology Model
 
 Owns anatomy.
@@ -519,6 +560,26 @@ The first harness must stay humble and fast:
 Ground truth means "reference pressure," not "the truth about throats." eSpeak
 can teach early intelligibility, timing, and rough spectral targets. It cannot
 decide AquaSynth's anatomy, coarticulation, or Weksa morphology.
+
+Training reports must keep three scores separate:
+
+- `gesture_score`: descriptor/spline/primitive-timeline evidence for whether
+  the intended phoneme became the right anatomical motion. This is measured
+  before final audio.
+- `clean_vocal_score`: broad phoneme identity from the vocal primitive path
+  with minimal dressing. This checks whether the tract machine is doing the
+  work.
+- `full_parity_score`: the whole AquaSynth patch against the target reference,
+  including FM, AM, modulators, envelopes, filters, added animated voices,
+  breath/noise/room/mic emulation, and post-processing.
+
+The full parity script may use all normal AquaSynth synthesis tools around both
+the voice output and the gesture input controls. That flexibility is necessary:
+IPA reference clips include speaker anatomy, microphone color, room tone,
+loudness, pitch, and background noise. The harness must let patches model those
+conditions without forcing the tract graph to lie. The price is accounting:
+full parity improvements are not accepted as articulation improvements unless
+`gesture_score` and `clean_vocal_score` move coherently too.
 
 Training receipts must keep time as a witness. Every request, result, and
 checkpoint should record when each stage made its decision, how much latency it

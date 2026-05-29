@@ -118,6 +118,24 @@ Time is not bookkeeping garnish here. If the mapping is correct only after an
 unbounded wait, cache accident, or hidden retry, the system has learned a
 beautiful falsehood.
 
+Keep scoring layered. The patch under test may use all of AquaSynth: FM, AM,
+modulators, envelopes, filters, auxiliary animated voices, breath/noise/room
+emulation, and post-processing around both the vocal output and its gesture
+inputs. That is necessary for matching real IPA references, which carry speaker
+and recording conditions. But the reports must not let a noise layer impersonate
+articulation:
+
+- `gesture_score` measures descriptor-to-surface coverage, motion direction,
+  spline contour/timing, primitive timeline consequences, and optional external
+  articulation landmarks.
+- `clean_vocal_score` measures broad phoneme identity from the vocal primitive
+  path before heavy dressing.
+- `full_parity_score` measures the whole patch against the reference clip.
+
+Only the third score is allowed to reward recording-condition helpers. The first
+score is where IPA labels and anatomical descriptors prove that the right organs
+were asked to move.
+
 Do not start serious gradient descent from toy embedding packets. The first
 training contract coordinated with Weksa is
 `weksa.utterance_embedding_handoff.v0.1`: 1024 speech-text floats from

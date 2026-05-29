@@ -2,6 +2,14 @@
 
 Current slice:
 
+- Documented the IPA training scoring contract. Gesture score is measured at the
+  descriptor/spline/primitive-timeline layer using coverage, direction,
+  contour/timing, primitive consequences, and optional external articulation
+  evidence. Training reports must keep `gesture_score`, `clean_vocal_score`,
+  and `full_parity_score` separate; full parity may use all AquaSynth synthesis
+  tools and recording-condition helpers, but cannot count as articulation
+  evidence unless the lower-layer scores also move.
+
 - Added the first IPA/anatomy gesture DSL layer. `phoneme_gesture` accepts
   known IPA symbols or explicit descriptors like
   `descriptor=voiceless_labial-velar_fricative`, maps place/manner/voicing to
