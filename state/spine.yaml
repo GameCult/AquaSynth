@@ -1,6 +1,6 @@
 project: AquaSynth
 spine_version: 1
-updated: 2026-05-29T12:33:04+01:00
+updated: 2026-05-29T15:36:32+01:00
 
 prime_directive: >
   Build coherent synth machinery. References exist to reveal missing structure,
@@ -48,6 +48,7 @@ current_mechanism:
   physical_voice_modeling_research: docs/physical-voice-modeling-research.md
   acoustic_graph_dsp_audit: docs/acoustic-graph-dsp-audit.md
   acoustic_graph_missing_pieces_audit: docs/acoustic-graph-missing-pieces-audit.md
+  acoustic_graph_proprioception: docs/acoustic-graph-proprioception.md
   physical_voice_modeling_packet: research/physical-voice-modeling
   parameter_contracts: src/AquaSynth.Core/Model.cs
 
@@ -132,6 +133,7 @@ live_invariants:
   - Generated PT-style `tract` lowering now compacts the Faust graph without changing user-facing morphology resolution: `VocalTract.Sections` and `AcousticPath.AreaFunction.Sections` still preserve the declared tract grid, but generated oral area terminals are capped at 10, generated moving injection source ports at 8, and generated contacts at 4. Source position weighting widens to the compact source spacing so the source bank approximates continuous placement instead of restoring one port per cell. Latest debug evidence `artifacts/parity/pink-trombone-graph-thrombosis-probes/20260529T125048965` drops generated debug DSP size from 1652 to 532 lines, with source graph lines 687->162 and next-state lines 89->27; accepted utterance artifact `artifacts/parity/pink-trombone-utterance-logmel/20260529T125227926` still fails articulation, so this is backend coherence/speed, not parity victory.
   - Moving tract injection placement now uses a raised-cosine kernel over the compact source bank instead of a hard triangular source-position weight. Keep this direction: smoother continuous heuristics over fewer generated ports, not more discrete source terminals. Artifact `artifacts/parity/pink-trombone-utterance-logmel/20260529T140038717` still fails articulation but improves thrombosis active ratio/silence/speech-band slightly without increasing graph size.
   - Generated lip radiation opening must mirror live tract lip opening. The path-end geometry and radiation aperture are one mouth owner, not separate truths. Artifact `artifacts/parity/pink-trombone-utterance-logmel/20260529T141822464` improves papa's plosive failure sharply (RMS 0.8369, motor-band ratio 0.0555), but mama still sounds vowel-poor and thrombosis is still mostly absent; next pressure is vowel body/radiation color and fricative continuity.
+  - Proprioception pass says the current speech graph failed by letting research vocabulary outpace baby-word owner tests. Stop adding vocal features until a focused vowel-body witness proves sustained open `a`, `ma`, and `pa` windows against listening-aligned reports. `docs/acoustic-graph-proprioception.md` owns this cut line.
   - TurbulenceJet now includes a release-timed burst-noise component in addition to the deterministic pressure pulse, but a stronger trial barely moved papa; the source is not the main remaining articulation bottleneck. Graph radiation now mixes 30% raw boundary flow with 70% high-passed flow after local admittance weighting, down from the over-bright 15/85 blend. Latest radiation/source artifact under `artifacts/parity/pink-trombone-utterance-logmel/20260527T174236049`: mama/papa/thrombosis cosine 0.6578/0.7692/0.5585, rmsRatio 3.0006/2.6153/2.3488, articulation 0.1437/0.1173/0.1191. Static `closure-release` under `artifacts/parity/pink-trombone-logmel/20260527T174139661` has rmsRatio 0.9900 and speechBandRatio 0.0842. This is still not speaking; next pressure is true tract resonance/passive scattering and pressure storage, not more burst gain.
   - Same-path two-port area discontinuities now emit `graph_area_energy_in_*` and `graph_area_energy_out_*` probes alongside the three-port branch `graph_connection_energy_*` probes. Use these to inspect passivity and formant-body failures at the scatter sites rather than judging only final output loudness.
   - `FaustExportOptions.DebugProbeUi` wraps graph probe signals in Faust `vbargraph` UI controls under `/debug/...` without changing audio output arity. Native streaming Faust patches now separate writable controls from read-only probe zones and can read/snapshot probe values after `ProcessBlock`; use this for acoustic graph passivity/radiation inspection, leave it off for normal parity renders.
@@ -943,4 +945,5 @@ cut_line:
   - "Cut voice-field sprawl when a target needs topology."
   - "Cut any design that requires recompiling a patch to move an exposed musical parameter."
   - "Split a lower-level graph DSL if Faust/Cardinal-style references make the voice DSL lie."
+  - "Cut any new graph-vocal feature that lands before the baby-word vowel-body witness can prove open `a`, `ma`, and `pa`."
 

@@ -2,6 +2,14 @@
 
 Current slice:
 
+- Proprioception pass after user called Jenga on the graph voice. Diagnosis is
+  now durable in `docs/acoustic-graph-proprioception.md`: research vocabulary
+  and named graph components outpaced baby-word owner tests. Do not add more
+  graph-vocal physics until a focused vowel-body witness proves sustained open
+  `a`, `ma`, and `pa` with listening-aligned reports. Next implementation pass
+  should add that witness, then simplify contact/motion/source placement from
+  the evidence instead of adding another coefficient.
+
 - Implemented the first graph-owned closure reservoir cut. Contact terminals no
   longer contribute through the generic node source sum. Ordinary two-port path
   scatter now emits per-contact closure, reservoir drive, reservoir, release,

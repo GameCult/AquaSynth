@@ -204,8 +204,8 @@ What it simulates: time-varying tract cross-sectional area derived from rest
 diameter plus tongue, constriction, and lip controls.
 
 Current state: useful but simplistic. Diameter is squared into area, which is
-the correct broad convention. Generated lip opening now owns path-end geometry
-instead of also owning radiation opening.
+the correct broad convention. Generated lip opening now owns both path-end
+geometry and radiation aperture.
 
 Smells:
 
@@ -441,6 +441,8 @@ Cut or replace these before piling on more tuning:
 1. Unowned segment contact-loss constant `0.02`.
 2. Turbulence/release scalar constants without a named pressure-flow model.
 3. Nearest-node source attachment as the only interior source placement model.
+4. Any new vocal feature added before the baby-word vowel-body witness in
+   `docs/acoustic-graph-proprioception.md`.
 
 Cut in the 2026-05-28 N-port pass:
 
