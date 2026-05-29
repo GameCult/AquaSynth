@@ -587,6 +587,48 @@ spent, what latency budget it was meant to respect, and how confident the
 mapping was. A tiny audible witness that sounds right but arrives from a
 clockless swamp is already teaching the model to lie with a lovely voice.
 
+### Frozen IPA Gesture Rounds
+
+`IpaGestureExperiment.WriteRound` is the first batch surface for IPA hypothesis
+work. It writes a frozen round bundle under a caller-provided artifact root:
+
+- `manifest.yaml`: target IPA descriptors, variant knobs, candidate script
+  paths, primitive timeline paths, and the authority boundary for the round.
+- `candidates/*.aqua`: deterministic primitive vocal scripts using
+  `phoneme_gesture` plus the public `ControlSurface`/`ControlSpline` path.
+- `timelines/*.csv`: `ProbeTimelineReport` output for each candidate before
+  audio parity.
+- `metrics.csv`: first-layer `gesture` metrics only:
+  `surface_coverage`, `motion_direction`, `contour_timing`,
+  `primitive_timeline`, and `gesture_score`.
+- `evidence.jsonl`: one short machine-readable receipt per candidate for later
+  science passes.
+
+`IpaGestureExperiment.AnalyzeRound` adds the deterministic science packet:
+
+- `analysis/metric-summary.csv`: per-target metric mean, min, max, spread, and
+  best/worst candidate IDs.
+- `analysis/candidate-clusters.csv`: `strong`, `workable`, and `weak`
+  candidate bands by `gesture_score`.
+- `analysis/science-brief.md`: a compact handoff for a human or sub-agent to
+  inspect score surfaces, clusters, and next hypothesis pressure.
+
+This round writer owns frozen candidate evidence. It does not own clean vocal
+identity, full spectrogram parity, optimizer checkpoints, or distributed worker
+orchestration. Those stages may consume the bundle later, but they must add
+their own scores instead of rewriting gesture evidence after the fact.
+
+The intended scale-out loop is brutally simple:
+
+1. Generate a round of descriptor/variant candidates and primitive timelines.
+2. Hand the frozen bundle to a science worker for loss-landscape summaries,
+   clustering, outlier detection, and next-hypothesis recommendations.
+3. While that worker runs, generate another round with new DSL or patch
+   variations.
+4. Merge only conclusions that improve the layered evidence ledger:
+   `gesture_score` first, then `clean_vocal_score`, then
+   `full_parity_score`.
+
 ## CultMesh Render/Scoring Work
 
 CultMesh is the transport, admission, and worker-orchestration layer for speech

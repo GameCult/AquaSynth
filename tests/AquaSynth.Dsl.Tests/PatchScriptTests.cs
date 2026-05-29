@@ -444,6 +444,63 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void IpaGestureExperimentWritesFrozenRoundBundle()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"aquasynth-ipa-round-{Guid.NewGuid():N}");
+        var result = IpaGestureExperiment.WriteRound(
+            root,
+            "round-test",
+            [
+                new IpaGestureExperimentTarget("bilabial-stop", "p", "voiceless_bilabial_plosive", .14f),
+                new IpaGestureExperimentTarget("nasal", "m", "voiced_bilabial_nasal", .18f)
+            ],
+            [
+                new IpaGestureExperimentVariant("base", 1, 1, ["seed"]),
+                new IpaGestureExperimentVariant("slow-soft", .75f, 1.35f, ["timing"])
+            ],
+            timelineBlocks: 8);
+
+        Assert.True(File.Exists(result.ManifestPath));
+        Assert.True(File.Exists(result.MetricsPath));
+        Assert.True(File.Exists(result.EvidencePath));
+        Assert.Equal(4, result.Candidates.Count);
+        Assert.Equal(20, result.Metrics.Count);
+
+        foreach (var candidate in result.Candidates)
+        {
+            Assert.True(File.Exists(candidate.ScriptPath));
+            Assert.True(File.Exists(candidate.TimelinePath));
+            Assert.Contains(candidate.Tags, tag => tag.StartsWith("descriptor:", StringComparison.Ordinal));
+        }
+
+        var metrics = File.ReadAllText(result.MetricsPath);
+        Assert.StartsWith("candidate_id,target_id,layer,metric,value", metrics, StringComparison.Ordinal);
+        Assert.Contains(",gesture,gesture_score,", metrics, StringComparison.Ordinal);
+        Assert.Contains(",gesture,primitive_timeline,", metrics, StringComparison.Ordinal);
+        Assert.All(result.Metrics, metric => Assert.InRange(metric.Value, 0, 1));
+
+        var manifest = File.ReadAllText(result.ManifestPath);
+        Assert.Contains("does_not_own: clean vocal audio identity", manifest, StringComparison.Ordinal);
+
+        var evidence = File.ReadAllText(result.EvidencePath);
+        Assert.Contains("\"gesture_score\":", evidence, StringComparison.Ordinal);
+        Assert.DoesNotContain("full_parity_score", evidence, StringComparison.Ordinal);
+
+        var analysis = IpaGestureExperiment.AnalyzeRound(result);
+        Assert.True(File.Exists(analysis.ScienceBriefPath));
+        Assert.True(File.Exists(analysis.MetricSummaryPath));
+        Assert.True(File.Exists(analysis.CandidateClustersPath));
+        Assert.NotEmpty(analysis.MetricSummaries);
+        Assert.NotEmpty(analysis.CandidateClusters);
+        Assert.Contains(analysis.MetricSummaries, summary => summary.Metric == "gesture_score" && summary.Spread >= 0);
+
+        var brief = File.ReadAllText(analysis.ScienceBriefPath);
+        Assert.Contains("Score Surface", brief, StringComparison.Ordinal);
+        Assert.Contains("Candidate Clusters", brief, StringComparison.Ordinal);
+        Assert.Contains("frozen gesture-layer evidence only", brief, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PrimitiveProbeTimelineReportsFlowBeforeAudioParity()
     {
         var patch = PatchScript.Parse("""

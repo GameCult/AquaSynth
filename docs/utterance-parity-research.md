@@ -136,6 +136,17 @@ Only the third score is allowed to reward recording-condition helpers. The first
 score is where IPA labels and anatomical descriptors prove that the right organs
 were asked to move.
 
+The first scalable IPA training loop starts with frozen gesture rounds, not a
+free-running optimizer. `IpaGestureExperiment.WriteRound` produces candidate
+scripts, primitive timelines, gesture metrics, a manifest, and evidence JSONL
+for a whole batch. `IpaGestureExperiment.AnalyzeRound` then writes metric
+summaries, score-band clusters, and a science brief. A science worker can
+inspect that immutable bundle for clusters, outliers, loss surfaces, and
+promising descriptor/variant changes while the foreground process writes the
+next batch. This keeps hypothesis generation, primitive evidence, and
+statistical analysis separate enough to argue with each other. Good. Machines
+get less stupid when their witnesses are allowed to disagree.
+
 Do not start serious gradient descent from toy embedding packets. The first
 training contract coordinated with Weksa is
 `weksa.utterance_embedding_handoff.v0.1`: 1024 speech-text floats from

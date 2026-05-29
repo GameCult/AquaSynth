@@ -2,6 +2,19 @@
 
 Current slice:
 
+- Added the first scalable IPA gesture experiment harness.
+  `IpaGestureExperiment.WriteRound` writes a frozen round bundle with
+  `manifest.yaml`, candidate `.aqua` scripts, primitive timeline CSVs from
+  `ProbeTimelineReport`, gesture-layer `metrics.csv`, and per-candidate
+  `evidence.jsonl`. `IpaGestureExperiment.AnalyzeRound` writes
+  `analysis/metric-summary.csv`, `analysis/candidate-clusters.csv`, and
+  `analysis/science-brief.md` for the science-worker handoff. The harness
+  scores only descriptor/spline/primitive evidence (`surface_coverage`,
+  `motion_direction`, `contour_timing`, `primitive_timeline`,
+  `gesture_score`) and explicitly does not own clean vocal identity, full
+  spectrogram parity, optimizer checkpoints, or worker orchestration.
+  Verification: `PatchScriptTests` pass 93/93.
+
 - Documented the IPA training scoring contract. Gesture score is measured at the
   descriptor/spline/primitive-timeline layer using coverage, direction,
   contour/timing, primitive consequences, and optional external articulation
