@@ -145,6 +145,8 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_terminal_area_voices_0_area_", faust);
         Assert.Contains("graph_connection_reflection_voices_0_nose_connection", faust);
         Assert.Contains("graph_contact_voices_0_area_", faust);
+        Assert.Contains("* 0.80", faust);
+        Assert.Contains("* 0.20", faust);
         Assert.Contains("de.fdelay", faust);
         Assert.Contains("_reservoir_drive", faust);
         Assert.Contains("_release_pulse", faust);

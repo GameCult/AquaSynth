@@ -1515,10 +1515,11 @@ public static class FaustEmitter
         var leftOutgoing = GraphOutgoing(voiceName, left);
         var rightOutgoing = GraphOutgoing(voiceName, right);
         var reflection = $"{voiceName}_graph_area_reflection_{node.Name}";
+        var contactRelease = EmitGraphContactClosureRelease(source, voiceName, node, ports, options);
 
         source.AppendLine($"    {reflection} = (({leftArea}) - ({rightArea})) / max(0.000001, ({leftArea}) + ({rightArea}));");
-        source.AppendLine($"    {rightOutgoing} = {leftIncoming} - {reflection} * ({leftIncoming} + {rightIncoming}) + ({sourceInjection}) / 2;");
-        source.AppendLine($"    {leftOutgoing} = {rightIncoming} + {reflection} * ({leftIncoming} + {rightIncoming}) + ({sourceInjection}) / 2;");
+        source.AppendLine($"    {rightOutgoing} = {leftIncoming} - {reflection} * ({leftIncoming} + {rightIncoming}) + ({sourceInjection}) / 2 + ({contactRelease}) * 0.80;");
+        source.AppendLine($"    {leftOutgoing} = {rightIncoming} + {reflection} * ({leftIncoming} + {rightIncoming}) + ({sourceInjection}) / 2 + ({contactRelease}) * 0.20;");
         var energyIn = $"({leftArea}) * pow({leftIncoming}, 2.0) + ({rightArea}) * pow({rightIncoming}, 2.0)";
         var energyOut = $"({leftArea}) * pow({leftOutgoing}, 2.0) + ({rightArea}) * pow({rightOutgoing}, 2.0)";
         source.AppendLine($"    {voiceName}_graph_area_energy_in_{node.Name} = {ProbeSignal(options, $"/debug/{voiceName}/area/{node.Name}/energy_in", energyIn, 0, 4)};");
@@ -1564,10 +1565,6 @@ public static class FaustEmitter
         ParameterMap parameters,
         FaustExportOptions options)
     {
-        var contactTerms = node.Terminals
-            .Where(terminal => terminal.Kind == AcousticTerminalKind.Contact)
-            .Select(terminal => EmitGraphContactSourceExpression(source, voiceName, node, nodePorts, terminal, options))
-            .ToList();
         var sourceTerms = node.Terminals
             .Where(terminal => terminal.Kind == AcousticTerminalKind.Source && sources.ContainsKey(terminal.Port.Length == 0 ? terminal.Name : terminal.Port))
             .Select(terminal =>
@@ -1579,7 +1576,6 @@ public static class FaustEmitter
                     : EmitGraphLoadedSourceExpression(source, patch, voiceName, node, sourceName, port, frequency, parameters, options);
             })
             .ToList();
-        sourceTerms.AddRange(contactTerms);
         return sourceTerms.Count == 0 ? "0.0" : string.Join(" + ", sourceTerms);
     }
 
@@ -1711,26 +1707,39 @@ public static class FaustEmitter
         source.AppendLine($"    {prefix}_out = {ProbeSignal(options, $"/debug/{voiceName}/source/{sourceName}/{node.Name}/out", $"({prefix}_flow * {prefix}_flow_scale * (0.55 + 2.6 * {prefix}_pressure_drive) + {prefix}_noise) * ({balance})", -2, 2)};");
     }
 
-    private static string EmitGraphContactSourceExpression(
+    private static string EmitGraphContactClosureRelease(
         StringBuilder source,
         string voiceName,
         AcousticGraphNode node,
         IReadOnlyList<AcousticGraphPort> nodePorts,
-        AcousticTerminal terminal,
         FaustExportOptions options)
     {
-        var safeTerminal = SafeIdentifier(terminal.Name);
-        var prefix = $"{voiceName}_graph_contact_{safeTerminal}_{node.Name}";
-        var terminalArea = $"{voiceName}_graph_terminal_area_{safeTerminal}";
+        var contacts = node.Terminals
+            .Where(terminal => terminal.Kind == AcousticTerminalKind.Contact)
+            .ToArray();
+        if (contacts.Length == 0)
+        {
+            return "0.0";
+        }
+
         var localPressure = $"{voiceName}_graph_node_incident_pressure_{node.Name}";
-        var drive = ContactReservoirDriveExpression(voiceName, node, nodePorts, localPressure);
-        source.AppendLine($"    {prefix}_closure = clip01((0.0144 - ({terminalArea})) / 0.0144);");
-        source.AppendLine($"    {prefix}_release = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/release", $"(max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.992))", 0, 1)};");
-        source.AppendLine($"    {prefix}_reservoir_drive = {drive};");
-        source.AppendLine($"    {prefix}_reservoir = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/reservoir", $"{prefix}_reservoir_drive * {prefix}_closure : + ~ *(0.994)", 0, 2)};");
-        source.AppendLine($"    {prefix}_release_pressure = 0.12 + 3.20 * clip01({prefix}_reservoir);");
-        source.AppendLine($"    {prefix}_out = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/out", $"{prefix}_release * {prefix}_release_pressure * (0.35 + 0.65 * clip01(abs({voiceName}_graph_terminal_reflection_{safeTerminal})))", -2, 2)};");
-        return $"{prefix}_out";
+        var releases = new List<string>();
+        foreach (var terminal in contacts)
+        {
+            var safeTerminal = SafeIdentifier(terminal.Name);
+            var prefix = $"{voiceName}_graph_contact_{safeTerminal}_{node.Name}";
+            var terminalArea = $"{voiceName}_graph_terminal_area_{safeTerminal}";
+            var drive = ContactReservoirDriveExpression(voiceName, node, nodePorts, localPressure);
+            source.AppendLine($"    {prefix}_closure = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/closure", $"clip01((0.0144 - ({terminalArea})) / 0.0144)", 0, 1)};");
+            source.AppendLine($"    {prefix}_release = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/release", $"(max(0.0, ({prefix}_closure : mem) - {prefix}_closure) : + ~ *(0.994))", 0, 1)};");
+            source.AppendLine($"    {prefix}_reservoir_drive = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/reservoir_drive", drive, 0, 2)};");
+            source.AppendLine($"    {prefix}_reservoir = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/reservoir", $"({prefix}_reservoir_drive * {prefix}_closure) : + ~ *(0.998)", 0, 2)};");
+            source.AppendLine($"    {prefix}_release_pressure = 0.16 + 5.80 * clip01({prefix}_reservoir);");
+            source.AppendLine($"    {prefix}_out = {ProbeSignal(options, $"/debug/{voiceName}/contact/{terminal.Name}/{node.Name}/out", $"{prefix}_release * {prefix}_release_pressure", -2, 2)};");
+            releases.Add($"{prefix}_out");
+        }
+
+        return releases.Count == 1 ? releases[0] : $"({string.Join(" + ", releases)})";
     }
 
     private static string EmitGraphTurbulenceSourceExpression(

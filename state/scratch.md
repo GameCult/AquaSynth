@@ -2,6 +2,38 @@
 
 Current slice:
 
+- Implemented the first graph-owned closure reservoir cut. Contact terminals no
+  longer contribute through the generic node source sum. Ordinary two-port path
+  scatter now emits per-contact closure, reservoir drive, reservoir, release,
+  and out probes, and injects the release directionally into the same path
+  scattering law (`0.80` downstream, `0.20` upstream). This is the research
+  supported move: closure pressure enters the traveling-wave path instead of
+  acting as an output click or generic source gain.
+- Latest opt-in thrombosis probe after the cut:
+  `artifacts/parity/pink-trombone-graph-thrombosis-probes/20260529T021934812`.
+  Key peaks: lip contact closure `0.936876`, contact reservoir drive
+  `0.519667`, contact reservoir `6.024680`, contact release `0.485894`,
+  contact out `0.548231`, lip radiation flow `0.581880`, lip radiation
+  admittance `0.710362`, modal source out `1.233802`, modal flow `0.771656`,
+  sibilant/injection area 34 out `0.099287`. Previous contact out was about
+  `0.032413`; the closure event now reaches the graph/radiation path.
+- Latest utterance diagnostic:
+  `artifacts/parity/pink-trombone-utterance-logmel/20260529T022214016`.
+  The speech verdict is still not accepted. `thrombosis` RMS improved from
+  roughly `0.0673` to `0.0761`, but cosine stayed about `0.331` and silence
+  mismatch worsened to `0.7306`. This means the closure cut is structurally
+  correct but not sufficient. Do not claim speech parity. Next likely owner is
+  either utterance/radiation output balance or more realistic contact
+  filtering/active-frame duration; do not hide that under a global gain knob.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --no-build --disable-build-servers --filter "ParserSupportsPinkTromboneStyleTractVoice|TractVoiceCanLowerThroughAcousticGraph|FaustCompilerValidatesAcousticPathGraphWhenInstalled" -v normal`
+  passed: 3 tests. `AQUASYNTH_RUN_GRAPH_PROBES=1 dotnet test ... --filter
+  "PinkTromboneThrombosisGraphDebugProbesWriteTimelineWhenNativeFaustIsInstalled"`
+  passed: 1 test in 2m09s. `dotnet test ... --filter
+  "PinkTromboneAcceptedUtterancesReportGraphLogMelParityWhenFaustIsInstalled"`
+  passed: 1 test in 2m25s. Minimal verbosity sometimes exits silently on the
+  long native render path; normal verbosity produced passing runs.
+
 - Added graph-native debug probes for vocal source internals when
   `DebugProbeUi` is enabled: tissue-valve pressure drive, modal tissue,
   aperture, flow, and output; turbulence-source reservoir/release/output; and
