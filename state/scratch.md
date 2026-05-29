@@ -2,6 +2,30 @@
 
 Current slice:
 
+- PT utterance diagnostic crash recheck: the focused test is reproducible as
+  slow but passing when stale child `dotnet` processes are cleared and the test
+  is run with enough wall-clock budget. Fresh verified artifact:
+  `artifacts/parity/pink-trombone-utterance-logmel/20260529T005420700`.
+  Per-utterance render timing now writes `render.txt` beside each candidate
+  before/after the Faust render path: `mama` ~31s, `papa` ~45s, `thrombosis`
+  ~59s. The previous two-minute attached shell timeout was not a valid crash
+  witness.
+- Harness/process fix: `PinkTromboneAcceptedUtterancesReportGraphLogMelParityWhenFaustIsInstalled`
+  now writes `candidate-graph.dsp` and `controls.csv` before rendering, wraps
+  each external Faust render in a three-minute per-utterance timeout, and writes
+  stdout/stderr/timing to `render.txt`. `FaustCompiler.RunAsync` now kills the
+  whole child process tree when cancellation fires, so timed-out `faust` or
+  nested `dotnet run` work cannot keep poisoning later runs.
+- Current acoustic evidence after the source-law cleanup is weakness, not a
+  loud low-frequency floor: latest utterance RMS ratios are `mama` 0.0876,
+  `papa` 0.1509, `thrombosis` 0.0673. `thrombosis` still fails the diagnostic
+  cosine floor with cosine 0.3318. Next vocal work should inspect source-flow
+  strength/articulation and radiation transfer with debug probes, not restore a
+  generic `drive` knob.
+- Verification:
+  `dotnet test tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter "PinkTromboneAcceptedUtterancesReportGraphLogMelParityWhenFaustIsInstalled|FaustCompilerRendersTissueValveGraphWhenInstalled|FaustCompilerValidatesAcousticPathGraphWhenInstalled" -v minimal`
+  passed: 3 tests in 2m17s.
+
 - Research-guided machine cut: graph segment delay no longer clamps physical
   segment delay to a full sample. `WaveClockPolicy` now owns the minimum legal
   delay: unit grid stays at 1 sample, half-sample grid and first-order Thiran

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Text;
 
 namespace AquaSynth.Dsl.Tests;
@@ -111,9 +112,27 @@ public sealed class PinkTromboneLogMelParityTests
         {
             var reference = referenceRenderer.RenderUtterance(fixture.Id, fixture.ControlPoints, fixture.DurationSeconds);
             var source = AutomatedGraphSource(fixture);
-            var candidate = await FaustCompiler.RenderAsync(
-                source,
-                new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate));
+            var fixtureDir = Path.Combine(artifactDir, fixture.Id);
+            Directory.CreateDirectory(fixtureDir);
+            File.WriteAllText(Path.Combine(fixtureDir, "candidate-graph.dsp"), source);
+            File.WriteAllText(Path.Combine(fixtureDir, "controls.csv"), UtteranceControlCsv(fixture));
+
+            var stopwatch = Stopwatch.StartNew();
+            using var renderTimeout = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+            FaustRender? candidate;
+            try
+            {
+                candidate = await FaustCompiler.RenderAsync(
+                    source,
+                    new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate),
+                    cancellationToken: renderTimeout.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                Assert.Fail($"Faust render timed out for `{fixture.Id}` after {stopwatch.Elapsed.TotalSeconds:0.0}s; artifacts: {fixtureDir}");
+                return;
+            }
+            stopwatch.Stop();
 
             Assert.NotNull(candidate);
             Assert.True(candidate.Samples.Length > 0, $"{candidate.Stderr}{Environment.NewLine}artifacts: {artifactDir}");
@@ -124,13 +143,10 @@ public sealed class PinkTromboneLogMelParityTests
             var report = UtteranceReport(fixture, comparison);
             reports.Add(report);
 
-            var fixtureDir = Path.Combine(artifactDir, fixture.Id);
-            Directory.CreateDirectory(fixtureDir);
             WriteWav(Path.Combine(fixtureDir, "reference-pink-trombone.wav"), reference.Samples, reference.SampleRate);
             WriteWav(Path.Combine(fixtureDir, "candidate-graph.wav"), candidate.Samples, candidate.SampleRate);
-            File.WriteAllText(Path.Combine(fixtureDir, "candidate-graph.dsp"), source);
             File.WriteAllText(Path.Combine(fixtureDir, "report.txt"), report);
-            File.WriteAllText(Path.Combine(fixtureDir, "controls.csv"), UtteranceControlCsv(fixture));
+            File.WriteAllText(Path.Combine(fixtureDir, "render.txt"), $"seconds={stopwatch.Elapsed.TotalSeconds:0.000}{Environment.NewLine}stdout:{Environment.NewLine}{candidate.Stdout}{Environment.NewLine}stderr:{Environment.NewLine}{candidate.Stderr}");
 
             if (comparison.LogMelCosineSimilarity < UtteranceGraphSmokeCosineFloors.GetValueOrDefault(fixture.Id, 0.1f))
             {
