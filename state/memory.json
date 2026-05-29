@@ -121,7 +121,7 @@
   },
   "last_verified": {
     "command": "dotnet test tests\\AquaSynth.Dsl.Tests\\AquaSynth.Dsl.Tests.csproj --no-restore --disable-build-servers -p:UseSharedCompilation=false -p:BuildInParallel=false --filter \"FullyQualifiedName~PatchScriptTests\" -v minimal",
-    "result": "Primitive vocal telemetry/reference cut passes PatchScriptTests 86/86. Path timelines now include wave/passivity fields, and PT/SndKit static primitive comparison is covered. Earlier full unfiltered run hit the five-minute wall after leaving orphan dotnet workers; focused suites are the current reliable verification path.",
+    "result": "Primitive vocal telemetry/reference cut passes PatchScriptTests 88/88. Path timelines now include wave/passivity fields, PT/SndKit static primitive comparison is covered, and the local PT renderer exposes internal primitive timeline samples for role-normalized comparison. Earlier full unfiltered run hit the five-minute wall after leaving orphan dotnet workers; focused suites are the current reliable verification path.",
     "commit": "pending primitive vocal teardown"
   }
 }

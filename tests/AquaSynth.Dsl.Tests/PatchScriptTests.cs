@@ -418,6 +418,52 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void PinkTromboneReferenceRendererExposesPrimitiveTimelineFields()
+    {
+        var renderer = new PinkTromboneReferenceRenderer();
+        var fixture = PinkTromboneParityFixtures.ById("nasal-vowel");
+
+        var timeline = renderer.RenderTimeline(fixture.Controls, durationSeconds: .04f, blockSize: 128);
+
+        Assert.Contains(timeline, sample => sample.Primitive == "path:pt_oral" && sample.Signal == "incoming_wave");
+        Assert.Contains(timeline, sample => sample.Primitive == "path:pt_oral" && sample.Signal == "outgoing_wave");
+        Assert.Contains(timeline, sample => sample.Primitive == "path:pt_oral" && sample.Signal == "energy_in");
+        Assert.Contains(timeline, sample => sample.Primitive == "path:pt_oral" && sample.Signal == "energy_out");
+        Assert.Contains(timeline, sample => sample.Primitive == "path:pt_oral" && sample.Signal == "passivity_ratio");
+        Assert.Contains(timeline, sample => sample.Primitive == "path:pt_nasal" && sample.Signal == "area");
+        Assert.Contains(timeline, sample => sample.Primitive == "branch:pt_velopharynx" && sample.Signal == "admittance");
+        Assert.Contains(timeline, sample => sample.Primitive == "contact:pt_obstruction" && sample.Signal == "opening");
+        Assert.Contains(timeline, sample => sample.Primitive == "radiation:pt_lip" && sample.Signal == "flow");
+
+        var passivity = timeline
+            .Where(sample => sample.Primitive == "path:pt_oral" && sample.Signal == "passivity_ratio")
+            .Select(sample => sample.Value)
+            .ToArray();
+        Assert.NotEmpty(passivity);
+        Assert.All(passivity, value => Assert.True(float.IsFinite(value), "PT timeline emitted non-finite passivity"));
+    }
+
+    [Fact]
+    public void PrimitiveTimelineCanCompareAgainstPinkTromboneInternalTimeline()
+    {
+        var fixture = PinkTromboneParityFixtures.ById("nasal-vowel");
+        var patch = PatchScript.Parse(fixture.AquaScript);
+        var aqua = ProbeTimelineReport.Build(patch, "voices_0_network", blocks: 1);
+        var pt = new PinkTromboneReferenceRenderer().RenderTimeline(fixture.Controls, durationSeconds: .02f, blockSize: 128);
+
+        var comparison = PrimitiveReferenceReport.ComparePinkTromboneTimeline(aqua, pt);
+
+        Assert.Contains(comparison, row => row.Primitive == "path:oral" && row.Signal == "area");
+        Assert.Contains(comparison, row => row.Primitive == "path:oral" && row.Signal == "incoming_wave");
+        Assert.Contains(comparison, row => row.Primitive == "path:oral" && row.Signal == "energy_in");
+        Assert.Contains(comparison, row => row.Primitive == "path:nasal" && row.Signal == "area");
+        Assert.Contains(comparison, row => row.Primitive == "branch:velopharynx" && row.Signal == "admittance");
+        Assert.Contains(comparison, row => row.Primitive == "contact:obstruction" && row.Signal == "opening");
+        Assert.Contains(comparison, row => row.Primitive == "radiation:lip" && row.Signal == "flow");
+        Assert.All(comparison, row => Assert.True(float.IsFinite(row.Candidate) && float.IsFinite(row.Expected) && float.IsFinite(row.Error)));
+    }
+
+    [Fact]
     public void SyrinxVoiceUsesPairedLoadedLabialSourcesThroughOneGraph()
     {
         var patch = PatchScript.Parse("""

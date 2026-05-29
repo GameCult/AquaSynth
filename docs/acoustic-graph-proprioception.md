@@ -236,11 +236,14 @@ PT/SndKit comparison report:
 - `PrimitiveReferenceReport.ComparePinkTrombone` compares primitive geometry,
   delay, branch admittance, contact, and radiation fields against local
   PT/SndKit fixture controls without adding a native reference dependency to CI.
+- `PinkTromboneReferenceRenderer.RenderTimeline` exposes PT internal oral/nasal
+  path, branch, contact, and radiation timeline fields from its own arrays, and
+  `PrimitiveReferenceReport.ComparePinkTromboneTimeline` role-normalizes those
+  fields against Aqua primitive timelines.
 
 The next implementation pass should harden the primitives further:
 
-- compare per-block Aqua primitive timelines against PT/SndKit internals for one
-  compact tract render, not just static fixture controls;
+- turn the timeline comparison into artifact reports for the PT fixture suite;
 - add optional VTL/ArtiSynth adapters only as artifact comparators, not default
   CI dependencies;
 - keep `mama`, `papa`, and `thrombosis` as downstream witnesses until primitive

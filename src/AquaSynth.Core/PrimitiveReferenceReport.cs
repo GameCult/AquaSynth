@@ -65,6 +65,34 @@ public static class PrimitiveReferenceReport
         return rows;
     }
 
+    public static IReadOnlyList<PrimitiveReferenceSample> ComparePinkTromboneTimeline(
+        IReadOnlyList<ProbeTimelineSample> candidate,
+        IReadOnlyList<PinkTromboneReferenceTimelineSample> reference)
+    {
+        var referenceByKey = reference
+            .GroupBy(sample => (sample.Block, PrimitiveRole(sample.Primitive), sample.Signal))
+            .ToDictionary(group => group.Key, group => group.First().Value);
+        var rows = new List<PrimitiveReferenceSample>();
+
+        foreach (var sample in candidate)
+        {
+            var role = PrimitiveRole(sample.Primitive);
+            if (role.Length == 0)
+            {
+                continue;
+            }
+
+            if (!referenceByKey.TryGetValue((sample.Block, role, sample.Signal), out var expected))
+            {
+                continue;
+            }
+
+            Add(rows, role, sample.Signal, sample.Value, expected);
+        }
+
+        return rows;
+    }
+
     public static string ToCsv(IReadOnlyList<PrimitiveReferenceSample> samples)
     {
         var builder = new StringBuilder();
@@ -89,6 +117,33 @@ public static class PrimitiveReferenceReport
 
     private static void Add(List<PrimitiveReferenceSample> rows, string primitive, string signal, float candidate, float expected) =>
         rows.Add(new PrimitiveReferenceSample(PinkTromboneReference, primitive, signal, candidate, expected, candidate - expected));
+
+    private static string PrimitiveRole(string primitive)
+    {
+        if (primitive.StartsWith("path:", StringComparison.OrdinalIgnoreCase))
+        {
+            return primitive.Contains("nasal", StringComparison.OrdinalIgnoreCase) || primitive.Contains("nose", StringComparison.OrdinalIgnoreCase)
+                ? "path:nasal"
+                : "path:oral";
+        }
+
+        if (primitive.StartsWith("branch:", StringComparison.OrdinalIgnoreCase))
+        {
+            return "branch:velopharynx";
+        }
+
+        if (primitive.StartsWith("contact:", StringComparison.OrdinalIgnoreCase))
+        {
+            return "contact:obstruction";
+        }
+
+        if (primitive.StartsWith("radiation:", StringComparison.OrdinalIgnoreCase))
+        {
+            return "radiation:lip";
+        }
+
+        return "";
+    }
 
     private static string Escape(string value) =>
         value.Contains(',') || value.Contains('"') ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"" : value;

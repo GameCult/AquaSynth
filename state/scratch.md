@@ -34,6 +34,12 @@ Current slice:
   primitive geometry/delay/branch/contact/radiation fields against PT/SndKit
   fixture controls without requiring native reference binaries. `PatchScript`
   tests pass 86/86 after this cut.
+- Third primitive evidence cut in progress: `PinkTromboneReferenceRenderer` now
+  has `RenderTimeline`, exposing PT internal timeline samples from the renderer's
+  own diameter/wave/reflection/transient arrays. `PrimitiveReferenceReport`
+  can role-normalize Aqua primitive timeline samples against PT timeline samples
+  for oral/nasal path, velopharynx branch, obstruction contact, and lip
+  radiation signals. `PatchScript` tests pass 88/88.
 
 - Proprioception correction after user rejected baby-word golf as the rebuild
   owner. Diagnosis is now durable in

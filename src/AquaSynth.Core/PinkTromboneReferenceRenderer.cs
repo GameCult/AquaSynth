@@ -11,6 +11,12 @@ public sealed record PinkTromboneUtteranceRender(
     string FixtureId,
     IReadOnlyList<PinkTromboneControlPoint> ControlPoints);
 
+public sealed record PinkTromboneReferenceTimelineSample(
+    int Block,
+    string Primitive,
+    string Signal,
+    float Value);
+
 public sealed record PinkTromboneControlPoint(
     float TimeSeconds,
     PinkTromboneFixtureControls Controls,
@@ -27,6 +33,17 @@ public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
         var samples = new float[frames];
         synth.Synthesize(samples, _ => controls);
         return new PinkTromboneReferenceRender(samples, sampleRate, controls);
+    }
+
+    public IReadOnlyList<PinkTromboneReferenceTimelineSample> RenderTimeline(
+        PinkTromboneFixtureControls controls,
+        float durationSeconds = 0.12f,
+        int blockSize = 512)
+    {
+        var frames = Math.Max(1, (int)MathF.Round(sampleRate * Math.Max(durationSeconds, 1f / sampleRate)));
+        var synth = new Synthesizer(sampleRate);
+        var samples = new float[frames];
+        return synth.SynthesizeTimeline(samples, _ => controls, Math.Clamp(blockSize, 1, 4096));
     }
 
     public PinkTromboneUtteranceRender RenderUtterance(
@@ -116,6 +133,26 @@ public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
                 SynthesizeBlock(buffer, p, blockLength, controlsAtFrame(p));
                 p += blockLength;
             }
+        }
+
+        public IReadOnlyList<PinkTromboneReferenceTimelineSample> SynthesizeTimeline(
+            float[] buffer,
+            Func<int, PinkTromboneFixtureControls> controlsAtFrame,
+            int blockSize)
+        {
+            var p = 0;
+            var block = 0;
+            var timeline = new List<PinkTromboneReferenceTimelineSample>();
+            while (p < buffer.Length)
+            {
+                var blockLength = Math.Min(Math.Min(MaxBlockLength, blockSize), buffer.Length - p);
+                SynthesizeBlock(buffer, p, blockLength, controlsAtFrame(p));
+                tract.Snapshot(block, timeline);
+                p += blockLength;
+                block++;
+            }
+
+            return timeline;
         }
 
         private void SynthesizeBlock(float[] buffer, int offset, int count, PinkTromboneFixtureControls controls)
@@ -442,10 +479,60 @@ public sealed class PinkTromboneReferenceRenderer(int sampleRate = 44100)
             return lipOutput + noseOutput;
         }
 
+        public void Snapshot(int block, List<PinkTromboneReferenceTimelineSample> timeline)
+        {
+            var oralArea = Diameter.Select(diameter => diameter * diameter).DefaultIfEmpty(0).Average();
+            var nasalArea = NoseDiameter.Select(diameter => diameter * diameter).DefaultIfEmpty(0).Average();
+            var oralIncoming = right.Select(MathF.Abs).DefaultIfEmpty(0).Average() + left.Select(MathF.Abs).DefaultIfEmpty(0).Average();
+            var oralOutgoing = junctionOutputRight.Select(MathF.Abs).DefaultIfEmpty(0).Average() + junctionOutputLeft.Take(N).Select(MathF.Abs).DefaultIfEmpty(0).Average();
+            var oralEnergyIn = WaveEnergy(Diameter, right, left);
+            var oralEnergyOut = WaveEnergy(Diameter, junctionOutputRight, junctionOutputLeft);
+            var nasalAdmittance = Math.Clamp(NoseDiameter[0] * NoseDiameter[0], 0, 1);
+            var obstruction = Diameter.Select((diameter, index) => (diameter, index)).MinBy(item => item.diameter);
+            var lipFlow = right[N - 1];
+            var noseFlow = noseRight[NoseLength - 1];
+
+            Add(timeline, block, "path:pt_oral", "area", oralArea);
+            Add(timeline, block, "path:pt_oral", "incoming_wave", oralIncoming);
+            Add(timeline, block, "path:pt_oral", "outgoing_wave", oralOutgoing);
+            Add(timeline, block, "path:pt_oral", "energy_in", oralEnergyIn);
+            Add(timeline, block, "path:pt_oral", "energy_out", oralEnergyOut);
+            Add(timeline, block, "path:pt_oral", "passivity_ratio", oralEnergyIn <= 0.000001f ? 1 : oralEnergyOut / oralEnergyIn);
+            Add(timeline, block, "path:pt_nasal", "area", nasalArea);
+            Add(timeline, block, "branch:pt_velopharynx", "admittance", nasalAdmittance);
+            Add(timeline, block, "branch:pt_velopharynx", "reflection_left", newReflectionLeft);
+            Add(timeline, block, "branch:pt_velopharynx", "reflection_right", newReflectionRight);
+            Add(timeline, block, "branch:pt_velopharynx", "reflection_nose", newReflectionNose);
+            Add(timeline, block, "contact:pt_obstruction", "position", obstruction.index / (float)Math.Max(1, N - 1));
+            Add(timeline, block, "contact:pt_obstruction", "opening", Math.Clamp(obstruction.diameter / 2.5f, 0, 1));
+            Add(timeline, block, "contact:pt_obstruction", "reservoir", transients.Count);
+            Add(timeline, block, "contact:pt_obstruction", "released_flow", transients.Sum(transient => transient.Strength));
+            Add(timeline, block, "radiation:pt_lip", "reflection", LipReflection);
+            Add(timeline, block, "radiation:pt_lip", "boundary_flow", lipFlow);
+            Add(timeline, block, "radiation:pt_lip", "flow", lipFlow);
+            Add(timeline, block, "radiation:pt_lip", "output", lipFlow + noseFlow);
+        }
+
         public void AddTransient(int position, float strength)
         {
             transients.Add(new Transient(position, Time, 0.2f, 0.3f * strength, 200));
         }
+
+        private static float WaveEnergy(float[] diameters, float[] rightWave, float[] leftWave)
+        {
+            var count = Math.Min(diameters.Length, Math.Min(rightWave.Length, leftWave.Length));
+            var energy = 0f;
+            for (var i = 0; i < count; i++)
+            {
+                var area = Math.Max(0.000001f, diameters[i] * diameters[i]);
+                energy += area * (rightWave[i] * rightWave[i] + leftWave[i] * leftWave[i]);
+            }
+
+            return energy;
+        }
+
+        private static void Add(List<PinkTromboneReferenceTimelineSample> timeline, int block, string primitive, string signal, float value) =>
+            timeline.Add(new PinkTromboneReferenceTimelineSample(block, primitive, signal, value));
 
         private void CalculateMainTractReflections()
         {
