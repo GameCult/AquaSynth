@@ -72,9 +72,10 @@ Outputs: load-aware source flow terms, named `_load_pressure` locals for
 non-turbulence sources, and named `graph_contact_*` closure/reservoir/release
 signals for contact terminals.
 
-Derived state: generated tract area terminals are contact-capable graph
-terminals. They still derive area from the live tract path geometry; they do
-not become a separate morphology owner.
+Derived state: generated tract area terminals are topology junctions that
+derive area from the live tract path geometry; generated contact terminals are
+a sparse overlay that owns closure pressure storage and release. Area samples
+are no longer contact owners just because they define tube geometry.
 
 Forbidden writers: plosive release is not allowed to live only inside a
 TurbulenceJet source expression. A source-local burst can remain as excitation,
@@ -86,6 +87,38 @@ kind, now load-aware through the same source impedance path. The checked-in
 `patches/advanced/bird-syrinx.aqua` patch uses two labial source ports, two
 bronchial paths, one tracheal path, a three-terminal area-scattering merge,
 and a beak radiation port. No species module was added.
+
+## 2026-05-29 Sparse Contact Owner
+
+Owner: generated `tract` authoring owns a sparse contact overlay; graph path
+lowering owns contact release injection through ordinary two-port scattering.
+
+Inputs: full area-junction grid for tube geometry, up to four generated contact
+terminals spread across the tract interior, local terminal area, node incident
+pressure, and upstream/downstream traveling waves.
+
+Outputs: named `graph_contact_*` closure/reservoir/release signals only at the
+sparse contact owners, while every generated `voices_0_area_*` terminal remains
+a `Junction` for geometry/scattering.
+
+Derived state: `voices_0_contact_*` is no longer a second morphology grid. It is
+a small collision/pressure-storage overlay derived from tract section count.
+
+Forbidden writers: ordinary area terminals must not decide plosive contact
+state. Inline contact occlusion in the scattering equation is not shipped; the
+first attempt still overflowed the native Faust debug compiler at eight contact
+owners, so contact count is capped at four until occlusion can be expressed as a
+smaller compiled primitive or a lower-pressure diagnostic path.
+
+Evidence: opt-in thrombosis probe
+`artifacts/parity/pink-trombone-graph-thrombosis-probes/20260529T122217729`
+passes with lip-end contact closure peak `0.936876`, contact output peak
+`0.547741`, lip boundary load `0.516196`, lip flow `0.585704`, and modal source
+out `1.235997`. Accepted utterance diagnostic
+`artifacts/parity/pink-trombone-utterance-logmel/20260529T122409541` still fails
+articulation: `mama/papa/thrombosis` cosine `0.8302/0.7865/0.3218`, with
+thrombosis RMS ratio `0.0770`, active ratio `0.3151`, and silence mismatch
+`0.7205`.
 
 ## Component Audit
 

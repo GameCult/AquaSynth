@@ -133,7 +133,9 @@ public sealed class PatchScriptTests
         Assert.Contains(patch.AcousticSourcePorts, port => port.Name.StartsWith("voices_0_sibilant_", StringComparison.Ordinal) && port.Kind == AcousticSourceKind.TurbulenceJet);
         Assert.Contains(patch.AcousticBranches, branch => branch.Name == "voices_0_nose" && branch.Kind == AcousticBranchKind.Nasal);
         Assert.Contains(patch.AcousticRadiationPorts, port => port.Name == "voices_0_lip" && port.Kind == AcousticRadiationKind.Lip);
-        Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal) && terminal.Kind == AcousticTerminalKind.Contact);
+        Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_area_", StringComparison.Ordinal) && terminal.Kind == AcousticTerminalKind.Junction);
+        Assert.Contains(patch.AcousticTerminals, terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal) && terminal.Kind == AcousticTerminalKind.Contact);
+        Assert.True(patch.AcousticTerminals.Count(terminal => terminal.Name.StartsWith("voices_0_contact_", StringComparison.Ordinal)) <= 4);
         Assert.Contains(patch.WaveClocks, clock => clock.Name == "voices_0_clock" && clock.Strategy == WaveClockDelayStrategy.FractionalLinear);
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/glottis/0/tenseness");
 
@@ -144,7 +146,7 @@ public sealed class PatchScriptTests
         Assert.Contains("graph_source_voices_0_sibilant_", faust);
         Assert.Contains("graph_terminal_area_voices_0_area_", faust);
         Assert.Contains("graph_connection_reflection_voices_0_nose_connection", faust);
-        Assert.Contains("graph_contact_voices_0_area_", faust);
+        Assert.Contains("graph_contact_voices_0_contact_", faust);
         Assert.Contains("* 0.80", faust);
         Assert.Contains("* 0.20", faust);
         Assert.Contains("de.fdelay", faust);

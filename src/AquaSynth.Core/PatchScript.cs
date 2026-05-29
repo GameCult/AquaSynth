@@ -1432,6 +1432,22 @@ public static class PatchScript
                     $"{prefix}_area_{section}",
                     primaryPathName,
                     position,
+                    AcousticTerminalKind.Junction,
+                    "",
+                    1,
+                    0);
+                AddAcousticTerminalRecord(terminal);
+                terminalNames.Add(terminal.Name);
+            }
+
+            var contactSections = SparseContactSections(tract.Sections);
+            foreach (var section in contactSections)
+            {
+                var position = section / (float)Math.Max(1, tract.Sections - 1);
+                var terminal = new AcousticTerminal(
+                    $"{prefix}_contact_{section}",
+                    primaryPathName,
+                    position,
                     AcousticTerminalKind.Contact,
                     "",
                     1,
@@ -1589,6 +1605,30 @@ public static class PatchScript
 
         private static float NormalizeTractIndex(float index, int sections) =>
             sections <= 0 ? 0 : Math.Clamp(index / Math.Max(1, sections - 1), 0, 1);
+
+        private static IReadOnlyList<int> SparseContactSections(int sections)
+        {
+            var interior = Math.Max(0, sections - 2);
+            if (interior == 0)
+            {
+                return Array.Empty<int>();
+            }
+
+            var contactCount = Math.Min(4, interior);
+            if (contactCount == 1)
+            {
+                return [1];
+            }
+
+            var result = new SortedSet<int>();
+            for (var i = 0; i < contactCount; i++)
+            {
+                var section = 1 + (int)MathF.Round(i * (interior - 1) / (float)(contactCount - 1));
+                result.Add(Math.Clamp(section, 1, sections - 2));
+            }
+
+            return result.ToArray();
+        }
 
         private void AddModBus(IReadOnlyDictionary<string, string> fields, int line)
         {
