@@ -2,6 +2,34 @@
 
 Current slice:
 
+- Added the external IPA trial loop as a real worker boundary instead of an
+  in-chat report shuffle. `tools/IpaTrialWorker` now exposes `seed`, `score`,
+  `search`, `show`, and audit-only `dump` commands over a shared
+  `ipa-trial-results.cc` CultCache store. `search` is the semantic retrieval
+  organ for agents: it expands speech/control vocabulary and ranks records with
+  metric-aware evidence bias; `show` drills into one trial. `score` renders
+  agent-authored `.aqua` candidates through
+  `IpaTrialOrchestrator.RunCandidateScriptsAsync` and upserts new typed trial
+  results. `tools/run-ipa-trial-loop.ps1` now runs five external Codex rounds by
+  default, each asking for a batch across five five-phoneme target sets rather
+  than one-off patch golf; the script rejects a round before scoring unless it
+  contains at least one candidate for every target lane.
+- Active IPA exploration shape: vowels `a/i/u/e/o`,
+  nasals/approximants `m/n/ng/l/r`, fricatives `s/z/f/v/th`, stops
+  `p/b/t/d/k`, and mixed generalization `mix-a/mix-m/mix-s/mix-p/mix-u`.
+  Agent patch files must be named `<targetId>__<hypothesis-name>.aqua` so the
+  scorer can bind them to target/reference lanes. Full-patch dressing remains
+  allowed, but evaluator reports must say when it is compensating for failed
+  primitive or gesture evidence.
+- Verification so far: `dotnet build tools\IpaTrialWorker\IpaTrialWorker.csproj
+  --disable-build-servers -p:UseSharedCompilation=false
+  -p:BuildInParallel=false -v minimal` passes; `IpaTrialWorker search` returns
+  ranked evidence from
+  `artifacts/parity/ipa-trial-worker-smoke/20260529T2204/ipa-trial-results.cc`;
+  `tools\run-ipa-trial-loop.ps1 -Rounds 0 -SkipLocalTrialRun` creates a loop
+  skeleton. Need final focused tests and optionally a one-round external Codex
+  smoke if time/tooling allows.
+
 - Implemented the first IPA trial render/scoring orchestration. Core now has
   typed `IpaTrialResult` CultCache records plus `IpaTrialResultCultCacheStore`;
   Faust now has `IpaTrialOrchestrator.RunAsync`, which generates candidate

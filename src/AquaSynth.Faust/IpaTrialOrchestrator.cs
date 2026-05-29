@@ -21,6 +21,13 @@ public sealed record IpaTrialTargetSet(
     public IReadOnlyList<IpaGestureExperimentVariant> Variants { get; init; } = Variants ?? Array.Empty<IpaGestureExperimentVariant>();
 }
 
+public sealed record IpaTrialScriptCandidate(
+    string TargetId,
+    string CandidateId,
+    string ScriptPath,
+    string HypothesizerId,
+    string Hypothesis);
+
 public sealed record IpaTrialOrchestrationOptions(
     string BatchId = "ipa-seed-trials",
     string HypothesizerId = "local-hypothesis-worker",
@@ -48,34 +55,57 @@ public static class IpaTrialOrchestrator
     [
         new(
             "trial-001-vowels",
-            "Open and front vowel hypotheses against static tract references.",
+            "Five vowel-space hypotheses against static tract references.",
             [
                 Target("a", "a", "voiced_open_back_unrounded_vowel", "open-vowel", .20f),
-                Target("i", "i", "voiced_close_front_unrounded_vowel", "front-vowel", .20f)
+                Target("i", "i", "voiced_close_front_unrounded_vowel", "front-vowel", .20f),
+                Target("u", "u", "voiced_close_back_rounded_vowel", "nasal-vowel", .20f),
+                Target("e", "e", "voiced_close_mid_front_unrounded_vowel", "front-vowel", .20f),
+                Target("o", "o", "voiced_close_mid_back_rounded_vowel", "open-vowel", .20f)
             ],
             [Variant("baseline", 1, 1, "vowel-seed")]),
         new(
-            "trial-002-nasal",
-            "Bilabial nasal velum/contact hypothesis against the ma pressure fixture.",
-            [Target("m", "m", "voiced_bilabial_nasal", "bilabial-nasal-ma", .18f)],
+            "trial-002-nasals-approximants",
+            "Five sonorant hypotheses that should generalize voicing, velum, lips, and lateral/rhotic shaping.",
+            [
+                Target("m", "m", "voiced_bilabial_nasal", "bilabial-nasal-ma", .18f),
+                Target("n", "n", "voiced_alveolar_nasal", "bilabial-nasal-ma", .18f),
+                Target("ng", "ŋ", "voiced_velar_nasal", "nasal-vowel", .18f),
+                Target("l", "l", "voiced_alveolar_lateral_approximant", "front-vowel", .18f),
+                Target("r", "r", "voiced_alveolar_rhotic_approximant", "open-vowel", .18f)
+            ],
             [Variant("nasal-base", 1, 1, "nasal-seed")]),
         new(
-            "trial-003-sibilant",
-            "Voiceless alveolar fricative hypothesis against the high-turbulence sibilant fixture.",
-            [Target("s", "s", "voiceless_alveolar_fricative", "sibilant", .16f)],
+            "trial-003-fricatives",
+            "Five fricative hypotheses that should generalize narrow constriction, turbulence, place, and voicing.",
+            [
+                Target("s", "s", "voiceless_alveolar_fricative", "sibilant", .16f),
+                Target("z", "z", "voiced_alveolar_fricative", "sibilant", .16f),
+                Target("f", "f", "voiceless_labiodental_fricative", "sibilant", .16f),
+                Target("v", "v", "voiced_labiodental_fricative", "sibilant", .16f),
+                Target("th", "θ", "voiceless_dental_fricative", "sibilant", .16f)
+            ],
             [Variant("hiss-base", 1.15f, .9f, "fricative-seed")]),
         new(
-            "trial-004-plosive",
-            "Bilabial stop closure/release hypothesis against obstruction-history pressure.",
-            [Target("p", "p", "voiceless_bilabial_plosive", "closure-release", .14f)],
+            "trial-004-stops",
+            "Five stop hypotheses that should generalize closure, reservoir pressure, release, place, and voicing.",
+            [
+                Target("p", "p", "voiceless_bilabial_plosive", "closure-release", .14f),
+                Target("b", "b", "voiced_bilabial_plosive", "closure-release", .14f),
+                Target("t", "t", "voiceless_alveolar_plosive", "closure-release", .14f),
+                Target("d", "d", "voiced_alveolar_plosive", "closure-release", .14f),
+                Target("k", "k", "voiceless_velar_plosive", "closure-release", .14f)
+            ],
             [Variant("stop-base", 1.2f, .85f, "plosive-seed")]),
         new(
-            "trial-005-mixed",
-            "Small mixed set used to check whether the same DSL abstractions separate vowel, nasal, and fricative pressure.",
+            "trial-005-mixed-generalization",
+            "Five mixed phones used to check whether one DSL/control vocabulary transfers across vowel, nasal, fricative, stop, and rounded classes.",
             [
                 Target("mix-a", "a", "voiced_open_back_unrounded_vowel", "open-vowel", .18f),
                 Target("mix-m", "m", "voiced_bilabial_nasal", "bilabial-nasal-ma", .16f),
-                Target("mix-s", "s", "voiceless_alveolar_fricative", "sibilant", .14f)
+                Target("mix-s", "s", "voiceless_alveolar_fricative", "sibilant", .14f),
+                Target("mix-p", "p", "voiceless_bilabial_plosive", "closure-release", .14f),
+                Target("mix-u", "u", "voiced_close_back_rounded_vowel", "nasal-vowel", .18f)
             ],
             [Variant("mixed-base", 1, 1, "mixed-seed")])
     ];
@@ -227,6 +257,162 @@ public static class IpaTrialOrchestrator
             results);
     }
 
+    public static async Task<IpaTrialOrchestrationResult> RunCandidateScriptsAsync(
+        string artifactRoot,
+        IReadOnlyList<IpaTrialScriptCandidate> candidates,
+        IReadOnlyList<IpaTrialTargetSet>? targetSets = null,
+        IpaTrialOrchestrationOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(artifactRoot);
+        ArgumentNullException.ThrowIfNull(candidates);
+        options ??= new IpaTrialOrchestrationOptions(BatchId: "ipa-agent-candidate-trials");
+        targetSets ??= DefaultFiveSeedTrialSets;
+        if (candidates.Count == 0)
+        {
+            throw new ArgumentException("At least one IPA script candidate is required.", nameof(candidates));
+        }
+
+        var batchDirectory = Path.Combine(artifactRoot, options.BatchId);
+        var candidateRoot = Path.Combine(batchDirectory, "agent-candidates");
+        var timelineRoot = Path.Combine(batchDirectory, "agent-timelines");
+        Directory.CreateDirectory(candidateRoot);
+        Directory.CreateDirectory(timelineRoot);
+        var storePath = Path.Combine(batchDirectory, options.TrialResultStoreFileName);
+        var targetById = targetSets
+            .SelectMany(set => set.Targets.Select(target => (set, target)))
+            .GroupBy(pair => pair.target.Target.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+        var referenceRenderer = new PinkTromboneReferenceRenderer();
+        var analyzer = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: options.SampleRate));
+        var results = new List<IpaTrialResult>();
+
+        foreach (var candidate in candidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!targetById.TryGetValue(candidate.TargetId, out var mapped))
+            {
+                throw new ArgumentException($"Candidate `{candidate.CandidateId}` names unknown IPA target `{candidate.TargetId}`.", nameof(candidates));
+            }
+
+            var startedAt = DateTimeOffset.UtcNow;
+            var startedStamp = Stopwatch.GetTimestamp();
+            var safeCandidateId = SafeName(candidate.CandidateId);
+            var candidateDir = Path.Combine(candidateRoot, safeCandidateId);
+            Directory.CreateDirectory(candidateDir);
+            var audioDir = Path.Combine(candidateDir, "audio");
+            Directory.CreateDirectory(audioDir);
+            var scriptCopy = Path.Combine(candidateDir, "candidate.aqua");
+            File.Copy(candidate.ScriptPath, scriptCopy, overwrite: true);
+            var script = await File.ReadAllTextAsync(scriptCopy, cancellationToken).ConfigureAwait(false);
+            var patch = PatchScript.Parse(script);
+            var timeline = ProbeTimelineReport.Build(patch, "voice", Math.Max(1, options.TimelineBlocks));
+            var timelinePath = Path.Combine(timelineRoot, $"{safeCandidateId}.csv");
+            await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv(timeline), cancellationToken).ConfigureAwait(false);
+
+            var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId)).Source;
+            var dspPath = Path.Combine(candidateDir, "candidate.dsp");
+            await File.WriteAllTextAsync(dspPath, source, cancellationToken).ConfigureAwait(false);
+
+            var referenceFixture = PinkTromboneParityFixtures.ById(mapped.target.ReferenceFixtureId);
+            var reference = referenceRenderer.Render(referenceFixture.Controls, mapped.target.Target.DurationSeconds + .18f);
+            var candidateRender = await FaustCompiler.RenderAsync(
+                source,
+                new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate),
+                cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            var referenceWav = Path.Combine(audioDir, "reference.wav");
+            var candidateWav = Path.Combine(audioDir, "candidate.wav");
+            WriteWav(referenceWav, reference.Samples, reference.SampleRate);
+            var metrics = new List<SpeechScoreMetric>
+            {
+                new("gesture_score", AgentGestureScore(mapped.target.Target, patch, timeline), .25f)
+            };
+            string verdict;
+            string evaluation;
+            var artifacts = new List<SpeechRenderArtifact>
+            {
+                Artifact("candidate-script", scriptCopy),
+                Artifact("candidate-dsp", dspPath),
+                Artifact("primitive-timeline", timelinePath),
+                Artifact("reference-wav", referenceWav)
+            };
+
+            if (candidateRender is null || candidateRender.Samples.Length == 0)
+            {
+                verdict = "render-failed";
+                evaluation = candidateRender is null
+                    ? "Faust was not available to render this agent-authored candidate."
+                    : $"Faust render produced no samples. stderr: {candidateRender.Stderr}";
+                metrics.Add(new SpeechScoreMetric("render_failed", 1, 1));
+            }
+            else
+            {
+                WriteWav(candidateWav, candidateRender.Samples, candidateRender.SampleRate);
+                artifacts.Add(Artifact("candidate-wav", candidateWav));
+                var comparison = analyzer.Compare(reference.Samples, candidateRender.Samples);
+                metrics.AddRange(ComparisonMetrics(comparison));
+                verdict = Verdict(comparison);
+                evaluation = EvaluationSentence(mapped.target.Target.Ipa, mapped.target.ReferenceFixtureId, comparison, verdict);
+                var comparisonPath = Path.Combine(audioDir, "comparison.txt");
+                await WriteComparisonReportAsync(
+                    comparisonPath,
+                    mapped.target,
+                    new IpaGestureExperimentCandidate(safeCandidateId, candidate.TargetId, "agent-authored", scriptCopy, timelinePath, []),
+                    comparison,
+                    verdict,
+                    cancellationToken).ConfigureAwait(false);
+                artifacts.Add(Artifact("comparison-report", comparisonPath));
+            }
+
+            var latency = Stopwatch.GetElapsedTime(startedStamp).TotalMilliseconds;
+            results.Add(new IpaTrialResult(
+                $"{options.BatchId}:{mapped.set.Id}:{safeCandidateId}",
+                options.BatchId,
+                startedAt.ToString("O", CultureInfo.InvariantCulture),
+                mapped.set.Id,
+                mapped.set.Targets.Select(item => item.Target.Ipa).Distinct(StringComparer.Ordinal).ToArray(),
+                mapped.target.ReferenceFixtureId,
+                safeCandidateId,
+                candidate.HypothesizerId,
+                candidate.Hypothesis,
+                scriptCopy,
+                referenceWav,
+                File.Exists(candidateWav) ? candidateWav : "",
+                timelinePath,
+                metrics.ToArray(),
+                artifacts.ToArray(),
+                options.EvaluatorId,
+                evaluation,
+                verdict,
+                KnownLies(options, mapped.target.ReferenceFixtureId),
+                [
+                    new SpeechTimingReceipt(
+                        "ipa-agent-candidate-render-score",
+                        startedAt.ToString("O", CultureInfo.InvariantCulture),
+                        latency,
+                        0,
+                        Confidence(metrics),
+                        "Local worker rendered an external Codex-authored patch, compared log-mel/articulation evidence, and wrote CultCache trial result data.")
+                ]));
+        }
+
+        await IpaTrialResultCultCacheStore.UpsertResultsAsync(storePath, results).ConfigureAwait(false);
+        var summaryPath = Path.Combine(batchDirectory, "summary.csv");
+        await File.WriteAllTextAsync(summaryPath, SummaryCsv(results), cancellationToken).ConfigureAwait(false);
+        var evaluatorReport = Path.Combine(batchDirectory, "evaluator-report.md");
+        await File.WriteAllTextAsync(evaluatorReport, EvaluatorReport(options, results), cancellationToken).ConfigureAwait(false);
+        await IpaTrialResultCultCacheStore.UpsertResultsAsync(storePath, results).ConfigureAwait(false);
+
+        return new IpaTrialOrchestrationResult(
+            options.BatchId,
+            batchDirectory,
+            storePath,
+            summaryPath,
+            evaluatorReport,
+            results);
+    }
+
     private static IpaTrialReferenceTarget Target(string id, string ipa, string descriptor, string fixture, float duration) =>
         new(new IpaGestureExperimentTarget(id, ipa, descriptor, duration), fixture);
 
@@ -252,6 +438,102 @@ public static class IpaTrialOrchestrator
             new("speech_band_ratio", comparison.Articulation.SpeechBandRatio, .05f)
         ];
     }
+
+    private static IReadOnlyList<SpeechScoreMetric> ComparisonMetrics(AudioComparison comparison) =>
+    [
+        new("log_mel_cosine", comparison.LogMelCosineSimilarity, .25f),
+        new("log_mel_distance", comparison.LogMelDistance, .15f),
+        new("audio_score", comparison.Score, .15f),
+        new("articulation_score", comparison.Articulation.ArticulationScore, .10f),
+        new("rms_ratio", comparison.RmsRatio, .05f),
+        new("speech_band_ratio", comparison.Articulation.SpeechBandRatio, .05f)
+    ];
+
+    private static float AgentGestureScore(
+        IpaGestureExperimentTarget target,
+        SynthPatch patch,
+        IReadOnlyList<ProbeTimelineSample> timeline)
+    {
+        var tokens = DescriptorTokens(target.Descriptor);
+        var expected = ExpectedSurfaces(tokens);
+        var touched = patch.ControlSplines
+            .Where(spline => spline.Enabled)
+            .Select(spline => spline.SurfacePath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var coverage = expected.Length == 0
+            ? 1
+            : expected.Count(surface => touched.Contains(surface)) / (float)expected.Length;
+        var motion = patch.ControlSplines.Any(spline => spline.Enabled && spline.Points.Count >= 2) ? 1f : 0f;
+        var primitive = timeline.Any(sample =>
+            (sample.Signal.Equals("output", StringComparison.OrdinalIgnoreCase) ||
+             sample.Signal.Equals("flow", StringComparison.OrdinalIgnoreCase) ||
+             sample.Signal.Equals("released_flow", StringComparison.OrdinalIgnoreCase)) &&
+            float.IsFinite(sample.Value))
+            ? 1f
+            : 0f;
+        return Math.Clamp(.5f * coverage + .25f * motion + .25f * primitive, 0, 1);
+    }
+
+    private static string[] ExpectedSurfaces(HashSet<string> tokens)
+    {
+        var surfaces = new List<string>
+        {
+            "/vocal/sources/0/pressure",
+            "/vocal/sources/0/tension",
+            "/vocal/sources/0/opening"
+        };
+
+        if (tokens.Contains("vowel"))
+        {
+            surfaces.AddRange(
+            [
+                "/vocal/areas/0/area/tongue_index",
+                "/vocal/areas/0/area/tongue_diameter",
+                "/vocal/areas/0/area/lip_opening",
+                "/vocal/radiation/0/aperture"
+            ]);
+        }
+        else
+        {
+            surfaces.AddRange(
+            [
+                "/vocal/areas/0/area/constriction_index",
+                "/vocal/areas/0/area/constriction_diameter",
+                "/vocal/contacts/0/opening"
+            ]);
+        }
+
+        if (tokens.Contains("nasal"))
+        {
+            surfaces.Add("/vocal/branches/0/opening");
+        }
+
+        if (tokens.Contains("fricative"))
+        {
+            surfaces.Add("/vocal/sources/0/noise");
+            surfaces.Add("/vocal/contacts/0/resistance");
+        }
+
+        if (tokens.Contains("plosive") || tokens.Contains("stop"))
+        {
+            surfaces.Add("/vocal/contacts/0/stored_pressure");
+        }
+
+        if (tokens.Contains("bilabial") || tokens.Contains("labial") || tokens.Contains("labiodental") || tokens.Contains("rounded"))
+        {
+            surfaces.Add("/vocal/areas/0/area/lip_opening");
+            surfaces.Add("/vocal/radiation/0/aperture");
+        }
+
+        return surfaces.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static HashSet<string> DescriptorTokens(string descriptor) =>
+        descriptor
+            .ToLowerInvariant()
+            .Replace('-', '_')
+            .Split(['_', ',', '+', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private static string Verdict(AudioComparison comparison)
     {

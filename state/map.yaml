@@ -61,6 +61,8 @@ modules:
   ipa_gesture_experiment: src/AquaSynth.Core/IpaGestureExperiment.cs
   ipa_trial_results: src/AquaSynth.Core/IpaTrialResults.cs
   ipa_trial_orchestrator: src/AquaSynth.Faust/IpaTrialOrchestrator.cs
+  ipa_trial_worker: tools/IpaTrialWorker
+  ipa_trial_external_loop: tools/run-ipa-trial-loop.ps1
   acoustic_graph_missing_pieces_audit: docs/acoustic-graph-missing-pieces-audit.md
   acoustic_graph_proprioception: docs/acoustic-graph-proprioception.md
   pink_trombone_parity_fixtures: src/AquaSynth.Core/PinkTromboneParityFixtures.cs

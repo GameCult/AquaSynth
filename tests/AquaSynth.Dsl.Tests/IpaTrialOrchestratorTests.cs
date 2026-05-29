@@ -75,13 +75,52 @@ public sealed class IpaTrialOrchestratorTests
         Assert.True(File.Exists(result.TrialResultStorePath));
         Assert.True(File.Exists(result.SummaryPath));
         Assert.True(File.Exists(result.EvaluatorReportPath));
-        Assert.Equal(8, result.TrialResults.Count);
+        Assert.Equal(25, result.TrialResults.Count);
         Assert.Equal(5, result.TrialResults.Select(item => item.TargetSetId).Distinct(StringComparer.Ordinal).Count());
         Assert.All(result.TrialResults, trial => Assert.NotEmpty(trial.Metrics));
         Assert.Contains(result.TrialResults, trial => trial.Metrics.Any(metric => metric.Name == "log_mel_cosine"));
 
         var loaded = await IpaTrialResultCultCacheStore.ReadResultsAsync(result.TrialResultStorePath);
         Assert.Equal(result.TrialResults.Count, loaded.Count);
+    }
+
+    [Fact]
+    public async Task IpaTrialOrchestratorScoresAgentAuthoredCandidateScriptsWhenEnabled()
+    {
+        if (Environment.GetEnvironmentVariable("AQUASYNTH_RUN_IPA_TRIALS") != "1")
+        {
+            return;
+        }
+
+        if (FaustCompiler.FindFaust() is null)
+        {
+            return;
+        }
+
+        var directory = TempDirectory();
+        try
+        {
+            var script = IpaGestureExperiment.BuildCandidateScript(
+                new IpaGestureExperimentTarget("a", "a", "voiced_open_back_unrounded_vowel", .12f),
+                new IpaGestureExperimentVariant("agent-smoke"));
+            var scriptPath = Path.Combine(directory, "a__agent-smoke.aqua");
+            await File.WriteAllTextAsync(scriptPath, script);
+
+            var result = await IpaTrialOrchestrator.RunCandidateScriptsAsync(
+                Path.Combine(directory, "artifacts"),
+                [new IpaTrialScriptCandidate("a", "a__agent-smoke", scriptPath, "test-agent", "score externally authored candidate")],
+                options: new IpaTrialOrchestrationOptions(BatchId: "agent-smoke"));
+
+            var single = Assert.Single(result.TrialResults);
+            Assert.Equal("a__agent_smoke", single.CandidateId);
+            Assert.Contains(single.Metrics, metric => metric.Name == "log_mel_cosine");
+            Assert.True(File.Exists(single.CandidatePatchUri));
+            Assert.True(File.Exists(result.TrialResultStorePath));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static string TempDirectory()

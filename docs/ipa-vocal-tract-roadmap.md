@@ -660,6 +660,44 @@ The evidence says the source-carrier cut fixed the voiced-air failure. The next
 pressure is plosive closure/release ownership and stronger vowel/nasal tract
 color, not decorative full-patch dressing.
 
+### External Codex Trial Loop
+
+`tools/IpaTrialWorker` is the command-line trial organ for external agents. It
+keeps measurement and CultCache writes inside AquaSynth instead of asking Codex
+workers to hand-edit evidence:
+
+- `seed` renders the baseline five trial sets into a shared
+  `ipa-trial-results.cc` store.
+- `score` reads agent-authored `.aqua` candidates, renders and scores them
+  against the PT fixtures, and upserts typed `IpaTrialResult` records.
+- `search` is the semantic retrieval surface for the `.cc` store. It expands
+  speech-control vocabulary such as vowel/nasal/fricative/stop, ranks records
+  with metric-aware evidence bias, and writes a compact markdown result set.
+- `show` drills into one trial or candidate with full metrics, artifacts,
+  known contamination, hypothesis, and evaluator summary.
+- `dump` remains an audit escape hatch, not the normal agent memory path.
+
+`tools/run-ipa-trial-loop.ps1` orchestrates the outer loop with external
+`codex exec` workers. Each round searches accumulated trial memory, asks a
+hypothesis worker to write a batch of candidates, scores those candidates
+through `IpaTrialWorker`, searches the updated store, then asks a science
+evaluator to judge which hypotheses held up.
+
+The trial shape is five target sets with five phoneme lanes each:
+
+- vowels: `a`, `i`, `u`, `e`, `o`;
+- nasals/approximants: `m`, `n`, `ng`, `l`, `r`;
+- fricatives: `s`, `z`, `f`, `v`, `th`;
+- stops: `p`, `b`, `t`, `d`, `k`;
+- mixed generalization: `mix-a`, `mix-m`, `mix-s`, `mix-p`, `mix-u`.
+
+Agent-authored candidates must be named
+`<targetId>__<hypothesis-name>.aqua`. The point is not one-patch golf. A useful
+round tests whether a contour, source, tract, radiation, or DSL-lowering idea
+generalizes across the target sets. Full-patch FM/AM/noise dressing is allowed
+as parity pressure, but the evaluator must label it as dressing when primitive
+or gesture evidence does not improve.
+
 ## CultMesh Render/Scoring Work
 
 CultMesh is the transport, admission, and worker-orchestration layer for speech
