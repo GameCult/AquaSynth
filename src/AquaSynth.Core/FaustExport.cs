@@ -490,7 +490,11 @@ public static class FaustEmitter
             var representativeArea = $"{name}_primitive_path_{safePath}_area";
             var delay = $"{name}_primitive_path_{safePath}_delay";
             var input = $"{name}_primitive_path_{safePath}_input";
+            var incoming = $"{name}_primitive_path_{safePath}_incoming_wave";
             var wave = $"{name}_primitive_path_{safePath}_wave";
+            var energyIn = $"{name}_primitive_path_{safePath}_energy_in";
+            var energyOut = $"{name}_primitive_path_{safePath}_energy_out";
+            var passivity = $"{name}_primitive_path_{safePath}_passivity_ratio";
             var loss = $"clip01({parameters.Expression(OwnerField(pathField, "loss"), path.Loss)})";
             source.AppendLine($"    {representativeArea} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/area", PrimitiveAreaExpression(patch, parameters, area, areaIndex), 0, 8)};");
             source.AppendLine($"    {delay} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/delay", $"({F(area.Shape.LengthMeters)} / max(1.0, {parameters.Expression(OwnerField(pathField, "speed"), path.PropagationSpeedMetersPerSecond)})) * ma.SR", 0, path.MaxDelaySamples)};");
@@ -520,9 +524,17 @@ public static class FaustEmitter
                 .ToList();
             var pathInputs = sourceTerms.Concat(contactTerms).Concat(branchTerms).ToList();
             source.AppendLine($"    {input} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/input_flow", pathInputs.Count == 0 ? "0.0" : string.Join(" + ", pathInputs), -4, 4)};");
-            source.AppendLine($"    {wave} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/outgoing_wave", $"({input}) : {PrimitiveDelayExpression(path, path.MaxDelaySamples, delay)} * {loss}", -4, 4)};");
+            source.AppendLine($"    {incoming} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/incoming_wave", input, -4, 4)};");
+            source.AppendLine($"    {wave} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/outgoing_wave", $"({incoming}) : {PrimitiveDelayExpression(path, path.MaxDelaySamples, delay)} * {loss}", -4, 4)};");
+            source.AppendLine($"    {energyIn} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/energy_in", $"{representativeArea} * pow({incoming}, 2.0)", 0, 8)};");
+            source.AppendLine($"    {energyOut} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/energy_out", $"{representativeArea} * pow({wave}, 2.0)", 0, 8)};");
+            source.AppendLine($"    {passivity} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/passivity_ratio", $"{energyOut} / max(0.000001, {energyIn})", 0, 2)};");
             keepAlive.Add(input);
+            keepAlive.Add(incoming);
             keepAlive.Add(wave);
+            keepAlive.Add(energyIn);
+            keepAlive.Add(energyOut);
+            keepAlive.Add(passivity);
 
             foreach (var loadName in network.Radiation)
             {

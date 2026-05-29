@@ -293,6 +293,11 @@ public sealed class PatchScriptTests
         Assert.Contains("primitive_radiated", export.Source);
         Assert.Contains("de.fdelay1a", export.Source);
         Assert.Contains("/debug/voice_0/path/oral/delay", export.Source);
+        Assert.Contains("/debug/voice_0/path/oral/incoming_wave", export.Source);
+        Assert.Contains("/debug/voice_0/path/oral/outgoing_wave", export.Source);
+        Assert.Contains("/debug/voice_0/path/oral/energy_in", export.Source);
+        Assert.Contains("/debug/voice_0/path/oral/energy_out", export.Source);
+        Assert.Contains("/debug/voice_0/path/oral/passivity_ratio", export.Source);
         Assert.Contains("/debug/voice_0/source/modal/flow", export.Source);
         Assert.Contains("/debug/voice_0/contact/lip_stop/released_flow", export.Source);
         Assert.Contains("/debug/voice_0/radiation/mouth/output", export.Source);
@@ -316,14 +321,100 @@ public sealed class PatchScriptTests
 
         var samples = ProbeTimelineReport.Build(patch, "human", blocks: 2);
         Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "delay_samples");
+        Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "incoming_wave");
+        Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "outgoing_wave");
+        Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "energy_in");
+        Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "energy_out");
+        Assert.Contains(samples, sample => sample.Primitive == "path:oral" && sample.Signal == "passivity_ratio");
         Assert.Contains(samples, sample => sample.Primitive == "source:modal" && sample.Signal == "flow");
+        Assert.Contains(samples, sample => sample.Primitive == "contact:lip_stop" && sample.Signal == "resistance");
         Assert.Contains(samples, sample => sample.Primitive == "contact:lip_stop" && sample.Signal == "released_flow");
         Assert.Contains(samples, sample => sample.Primitive == "radiation:mouth" && sample.Signal == "output");
+        var passivity = samples.Single(sample => sample.Block == 0 && sample.Primitive == "path:oral" && sample.Signal == "passivity_ratio").Value;
+        Assert.InRange(passivity, 0, 1);
 
         var csv = ProbeTimelineReport.ToCsv(samples);
         Assert.StartsWith("block,primitive,signal,value", csv, StringComparison.Ordinal);
+        Assert.Contains("path:oral,passivity_ratio", csv);
         Assert.Contains("source:modal,flow", csv);
         Assert.Contains("radiation:mouth,output", csv);
+    }
+
+    [Fact]
+    public void PrimitiveProbeTimelineExposesReferenceComparableFields()
+    {
+        var patch = PatchScript.Parse("""
+            tract_shape name=human length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9
+            nasal_branch name=nose length_cm=12 junction=3 velum=.35 diameters=.01,.35,.6,.8
+            tract_injection name=inj position=4 width=1 turbulence=.2 burst=.5
+            tract shape=human nasal_branch=nose injection=inj propagation=graph sections=6 constriction_index=4 constriction_diameter=.7
+            """);
+
+        var samples = ProbeTimelineReport.Build(patch, "voices_0_network", blocks: 1);
+        var fields = samples
+            .Select(sample => $"{sample.Primitive}:{sample.Signal}")
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Contains("path:voices_0_oral:area", fields);
+        Assert.Contains("path:voices_0_oral:delay_samples", fields);
+        Assert.Contains("path:voices_0_oral:incoming_wave", fields);
+        Assert.Contains("path:voices_0_oral:outgoing_wave", fields);
+        Assert.Contains("path:voices_0_oral:energy_in", fields);
+        Assert.Contains("path:voices_0_oral:energy_out", fields);
+        Assert.Contains("path:voices_0_oral:passivity_ratio", fields);
+        Assert.Contains(samples, sample => sample.Primitive.StartsWith("source:voices_0_", StringComparison.Ordinal) && sample.Signal == "load_pressure");
+        Assert.Contains(samples, sample => sample.Primitive.StartsWith("source:voices_0_", StringComparison.Ordinal) && sample.Signal == "flow");
+        Assert.Contains("contact:voices_0_constriction:opening", fields);
+        Assert.Contains("contact:voices_0_constriction:resistance", fields);
+        Assert.Contains("contact:voices_0_constriction:reservoir", fields);
+        Assert.Contains("contact:voices_0_constriction:released_flow", fields);
+        Assert.Contains("branch:voices_0_velopharynx:admittance", fields);
+        Assert.Contains("branch:voices_0_velopharynx:exchanged_flow", fields);
+        Assert.Contains("radiation:voices_0_lip:reflection", fields);
+        Assert.Contains("radiation:voices_0_lip:boundary_flow", fields);
+        Assert.Contains("radiation:voices_0_lip:flow", fields);
+        Assert.Contains("radiation:voices_0_lip:output", fields);
+
+        var pathPassivity = samples.Single(sample =>
+            sample.Primitive == "path:voices_0_oral" &&
+            sample.Signal == "passivity_ratio").Value;
+        Assert.InRange(pathPassivity, 0, 1);
+    }
+
+    [Fact]
+    public void PrimitiveReferenceReportComparesPinkTromboneFixtureFields()
+    {
+        var fixture = PinkTromboneParityFixtures.ById("nasal-vowel");
+        var patch = PatchScript.Parse(fixture.AquaScript);
+
+        var rows = PrimitiveReferenceReport.ComparePinkTrombone(patch, "voices_0_network", fixture.Controls);
+        Assert.Contains(rows, row =>
+            row.Reference == PrimitiveReferenceReport.PinkTromboneReference &&
+            row.Primitive == "area:voices_0_morphology" &&
+            row.Signal == "sections" &&
+            row.Candidate == 44 &&
+            row.Expected == 44);
+        Assert.Contains(rows, row =>
+            row.Primitive == "area:voices_0_nasal_morphology" &&
+            row.Signal == "sections" &&
+            row.Candidate == 28 &&
+            row.Expected == 28);
+        Assert.Contains(rows, row =>
+            row.Primitive == "branch:voices_0_velopharynx" &&
+            row.Signal == "admittance" &&
+            MathF.Abs(row.Error) < 0.0001f);
+        Assert.Contains(rows, row =>
+            row.Primitive == "contact:voices_0_constriction" &&
+            row.Signal == "position" &&
+            MathF.Abs(row.Error) < 0.0001f);
+        Assert.Contains(rows, row =>
+            row.Primitive == "radiation:voices_0_lip" &&
+            row.Signal == "reflection" &&
+            MathF.Abs(row.Error) < 0.0001f);
+
+        var csv = PrimitiveReferenceReport.ToCsv(rows);
+        Assert.StartsWith("reference,primitive,signal,candidate,expected,error", csv, StringComparison.Ordinal);
+        Assert.Contains("pt-sndkit,area:voices_0_morphology,sections,44,44,0", csv);
     }
 
     [Fact]

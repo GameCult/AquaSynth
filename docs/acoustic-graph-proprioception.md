@@ -226,12 +226,21 @@ flow hidden.
 
 The first primitive cut is in place: parser/model records, primitive Faust
 lowering, tract fixture adaptation, and deterministic `ProbeTimeline` CSV
-support. The next implementation pass should harden the primitives:
+support. The second cut adds explicit path wave/passivity probes and a
+PT/SndKit comparison report:
 
-- make path probes report explicit incoming and outgoing wave variables;
-- add passivity/energy checks as first-class timeline samples;
-- compare Aqua primitive timelines against PT/SndKit internals for one compact
-  tract;
+- `ProbeTimelineReport` now reports path `incoming_wave`, `outgoing_wave`,
+  `energy_in`, `energy_out`, and `passivity_ratio`, plus contact resistance.
+- Primitive Faust debug probes expose the same path wave and passivity fields
+  under `/debug/...`.
+- `PrimitiveReferenceReport.ComparePinkTrombone` compares primitive geometry,
+  delay, branch admittance, contact, and radiation fields against local
+  PT/SndKit fixture controls without adding a native reference dependency to CI.
+
+The next implementation pass should harden the primitives further:
+
+- compare per-block Aqua primitive timelines against PT/SndKit internals for one
+  compact tract render, not just static fixture controls;
 - add optional VTL/ArtiSynth adapters only as artifact comparators, not default
   CI dependencies;
 - keep `mama`, `papa`, and `thrombosis` as downstream witnesses until primitive

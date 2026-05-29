@@ -26,6 +26,15 @@ Current slice:
   new primitive DSL, PT tract adapter, primitive timeline, and fixture demotion
   away from generated graph banks.
 
+- Second primitive evidence cut in progress: path telemetry now includes
+  `incoming_wave`, `outgoing_wave`, `energy_in`, `energy_out`, and
+  `passivity_ratio` in both Faust debug probes and `ProbeTimelineReport`.
+  Contact telemetry now includes `resistance`. Added
+  `PrimitiveReferenceReport.ComparePinkTrombone`, which compares static
+  primitive geometry/delay/branch/contact/radiation fields against PT/SndKit
+  fixture controls without requiring native reference binaries. `PatchScript`
+  tests pass 86/86 after this cut.
+
 - Proprioception correction after user rejected baby-word golf as the rebuild
   owner. Diagnosis is now durable in
   `docs/acoustic-graph-proprioception.md`: collapse generated graph-vocal

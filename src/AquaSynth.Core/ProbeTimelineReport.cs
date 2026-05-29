@@ -26,9 +26,18 @@ public static class ProbeTimelineReport
                 var area = areas[path.AreaFunction];
                 var pathArea = area.Shape.Areas.Count == 0 ? 0 : area.Shape.Areas.Average();
                 var delay = area.Shape.LengthMeters / Math.Max(1, path.PropagationSpeedMetersPerSecond) * 48000;
+                var incoming = PathIncomingFlow(network, sources, contacts, branches, path.Name);
+                var outgoing = incoming * Math.Clamp(path.Loss, 0, 1);
+                var energyIn = pathArea * incoming * incoming;
+                var energyOut = pathArea * outgoing * outgoing;
                 Add(samples, block, $"path:{path.Name}", "area", pathArea);
                 Add(samples, block, $"path:{path.Name}", "delay_samples", delay);
                 Add(samples, block, $"path:{path.Name}", "loss", path.Loss);
+                Add(samples, block, $"path:{path.Name}", "incoming_wave", incoming);
+                Add(samples, block, $"path:{path.Name}", "outgoing_wave", outgoing);
+                Add(samples, block, $"path:{path.Name}", "energy_in", energyIn);
+                Add(samples, block, $"path:{path.Name}", "energy_out", energyOut);
+                Add(samples, block, $"path:{path.Name}", "passivity_ratio", energyIn <= 0.000001f ? 1 : energyOut / energyIn);
             }
 
             foreach (var sourceName in network.Sources)
@@ -45,6 +54,7 @@ public static class ProbeTimelineReport
                 var opening = Math.Clamp(contact.Opening, 0, 1);
                 var reservoir = contact.StoredPressure + (1 - opening) * contact.Resistance;
                 Add(samples, block, $"contact:{contact.Name}", "opening", opening);
+                Add(samples, block, $"contact:{contact.Name}", "resistance", contact.Resistance);
                 Add(samples, block, $"contact:{contact.Name}", "reservoir", reservoir);
                 Add(samples, block, $"contact:{contact.Name}", "released_flow", reservoir * opening * (1 - Math.Min(0.95f, contact.Resistance * 0.5f)));
             }
@@ -92,6 +102,33 @@ public static class ProbeTimelineReport
 
     private static void Add(List<ProbeTimelineSample> samples, int block, string primitive, string signal, float value) =>
         samples.Add(new ProbeTimelineSample(block, primitive, signal, value));
+
+    private static float PathIncomingFlow(
+        VocalNetwork network,
+        IReadOnlyDictionary<string, SourcePort> sources,
+        IReadOnlyDictionary<string, ConstrictionContact> contacts,
+        IReadOnlyDictionary<string, BranchPort> branches,
+        string pathName)
+    {
+        var sourceFlow = network.Sources
+            .Select(name => sources[name])
+            .Where(source => source.Path.Equals(pathName, StringComparison.OrdinalIgnoreCase))
+            .Sum(source => MathF.Tanh(source.Pressure * Math.Max(0, source.Opening) * (0.5f + source.Tension) / Math.Max(0.05f, source.Impedance)));
+        var contactFlow = network.Contacts
+            .Select(name => contacts[name])
+            .Where(contact => contact.Path.Equals(pathName, StringComparison.OrdinalIgnoreCase))
+            .Sum(contact =>
+            {
+                var opening = Math.Clamp(contact.Opening, 0, 1);
+                var reservoir = contact.StoredPressure + (1 - opening) * contact.Resistance;
+                return reservoir * opening * (1 - Math.Min(0.95f, contact.Resistance * 0.5f));
+            });
+        var branchFlow = network.Branches
+            .Select(name => branches[name])
+            .Where(branch => branch.FromPath.Equals(pathName, StringComparison.OrdinalIgnoreCase))
+            .Sum(branch => -Math.Clamp(branch.Opening, 0, 1) * Math.Clamp(branch.Coupling, 0, 1) * 0.05f);
+        return sourceFlow + contactFlow + branchFlow;
+    }
 
     private static string Escape(string value) =>
         value.Contains(',') || value.Contains('"') ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"" : value;
