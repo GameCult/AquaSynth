@@ -769,6 +769,7 @@ static Dictionary<string, WeightedTerms> DocumentFields(IpaTrialResult result, s
         ["evaluation"] = new(2.5f, Tokenize(result.EvaluationSummary)),
         ["known_lies"] = new(2.0f, Tokenize(string.Join(' ', result.KnownLies))),
         ["metrics"] = new(2.0f, Tokenize(MetricText(result))),
+        ["timeline_facts"] = new(2.5f, Tokenize(TimelineFactText(result))),
         ["artifacts"] = new(1.75f, Tokenize(ArtifactText(result, store))),
         ["timing"] = new(1.25f, Tokenize(TimingText(result)))
     };
@@ -793,6 +794,40 @@ static string MetricText(IpaTrialResult result)
         if (metric.Name.Contains("gesture", StringComparison.OrdinalIgnoreCase))
         {
             builder.Append(metric.Value < 0.6f ? "weak gesture " : "promising gesture ");
+        }
+    }
+
+    return builder.ToString();
+}
+
+static string TimelineFactText(IpaTrialResult result)
+{
+    var builder = new StringBuilder();
+    foreach (var fact in result.TimelineFacts ?? [])
+    {
+        builder.Append(fact.Name).Append(' ');
+        builder.Append(fact.Primitive).Append(' ');
+        builder.Append(fact.Signal).Append(' ');
+        builder.Append(fact.Value.ToString("0.######", CultureInfo.InvariantCulture)).Append(' ');
+        builder.Append(fact.Unit).Append(' ');
+        builder.Append("blocks ").Append(fact.BlockStart).Append(' ').Append(fact.BlockEnd).Append(' ');
+        builder.Append(fact.Summary).Append(' ');
+        if (fact.Name.Contains("release", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Append("closure release burst plosive stop ");
+        }
+        if (fact.Name.Contains("branch", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Append("nasal velum admittance branch ");
+        }
+        if (fact.Name.Contains("radiation", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Append("radiation lip output flow ");
+        }
+        if (fact.Name.Contains("passivity", StringComparison.OrdinalIgnoreCase) ||
+            fact.Name.Contains("energy", StringComparison.OrdinalIgnoreCase))
+        {
+            builder.Append("passivity energy check ");
         }
     }
 
@@ -896,6 +931,12 @@ static IEnumerable<EvidenceChunk> BuildEvidenceChunks(IReadOnlyList<IpaTrialResu
             text.AppendLine($"{metric.Name} {metric.Value.ToString("0.######", CultureInfo.InvariantCulture)} weight {metric.Weight.ToString("0.######", CultureInfo.InvariantCulture)}");
         }
 
+        text.AppendLine("timeline_facts");
+        foreach (var fact in (result.TimelineFacts ?? []).OrderBy(fact => fact.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            text.AppendLine($"{fact.Name} {fact.Primitive} {fact.Signal} {fact.Value.ToString("0.######", CultureInfo.InvariantCulture)} {fact.Unit} blocks {fact.BlockStart}-{fact.BlockEnd} {fact.Summary}");
+        }
+
         text.AppendLine("hypothesis");
         text.AppendLine(result.Hypothesis);
         text.AppendLine("evaluation");
@@ -936,6 +977,14 @@ static string[] EvidenceTags(IpaTrialResult result, SearchDocument document)
     if (document.AllTerms.Contains("timeline", StringComparer.OrdinalIgnoreCase))
     {
         tags.Add("timeline");
+    }
+    if ((result.TimelineFacts ?? []).Any(fact => fact.Name.Contains("release", StringComparison.OrdinalIgnoreCase)))
+    {
+        tags.Add("release-facts");
+    }
+    if ((result.TimelineFacts ?? []).Any(fact => fact.Name.Contains("passivity", StringComparison.OrdinalIgnoreCase)))
+    {
+        tags.Add("passivity-facts");
     }
     if (MentionsDressing(result))
     {
@@ -1001,6 +1050,16 @@ static string SearchReport(
         builder.Append(Metric(result, "articulation_score"));
         builder.Append(", rmsRatio=");
         builder.AppendLine(Metric(result, "rms_ratio"));
+        builder.Append("  timeline: releasePeak=");
+        builder.Append(TimelineFact(result, "contact_release_peak"));
+        builder.Append(", releaseBlock=");
+        builder.Append(TimelineFact(result, "contact_release_peak_block"));
+        builder.Append(", branchAdmittance=");
+        builder.Append(TimelineFact(result, "branch_admittance_peak"));
+        builder.Append(", radiationOutput=");
+        builder.Append(TimelineFact(result, "radiation_output_peak"));
+        builder.Append(", passivityMax=");
+        builder.AppendLine(TimelineFact(result, "path_passivity_max"));
         builder.Append("  hypothesis: ");
         builder.AppendLine(result.Hypothesis);
         builder.Append("  evaluation: ");
@@ -1069,6 +1128,33 @@ static string DetailReport(string store, IpaTrialResult result)
     }
 
     builder.AppendLine();
+    builder.AppendLine("## Primitive Timeline Facts");
+    foreach (var fact in (result.TimelineFacts ?? []).OrderBy(fact => fact.Name, StringComparer.OrdinalIgnoreCase))
+    {
+        builder.Append("- ");
+        builder.Append(fact.Name);
+        builder.Append(": ");
+        builder.Append(fact.Value.ToString("0.######", CultureInfo.InvariantCulture));
+        builder.Append(' ');
+        builder.Append(fact.Unit);
+        builder.Append(" / ");
+        builder.Append(fact.Primitive);
+        builder.Append(' ');
+        builder.Append(fact.Signal);
+        builder.Append(" / blocks ");
+        builder.Append(fact.BlockStart);
+        builder.Append('-');
+        builder.Append(fact.BlockEnd);
+        if (!string.IsNullOrWhiteSpace(fact.Summary))
+        {
+            builder.Append(" / ");
+            builder.Append(fact.Summary);
+        }
+
+        builder.AppendLine();
+    }
+
+    builder.AppendLine();
     builder.AppendLine("## Artifacts");
     foreach (var artifact in result.Artifacts)
     {
@@ -1124,6 +1210,12 @@ static string StoreReport(string store, IReadOnlyList<IpaTrialResult> results)
             builder.Append(Metric(result, "articulation_score"));
             builder.Append(", rmsRatio=");
             builder.Append(Metric(result, "rms_ratio"));
+            builder.Append(", releasePeak=");
+            builder.Append(TimelineFact(result, "contact_release_peak"));
+            builder.Append(", radiationOutput=");
+            builder.Append(TimelineFact(result, "radiation_output_peak"));
+            builder.Append(", passivityMax=");
+            builder.Append(TimelineFact(result, "path_passivity_max"));
             builder.AppendLine();
             builder.Append("  patch: ");
             builder.AppendLine(result.CandidatePatchUri);
@@ -1144,6 +1236,14 @@ static float ScoreSort(IpaTrialResult result) =>
 
 static string Metric(IpaTrialResult result, string name) =>
     (result.Metrics.FirstOrDefault(metric => metric.Name == name)?.Value ?? 0)
+    .ToString("0.######", CultureInfo.InvariantCulture);
+
+static string TimelineFact(IpaTrialResult result, string name) =>
+    (result.TimelineFacts?
+        .Where(fact => fact.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+        .Select(fact => fact.Value)
+        .DefaultIfEmpty(0)
+        .Max() ?? 0)
     .ToString("0.######", CultureInfo.InvariantCulture);
 
 static IpaTrialResult? ContrastCandidate(IpaTrialResult result, IReadOnlyList<IpaTrialResult> allResults)

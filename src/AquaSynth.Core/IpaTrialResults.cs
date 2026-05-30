@@ -28,7 +28,19 @@ public sealed record IpaTrialResult(
     [property: Key(16)] string EvaluationSummary,
     [property: Key(17)] string Verdict,
     [property: Key(18)] string[] KnownLies,
-    [property: Key(19)] SpeechTimingReceipt[] TimingReceipts);
+    [property: Key(19)] SpeechTimingReceipt[] TimingReceipts,
+    [property: Key(20)] PrimitiveTimelineFact[] TimelineFacts);
+
+[MessagePackObject]
+public sealed record PrimitiveTimelineFact(
+    [property: Key(0)] string Name,
+    [property: Key(1)] string Primitive,
+    [property: Key(2)] string Signal,
+    [property: Key(3)] float Value,
+    [property: Key(4)] string Unit,
+    [property: Key(5)] int BlockStart,
+    [property: Key(6)] int BlockEnd,
+    [property: Key(7)] string Summary);
 
 public static class IpaTrialResultCultCacheStore
 {

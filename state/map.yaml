@@ -60,6 +60,7 @@ modules:
   primitive_vocal_reference_report: src/AquaSynth.Core/PrimitiveReferenceReport.cs
   ipa_gesture_experiment: src/AquaSynth.Core/IpaGestureExperiment.cs
   ipa_trial_results: src/AquaSynth.Core/IpaTrialResults.cs
+  ipa_trial_timeline_facts: src/AquaSynth.Core/PrimitiveTimelineFactExtractor.cs
   ipa_trial_orchestrator: src/AquaSynth.Faust/IpaTrialOrchestrator.cs
   ipa_trial_worker: tools/IpaTrialWorker
   ipa_trial_external_loop: tools/run-ipa-trial-loop.ps1
@@ -121,6 +122,7 @@ boundaries:
     - chained utterance-embedding-to-synth-driver backpropagation that returns synth input gradients and updates the utterance encoder from downstream speech loss
     - external-gradient speech backpropagation entry point for rendered loss surfaces
     - distributed speech render request/result/checkpoint CultCache contracts for multi-machine Faust rendering and local backpropagation
+    - extracted primitive timeline facts embedded in IPA trial-result CultCache records for contact release, source flow, branch admittance, radiation output, path energy, and passivity evidence
     - CultMesh speech render/scoring worker orchestration with payload manifests, peer/lease admission receipts, worker assignment, result collection, and central checkpoint application; workers return gradients and receipts, while one authority trainer owns optimizer updates and checkpoint commits
     - optional eSpeak NG generated ground-truth fixture for supervised utterance-embedding and synth-driver gradient descent
     - Faust-rendered speech loss surface in AquaSynth.Faust, using rendered audio analysis and finite-difference controller-output gradients

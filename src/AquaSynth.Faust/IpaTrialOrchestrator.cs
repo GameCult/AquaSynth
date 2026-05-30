@@ -237,7 +237,8 @@ public static class IpaTrialOrchestrator
                             0,
                             Confidence(metrics),
                             "Local worker generated the candidate patch, rendered Faust audio, compared log-mel/articulation evidence, and wrote CultCache trial result data.")
-                    ]));
+                    ],
+                    PrimitiveTimelineFactExtractor.Extract(ReadTimeline(candidate.TimelinePath)).ToArray()));
             }
         }
 
@@ -328,6 +329,7 @@ public static class IpaTrialOrchestrator
             {
                 new("gesture_score", AgentGestureScore(mapped.target.Target, patch, timeline), .25f)
             };
+            var timelineFacts = PrimitiveTimelineFactExtractor.Extract(timeline).ToArray();
             string verdict;
             string evaluation;
             var artifacts = new List<SpeechRenderArtifact>
@@ -394,7 +396,8 @@ public static class IpaTrialOrchestrator
                         0,
                         Confidence(metrics),
                         "Local worker rendered an external Codex-authored patch, compared log-mel/articulation evidence, and wrote CultCache trial result data.")
-                ]));
+                ],
+                timelineFacts));
         }
 
         await IpaTrialResultCultCacheStore.UpsertResultsAsync(storePath, results).ConfigureAwait(false);
@@ -607,7 +610,7 @@ public static class IpaTrialOrchestrator
     private static string SummaryCsv(IReadOnlyList<IpaTrialResult> results)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("trial_id,target_set_id,candidate_id,reference_id,verdict,gesture_score,log_mel_cosine,log_mel_distance,audio_score,articulation_score,rms_ratio");
+        builder.AppendLine("trial_id,target_set_id,candidate_id,reference_id,verdict,gesture_score,log_mel_cosine,log_mel_distance,audio_score,articulation_score,rms_ratio,contact_release_peak,radiation_output_peak,path_passivity_max");
         foreach (var result in results)
         {
             builder.Append(Escape(result.TrialId));
@@ -630,7 +633,13 @@ public static class IpaTrialOrchestrator
             builder.Append(',');
             builder.Append(Metric(result, "articulation_score"));
             builder.Append(',');
-            builder.AppendLine(Metric(result, "rms_ratio"));
+            builder.Append(Metric(result, "rms_ratio"));
+            builder.Append(',');
+            builder.Append(TimelineFact(result, "contact_release_peak"));
+            builder.Append(',');
+            builder.Append(TimelineFact(result, "radiation_output_peak"));
+            builder.Append(',');
+            builder.AppendLine(TimelineFact(result, "path_passivity_max"));
         }
 
         return builder.ToString();
@@ -679,6 +688,38 @@ public static class IpaTrialOrchestrator
     private static string Metric(IpaTrialResult result, string name) =>
         (result.Metrics.FirstOrDefault(metric => metric.Name == name)?.Value ?? 0)
         .ToString("0.######", CultureInfo.InvariantCulture);
+
+    private static string TimelineFact(IpaTrialResult result, string name) =>
+        (result.TimelineFacts?
+            .Where(fact => fact.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            .Select(fact => fact.Value)
+            .DefaultIfEmpty(0)
+            .Max() ?? 0)
+        .ToString("0.######", CultureInfo.InvariantCulture);
+
+    private static IReadOnlyList<ProbeTimelineSample> ReadTimeline(string path)
+    {
+        if (!File.Exists(path))
+        {
+            return [];
+        }
+
+        var samples = new List<ProbeTimelineSample>();
+        foreach (var line in File.ReadLines(path).Skip(1))
+        {
+            var parts = line.Split(',');
+            if (parts.Length < 4 ||
+                !int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var block) ||
+                !float.TryParse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            {
+                continue;
+            }
+
+            samples.Add(new ProbeTimelineSample(block, parts[1], parts[2], value));
+        }
+
+        return samples;
+    }
 
     private static string SafeName(string value) =>
         new(value.Select(character => char.IsLetterOrDigit(character) ? character : '_').ToArray());

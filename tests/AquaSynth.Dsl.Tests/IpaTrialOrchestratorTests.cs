@@ -32,7 +32,8 @@ public sealed class IpaTrialOrchestratorTests
                 "Weak but measurable spectrogram pressure.",
                 "pressure",
                 ["fixture reference is not an IPA sample"],
-                [new SpeechTimingReceipt("ipa-trial-render-score", "2026-05-29T12:00:00.0000000Z", 3, 20, .5f, "test")]);
+                [new SpeechTimingReceipt("ipa-trial-render-score", "2026-05-29T12:00:00.0000000Z", 3, 20, .5f, "test")],
+                [new PrimitiveTimelineFact("contact_release_peak", "contact:contact", "released_flow", .12f, "flow", 2, 2, "release witness")]);
 
             await IpaTrialResultCultCacheStore.UpsertResultsAsync(store, [result]);
             var loaded = await IpaTrialResultCultCacheStore.ReadResultsAsync(store);
@@ -42,11 +43,39 @@ public sealed class IpaTrialOrchestratorTests
             Assert.Equal("candidate-a", single.CandidateId);
             Assert.Contains(single.Metrics, metric => metric.Name == "log_mel_cosine");
             Assert.Contains(single.KnownLies, lie => lie.Contains("not an IPA sample", StringComparison.Ordinal));
+            Assert.Contains(single.TimelineFacts, fact => fact.Name == "contact_release_peak" && fact.Value > 0);
         }
         finally
         {
             Directory.Delete(directory, recursive: true);
         }
+    }
+
+    [Fact]
+    public void PrimitiveTimelineFactsExtractPhaseWitnesses()
+    {
+        var timeline = new[]
+        {
+            new ProbeTimelineSample(0, "contact:contact", "opening", .1f),
+            new ProbeTimelineSample(1, "contact:contact", "opening", .8f),
+            new ProbeTimelineSample(0, "contact:contact", "reservoir", .4f),
+            new ProbeTimelineSample(1, "contact:contact", "released_flow", .3f),
+            new ProbeTimelineSample(0, "source:folds", "flow", .2f),
+            new ProbeTimelineSample(1, "branch:velopharynx", "admittance", .15f),
+            new ProbeTimelineSample(1, "radiation:mouth", "output", .7f),
+            new ProbeTimelineSample(0, "path:oral_path", "passivity_ratio", .99f),
+            new ProbeTimelineSample(1, "path:oral_path", "energy_in", .5f),
+            new ProbeTimelineSample(1, "path:oral_path", "energy_out", .45f),
+        };
+
+        var facts = PrimitiveTimelineFactExtractor.Extract(timeline);
+
+        Assert.Contains(facts, fact => fact.Name == "contact_closed_blocks" && fact.Value == 1);
+        Assert.Contains(facts, fact => fact.Name == "contact_release_peak" && Math.Abs(fact.Value - .3f) < .0001f);
+        Assert.Contains(facts, fact => fact.Name == "contact_release_peak_block" && fact.Value == 1);
+        Assert.Contains(facts, fact => fact.Name == "branch_admittance_peak" && Math.Abs(fact.Value - .15f) < .0001f);
+        Assert.Contains(facts, fact => fact.Name == "radiation_output_peak" && Math.Abs(fact.Value - .7f) < .0001f);
+        Assert.Contains(facts, fact => fact.Name == "path_passivity_max" && Math.Abs(fact.Value - .99f) < .0001f);
     }
 
     [Fact]

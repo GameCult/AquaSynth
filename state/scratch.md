@@ -2,6 +2,22 @@
 
 Current slice:
 
+- Added primitive timeline facts to IPA trial results as first-class CultCache
+  evidence. `IpaTrialResult` now stores extracted `PrimitiveTimelineFact[]`
+  values from `ProbeTimelineReport`: contact opening/closed blocks/reservoir
+  peak/release peak/release block, source load pressure and flow peaks, branch
+  admittance/exchanged flow, radiation boundary/output peaks, path area/delay,
+  energy, and passivity ratios. `IpaTrialWorker search/show/dump` indexes and
+  reports those facts alongside metrics and artifact snippets, and trial
+  summary CSVs now include release/radiation/passivity columns. Verified with
+  a one-candidate smoke under
+  `artifacts/parity/ipa-timeline-fact-smoke/20260531T233217641`: stored facts
+  include `contact_closed_blocks=12`, `contact_release_peak=0.020328`,
+  `contact_release_peak_block=11`, `radiation_output_peak=0.008015`, and
+  `path_passivity_max=1`. Qdrant/Ollama search for stop release/radiation
+  evidence returned through the vector organ with `release-facts` and
+  `passivity-facts` tags.
+
 - Upgraded the IPA trial retrieval organ from lexical metric search to a
   Qdrant/Ollama vector index modeled after VoidBot. `IpaTrialWorker search`
   now builds evidence chunks from each `IpaTrialResult`, includes metric text,

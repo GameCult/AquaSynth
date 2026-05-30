@@ -640,8 +640,9 @@ and stores typed `IpaTrialResult` records in `ipa-trial-results.cc`.
 The `.cc` store is per-record CultCache MessagePack data, not a hand-written
 JSON ledger. `IpaTrialResult` records include hypothesis text, candidate patch
 URI, reference/candidate artifacts, primitive timeline URI, metrics, evaluator
-summary, verdict, known contamination, and timing receipts. This is the trial
-result database that later hypothesis workers consume.
+summary, verdict, known contamination, timing receipts, and extracted primitive
+timeline facts. This is the trial result database that later hypothesis workers
+consume.
 
 The first five seed trials were run locally on 2026-05-29 under
 `artifacts/parity/ipa-trials/20260529T214127955/five-seed-trials`. The first
@@ -672,13 +673,14 @@ workers to hand-edit evidence:
   against the PT fixtures, and upserts typed `IpaTrialResult` records.
 - `search` is the semantic retrieval surface for the `.cc` store. It expands
   speech-control vocabulary such as vowel/nasal/fricative/stop, indexes trial
-  summaries plus referenced local artifact snippets into Qdrant with Ollama
-  embeddings when the local vector stack is available, ranks records with
-  vector and metric-aware evidence bias, and writes a compact markdown result
-  set. If Qdrant or Ollama is down, it falls back to the lexical/metric ranker
-  and names the fallback in the report.
+  summaries, embedded primitive timeline facts, and referenced local artifact
+  snippets into Qdrant with Ollama embeddings when the local vector stack is
+  available, ranks records with vector and metric-aware evidence bias, and
+  writes a compact markdown result set. If Qdrant or Ollama is down, it falls
+  back to the lexical/metric ranker and names the fallback in the report.
 - `show` drills into one trial or candidate with full metrics, artifacts,
-  known contamination, hypothesis, and evaluator summary.
+  known contamination, hypothesis, extracted primitive timeline facts, and
+  evaluator summary.
 - `dump` remains an audit escape hatch, not the normal agent memory path.
 
 The default local vector organ mirrors VoidBot's retrieval pattern: stable
@@ -700,6 +702,16 @@ off-class records that only match generic failure language, and treats
 as stop, nasal, fricative, or vowel is also present. This keeps `mix-p` useful
 for plosive seams without letting every mixed candidate impersonate stop
 evidence.
+
+Primitive timeline facts are now part of the CultCache record itself, not only
+CSV attachments. The extractor records contact closure/opening/reservoir/release
+peaks and release block, source pressure/flow peaks, branch admittance/exchanged
+flow, radiation boundary/output peaks, path area/delay, path energy, and
+passivity ratios. `search`, `show`, `dump`, and trial summary CSVs surface the
+release/radiation/passivity witnesses directly. A hypothesis about stops,
+fricatives, nasals, vowels, or radiation is not strong evidence unless it can
+point to these facts or explicitly say that the required primitive witness is
+missing. The machine is allowed to be ugly; it is not allowed to be mysterious.
 
 `tools/run-ipa-trial-loop.ps1` orchestrates the outer loop with external
 `codex exec` workers. Each round searches accumulated trial memory, asks a
