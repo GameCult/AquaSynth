@@ -692,6 +692,15 @@ store evidence before querying. The outer trial loop runs `index` at round
 boundaries and passes `--skip-index true` to agent searches so each agent query
 uses fresh vectors without re-embedding the store.
 
+Retrieval tuning treats phonetic class as evidence, not decoration. Search
+reports expose `class_focus` for the query and `class_match` for each hit. The
+ranker boosts candidate records that match the requested class, demotes
+off-class records that only match generic failure language, and treats
+`mixed/generalization` as a secondary transfer hint when a concrete class such
+as stop, nasal, fricative, or vowel is also present. This keeps `mix-p` useful
+for plosive seams without letting every mixed candidate impersonate stop
+evidence.
+
 `tools/run-ipa-trial-loop.ps1` orchestrates the outer loop with external
 `codex exec` workers. Each round searches accumulated trial memory, asks a
 hypothesis worker to write a batch of candidates, scores those candidates

@@ -19,6 +19,15 @@ Current slice:
   after each round's scoring boundary, then passes `--skip-index true` to agent
   searches so the agents query fresh vectors without re-embedding on every
   receipt.
+- Retrieval tuning smokes found two gremlin-feeding flaws: generic
+  weak-articulation language could pull off-class records into class-specific
+  searches, and mixed target-set records could match every class because their
+  target contains `a/m/s/p/u`. The live ranker now adds class-affinity scoring,
+  candidate-specific ownership for mixed lanes (`mix-p` is stop, `mix-a/u` are
+  vowel, `mix-m` is nasal, `mix-s` is fricative), demotes mixed/generalization
+  to a secondary transfer hint when a real class is present, and only labels
+  dressing when the record text actually mentions dressing/FM/AM/envelope/helper
+  evidence. Search reports now expose `class_focus` and per-hit `class_match`.
 
 - Ran five IPA prompt-optimization passes against the external trial-loop
   agent prompts. Pass 1 produced useful seam science but treated fallback file

@@ -266,7 +266,11 @@ static IReadOnlyList<SearchHit> MergeVectorAndLexicalHits(
             var matchedTerms = lexicalHit?.MatchedTerms ?? [];
             var tags = EvidenceTags(result, SearchDocument.From(result, DocumentFields(result, store)));
             var lexicalScore = lexicalHit?.Score ?? 0;
-            var score = hit.Score * 10f + MathF.Min(lexicalScore, 8f) + MetricBias(result, ExpandTerms(Tokenize(query)).ToArray());
+            var queryTerms = ExpandTerms(Tokenize(query)).ToArray();
+            var score = hit.Score * 10f
+                + MathF.Min(lexicalScore, 8f)
+                + MetricBias(result, queryTerms)
+                + ClassAffinityBias(result, queryTerms);
             return new SearchHit(
                 result,
                 score,
@@ -480,7 +484,8 @@ static IReadOnlyList<SearchHit> Rank(
                 .ToArray();
             var metricBias = MetricBias(result, queryTerms);
             var evidenceBias = EvidenceBias(result, queryTerms, document);
-            var score = lexical + metricBias + evidenceBias;
+            var classBias = ClassAffinityBias(result, queryTerms);
+            var score = lexical + metricBias + evidenceBias + classBias;
             return new SearchHit(result, score, matchedTerms, matchedByField, EvidenceTags(result, document), retrievalMode);
         })
         .Where(item => item.Score > 0)
@@ -576,6 +581,174 @@ static float EvidenceBias(IpaTrialResult result, IReadOnlyCollection<string> ter
     }
 
     return bias;
+}
+
+static float ClassAffinityBias(IpaTrialResult result, IReadOnlyCollection<string> terms)
+{
+    var intents = QueryClasses(terms).ToArray();
+    if (intents.Length == 0)
+    {
+        return 0;
+    }
+
+    if (intents.Contains("dressing", StringComparer.OrdinalIgnoreCase))
+    {
+        return MentionsDressing(result) ? 2.0f : -0.75f;
+    }
+
+    var classes = ResultClasses(result).ToArray();
+    var primaryIntents = intents
+        .Where(intent => !intent.Equals("mixed", StringComparison.OrdinalIgnoreCase))
+        .ToArray();
+    if (primaryIntents.Length > 0)
+    {
+        if (primaryIntents.Intersect(classes, StringComparer.OrdinalIgnoreCase).Any())
+        {
+            return classes.Contains("mixed", StringComparer.OrdinalIgnoreCase) ? 2.0f : 2.5f;
+        }
+
+        return classes.Contains("mixed", StringComparer.OrdinalIgnoreCase) ? -1.0f : -1.75f;
+    }
+
+    return intents.Intersect(classes, StringComparer.OrdinalIgnoreCase).Any() ? 1.25f : -0.75f;
+}
+
+static IEnumerable<string> QueryClasses(IEnumerable<string> terms)
+{
+    var set = new HashSet<string>(terms, StringComparer.OrdinalIgnoreCase);
+    if (set.Overlaps(["stop", "plosive", "closure", "release", "reservoir"]))
+    {
+        yield return "stop";
+    }
+    if (set.Overlaps(["fricative", "sibilant", "constriction", "turbulence", "labiodental", "dental"]))
+    {
+        yield return "fricative";
+    }
+    if (set.Overlaps(["nasal", "velum", "veloparynx", "velopharynx", "branch", "admittance"]))
+    {
+        yield return "nasal";
+    }
+    if (set.Overlaps(["vowel", "formant", "tongue", "body", "rounded", "unrounded"]))
+    {
+        yield return "vowel";
+    }
+    if (set.Overlaps(["mixed", "transfer", "generalization"]))
+    {
+        yield return "mixed";
+    }
+    if (set.Overlaps(["dressing", "fm", "am", "modulator", "envelope", "helper"]))
+    {
+        yield return "dressing";
+    }
+}
+
+static IEnumerable<string> ResultClasses(IpaTrialResult result)
+{
+    var candidateClasses = CandidateSpecificClasses(result.CandidateId).ToArray();
+    var target = result.TargetSetId.ToLowerInvariant();
+    if (candidateClasses.Length > 0)
+    {
+        foreach (var candidateClass in candidateClasses)
+        {
+            yield return candidateClass;
+        }
+
+        if (target.Contains("mixed", StringComparison.Ordinal))
+        {
+            yield return "mixed";
+        }
+
+        yield break;
+    }
+
+    if (target.Contains("mixed", StringComparison.Ordinal))
+    {
+        yield return "mixed";
+        yield break;
+    }
+    if (target.Contains("stop", StringComparison.Ordinal))
+    {
+        yield return "stop";
+        yield break;
+    }
+    if (target.Contains("fricative", StringComparison.Ordinal))
+    {
+        yield return "fricative";
+        yield break;
+    }
+    if (target.Contains("nasal", StringComparison.Ordinal))
+    {
+        yield return "nasal";
+        yield break;
+    }
+    if (target.Contains("vowel", StringComparison.Ordinal))
+    {
+        yield return "vowel";
+        yield break;
+    }
+
+    foreach (var phoneme in result.Phonemes)
+    {
+        var normalized = phoneme.ToLowerInvariant();
+        if (normalized is "p" or "b" or "t" or "d" or "k")
+        {
+            yield return "stop";
+        }
+        if (normalized is "s" or "z" or "f" or "v" or "th" or "θ")
+        {
+            yield return "fricative";
+        }
+        if (normalized is "m" or "n" or "ng" or "ŋ")
+        {
+            yield return "nasal";
+        }
+        if (normalized is "a" or "i" or "u" or "e" or "o")
+        {
+            yield return "vowel";
+        }
+    }
+}
+
+static IEnumerable<string> CandidateSpecificClasses(string candidateId)
+{
+    var normalized = candidateId.ToLowerInvariant();
+    var prefix = normalized;
+    if (prefix.StartsWith("mix-", StringComparison.Ordinal))
+    {
+        prefix = prefix[4..];
+    }
+
+    prefix = prefix.Split(['-', '_'], StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? prefix;
+    if (prefix is "p" or "b" or "t" or "d" or "k")
+    {
+        yield return "stop";
+    }
+    if (prefix is "s" or "z" or "f" or "v" or "th" or "θ")
+    {
+        yield return "fricative";
+    }
+    if (prefix is "m" or "n" or "ng" or "ŋ")
+    {
+        yield return "nasal";
+    }
+    if (prefix is "a" or "i" or "u" or "e" or "o")
+    {
+        yield return "vowel";
+    }
+    if (prefix is "l" or "r")
+    {
+        yield return "approximant";
+    }
+}
+
+static bool MentionsDressing(IpaTrialResult result)
+{
+    var text = string.Join(' ', [
+        result.Hypothesis,
+        result.EvaluationSummary,
+        string.Join(' ', result.KnownLies)
+    ]);
+    return Tokenize(text).Any(term => term is "dressing" or "fm" or "am" or "modulator" or "envelope" or "helper");
 }
 
 static Dictionary<string, WeightedTerms> DocumentFields(IpaTrialResult result, string store)
@@ -764,9 +937,7 @@ static string[] EvidenceTags(IpaTrialResult result, SearchDocument document)
     {
         tags.Add("timeline");
     }
-    if (document.AllTerms.Contains("dressing", StringComparer.OrdinalIgnoreCase) ||
-        document.AllTerms.Contains("fm", StringComparer.OrdinalIgnoreCase) ||
-        document.AllTerms.Contains("am", StringComparer.OrdinalIgnoreCase))
+    if (MentionsDressing(result))
     {
         tags.Add("dressing");
     }
@@ -795,6 +966,7 @@ static string SearchReport(
     builder.AppendLine($"retrieval: `{(ranked.Any(hit => hit.RetrievalMode == "qdrant-ollama") ? "qdrant-ollama" : "lexical-fallback")}`");
     builder.AppendLine($"collection: `{options.Collection}`");
     builder.AppendLine($"embedder: `{options.EmbedModel}`");
+    builder.AppendLine($"class_focus: `{string.Join(", ", QueryClasses(ExpandTerms(Tokenize(query))).Distinct(StringComparer.OrdinalIgnoreCase))}`");
     builder.AppendLine($"matches: {ranked.Count}");
     builder.AppendLine();
     foreach (var hit in ranked)
@@ -819,6 +991,8 @@ static string SearchReport(
         builder.AppendLine(string.Join('|', hit.MatchedTerms.Take(12)));
         builder.Append("  tags: ");
         builder.AppendLine(string.Join(", ", hit.Tags));
+        builder.Append("  class_match: ");
+        builder.AppendLine(string.Join(", ", ResultClasses(result).Distinct(StringComparer.OrdinalIgnoreCase)));
         builder.Append("  metrics: gesture=");
         builder.Append(Metric(result, "gesture_score"));
         builder.Append(", logMelCosine=");
