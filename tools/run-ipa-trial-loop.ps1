@@ -205,6 +205,22 @@ for ($round = 1; $round -le $Rounds; $round++) {
     New-Item -ItemType Directory -Force -Path $patchDir | Out-Null
     Add-Content -LiteralPath $indexPath -Value "- ${roundId}: $roundDir"
 
+    $indexBeforeLog = Join-Path $logRoot "$roundId-index-before.log"
+    Invoke-LoggedProcess `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            "run",
+            "--project",
+            $workerProject,
+            "--",
+            "index",
+            "--store",
+            $storePath,
+            "--output",
+            (Join-Path $roundDir "vector-index-before.md")
+        ) `
+        -LogPath $indexBeforeLog
+
     $preEvidence = Join-Path $roundDir "semantic-search-before.md"
     $preDumpLog = Join-Path $logRoot "$roundId-search-before.log"
     Invoke-LoggedProcess `
@@ -222,7 +238,9 @@ for ($round = 1; $round -le $Rounds; $round++) {
             "--limit",
             "40",
             "--output",
-            $preEvidence
+            $preEvidence,
+            "--skip-index",
+            "true"
         ) `
         -LogPath $preDumpLog
 
@@ -238,7 +256,7 @@ The backing store is:
 $storePath
 
 Use the worker as your search organ. Do not ask for crude full dumps unless retrieval fails:
-`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "<your evidence question>" --limit 20 --output "$roundDir/search-<topic>.md"
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "<your evidence question>" --limit 20 --output "$roundDir/search-<topic>.md" --skip-index true
 `$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- show --store "$storePath" --trial-id "<trial id from search>" --output "$roundDir/detail-<candidate>.md"
 
 Retrieval failure policy:
@@ -357,6 +375,22 @@ Return a short final summary naming the files you wrote.
         ) `
         -LogPath $scoreLog
 
+    $indexAfterLog = Join-Path $logRoot "$roundId-index-after.log"
+    Invoke-LoggedProcess `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            "run",
+            "--project",
+            $workerProject,
+            "--",
+            "index",
+            "--store",
+            $storePath,
+            "--output",
+            (Join-Path $roundDir "vector-index-after.md")
+        ) `
+        -LogPath $indexAfterLog
+
     $postEvidence = Join-Path $roundDir "semantic-search-after.md"
     $postDumpLog = Join-Path $logRoot "$roundId-search-after.log"
     Invoke-LoggedProcess `
@@ -374,7 +408,9 @@ Return a short final summary naming the files you wrote.
             "--limit",
             "60",
             "--output",
-            $postEvidence
+            $postEvidence,
+            "--skip-index",
+            "true"
         ) `
         -LogPath $postDumpLog
 
@@ -401,9 +437,9 @@ Before judging:
 3. If the hypothesis worker skipped the required 25-lane matrix or retrieval receipts, mark orchestration/prompt compliance as failed even if some audio metrics improved.
 
 Use the worker as your search organ:
-`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "$roundId external-codex-$roundId current round candidates" --limit 30 --output "$roundDir/eval-search-current-round.md"
-`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "weak regression failed articulation stop plosive source tract radiation" --limit 30 --output "$roundDir/eval-search-weak.md"
-`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "promising transfer generalization vowel nasal fricative articulation" --limit 30 --output "$roundDir/eval-search-promising.md"
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "$roundId external-codex-$roundId current round candidates" --limit 30 --output "$roundDir/eval-search-current-round.md" --skip-index true
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "weak regression failed articulation stop plosive source tract radiation" --limit 30 --output "$roundDir/eval-search-weak.md" --skip-index true
+`$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "promising transfer generalization vowel nasal fricative articulation" --limit 30 --output "$roundDir/eval-search-promising.md" --skip-index true
 `$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- show --store "$storePath" --trial-id "<trial id from current round search>" --output "$roundDir/eval-detail-<candidate>.md"
 
 Retrieval failure policy:

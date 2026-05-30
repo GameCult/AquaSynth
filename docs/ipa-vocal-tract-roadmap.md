@@ -671,11 +671,26 @@ workers to hand-edit evidence:
 - `score` reads agent-authored `.aqua` candidates, renders and scores them
   against the PT fixtures, and upserts typed `IpaTrialResult` records.
 - `search` is the semantic retrieval surface for the `.cc` store. It expands
-  speech-control vocabulary such as vowel/nasal/fricative/stop, ranks records
-  with metric-aware evidence bias, and writes a compact markdown result set.
+  speech-control vocabulary such as vowel/nasal/fricative/stop, indexes trial
+  summaries plus referenced local artifact snippets into Qdrant with Ollama
+  embeddings when the local vector stack is available, ranks records with
+  vector and metric-aware evidence bias, and writes a compact markdown result
+  set. If Qdrant or Ollama is down, it falls back to the lexical/metric ranker
+  and names the fallback in the report.
 - `show` drills into one trial or candidate with full metrics, artifacts,
   known contamination, hypothesis, and evaluator summary.
 - `dump` remains an audit escape hatch, not the normal agent memory path.
+
+The default local vector organ mirrors VoidBot's retrieval pattern: stable
+Qdrant point IDs are derived from SHA-256 evidence chunk ids, payload owns the
+real trial/candidate/source metadata, collection metadata records the corpus and
+embedder, and Qdrant is treated as a derived index over the `.cc` truth. The
+default services are `http://127.0.0.1:6333` for Qdrant and
+`http://127.0.0.1:11434` for Ollama using `qwen3-embedding:0.6b`. `index`
+can rebuild the collection explicitly, while `search` auto-upserts current
+store evidence before querying. The outer trial loop runs `index` at round
+boundaries and passes `--skip-index true` to agent searches so each agent query
+uses fresh vectors without re-embedding the store.
 
 `tools/run-ipa-trial-loop.ps1` orchestrates the outer loop with external
 `codex exec` workers. Each round searches accumulated trial memory, asks a

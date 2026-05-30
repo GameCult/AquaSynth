@@ -2,6 +2,24 @@
 
 Current slice:
 
+- Upgraded the IPA trial retrieval organ from lexical metric search to a
+  Qdrant/Ollama vector index modeled after VoidBot. `IpaTrialWorker search`
+  now builds evidence chunks from each `IpaTrialResult`, includes metric text,
+  hypotheses, evaluations, known lies, timing receipts, and local artifact
+  snippets such as `.aqua`, timeline CSV, markdown, text, and DSP files, embeds
+  them through local Ollama `qwen3-embedding:0.6b`, stores them in Qdrant
+  collection `aquasynth_ipa_trial_results`, and returns vector-backed markdown
+  search reports with vector scores, evidence tags, metric facts, contrast
+  candidates, excerpts, and `show` commands. Qdrant is derived from the `.cc`
+  store, not a second truth. Verified against the live Docker Qdrant and local
+  Ollama server on
+  `artifacts/parity/ipa-trial-worker-smoke/20260529T2204/ipa-trial-results.cc`:
+  explicit index wrote 25 chunks with 1024-dim vectors, and stop-closure search
+  returned through `qdrant-ollama`. The trial loop now runs `index` before and
+  after each round's scoring boundary, then passes `--skip-index true` to agent
+  searches so the agents query fresh vectors without re-embedding on every
+  receipt.
+
 - Ran five IPA prompt-optimization passes against the external trial-loop
   agent prompts. Pass 1 produced useful seam science but treated fallback file
   reads as evidence after `dotnet run` failed. Pass 2 proved live search/show
