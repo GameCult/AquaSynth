@@ -1785,3 +1785,20 @@ Next likely slice:
   dust/hat texture plus rubber/sub bass. That is useful but still not victory:
   the scene-noise lesson remains that background/recording color must be a
   shaped role owner, not static hiss.
+
+2026-05-31 two-pass song playlist slice:
+
+- Added per-pass playable playlist output to `run-song-snippet-trial-swarm.ps1`.
+  Each pass writes `top-scoring-candidates.m3u` and
+  `top-scoring-candidates.md`, ranked by log-mel cosine over candidates that
+  actually rendered a WAV.
+- Scoring now keeps the swarm alive when an agent writes invalid Aqua syntax:
+  invalid parse/lowering/render preparation becomes a `render-failed` trial
+  with `candidate_invalid`/`render_failed` metrics instead of aborting the
+  curriculum pass. This was forced by an agent writing illegal `wave=pulse`.
+- Completed a two-pass run at
+  `artifacts/parity/song-snippet-swarms/20260531T084455803`. Pass 1 produced
+  10 trials, 8 playable candidates, best cosine `0.386098`, playable mean
+  `0.220027`, and 2 render-failed syntax casualties. Pass 2 used distilled
+  pass-1 evidence, produced 10 playable candidates, best cosine `0.502435`,
+  mean cosine `0.352907`, and 8 pressure verdicts.

@@ -186,30 +186,38 @@ function Write-PassPlaylist {
         }
     }
 
-    $ranked = @($rows | Sort-Object -Property @{ Expression = "LogMelCosine"; Descending = $true }, @{ Expression = "AudioScore"; Descending = $true } | Select-Object -First $TopCount)
+    $playable = @($rows | Where-Object { Test-Path -LiteralPath $_.CandidateWav })
+    $ranked = @($playable | Sort-Object -Property @{ Expression = "LogMelCosine"; Descending = $true }, @{ Expression = "AudioScore"; Descending = $true } | Select-Object -First $TopCount)
+    $skipped = @($rows | Where-Object { -not (Test-Path -LiteralPath $_.CandidateWav) })
     $playlistPath = Join-Path $PassDirectory "top-scoring-candidates.m3u"
     $reportPath = Join-Path $PassDirectory "top-scoring-candidates.md"
     $playlist = New-Object System.Collections.Generic.List[string]
     $playlist.Add("#EXTM3U")
     $report = New-Object System.Collections.Generic.List[string]
-    $report.Add("# Top Scoring Song Candidates")
+    $report.Add("# Top Scoring Playable Song Candidates")
     $report.Add("")
     $report.Add(('playlist: `{0}`' -f $playlistPath))
     $report.Add("")
 
     $rank = 1
     foreach ($row in $ranked) {
-        if (Test-Path -LiteralPath $row.CandidateWav) {
-            $title = "#{0} {1} cosine={2:0.######} score={3:0.######} verdict={4}" -f $rank, $row.CandidateId, $row.LogMelCosine, $row.AudioScore, $row.Verdict
-            $playlist.Add("#EXTINF:-1,$title")
-            $playlist.Add($row.CandidateWav)
-        }
+        $title = "#{0} {1} cosine={2:0.######} score={3:0.######} verdict={4}" -f $rank, $row.CandidateId, $row.LogMelCosine, $row.AudioScore, $row.Verdict
+        $playlist.Add("#EXTINF:-1,$title")
+        $playlist.Add($row.CandidateWav)
 
         $report.Add(('- {0}. `{1}` / verdict `{2}` / cosine `{3:0.######}` / score `{4:0.######}` / rms `{5:0.######}` / centroid `{6:0.######}`' -f $rank, $row.CandidateId, $row.Verdict, $row.LogMelCosine, $row.AudioScore, $row.RmsRatio, $row.CentroidRatio))
         $report.Add(('  - candidate: `{0}`' -f $row.CandidateWav))
         $report.Add(('  - reference: `{0}`' -f $row.ReferenceWav))
         $report.Add(('  - summary: `{0}`' -f $row.SummaryPath))
         $rank++
+    }
+
+    if ($skipped.Count -gt 0) {
+        $report.Add("")
+        $report.Add("## Skipped Non-Playable Candidates")
+        foreach ($row in $skipped | Sort-Object -Property @{ Expression = "LogMelCosine"; Descending = $true }, @{ Expression = "AudioScore"; Descending = $true }) {
+            $report.Add(('- `{0}` / verdict `{1}` / cosine `{2:0.######}` / score `{3:0.######}` / expected candidate: `{4}`' -f $row.CandidateId, $row.Verdict, $row.LogMelCosine, $row.AudioScore, $row.CandidateWav))
+        }
     }
 
     Set-Content -LiteralPath $playlistPath -Value $playlist
