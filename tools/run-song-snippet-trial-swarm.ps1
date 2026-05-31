@@ -1,6 +1,7 @@
 param(
     [int]$Passes = 1,
     [int]$AgentsPerPass = 5,
+    [int]$SongsPerAgent = 2,
     [string]$Source = "D:\Music\Reinier\Heyoka\Gate Code\Heyoka - Alien Gibberish.mp3",
     [string]$SourceFolder = "D:\Music\Reinier\Heyoka",
     [float]$DurationSeconds = 30,
@@ -175,6 +176,7 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 - codex: $($codex.Source)
 - passes: $Passes
 - agents_per_pass: $AgentsPerPass
+- songs_per_agent: $SongsPerAgent
 - seed: $seedValue
 - duration_seconds: $DurationSeconds
 - new_segment_per_pass: $NewSegmentPerPass
@@ -184,6 +186,7 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 
 "@
 
+$latestDistilledStore = ""
 for ($pass = 1; $pass -le $Passes; $pass++) {
     $passId = "pass-{0:000}" -f $pass
     $passDir = Join-Path $loopRoot $passId
@@ -192,7 +195,8 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
     New-Item -ItemType Directory -Force -Path $passDir, $patchRoot | Out-Null
 
     $preEvidence = Join-Path $passDir "semantic-search-before.md"
-    if (Test-Path -LiteralPath $storePath) {
+    $evidenceStore = if ($latestDistilledStore.Length -gt 0 -and (Test-Path -LiteralPath $latestDistilledStore)) { $latestDistilledStore } else { $storePath }
+    if (Test-Path -LiteralPath $evidenceStore) {
         Invoke-LoggedProcess `
             -FilePath "dotnet" `
             -ArgumentList @(
@@ -202,7 +206,7 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
                 "--",
                 "search",
                 "--store",
-                $storePath,
+                $evidenceStore,
                 "--query",
                 "song snippet alien gibberish rhythm tempo timbre spectral envelope modulation scene voices weak promising",
                 "--limit",
@@ -212,7 +216,7 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
                 "--skip-index",
                 "true"
             ) `
-            -LogPath (Join-Path $logRoot "$passId-search-before.log")
+        -LogPath (Join-Path $logRoot "$passId-search-before.log")
     }
     else {
         Set-Content -LiteralPath $preEvidence -Value "# No prior song-snippet evidence yet"
@@ -223,60 +227,87 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
         $agentId = "agent-{0:00}" -f $agent
         $agentDir = Join-Path $passDir $agentId
         $agentPatchDir = Join-Path $patchRoot $agentId
-        $agentChallengeRoot = Join-Path $agentDir "challenge"
-        $agentChallengePath = Join-Path $agentChallengeRoot "challenge.json"
-        New-Item -ItemType Directory -Force -Path $agentDir, $agentPatchDir, $agentChallengeRoot | Out-Null
-        $sourceIndex = if ($RandomSourcePerAgent) {
-            (($phaseSeed + ($agent * 1543)) % $songSources.Count)
+        New-Item -ItemType Directory -Force -Path $agentDir, $agentPatchDir | Out-Null
+        $challengePaths = @()
+        $challengeReports = @()
+        $targetPatchDirs = @()
+        $agentSources = @()
+        $agentSeeds = @()
+        for ($song = 1; $song -le $SongsPerAgent; $song++) {
+            $songId = "target-{0:00}" -f $song
+            $agentChallengeRoot = Join-Path $agentDir $songId
+            $agentChallengePath = Join-Path $agentChallengeRoot "challenge.json"
+            $targetPatchDir = Join-Path $agentPatchDir $songId
+            New-Item -ItemType Directory -Force -Path $agentChallengeRoot, $targetPatchDir | Out-Null
+            $sourceIndex = if ($RandomSourcePerAgent) {
+                (($phaseSeed + ($agent * 1543) + ($song * 7919)) % $songSources.Count)
+            }
+            else {
+                (($phaseSeed - $seedValue) / 7919 + $song - 1) % $songSources.Count
+            }
+            $agentSource = $songSources[[int]$sourceIndex]
+            $agentSeed = $phaseSeed + ($agent * 104729) + ($song * 8191)
+            Invoke-LoggedProcess `
+                -FilePath "dotnet" `
+                -ArgumentList @(
+                    "run",
+                    "--project",
+                    $workerProject,
+                    "--",
+                    "song-prepare",
+                    "--source",
+                    $agentSource,
+                    "--artifact-root",
+                    $agentChallengeRoot,
+                    "--duration-seconds",
+                    ([string]$DurationSeconds),
+                    "--seed",
+                    ([string]$agentSeed),
+                    "--challenge-id",
+                    "song-snippet-$loopId-$passId-$agentId-$songId",
+                    "--output",
+                    $agentChallengePath
+                ) `
+                -LogPath (Join-Path $logRoot "$passId-$agentId-$songId-challenge-prepare.log")
+            $challengePaths += $agentChallengePath
+            $challengeReports += (Join-Path $agentChallengeRoot "challenge.md")
+            $targetPatchDirs += $targetPatchDir
+            $agentSources += $agentSource
+            $agentSeeds += $agentSeed
         }
-        else {
-            (($phaseSeed - $seedValue) / 7919) % $songSources.Count
-        }
-        $agentSource = $songSources[[int]$sourceIndex]
-        $agentSeed = $phaseSeed + ($agent * 104729)
-        Invoke-LoggedProcess `
-            -FilePath "dotnet" `
-            -ArgumentList @(
-                "run",
-                "--project",
-                $workerProject,
-                "--",
-                "song-prepare",
-                "--source",
-                $agentSource,
-                "--artifact-root",
-                $agentChallengeRoot,
-                "--duration-seconds",
-                ([string]$DurationSeconds),
-                "--seed",
-                ([string]$agentSeed),
-                "--challenge-id",
-                "song-snippet-$loopId-$passId-$agentId",
-                "--output",
-                $agentChallengePath
-            ) `
-            -LogPath (Join-Path $logRoot "$passId-$agentId-challenge-prepare.log")
-        $challengeMarkdown = Join-Path $agentChallengeRoot "challenge.md"
+        $challengeList = ($challengePaths | ForEach-Object { "- frozen challenge JSON: $_" }) -join "`n"
+        $challengeReportList = ($challengeReports | ForEach-Object { "- human-readable challenge report: $_" }) -join "`n"
+        $targetPatchList = ($targetPatchDirs | ForEach-Object { "- target patch output directory: $_" }) -join "`n"
+        $agentSourceList = ($agentSources | ForEach-Object { "- assigned source: $_" }) -join "`n"
+        $agentSeedList = ($agentSeeds | ForEach-Object { "- target seed: $_" }) -join "`n"
         $outputPath = Join-Path $agentDir "hypothesis-agent.md"
         $promptPath = Join-Path $agentDir "hypothesis-agent.prompt.md"
         $logPath = Join-Path $logRoot "$passId-$agentId-hypothesis-agent.log"
         $prompt = @"
 You are an AquaSynth song-snippet parity worker.
 
+The dataset is on trial. Your patches, hypotheses, failures, and evaluator scores become curriculum evidence in CultCache and the vector database. Write useful sample data and reusable reasoning, not just a one-off trick that happens to flatter one metric.
+
 Challenge:
-- frozen challenge JSON: $agentChallengePath
-- human-readable challenge report: $challengeMarkdown
+$challengeList
+$challengeReportList
 - shared prior evidence: $preEvidence
 - patch output directory: $agentPatchDir
+$targetPatchList
 - candidate filename prefix: $agentId
 - phase id: $passId
 - phase seed: $phaseSeed
-- assigned source: $agentSource
-- agent seed: $agentSeed
+$agentSourceList
+$agentSeedList
 - required duration: $DurationSeconds seconds
 
 Goal:
-Write exactly one parseable AquaSynth `.aqua` patch that tries to reproduce the frozen $DurationSeconds second reference clip. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, curves, and helper voices.
+Write exactly one parseable AquaSynth `.aqua` patch for each frozen $DurationSeconds second reference clip assigned to you. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, curves, and helper voices.
+
+Generalization:
+- You own two target patches, but your report must compare both targets and state what reusable scene/instrument knowledge transfers between them.
+- The two patches may share instrument roles, texture roles, control idioms, and DSL conventions, but each patch should fit its own target's tempo/register/spectral evidence.
+- Future agents will receive distilled evidence from this trial when asked to zero-shot an audio production request. Make your `hypotheses.md` useful retrieval context: name what transferred, what did not, and what evidence would change your next patch.
 
 Noise and texture:
 - Do not model background or recording color as a full-duration raw `voice wave=noise` bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
@@ -316,12 +347,12 @@ Instrument and DSL convention invention:
 - The `.aqua` candidate must use today's implemented syntax only: `pattern`, `scale`, `param`, `curve`, and ordinary patch/voice syntax are legal. Proposed future sugar is evidence for the next DSL cut, not magic accepted by the parser.
 
 Evidence contract:
-- Read $challengeMarkdown and $preEvidence.
-- Write $agentDir/hypotheses.md with: reference features, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement, known risks.
-- Write exactly one `.aqua` file under $agentPatchDir named `<agent-id>__<family>__<hypothesis>.aqua`.
+- Read every assigned challenge report and $preEvidence.
+- Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on both targets, known risks.
+- Write exactly one `.aqua` file under each target patch output directory named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch, such as primary alien-voice/body, rhythmic transient/noise, and background/recording color.
 - Background/recording-color layers must use `texture` or an equivalently gated and band-shaped explicit voice; a static full-duration white-noise bed is failed evidence.
-- Make the patch duration/gates cover the $DurationSeconds second target.
+- Make each patch duration/gates cover its matching $DurationSeconds second target.
 
 Return a short final summary naming the patch and report.
 "@
@@ -337,35 +368,39 @@ Return a short final summary naming the patch and report.
     }
 
     Wait-CodexJobs -Jobs $jobs
-    Assert-SongCandidates -PatchDirectory $patchRoot -ExpectedCount $AgentsPerPass
+    Assert-SongCandidates -PatchDirectory $patchRoot -ExpectedCount ($AgentsPerPass * $SongsPerAgent)
 
     for ($agent = 1; $agent -le $AgentsPerPass; $agent++) {
         $agentId = "agent-{0:00}" -f $agent
         $agentDir = Join-Path $passDir $agentId
-        Invoke-LoggedProcess `
-            -FilePath "dotnet" `
-            -ArgumentList @(
-                "run",
-                "--project",
-                $workerProject,
-                "--",
-                "song-score",
-                "--patch-root",
-                (Join-Path $patchRoot $agentId),
-                "--challenge",
-                (Join-Path $agentDir "challenge/challenge.json"),
-                "--artifact-root",
-                $agentDir,
-                "--batch-id",
-                "$passId-$agentId",
-                "--store",
-                $storePath,
-                "--hypothesizer",
-                "external-codex-song-swarm-$passId-$agentId"
-            ) `
-            -LogPath (Join-Path $logRoot "$passId-$agentId-score-candidate.log")
+        for ($song = 1; $song -le $SongsPerAgent; $song++) {
+            $songId = "target-{0:00}" -f $song
+            Invoke-LoggedProcess `
+                -FilePath "dotnet" `
+                -ArgumentList @(
+                    "run",
+                    "--project",
+                    $workerProject,
+                    "--",
+                    "song-score",
+                    "--patch-root",
+                    (Join-Path (Join-Path $patchRoot $agentId) $songId),
+                    "--challenge",
+                    (Join-Path $agentDir "$songId/challenge.json"),
+                    "--artifact-root",
+                    (Join-Path $agentDir $songId),
+                    "--batch-id",
+                    "$passId-$agentId-$songId",
+                    "--store",
+                    $storePath,
+                    "--hypothesizer",
+                    "external-codex-song-swarm-$passId-$agentId-$songId"
+                ) `
+                -LogPath (Join-Path $logRoot "$passId-$agentId-$songId-score-candidate.log")
+        }
     }
 
+    $distilledStore = Join-Path $passDir "song-trial-results.distilled.cc"
     Invoke-LoggedProcess `
         -FilePath "dotnet" `
         -ArgumentList @(
@@ -403,6 +438,28 @@ Return a short final summary naming the patch and report.
             "true"
         ) `
         -LogPath (Join-Path $logRoot "$passId-search-after.log")
+
+    Invoke-LoggedProcess `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            "run",
+            "--project",
+            $workerProject,
+            "--",
+            "distill",
+            "--store",
+            $storePath,
+            "--output-store",
+            $distilledStore,
+            "--output",
+            (Join-Path $passDir "distillation-report.md"),
+            "--min-cosine",
+            "0.35",
+            "--max-results",
+            "40"
+        ) `
+        -LogPath (Join-Path $logRoot "$passId-distill.log")
+    $latestDistilledStore = $distilledStore
 }
 
 Write-Host "Song snippet trial swarm complete: $loopRoot"

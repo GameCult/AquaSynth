@@ -56,6 +56,24 @@ public sealed record SongChallengeEvidenceDocument(
     [property: Key(6)] string SourcePath,
     [property: Key(7)] string CreatedAtUtc);
 
+[CultDocument("aquasynth.song_trial_distillation", "aquasynth.song_trial_distillation.v1")]
+[MessagePackObject]
+public sealed record SongTrialDistillationDocument(
+    [property: Key(0)]
+    [property: CultName]
+    string DistillationId,
+    [property: Key(1)] string SourceStore,
+    [property: Key(2)] string CreatedAtUtc,
+    [property: Key(3)] int InputTrialCount,
+    [property: Key(4)] int KeptTrialCount,
+    [property: Key(5)] string Summary,
+    [property: Key(6)] string[] ReusableSceneRoles,
+    [property: Key(7)] string[] TransferRules,
+    [property: Key(8)] string[] FailurePatterns,
+    [property: Key(9)] string[] KeptTrialIds,
+    [property: Key(10)] string[] DroppedTrialIds,
+    [property: Key(11)] SpeechScoreMetric[] AggregateMetrics);
+
 public static class IpaTrialResultCultCacheStore
 {
     public static Task UpsertResultsAsync(string filePath, IEnumerable<IpaTrialResult> results) =>
@@ -63,6 +81,9 @@ public static class IpaTrialResultCultCacheStore
 
     public static Task UpsertSongChallengeEvidenceAsync(string filePath, IEnumerable<SongChallengeEvidenceDocument> documents) =>
         UpsertAsync(filePath, documents, document => $"song-challenge-evidence:{document.EvidenceId}");
+
+    public static Task UpsertSongTrialDistillationsAsync(string filePath, IEnumerable<SongTrialDistillationDocument> documents) =>
+        UpsertAsync(filePath, documents, document => $"song-trial-distillation:{document.DistillationId}");
 
     public static async Task<IReadOnlyList<IpaTrialResult>> ReadResultsAsync(string filePath)
     {
@@ -87,6 +108,19 @@ public static class IpaTrialResultCultCacheStore
         using var cache = await CultCacheMessagePack.OpenAsync(filePath).ConfigureAwait(false);
         return cache.GetAll<SongChallengeEvidenceDocument>()
             .OrderBy(document => document.EvidenceId, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public static async Task<IReadOnlyList<SongTrialDistillationDocument>> ReadSongTrialDistillationsAsync(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return [];
+        }
+
+        using var cache = await CultCacheMessagePack.OpenAsync(filePath).ConfigureAwait(false);
+        return cache.GetAll<SongTrialDistillationDocument>()
+            .OrderBy(document => document.DistillationId, StringComparer.Ordinal)
             .ToArray();
     }
 

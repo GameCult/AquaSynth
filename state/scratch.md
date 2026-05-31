@@ -1753,3 +1753,25 @@ Next likely slice:
   defaults `SourceFolder` to `D:\Music\Reinier\Heyoka` and recursively discovers
   supported audio files. Current local corpus is eight tracks across `Gate Code`,
   `Mandelbass`, and `Marklar`.
+
+2026-05-31 paired song-curriculum slice:
+
+- Corrected the swarm contract: each agent receives two independent song
+  challenges and must write one patch for each target. The point is not one
+  blended answer; the point is to train the evidence substrate so a future
+  zero-shot audio-production agent receives better context from CultCache and
+  Qdrant.
+- The dataset is now explicitly on trial. Patch files, hypotheses, challenge
+  evidence, metrics, and evaluator/distiller output are curriculum material;
+  individual patches are sample data and witnesses.
+- `run-song-snippet-trial-swarm.ps1` now accepts `-SongsPerAgent`, writes
+  `agent-XX/target-YY/challenge.json`, expects patches under
+  `proposed-patches/agent-XX/target-YY`, scores every target separately, and
+  runs a distillation pass after each swarm pass.
+- `IpaTrialWorker distill` writes a pruned `.cc` store plus
+  `SongTrialDistillationDocument` records summarizing reusable scene roles,
+  transfer rules, failure patterns, kept trials, dropped noise, and aggregate
+  metrics.
+- Semantic retrieval now indexes distillation documents as chunks linked to
+  kept scored trial IDs, so the search merge can project distilled lessons into
+  the next agent context instead of dropping them as orphan curriculum prose.

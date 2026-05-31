@@ -37,6 +37,9 @@ try
         case "dump":
             await DumpAsync(options);
             return 0;
+        case "distill":
+            await DistillAsync(options);
+            return 0;
         case "search":
             await SearchAsync(options);
             return 0;
@@ -317,6 +320,39 @@ static async Task DumpAsync(Dictionary<string, string> options)
     var results = await IpaTrialResultCultCacheStore.ReadResultsAsync(store);
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
     await File.WriteAllTextAsync(output, StoreReport(store, results), Encoding.UTF8);
+    Console.WriteLine(output);
+}
+
+static async Task DistillAsync(Dictionary<string, string> options)
+{
+    var store = Required(options, "store");
+    var outputStore = Required(options, "output-store");
+    var output = Required(options, "output");
+    var maxResults = int.TryParse(Value(options, "max-results", "40"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedMax)
+        ? Math.Clamp(parsedMax, 1, 500)
+        : 40;
+    var minCosine = FloatValue(options, "min-cosine", .35f);
+    var results = await IpaTrialResultCultCacheStore.ReadResultsAsync(store);
+    var evidence = await IpaTrialResultCultCacheStore.ReadSongChallengeEvidenceAsync(store);
+    var selected = DistillResults(results, maxResults, minCosine).ToArray();
+    var selectedReferenceIds = selected.Select(result => result.ReferenceId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var selectedEvidence = evidence
+        .Where(document => selectedReferenceIds.Contains(document.ChallengeId))
+        .ToArray();
+    var distillation = SongTrialDistillation(store, results, selected, minCosine);
+
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputStore))!);
+    if (File.Exists(outputStore))
+    {
+        File.Delete(outputStore);
+    }
+
+    await IpaTrialResultCultCacheStore.UpsertResultsAsync(outputStore, selected);
+    await IpaTrialResultCultCacheStore.UpsertSongChallengeEvidenceAsync(outputStore, selectedEvidence);
+    await IpaTrialResultCultCacheStore.UpsertSongTrialDistillationsAsync(outputStore, [distillation]);
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+    await File.WriteAllTextAsync(output, DistillationReport(store, outputStore, results, selected, evidence, selectedEvidence, distillation, minCosine), Encoding.UTF8);
+    Console.WriteLine(outputStore);
     Console.WriteLine(output);
 }
 
@@ -1173,6 +1209,43 @@ static IEnumerable<EvidenceChunk> BuildEvidenceChunks(IReadOnlyList<IpaTrialResu
         .GetResult()
         .GroupBy(document => document.ChallengeId, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+    var distillations = IpaTrialResultCultCacheStore.ReadSongTrialDistillationsAsync(store)
+        .GetAwaiter()
+        .GetResult();
+
+    foreach (var document in distillations)
+    {
+        var linkedTrialIds = document.KeptTrialIds.Length == 0
+            ? [document.DistillationId]
+            : document.KeptTrialIds;
+        foreach (var linkedTrialId in linkedTrialIds)
+        {
+            yield return new EvidenceChunk(
+                $"song-trial-distillation:{StoreKey(store)}:{document.DistillationId}:{linkedTrialId}",
+                linkedTrialId,
+                "distillation",
+                "song-trial-distillation",
+                "distillation",
+                $"""
+                song trial distillation
+                id {document.DistillationId}
+                linked_trial {linkedTrialId}
+                source_store {document.SourceStore}
+                input_trials {document.InputTrialCount}
+                kept_trials {document.KeptTrialCount}
+                summary {document.Summary}
+                reusable_scene_roles
+                {string.Join(Environment.NewLine, document.ReusableSceneRoles)}
+                transfer_rules
+                {string.Join(Environment.NewLine, document.TransferRules)}
+                failure_patterns
+                {string.Join(Environment.NewLine, document.FailurePatterns)}
+                aggregate_metrics
+                {string.Join(Environment.NewLine, document.AggregateMetrics.Select(metric => $"{metric.Name} {metric.Value.ToString("0.######", CultureInfo.InvariantCulture)} weight {metric.Weight.ToString("0.######", CultureInfo.InvariantCulture)}"))}
+                """,
+                store);
+        }
+    }
 
     foreach (var result in results)
     {
@@ -1531,6 +1604,256 @@ static string StoreReport(string store, IReadOnlyList<IpaTrialResult> results)
     }
 
     return builder.ToString();
+}
+
+static IReadOnlyList<IpaTrialResult> DistillResults(
+    IReadOnlyList<IpaTrialResult> results,
+    int maxResults,
+    float minCosine)
+{
+    var keep = new Dictionary<string, IpaTrialResult>(StringComparer.OrdinalIgnoreCase);
+    foreach (var result in results
+        .Where(result => result.Verdict.Equals("promising", StringComparison.OrdinalIgnoreCase) ||
+                         result.Verdict.Equals("pressure", StringComparison.OrdinalIgnoreCase) ||
+                         MetricValue(result, "log_mel_cosine") >= minCosine)
+        .OrderByDescending(ScoreSort))
+    {
+        keep.TryAdd(result.TrialId, result);
+    }
+
+    foreach (var result in results
+        .GroupBy(result => result.ReferenceId, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.OrderByDescending(ScoreSort).First()))
+    {
+        keep.TryAdd(result.TrialId, result);
+    }
+
+    foreach (var result in results
+        .GroupBy(result => result.CandidateId, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.OrderByDescending(ScoreSort).First()))
+    {
+        keep.TryAdd(result.TrialId, result);
+    }
+
+    return keep.Values
+        .OrderByDescending(ScoreSort)
+        .ThenByDescending(result => MetricValue(result, "audio_score"))
+        .ThenBy(result => result.TrialId, StringComparer.Ordinal)
+        .Take(maxResults)
+        .ToArray();
+}
+
+static string DistillationReport(
+    string sourceStore,
+    string outputStore,
+    IReadOnlyList<IpaTrialResult> allResults,
+    IReadOnlyList<IpaTrialResult> selected,
+    IReadOnlyList<SongChallengeEvidenceDocument> allEvidence,
+    IReadOnlyList<SongChallengeEvidenceDocument> selectedEvidence,
+    SongTrialDistillationDocument distillation,
+    float minCosine)
+{
+    var selectedIds = selected.Select(result => result.TrialId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    var dropped = allResults.Where(result => !selectedIds.Contains(result.TrialId)).ToArray();
+    var builder = new StringBuilder();
+    builder.AppendLine("# Song Trial Distillation");
+    builder.AppendLine();
+    builder.AppendLine($"source_store: `{sourceStore}`");
+    builder.AppendLine($"output_store: `{outputStore}`");
+    builder.AppendLine($"min_cosine: `{minCosine.ToString("0.######", CultureInfo.InvariantCulture)}`");
+    builder.AppendLine($"input_trials: `{allResults.Count}`");
+    builder.AppendLine($"kept_trials: `{selected.Count}`");
+    builder.AppendLine($"dropped_trials: `{dropped.Length}`");
+    builder.AppendLine($"input_evidence_docs: `{allEvidence.Count}`");
+    builder.AppendLine($"kept_evidence_docs: `{selectedEvidence.Count}`");
+    builder.AppendLine($"distillation_document: `{distillation.DistillationId}`");
+    builder.AppendLine();
+    builder.AppendLine("## Distilled Signal");
+    builder.AppendLine(distillation.Summary);
+    builder.AppendLine();
+    builder.AppendLine("### Reusable Scene Roles");
+    foreach (var role in distillation.ReusableSceneRoles)
+    {
+        builder.Append("- ");
+        builder.AppendLine(role);
+    }
+
+    builder.AppendLine();
+    builder.AppendLine("### Transfer Rules");
+    foreach (var rule in distillation.TransferRules)
+    {
+        builder.Append("- ");
+        builder.AppendLine(rule);
+    }
+
+    builder.AppendLine();
+    builder.AppendLine("### Failure Patterns");
+    foreach (var pattern in distillation.FailurePatterns)
+    {
+        builder.Append("- ");
+        builder.AppendLine(pattern);
+    }
+
+    builder.AppendLine();
+    builder.AppendLine("## Kept Trials");
+    foreach (var result in selected)
+    {
+        builder.Append("- ");
+        builder.Append(result.TrialId);
+        builder.Append(" / ");
+        builder.Append(result.CandidateId);
+        builder.Append(" / ");
+        builder.Append(result.Verdict);
+        builder.Append(" / cosine=");
+        builder.Append(Metric(result, "log_mel_cosine"));
+        builder.Append(" / score=");
+        builder.Append(Metric(result, "audio_score"));
+        builder.Append(" / articulation=");
+        builder.Append(Metric(result, "articulation_score"));
+        builder.Append(" / reference=");
+        builder.AppendLine(result.ReferenceId);
+    }
+
+    builder.AppendLine();
+    builder.AppendLine("## Candidate Aggregates");
+    foreach (var group in selected.GroupBy(result => result.CandidateId, StringComparer.OrdinalIgnoreCase)
+        .OrderByDescending(group => group.Average(result => MetricValue(result, "log_mel_cosine"))))
+    {
+        builder.Append("- ");
+        builder.Append(group.Key);
+        builder.Append(": trials=");
+        builder.Append(group.Count());
+        builder.Append(", mean_cosine=");
+        builder.Append(group.Average(result => MetricValue(result, "log_mel_cosine")).ToString("0.######", CultureInfo.InvariantCulture));
+        builder.Append(", min_cosine=");
+        builder.Append(group.Min(result => MetricValue(result, "log_mel_cosine")).ToString("0.######", CultureInfo.InvariantCulture));
+        builder.Append(", max_cosine=");
+        builder.Append(group.Max(result => MetricValue(result, "log_mel_cosine")).ToString("0.######", CultureInfo.InvariantCulture));
+        builder.AppendLine();
+    }
+
+    builder.AppendLine();
+    builder.AppendLine("## Dropped Noise");
+    foreach (var result in dropped.OrderBy(ScoreSort).Take(30))
+    {
+        builder.Append("- ");
+        builder.Append(result.TrialId);
+        builder.Append(" / ");
+        builder.Append(result.CandidateId);
+        builder.Append(" / ");
+        builder.Append(result.Verdict);
+        builder.Append(" / cosine=");
+        builder.Append(Metric(result, "log_mel_cosine"));
+        builder.AppendLine();
+    }
+
+    return builder.ToString();
+}
+
+static SongTrialDistillationDocument SongTrialDistillation(
+    string sourceStore,
+    IReadOnlyList<IpaTrialResult> allResults,
+    IReadOnlyList<IpaTrialResult> selected,
+    float minCosine)
+{
+    var droppedIds = allResults
+        .Where(result => !selected.Any(kept => kept.TrialId.Equals(result.TrialId, StringComparison.OrdinalIgnoreCase)))
+        .Select(result => result.TrialId)
+        .ToArray();
+    var top = selected.OrderByDescending(ScoreSort).Take(5).ToArray();
+    var bestCosine = selected.Select(result => MetricValue(result, "log_mel_cosine")).DefaultIfEmpty(0).Max();
+    var meanCosine = selected.Select(result => MetricValue(result, "log_mel_cosine")).DefaultIfEmpty(0).Average();
+    var meanScore = selected.Select(result => MetricValue(result, "audio_score")).DefaultIfEmpty(0).Average();
+    var text = string.Join(' ', selected.Select(result =>
+        $"{result.CandidateId} {result.Hypothesis} {result.EvaluationSummary} {string.Join(' ', result.KnownLies)}"));
+    var roles = SceneRolesFrom(text).ToArray();
+    var failures = FailurePatternsFrom(allResults, selected).ToArray();
+    var transferRules = TransferRulesFrom(selected, roles).ToArray();
+    var summary = selected.Count == 0
+        ? $"No high-signal trials met min cosine {minCosine:0.###}; keep only best-per-reference scaffolding."
+        : $"Kept {selected.Count} of {allResults.Count} trials. Best cosine {bestCosine:0.######}; kept mean cosine {meanCosine:0.######}; best candidates: {string.Join(", ", top.Select(result => result.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(5))}.";
+    return new SongTrialDistillationDocument(
+        $"song-distill-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfff}-{StableUuid(sourceStore)[..8]}",
+        sourceStore,
+        DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+        allResults.Count,
+        selected.Count,
+        summary,
+        roles,
+        transferRules,
+        failures,
+        selected.Select(result => result.TrialId).ToArray(),
+        droppedIds,
+        [
+            new SpeechScoreMetric("distilled_best_log_mel_cosine", bestCosine, 0),
+            new SpeechScoreMetric("distilled_mean_log_mel_cosine", meanCosine, 0),
+            new SpeechScoreMetric("distilled_mean_audio_score", meanScore, 0),
+            new SpeechScoreMetric("distilled_kept_ratio", allResults.Count == 0 ? 0 : selected.Count / (float)allResults.Count, 0)
+        ]);
+}
+
+static IEnumerable<string> SceneRolesFrom(string text)
+{
+    var lower = text.ToLowerInvariant();
+    if (lower.Contains("formant", StringComparison.Ordinal) || lower.Contains("vowel", StringComparison.Ordinal))
+    {
+        yield return "bright formant/vowel lead: owns pitched synthetic body and vocal-ish spectral peaks.";
+    }
+    if (lower.Contains("dust", StringComparison.Ordinal) || lower.Contains("hat", StringComparison.Ordinal))
+    {
+        yield return "clocked dust/hat texture: owns short gated high-band transients through `texture role=dust`, not static white hiss.";
+    }
+    if (lower.Contains("codec", StringComparison.Ordinal) || lower.Contains("bit", StringComparison.Ordinal))
+    {
+        yield return "codec/bit bed: owns narrow mid-high grit through shaped `texture role=codec` with slow motion.";
+    }
+    if (lower.Contains("bass", StringComparison.Ordinal) || lower.Contains("sub", StringComparison.Ordinal))
+    {
+        yield return "rubber/sub bass: owns low rhythmic support and should stay register-bounded.";
+    }
+    if (lower.Contains("air", StringComparison.Ordinal) || lower.Contains("room", StringComparison.Ordinal) || lower.Contains("bed", StringComparison.Ordinal))
+    {
+        yield return "air/room bed: owns low-level recording color through shaped moving texture, not broad full-duration noise.";
+    }
+}
+
+static IEnumerable<string> TransferRulesFrom(IReadOnlyList<IpaTrialResult> selected, IReadOnlyList<string> roles)
+{
+    if (roles.Count == 0)
+    {
+        yield return "Prefer target analysis artifacts over memorized song names; choose roles from tempo, register, band deltas, and envelope autocorr.";
+    }
+    else
+    {
+        yield return "Start zero-shot production by mapping target analysis to reusable scene roles, then instantiate one owner per role.";
+    }
+
+    if (selected.Any(result => MetricValue(result, "rms_ratio") is > 1.35f or < .7f))
+    {
+        yield return "Normalize loudness after role selection; high cosine can still hide bad RMS balance.";
+    }
+
+    yield return "Use `texture` for background/recording noise and reserve raw `wave=noise` for short gated transients with narrow filters.";
+    yield return "Treat repeated pressure verdicts as reusable direction, not acceptance; keep the patch family but mutate timing/register/noise shaping.";
+}
+
+static IEnumerable<string> FailurePatternsFrom(IReadOnlyList<IpaTrialResult> allResults, IReadOnlyList<IpaTrialResult> selected)
+{
+    var weakCount = allResults.Count(result => result.Verdict.Equals("weak", StringComparison.OrdinalIgnoreCase));
+    if (weakCount > 0)
+    {
+        yield return $"{weakCount} weak trials are dropped from retrieval pressure unless they were best for their reference.";
+    }
+
+    if (allResults.Any(result => MetricValue(result, "log_mel_cosine") < 0))
+    {
+        yield return "Negative cosine candidates are curriculum noise unless preserved as contrast; they should not steer zero-shot production.";
+    }
+
+    if (selected.Any(result => result.KnownLies.Any(lie => lie.Contains("noise", StringComparison.OrdinalIgnoreCase))))
+    {
+        yield return "Scene/noise helper voices are allowed, but only shaped role owners should transfer.";
+    }
 }
 
 static float ScoreSort(IpaTrialResult result) =>
@@ -2550,6 +2873,7 @@ static void PrintHelp()
           song-prepare --source <audio-file> --artifact-root <dir> [--duration-seconds 10] [--seed n] [--output challenge.json]
           song-score --patch-root <dir> --challenge <challenge.json> --artifact-root <dir> [--batch-id round-001] [--store <trial-results.cc>] [--hypothesizer id]
           dump  --store <trial-results.cc> --output <report.md>
+          distill --store <trial-results.cc> --output-store <distilled.cc> --output <report.md> [--min-cosine .35] [--max-results 40]
           index --store <trial-results.cc> [--output <report.md>] [--force true]
           search --store <trial-results.cc> --query <text> --output <report.md> [--limit 12] [--no-vector true] [--require-vector true] [--skip-index true]
           show  --store <trial-results.cc> --trial-id <id-or-candidate> --output <detail.md>
