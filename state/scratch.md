@@ -1932,3 +1932,23 @@ Next likely slice:
 - Verification: CultLib `BackingStoreTests` pass 14/14, including a cold-record
   timestamp test; AquaSynth `dotnet build tools/IpaTrialWorker/IpaTrialWorker.csproj
   --no-restore` passes; AquaSynth `--filter CultCache` tests pass 7/7.
+
+2026-05-31 producer-apprenticeship admission slice:
+
+- User listening exposed a second owner fault after composition sugar: agents
+  could still converge on the same voiced burst plus static/noisy weak
+  percussion because syntax, activity, and broad role names were still enough to
+  become ranked curriculum pressure.
+- `song-score` now analyzes a production profile beside the instrument and
+  continuity profiles: required studio document coverage, producer
+  musicianship score, composition section score, template loop risk,
+  noise-percussion risk, and Aqua gap count.
+- `music-distill` now promotes candidate-pattern and role doctrine only from
+  rendered rows that clear the producer/curriculum gate. Missing producer
+  evidence, high template-loop risk, high noise-percussion risk, and weak-slop
+  verdicts become failure-mode documents instead of reusable examples.
+- `run-song-snippet-trial-swarm.ps1` is redirected from parity-worker posture
+  to producer apprenticeship: each agent must write `producer-brief.md`,
+  `listening-journal.md`, `aqua-gap-ledger.md`, and `studio-lesson.md`, and use
+  the self-iteration loop as a listening/revision record rather than a metric
+  casino.

@@ -366,6 +366,15 @@ banks through `layer`, `harmonics`, and `spectrum`. Simple oscillator blips
 without one of these owners are chip-distress-risk contrast material, not a
 strong lesson for the music generator.
 
+Song-scene curriculum admission is producer apprenticeship, not syntax
+attendance. A candidate that names `meter`, `sequence`, `kick`, `hat`, or
+`texture` has not learned music until it leaves a producer brief, listening
+journal, Aqua gap ledger, and compact studio lesson tying those choices to the
+reference. Distillation should promote only rendered candidates with audible
+form, target-specific roles, and low template/noise-percussion risk. Stock
+four-lane loops and raw noise percussion belong in failure documents even when
+they keep RMS and motion metrics nonzero.
+
 Do not confuse high metric agreement with musical success. The game context,
 the reference sound, and the user’s ear still outrank the spreadsheet. Annoying,
 but civilization has survived worse.

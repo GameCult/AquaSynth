@@ -394,9 +394,9 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
         $promptPath = Join-Path $agentDir "hypothesis-agent.prompt.md"
         $logPath = Join-Path $logRoot "$passId-$agentId-hypothesis-agent.log"
         $prompt = @"
-You are an AquaSynth song-snippet parity worker.
+You are an AquaSynth producer-apprenticeship worker.
 
-The dataset is on trial. Your patches, hypotheses, failures, and evaluator scores become curriculum evidence in CultCache and the vector database. Write useful sample data and reusable reasoning, not just a one-off trick that happens to flatter one metric.
+The dataset is on trial. Your patches, producer briefs, listening journals, failures, and evaluator scores become curriculum evidence in CultCache and the vector database. Write useful studio knowledge and reusable reasoning, not just a one-off trick that happens to flatter one metric.
 
 Challenge:
 $challengeList
@@ -415,17 +415,25 @@ $agentSeedList
 - required duration: $durationLabel
 
 Goal:
-Write exactly one parseable AquaSynth `.aqua` patch for each frozen $targetKind reference assigned to you. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
+Write exactly one parseable AquaSynth `.aqua` patch for each frozen $targetKind reference assigned to you. This is scene-audio parity and producer apprenticeship, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
 
 Composition objective:
 - The previous corpus learned useful sound-production roles but collapsed into short phrases plus texture. Your job is now composition parity: declare meter, tonal center or progression, instrument lanes, section events, automation, and mix motion before polishing timbre.
 - Every final patch must include a composition spine using today's implemented sugar: `meter`, `sequence`, `chords` or `scale`, and `mix` where appropriate. These lower to ordinary `param` and `curve` owners; they are not hidden magic.
-- Treat the target as arranged music across time. There should be distinct musical events or motif mutations after the first second, preferably near seconds 2, 4, 6, and 8 for ten-second clips.
+- Treat the target as arranged music across time. There should be distinct musical events or motif mutations after the first second, distributed across the full assigned duration. For 10-second clips, seconds 2, 4, 6, and 8 are useful checkpoints; for 30-second or full-song targets, use section entrances, drops, fills, swells, or mix moves across the beginning, middle, and ending.
+- Do not submit the stock attractor: a voiced burst at the start, a copied four-lane kick/snare/hat loop, then textured noise. If the reference really demands that shape, cite target artifacts and listening evidence proving it.
 
 Generalization:
 - You own $SongsPerAgent target patches, and your report must compare all assigned targets and state what reusable scene/instrument knowledge transfers between them.
 - The patches may share instrument roles, texture roles, control idioms, and DSL conventions, but each patch should fit its own target's tempo/register/spectral evidence.
-- Future agents will receive distilled evidence from this trial when asked to zero-shot an audio production request. Make your `hypotheses.md` useful retrieval context: name what transferred, what did not, and what evidence would change your next patch.
+- Future agents will receive distilled evidence from this trial when asked to zero-shot an audio production request. Make your studio reports useful retrieval context: name what transferred, what did not, what sounded alive, what sounded fake, and what evidence would change your next patch.
+
+Producer evidence:
+- Write $agentDir/producer-brief.md before patching. For each target, include the artistic reading, likely genre/tempo feel, emotional/energy contour, section map, instrument role map, mix priorities, and the exact challenge artifacts you are trusting.
+- Write $agentDir/listening-journal.md during self-iteration. For every attempt, record what you expected, what the evaluator/audio facts said, what sounded alive, what sounded fake or static, and the exact revision you made.
+- Write $agentDir/aqua-gap-ledger.md. List missing primitives, syntax sugar, control surfaces, analysis views, or renderer features that made the production harder. Each gap needs current workaround, evidence path, and whether it blocks composition or only polish.
+- Write $agentDir/studio-lesson.md at the end. This is the compact lesson for the next musician: keep/cut verdicts, transferable production ideas, rejected tricks, and which AquaSynth abstractions should be mined next.
+- The evaluator records `producer_musicianship_score`, `required_studio_docs_present`, `template_loop_risk`, `noise_percussion_risk`, `composition_section_score`, and `aqua_gap_count`. Candidates with missing studio evidence, stock-loop risk, or noise-percussion risk are failure pressure, not curriculum exemplars.
 
 Self-iteration loop:
 - For each target, run exactly $IterationsPerTarget local attempts before publishing the final `.aqua` file.
@@ -435,7 +443,8 @@ Self-iteration loop:
 - After each score, read the attempt's `evaluator-report.md` and `summary.csv`. If the attempt rendered, also read `audio/comparison.txt`, `audio/candidate-analysis.md`, `audio/candidate-logmel-band-stats.csv`, `audio/candidate-rms-envelope-autocorr.csv`, and `audio/candidate-whitened-spectral-autocorr.csv`. If the attempt is `render-failed`, do not try to read missing candidate audio analysis files; treat the parse/lowering/render failure as negative syntax evidence and fix that before changing the composition.
 - Use those candidate-side facts the same way you use target facts: compare spectral bands, envelope autocorrelation, whitened spectral autocorrelation, centroid/RMS, instrument-role metrics, and chip-distress risk. Move timings, filters, gains, sources, roles, and patterns between attempts.
 - The evaluator records song-continuity metrics: `candidate_motion_coverage`, `motion_coverage_ratio`, `candidate_first_second_energy_share`, `first_second_energy_excess`, `candidate_tail_energy_share`, and `mode_collapse_risk`. A patch that plays a short phrase in the first second and then coasts on low-motion texture/noise is failed song evidence even if its RMS or log-mel score looks tolerable.
-- If an attempt has `mode_collapse_risk >= .45`, the next attempt must add later-section motifs or eventful motion after seconds 2, 4, 6, and 8. Do not merely raise the noise bed or pad gain; that is hiding, not composing.
+- If an attempt has `mode_collapse_risk >= .45`, the next attempt must add later-section motifs or eventful motion across the target's full duration. Do not merely raise the noise bed or pad gain; that is hiding, not composing.
+- If an attempt has high `template_loop_risk` or `noise_percussion_risk`, rebuild the role ownership before touching level: drums need pitched body plus filtered skin and target-specific gates; texture needs band limits and musical motion.
 - Keep intermediate candidates inside `$iterationRoot`; publish only one final `.aqua` per target to the official target patch output directory.
 
 Reusable abstraction mining:
@@ -455,7 +464,7 @@ Reusable abstraction mining:
 
 Noise and texture:
 - Do not model background or recording color as a full-duration raw `voice wave=noise` bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
-- Use the shaped texture owner for noise roles: `texture name=dust_hat role=dust pattern=x..x step=<beat_seconds/4> gain=.08 sustain=<duration_seconds>`, `texture name=air_wash role=air gain=.035 sustain=<duration_seconds>`, `texture name=codec_bed role=codec gain=.04 sustain=<duration_seconds>`.
+- Use the shaped texture owner for noise roles, but make it target-specific: `texture name=dust_hat role=dust pattern=<target-derived-pattern> step=<beat_seconds/4> gain=.08 sustain=<duration_seconds>`, `texture name=air_wash role=air gain=.035 sustain=<duration_seconds>`, `texture name=codec_bed role=codec gain=.04 sustain=<duration_seconds>`.
 - `texture` lowers to a gated noise voice with role-specific bandpass/highpass/lowpass/tremolo defaults and a control curve or pattern gate. Raw `voice wave=noise` is only acceptable for short transients with explicit gates and narrow filters.
 
 Instrument ownership:
@@ -509,11 +518,12 @@ Instrument and DSL convention invention:
 
 Evidence contract:
 - Read every assigned challenge report and $preEvidence.
-- Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on both targets, known risks.
+- Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on assigned targets, known risks.
 - Include a `Composition Map` section in $agentDir/hypotheses.md: meter/time signature, progression or tonal center, instrument lanes, section events after the opening, automation/mix moves, and which evaluator metrics should prove the arrangement did not collapse.
+- Also write $agentDir/producer-brief.md, $agentDir/listening-journal.md, $agentDir/aqua-gap-ledger.md, and $agentDir/studio-lesson.md. These reports are now curriculum admission evidence, not decorative paperwork.
 - Write exactly one `.aqua` file under each target patch output directory named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch: a primary voice/body, a rhythmic drum/transient/noise role, and a pad/bed/recording-color role. Prefer syrinx for the primary voice when it is voice-like, subtractive for the drum/transient, and additive/PAD or shaped texture for the bed.
-- The ten-second clip must have full-form continuity: at least four distinct musical events or motif mutations after the first second, with audible activity distributed across the beginning, middle, and ending. A one-second riff followed by nine seconds of gently textured pink noise is mode collapse and should not be submitted.
+- The target must have full-form continuity: distinct musical events or motif mutations after the first second, with audible activity distributed across the beginning, middle, and ending. A one-second riff followed by gently textured pink noise is mode collapse and should not be submitted.
 - Background/recording-color layers must use `texture` or an equivalently gated and band-shaped explicit voice; a static full-duration white-noise bed is failed evidence.
 - Make each patch duration/gates cover its matching target duration from the challenge report.
 

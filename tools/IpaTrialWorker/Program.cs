@@ -235,6 +235,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
         var candidateWav = Path.Combine(audioDir, "candidate.wav");
         var metrics = new List<SpeechScoreMetric>();
         var instrumentProfile = AnalyzeSongInstrumentProfile(script);
+        var productionProfile = AnalyzeSongProductionProfile(script, scriptCopy, artifactRoot);
         var artifacts = new List<SpeechRenderArtifact>
         {
             Artifact("song-challenge", challengePath),
@@ -244,6 +245,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
         };
         metrics.AddRange(SongTargetMetrics(challenge, challengeEvidence));
         metrics.AddRange(SongInstrumentMetrics(instrumentProfile));
+        metrics.AddRange(SongProductionMetrics(productionProfile));
         artifacts.AddRange(SongChallengeArtifacts(challenge));
         artifacts.AddRange(challengeEvidence.Select(SongChallengeEvidenceArtifact));
         var timelineFacts = Array.Empty<PrimitiveTimelineFact>();
@@ -290,10 +292,11 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
                 var continuity = AnalyzeSongContinuity(comparison);
                 metrics.AddRange(SongComparisonMetrics(comparison));
                 metrics.AddRange(SongContinuityMetrics(continuity));
-                verdict = SongVerdict(comparison, instrumentProfile, continuity);
-                evaluation = SongEvaluationSentence(challenge, comparison, verdict, instrumentProfile, continuity);
+                verdict = SongVerdict(comparison, instrumentProfile, productionProfile, continuity);
+                evaluation = SongEvaluationSentence(challenge, comparison, verdict, instrumentProfile, continuity) +
+                             $" Production profile: {productionProfile.Summary}.";
                 var comparisonPath = Path.Combine(audioDir, "comparison.txt");
-                await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict, instrumentProfile, continuity), Encoding.UTF8);
+                await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict, instrumentProfile, continuity) + Environment.NewLine + $"productionSummary={productionProfile.Summary}" + Environment.NewLine, Encoding.UTF8);
                 artifacts.Add(Artifact("comparison-report", comparisonPath));
             }
         }
@@ -335,7 +338,10 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
                 "Full-patch FM/AM/noise/scene modeling is allowed; primitive timeline facts remain diagnostic when present.",
                 instrumentProfile.ChipDistressRisk >= .6f
                     ? "Instrument profile is chip-distress-risky: simple oscillator/noise roles are not enough curriculum evidence for the music generator."
-                    : "Instrument profile uses at least some owned musical role evidence instead of only simple oscillator distress."
+                    : "Instrument profile uses at least some owned musical role evidence instead of only simple oscillator distress.",
+                productionProfile.MusicianshipScore < .45f
+                    ? "Production profile is weak: the agent did not leave enough producer brief, listening journal, gap ledger, section form, or anti-template evidence to teach future runs."
+                    : "Production profile includes studio evidence and arrangement/form pressure, not just syntax tokens."
             ],
             [
                 new SpeechTimingReceipt(
@@ -1686,8 +1692,11 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
         .Where(row => !row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase) && row.AudioScore > 0)
         .OrderByDescending(row => MusicSignalScore(row))
         .ToArray();
+    var admissible = rendered.Where(IsMusicCurriculumCandidate).ToArray();
     var failed = rows.Where(row => row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase)).ToArray();
     var collapsed = rows.Where(row => row.ModeCollapseRisk >= .45f).ToArray();
+    var slopRejected = rows.Where(row => row.TemplateLoopRisk >= .55f || row.NoisePercussionRisk >= .55f).ToArray();
+    var missingProducerEvidence = rows.Where(row => row.RequiredStudioDocsPresent < .5f || row.ProducerMusicianshipScore < .45f).ToArray();
 
     yield return new MusicProductionKnowledgeDocument(
         "music-production-quality-standard-v1",
@@ -1697,10 +1706,11 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
         "The music curriculum store owns distilled production knowledge; raw trials and giant feature dumps are only evidence, not curriculum.",
         "Fresh agents should retrieve role owners, transfer rules, failure modes, and AquaSynth patterns before writing patches. New runs must add compact, evidence-backed documents, not whole spectrogram dumps or undigested trial chatter.",
         [
-            "Admit a candidate as reusable knowledge only when it renders, has explicit instrument-role ownership, and states what production job it owns.",
+            "Admit a candidate as reusable knowledge only when it renders, has explicit instrument-role ownership, includes producer/listening/gap evidence, and states what production job it owns.",
             "Reject one-phrase-plus-texture arrangements as failure pressure; continuity across the clip is part of the production contract.",
             "Require an explicit composition map: meter, progression or tonal center, instrument lanes, section events, composition-scale automation, and mix movement.",
             "Prefer compact role abstractions over one-off target mimicry; a reusable owner sentence is more valuable than a small metric bump.",
+            "Reject stock loop skeletons and raw-noise percussion as failure pressure unless the listening journal proves target-specific role behavior.",
             "Keep failed renders as failure-mode pressure only; do not let syntax wreckage dominate retrieval.",
             "Store full artifacts on disk and cite them; CultCache curriculum records should carry bounded summaries, metrics, and transfer rules."
         ],
@@ -1718,17 +1728,20 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
             "Instrument timbre without phrase, progression, lane entrances, and mix movement is sound design, not composition."
         ],
         rows.Select(row => row.TrialId).Take(24).ToArray(),
-        rendered.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(24).ToArray(),
+        admissible.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(24).ToArray(),
         [
             new SpeechScoreMetric("input_trial_count", rows.Length, 0),
             new SpeechScoreMetric("rendered_trial_count", rendered.Length, 0),
+            new SpeechScoreMetric("admissible_curriculum_candidate_count", admissible.Length, 0),
             new SpeechScoreMetric("render_failed_count", failed.Length, 0),
-            new SpeechScoreMetric("mode_collapsed_count", collapsed.Length, 0)
+            new SpeechScoreMetric("mode_collapsed_count", collapsed.Length, 0),
+            new SpeechScoreMetric("slop_template_rejected_count", slopRejected.Length, 0),
+            new SpeechScoreMetric("missing_producer_evidence_count", missingProducerEvidence.Length, 0)
         ],
         [artifactRoot],
         created);
 
-    foreach (var role in MusicRoleDocuments(rendered, created))
+    foreach (var role in MusicRoleDocuments(admissible, created))
     {
         yield return role;
     }
@@ -1738,7 +1751,7 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
         yield return document;
     }
 
-    foreach (var row in rendered.Take(maxCandidates))
+    foreach (var row in admissible.Take(maxCandidates))
     {
         var patchPath = CandidatePatchPath(row);
         var analysisPath = CandidateAnalysisPath(row);
@@ -1773,7 +1786,7 @@ static IEnumerable<MusicProductionKnowledgeDocument> MusicRoleDocuments(IReadOnl
     yield return RoleDocument(
         "music-role-composition-form",
         "composition form, lanes, and mix motion",
-        "The composition role owns meter, chord/progression movement, note sampling, instrument-lane gates, section events, automation, and mix motion so a ten-second clip behaves like arranged music rather than a timbre demo.",
+        "The composition role owns meter, chord/progression movement, note sampling, instrument-lane gates, section events, automation, and mix motion so a target behaves like arranged music rather than a timbre demo.",
         [
             "Start every song candidate with `meter` and at least one progression or tonal-center declaration.",
             "Use `sequence`/`pattern` for lane gates and `scale`/`chords` for pitch material before hand-writing isolated frequencies.",
@@ -1894,39 +1907,65 @@ static IEnumerable<MusicProductionKnowledgeDocument> MusicFailureDocuments(
         [artifactRoot],
         created);
 
-    if (collapsed.Length == 0)
+    if (collapsed.Length > 0)
     {
-        yield break;
+        yield return new MusicProductionKnowledgeDocument(
+            "music-failure-mode-collapse-pressure",
+            "failure-mode",
+            "one-phrase-plus-texture candidates are not song exemplars",
+            "failure-pressure",
+            "The mode-collapse failure record owns evidence that a rendered candidate can satisfy static audio metrics while failing song continuity.",
+            $"This run produced {collapsed.Length} official candidates with mode-collapse risk >= 0.45. These candidates transfer only as negative pressure unless their abstractions explicitly add later motifs, section changes, or eventful motion.",
+            [
+                "Do not promote candidates that spend most musical energy in the first second and coast on low-motion texture.",
+                "Require motif mutations or distinct musical events across the target duration, with checkpoints scaled to the assigned clip length.",
+                "Use motion coverage and first-second energy share beside cosine; similarity to a moment is not similarity to the song."
+            ],
+            ["mode_collapse_risk", "candidate_motion_coverage", "candidate_first_second_energy_share", "motif mutation", "section event"],
+            [
+                "front-loaded musical energy",
+                "low-motion pink-noise or pad tail",
+                "high cosine that copies only the opening phrase"
+            ],
+            collapsed.Select(row => row.TrialId).Take(20).ToArray(),
+            collapsed.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToArray(),
+            [
+                new SpeechScoreMetric("mode_collapsed_count", collapsed.Length, 0),
+                new SpeechScoreMetric("input_trial_count", all.Count, 0),
+                new SpeechScoreMetric("max_mode_collapse_risk", collapsed.Select(row => row.ModeCollapseRisk).DefaultIfEmpty(0).Max(), 0),
+                new SpeechScoreMetric("mean_first_second_energy_share", collapsed.Select(row => row.CandidateFirstSecondEnergyShare).DefaultIfEmpty(0).Average(), 0)
+            ],
+            ExistingPaths(collapsed.Select(row => row.SummaryPath).Concat([artifactRoot]).Take(24)),
+            created);
     }
 
-    yield return new MusicProductionKnowledgeDocument(
-        "music-failure-mode-collapse-pressure",
-        "failure-mode",
-        "one-phrase-plus-texture candidates are not song exemplars",
-        "failure-pressure",
-        "The mode-collapse failure record owns evidence that a rendered candidate can satisfy static audio metrics while failing song continuity.",
-        $"This run produced {collapsed.Length} official candidates with mode-collapse risk >= 0.45. These candidates transfer only as negative pressure unless their abstractions explicitly add later motifs, section changes, or eventful motion.",
-        [
-            "Do not promote candidates that spend most musical energy in the first second and coast on low-motion texture.",
-            "Require motif mutations or distinct musical events after seconds 2, 4, 6, and 8 for ten-second curriculum clips.",
-            "Use motion coverage and first-second energy share beside cosine; similarity to a moment is not similarity to the song."
-        ],
-        ["mode_collapse_risk", "candidate_motion_coverage", "candidate_first_second_energy_share", "motif mutation", "section event"],
-        [
-            "front-loaded musical energy",
-            "low-motion pink-noise or pad tail",
-            "high cosine that copies only the opening phrase"
-        ],
-        collapsed.Select(row => row.TrialId).Take(20).ToArray(),
-        collapsed.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToArray(),
-        [
-            new SpeechScoreMetric("mode_collapsed_count", collapsed.Length, 0),
-            new SpeechScoreMetric("input_trial_count", all.Count, 0),
-            new SpeechScoreMetric("max_mode_collapse_risk", collapsed.Select(row => row.ModeCollapseRisk).DefaultIfEmpty(0).Max(), 0),
-            new SpeechScoreMetric("mean_first_second_energy_share", collapsed.Select(row => row.CandidateFirstSecondEnergyShare).DefaultIfEmpty(0).Average(), 0)
-        ],
-        ExistingPaths(collapsed.Select(row => row.SummaryPath).Concat([artifactRoot]).Take(24)),
-        created);
+    var slop = all.Where(row => row.TemplateLoopRisk >= .55f || row.NoisePercussionRisk >= .55f || row.Verdict.Equals("weak-slop-template", StringComparison.OrdinalIgnoreCase)).ToArray();
+    if (slop.Length > 0)
+    {
+        yield return new MusicProductionKnowledgeDocument(
+            "music-failure-template-noise-slop",
+            "failure-mode",
+            "stock loops and noise percussion are not production knowledge",
+            "failure-pressure",
+            "Template/noise failures own the lesson that naming kick, snare, hat, dust, or texture does not prove the patch learned the reference artist.",
+            $"This run produced {slop.Length} candidates with high template_loop_risk, high noise_percussion_risk, or weak-slop-template verdicts. Keep them as negative pressure against the voiced-burst-plus-static-noise attractor.",
+            [
+                "A drum lane needs a pitched/body owner, a filtered skin owner, a gate, and target-specific timing evidence.",
+                "A texture lane needs band limits and musical motion; a full-duration noise wash is not a mix.",
+                "A reusable pattern must cite the producer brief or listening journal that proves why it belongs to this reference."
+            ],
+            ["template_loop_risk", "noise_percussion_risk", "producer_musicianship_score", "required_studio_docs_present"],
+            ["four-on-floor skeleton copied across targets", "raw noise pretending to be hats or room", "syntax sugar mined from unlistened patches"],
+            slop.Select(row => row.TrialId).Take(20).ToArray(),
+            slop.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToArray(),
+            [
+                new SpeechScoreMetric("slop_candidate_count", slop.Length, 0),
+                new SpeechScoreMetric("worst_template_loop_risk", slop.Select(row => row.TemplateLoopRisk).DefaultIfEmpty(0).Max(), 0),
+                new SpeechScoreMetric("worst_noise_percussion_risk", slop.Select(row => row.NoisePercussionRisk).DefaultIfEmpty(0).Max(), 0)
+            ],
+            ExistingPaths(slop.Select(row => row.SummaryPath).Concat([artifactRoot]).Take(24)),
+            created);
+    }
 }
 
 static IEnumerable<MusicProductionKnowledgeDocument> MusicAbstractionLedgerDocuments(string artifactRoot, string created)
@@ -2136,6 +2175,13 @@ static IEnumerable<SongSummaryRow> ReadSongSummaryRows(string path)
             Float("instrument_voice_syrinx"),
             Float("instrument_drum_subtractive"),
             Float("instrument_pad_additive"),
+            Float("producer_musicianship_score"),
+            Float("required_studio_docs_present"),
+            Float("required_studio_doc_coverage"),
+            Float("template_loop_risk"),
+            Float("noise_percussion_risk"),
+            Float("composition_section_score"),
+            Float("aqua_gap_count"),
             Float("candidate_active_coverage", 1),
             Float("active_coverage_ratio", 1),
             Float("candidate_motion_coverage", .75f),
@@ -2153,10 +2199,22 @@ static float MusicSignalScore(SongSummaryRow row) =>
     row.LogMelCosine * 2.5f
     + row.AudioScore
     + row.MusicalInstrumentScore * .35f
+    + row.ProducerMusicianshipScore * .75f
     - row.ChipDistressRisk * .5f
     - row.ModeCollapseRisk * .9f
+    - row.TemplateLoopRisk * .8f
+    - row.NoisePercussionRisk * .8f
+    - (row.RequiredStudioDocsPresent < .5f ? .35f : 0)
     - MathF.Max(0, .55f - row.CandidateMotionCoverage) * .35f
     - (row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase) ? 100f : 0f);
+
+static bool IsMusicCurriculumCandidate(SongSummaryRow row) =>
+    !row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase) &&
+    !row.Verdict.StartsWith("weak-", StringComparison.OrdinalIgnoreCase) &&
+    row.ModeCollapseRisk < .45f &&
+    row.TemplateLoopRisk < .55f &&
+    row.NoisePercussionRisk < .55f &&
+    row.ProducerMusicianshipScore >= .45f;
 
 static bool IsOfficialMusicArtifactPath(string path)
 {
@@ -2186,6 +2244,13 @@ static SpeechScoreMetric[] RowMetrics(SongSummaryRow row) =>
     new("articulation_score", row.ArticulationScore, 1),
     new("musical_instrument_score", row.MusicalInstrumentScore, 1),
     new("chip_distress_risk", row.ChipDistressRisk, 1),
+    new("producer_musicianship_score", row.ProducerMusicianshipScore, 1),
+    new("required_studio_docs_present", row.RequiredStudioDocsPresent, 1),
+    new("required_studio_doc_coverage", row.RequiredStudioDocCoverage, 1),
+    new("template_loop_risk", row.TemplateLoopRisk, 1),
+    new("noise_percussion_risk", row.NoisePercussionRisk, 1),
+    new("composition_section_score", row.CompositionSectionScore, 1),
+    new("aqua_gap_count", row.AquaGapCount, 1),
     new("candidate_active_coverage", row.CandidateActiveCoverage, 1),
     new("active_coverage_ratio", row.ActiveCoverageRatio, 1),
     new("candidate_motion_coverage", row.CandidateMotionCoverage, 1),
@@ -2201,7 +2266,7 @@ static SpeechScoreMetric[] RowMetrics(SongSummaryRow row) =>
 ];
 
 static string CandidateKnowledgeSummary(SongSummaryRow row, SongInstrumentProfile profile, string analysisExcerpt) =>
-    $"Rendered candidate `{row.CandidateId}` against `{row.ReferenceId}` with cosine {row.LogMelCosine:0.######}, score {row.AudioScore:0.######}, instrument score {row.MusicalInstrumentScore:0.###}, chip risk {row.ChipDistressRisk:0.###}, motion coverage {row.CandidateMotionCoverage:0.###}, first-second energy share {row.CandidateFirstSecondEnergyShare:0.###}, collapse risk {row.ModeCollapseRisk:0.###}. Instrument profile: {profile.Summary}. Candidate analysis excerpt: {TrimForReport(analysisExcerpt, 900)}";
+    $"Rendered candidate `{row.CandidateId}` against `{row.ReferenceId}` with cosine {row.LogMelCosine:0.######}, score {row.AudioScore:0.######}, instrument score {row.MusicalInstrumentScore:0.###}, producer musicianship {row.ProducerMusicianshipScore:0.###}, studio doc coverage {row.RequiredStudioDocCoverage:0.###}, chip risk {row.ChipDistressRisk:0.###}, template risk {row.TemplateLoopRisk:0.###}, noise-percussion risk {row.NoisePercussionRisk:0.###}, motion coverage {row.CandidateMotionCoverage:0.###}, first-second energy share {row.CandidateFirstSecondEnergyShare:0.###}, collapse risk {row.ModeCollapseRisk:0.###}. Instrument profile: {profile.Summary}. Candidate analysis excerpt: {TrimForReport(analysisExcerpt, 900)}";
 
 static string[] CandidateTransferRules(SongSummaryRow row, SongInstrumentProfile profile)
 {
@@ -2210,8 +2275,11 @@ static string[] CandidateTransferRules(SongSummaryRow row, SongInstrumentProfile
     if (profile.HasSubtractiveDrums) rules.Add("Transfer the drum role as separate pitched body and filtered-noise skin gates.");
     if (profile.HasAdditivePad) rules.Add("Transfer the bed role as additive/PAD harmonic material with slow control motion.");
     if (profile.HasTexture) rules.Add("Transfer texture as a shaped role with band limits, gates, and motion.");
+    if (row.RequiredStudioDocsPresent >= .5f) rules.Add("Transfer only the lesson tied to this candidate's producer brief, listening journal, gap ledger, and studio lesson.");
     if (row.RmsRatio < .35f) rules.Add("Candidate is quiet against the reference; normalize loudness after role selection.");
     if (row.ModeCollapseRisk >= .45f) rules.Add("Do not transfer the arrangement as-is: it concentrates too much musical action near the opening and must be rewritten with distributed sections.");
+    if (row.TemplateLoopRisk >= .55f) rules.Add("Do not transfer the stock loop skeleton; rewrite the arrangement form before mining syntax sugar.");
+    if (row.NoisePercussionRisk >= .55f) rules.Add("Do not transfer the noise-percussion layer unless it is rebuilt as body plus filtered skin with evidence.");
     if (rules.Count == 0) rules.Add("Use as weak pressure only; demand a clearer role owner before promoting this pattern.");
     return rules.ToArray();
 }
@@ -2231,9 +2299,13 @@ static string[] CandidateFailureModes(SongSummaryRow row)
     if (row.RmsRatio < .35f) modes.Add("under-loud candidate can hide arrangement ideas behind weak level");
     if (row.ZeroCrossingRatio > 8f) modes.Add("excess zero-crossing ratio suggests noisy or too-bright material");
     if (row.ChipDistressRisk > 0) modes.Add("chip-distress risk must be justified as deliberate style before transfer");
+    if (row.RequiredStudioDocsPresent < .5f) modes.Add("missing producer apprenticeship evidence; syntax alone cannot become curriculum");
+    if (row.ProducerMusicianshipScore < .45f) modes.Add("low producer musicianship score; candidate did not carry enough arrangement, listening, and gap evidence");
+    if (row.TemplateLoopRisk >= .55f) modes.Add("template loop risk: stock drum/lane skeleton is masquerading as composition");
+    if (row.NoisePercussionRisk >= .55f) modes.Add("noise-percussion risk: raw or under-shaped noise is carrying the drum job");
     if (row.ModeCollapseRisk >= .45f) modes.Add("mode collapse: short opening phrase followed by low-motion texture or noise");
     if (row.CandidateFirstSecondEnergyShare >= .35f) modes.Add("front-loaded energy; require later motifs or section changes before promotion");
-    if (row.CandidateMotionCoverage > 0 && row.CandidateMotionCoverage < .45f) modes.Add("low musical motion coverage across the ten-second target");
+    if (row.CandidateMotionCoverage > 0 && row.CandidateMotionCoverage < .45f) modes.Add("low musical motion coverage across the target duration");
     return modes.Count == 0 ? ["still pressure, not mastered parity"] : modes.ToArray();
 }
 
@@ -3480,6 +3552,17 @@ static IReadOnlyList<SpeechScoreMetric> SongInstrumentMetrics(SongInstrumentProf
     new("chip_distress_risk", profile.ChipDistressRisk, .10f)
 ];
 
+static IReadOnlyList<SpeechScoreMetric> SongProductionMetrics(SongProductionProfile profile) =>
+[
+    new("producer_musicianship_score", profile.MusicianshipScore, .15f),
+    new("required_studio_docs_present", profile.RequiredStudioDocsPresent ? 1 : 0, .10f),
+    new("required_studio_doc_coverage", profile.RequiredStudioDocCoverage, .08f),
+    new("template_loop_risk", profile.TemplateLoopRisk, .12f),
+    new("noise_percussion_risk", profile.NoisePercussionRisk, .12f),
+    new("composition_section_score", profile.CompositionSectionScore, .08f),
+    new("aqua_gap_count", profile.AquaGapCount, .03f)
+];
+
 static SongInstrumentProfile AnalyzeSongInstrumentProfile(string script)
 {
     var lower = script.ToLowerInvariant();
@@ -3533,6 +3616,165 @@ static SongInstrumentProfile AnalyzeSongInstrumentProfile(string script)
     return new SongInstrumentProfile(hasSyrinxVoice, hasSubtractiveDrums, hasAdditivePad, hasTexture, score, chipRisk, summary);
 }
 
+static SongProductionProfile AnalyzeSongProductionProfile(string script, string scriptPath, string artifactRoot)
+{
+    var lower = script.ToLowerInvariant();
+    var evidenceRoots = EvidenceSearchRoots(scriptPath, artifactRoot).ToArray();
+    var producerBrief = FindEvidenceFile(evidenceRoots, "producer-brief.md", "hypotheses.md");
+    var listeningJournal = FindEvidenceFile(evidenceRoots, "listening-journal.md");
+    var aquaGapLedger = FindEvidenceFile(evidenceRoots, "aqua-gap-ledger.md");
+    var studioLesson = FindEvidenceFile(evidenceRoots, "studio-lesson.md", "producer-lesson.md", "abstraction-ledger.md", "instrument-conventions.md");
+    var docCoverage =
+        (FileExistsWithText(producerBrief) ? .25f : 0) +
+        (FileExistsWithText(listeningJournal) ? .25f : 0) +
+        (FileExistsWithText(aquaGapLedger) ? .25f : 0) +
+        (FileExistsWithText(studioLesson) ? .25f : 0);
+
+    var curveCount = CountOccurrences(lower, "curve ");
+    var mixCount = CountOccurrences(lower, "mix ");
+    var sequenceCount = CountOccurrences(lower, "sequence ");
+    var sectionWordCount =
+        CountOccurrences(lower, "section") +
+        CountOccurrences(lower, "verse") +
+        CountOccurrences(lower, "chorus") +
+        CountOccurrences(lower, "bridge") +
+        CountOccurrences(lower, "break") +
+        CountOccurrences(lower, "drop") +
+        CountOccurrences(lower, "automation");
+    var lateEventHints =
+        CountOccurrences(lower, "bar=2") +
+        CountOccurrences(lower, "bar=4") +
+        CountOccurrences(lower, "bar=8") +
+        CountOccurrences(lower, "2.") +
+        CountOccurrences(lower, "4.") +
+        CountOccurrences(lower, "8.");
+    var sectionScore = Math.Clamp(
+        sequenceCount * .08f +
+        curveCount * .035f +
+        mixCount * .08f +
+        sectionWordCount * .08f +
+        lateEventHints * .04f,
+        0,
+        1);
+
+    var commonPatternCount =
+        CountOccurrences(lower, "pattern=x..x") +
+        CountOccurrences(lower, "pattern=x...") +
+        CountOccurrences(lower, "pattern=..x.") +
+        CountOccurrences(lower, "pattern=....x") +
+        CountOccurrences(lower, "x..x") +
+        CountOccurrences(lower, "x.x.");
+    var stockDrumWords = lower.Contains("kick", StringComparison.Ordinal) &&
+                         lower.Contains("snare", StringComparison.Ordinal) &&
+                         (lower.Contains("hat", StringComparison.Ordinal) || lower.Contains("dust", StringComparison.Ordinal));
+    var templateRisk = Math.Clamp(
+        (stockDrumWords ? .30f : 0) +
+        MathF.Min(.30f, commonPatternCount * .08f) +
+        (sectionScore < .35f ? .25f : 0) +
+        (sequenceCount <= 2 ? .15f : 0),
+        0,
+        1);
+
+    var rawNoiseCount = CountOccurrences(lower, "wave=noise") + CountOccurrences(lower, "wave = noise");
+    var hasNoiseBed = rawNoiseCount > 0 &&
+                      (lower.Contains("sustain=30", StringComparison.Ordinal) ||
+                       lower.Contains("sustain = 30", StringComparison.Ordinal) ||
+                       lower.Contains("duration_seconds", StringComparison.Ordinal) ||
+                       lower.Contains("air_wash", StringComparison.Ordinal));
+    var hasDrumNoise = rawNoiseCount > 0 &&
+                       (lower.Contains("snare", StringComparison.Ordinal) ||
+                        lower.Contains("hat", StringComparison.Ordinal) ||
+                        lower.Contains("dust", StringComparison.Ordinal));
+    var hasPitchedBody = lower.Contains("pitch_ramp", StringComparison.Ordinal) ||
+                         lower.Contains("body", StringComparison.Ordinal) &&
+                         (lower.Contains("wave=sine", StringComparison.Ordinal) ||
+                          lower.Contains("wave=triangle", StringComparison.Ordinal) ||
+                          lower.Contains("wave = sine", StringComparison.Ordinal) ||
+                          lower.Contains("wave = triangle", StringComparison.Ordinal));
+    var hasBandLimits = lower.Contains("hpf", StringComparison.Ordinal) ||
+                        lower.Contains("lpf", StringComparison.Ordinal) ||
+                        lower.Contains("bpf", StringComparison.Ordinal);
+    var noiseRisk = Math.Clamp(
+        rawNoiseCount * .12f +
+        (hasNoiseBed ? .35f : 0) +
+        (hasDrumNoise && !hasPitchedBody ? .30f : 0) -
+        (hasBandLimits ? .12f : 0),
+        0,
+        1);
+
+    var aquaGapCount = CountEvidenceItems(aquaGapLedger);
+    var musicianship = Math.Clamp(
+        docCoverage * .35f +
+        sectionScore * .25f +
+        (1 - templateRisk) * .20f +
+        (1 - noiseRisk) * .20f,
+        0,
+        1);
+    var summary =
+        $"studio_docs={(docCoverage >= .99f ? "complete" : docCoverage > 0 ? "partial" : "missing")}; " +
+        $"doc_coverage={docCoverage:0.###}; section_score={sectionScore:0.###}; " +
+        $"template_loop_risk={templateRisk:0.###}; noise_percussion_risk={noiseRisk:0.###}; " +
+        $"aqua_gap_count={aquaGapCount}; producer_musicianship_score={musicianship:0.###}";
+    return new SongProductionProfile(
+        FileExistsWithText(producerBrief),
+        FileExistsWithText(listeningJournal),
+        FileExistsWithText(aquaGapLedger),
+        FileExistsWithText(studioLesson),
+        docCoverage,
+        sectionScore,
+        templateRisk,
+        noiseRisk,
+        aquaGapCount,
+        musicianship,
+        summary);
+}
+
+static IEnumerable<string> EvidenceSearchRoots(string scriptPath, string artifactRoot)
+{
+    foreach (var root in new[] { Path.GetDirectoryName(Path.GetFullPath(scriptPath)), Path.GetFullPath(artifactRoot) })
+    {
+        var current = string.IsNullOrWhiteSpace(root) ? null : new DirectoryInfo(root);
+        for (var depth = 0; current is not null && depth < 7; depth++)
+        {
+            yield return current.FullName;
+            current = current.Parent;
+        }
+    }
+}
+
+static string FindEvidenceFile(IEnumerable<string> roots, params string[] names)
+{
+    foreach (var root in roots.Distinct(StringComparer.OrdinalIgnoreCase))
+    {
+        foreach (var name in names)
+        {
+            var path = Path.Combine(root, name);
+            if (File.Exists(path))
+            {
+                return path;
+            }
+        }
+    }
+
+    return "";
+}
+
+static bool FileExistsWithText(string path) =>
+    !string.IsNullOrWhiteSpace(path) && File.Exists(path) && new FileInfo(path).Length > 16;
+
+static int CountEvidenceItems(string path)
+{
+    if (!FileExistsWithText(path))
+    {
+        return 0;
+    }
+
+    return File.ReadLines(path)
+        .Count(line => line.TrimStart().StartsWith("-", StringComparison.Ordinal) ||
+                       line.Contains("missing", StringComparison.OrdinalIgnoreCase) ||
+                       line.Contains("gap", StringComparison.OrdinalIgnoreCase));
+}
+
 static int CountOccurrences(string haystack, string needle)
 {
     var count = 0;
@@ -3546,11 +3788,25 @@ static int CountOccurrences(string haystack, string needle)
     return count;
 }
 
-static string SongVerdict(AudioComparison comparison, SongInstrumentProfile profile, SongContinuityProfile continuity)
+static string SongVerdict(
+    AudioComparison comparison,
+    SongInstrumentProfile profile,
+    SongProductionProfile production,
+    SongContinuityProfile continuity)
 {
     if (continuity.ModeCollapseRisk >= .60f)
     {
         return "weak-mode-collapse";
+    }
+
+    if (production.NoisePercussionRisk >= .65f || production.TemplateLoopRisk >= .70f)
+    {
+        return "weak-slop-template";
+    }
+
+    if (!production.RequiredStudioDocsPresent && production.MusicianshipScore < .45f)
+    {
+        return "weak-producer-missing";
     }
 
     if (profile.ChipDistressRisk >= .75f && comparison.LogMelCosineSimilarity < .60f)
@@ -3558,12 +3814,12 @@ static string SongVerdict(AudioComparison comparison, SongInstrumentProfile prof
         return "weak";
     }
 
-    if (comparison.LogMelCosineSimilarity >= .70f && comparison.Score >= .45f)
+    if (comparison.LogMelCosineSimilarity >= .70f && comparison.Score >= .45f && production.MusicianshipScore >= .55f)
     {
         return "promising";
     }
 
-    if (comparison.LogMelCosineSimilarity >= .35f || comparison.Score >= .30f)
+    if ((comparison.LogMelCosineSimilarity >= .35f || comparison.Score >= .30f) && production.MusicianshipScore >= .40f)
     {
         return "pressure";
     }
@@ -3893,7 +4149,7 @@ static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandid
 static string SongSummaryCsv(IReadOnlyList<IpaTrialResult> results)
 {
     var builder = new StringBuilder();
-    builder.AppendLine("trial_id,candidate_id,reference_id,verdict,log_mel_cosine,log_mel_distance,audio_score,envelope_distance,rms_ratio,centroid_ratio,zero_crossing_ratio,articulation_score,musical_instrument_score,chip_distress_risk,instrument_voice_syrinx,instrument_drum_subtractive,instrument_pad_additive,candidate_active_coverage,active_coverage_ratio,candidate_motion_coverage,motion_coverage_ratio,candidate_first_second_energy_share,first_second_energy_excess,candidate_tail_energy_share,tail_energy_ratio,mode_collapse_risk");
+    builder.AppendLine("trial_id,candidate_id,reference_id,verdict,log_mel_cosine,log_mel_distance,audio_score,envelope_distance,rms_ratio,centroid_ratio,zero_crossing_ratio,articulation_score,musical_instrument_score,chip_distress_risk,instrument_voice_syrinx,instrument_drum_subtractive,instrument_pad_additive,producer_musicianship_score,required_studio_docs_present,required_studio_doc_coverage,template_loop_risk,noise_percussion_risk,composition_section_score,aqua_gap_count,candidate_active_coverage,active_coverage_ratio,candidate_motion_coverage,motion_coverage_ratio,candidate_first_second_energy_share,first_second_energy_excess,candidate_tail_energy_share,tail_energy_ratio,mode_collapse_risk");
     foreach (var result in results)
     {
         builder.Append(Escape(result.TrialId)).Append(',');
@@ -3913,6 +4169,13 @@ static string SongSummaryCsv(IReadOnlyList<IpaTrialResult> results)
         builder.Append(Metric(result, "instrument_voice_syrinx")).Append(',');
         builder.Append(Metric(result, "instrument_drum_subtractive")).Append(',');
         builder.Append(Metric(result, "instrument_pad_additive")).Append(',');
+        builder.Append(Metric(result, "producer_musicianship_score")).Append(',');
+        builder.Append(Metric(result, "required_studio_docs_present")).Append(',');
+        builder.Append(Metric(result, "required_studio_doc_coverage")).Append(',');
+        builder.Append(Metric(result, "template_loop_risk")).Append(',');
+        builder.Append(Metric(result, "noise_percussion_risk")).Append(',');
+        builder.Append(Metric(result, "composition_section_score")).Append(',');
+        builder.Append(Metric(result, "aqua_gap_count")).Append(',');
         builder.Append(Metric(result, "candidate_active_coverage")).Append(',');
         builder.Append(Metric(result, "active_coverage_ratio")).Append(',');
         builder.Append(Metric(result, "candidate_motion_coverage")).Append(',');
@@ -3934,11 +4197,11 @@ static string SongEvaluatorReport(SongChallenge challenge, IReadOnlyList<IpaTria
     builder.AppendLine();
     builder.AppendLine(SongChallengeReport(challenge));
     builder.AppendLine();
-    builder.AppendLine("| candidate | verdict | logMelCosine | score | instrument | chipRisk | motion | firstSecond | collapse | rmsRatio | centroidRatio |");
-    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+    builder.AppendLine("| candidate | verdict | logMelCosine | score | instrument | producer | docs | template | noise | motion | firstSecond | collapse | rmsRatio | centroidRatio |");
+    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
     foreach (var result in results.OrderByDescending(result => MetricValue(result, "log_mel_cosine")))
     {
-        builder.AppendLine(CultureInfo.InvariantCulture, $"| {result.CandidateId} | {result.Verdict} | {MetricValue(result, "log_mel_cosine"):0.######} | {MetricValue(result, "audio_score"):0.######} | {MetricValue(result, "musical_instrument_score"):0.######} | {MetricValue(result, "chip_distress_risk"):0.######} | {MetricValue(result, "candidate_motion_coverage"):0.######} | {MetricValue(result, "candidate_first_second_energy_share"):0.######} | {MetricValue(result, "mode_collapse_risk"):0.######} | {MetricValue(result, "rms_ratio"):0.######} | {MetricValue(result, "centroid_ratio"):0.######} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| {result.CandidateId} | {result.Verdict} | {MetricValue(result, "log_mel_cosine"):0.######} | {MetricValue(result, "audio_score"):0.######} | {MetricValue(result, "musical_instrument_score"):0.######} | {MetricValue(result, "producer_musicianship_score"):0.######} | {MetricValue(result, "required_studio_docs_present"):0.######} | {MetricValue(result, "template_loop_risk"):0.######} | {MetricValue(result, "noise_percussion_risk"):0.######} | {MetricValue(result, "candidate_motion_coverage"):0.######} | {MetricValue(result, "candidate_first_second_energy_share"):0.######} | {MetricValue(result, "mode_collapse_risk"):0.######} | {MetricValue(result, "rms_ratio"):0.######} | {MetricValue(result, "centroid_ratio"):0.######} |");
     }
 
     return builder.ToString();
@@ -4134,6 +4397,22 @@ sealed record SongInstrumentProfile(
     float ChipDistressRisk,
     string Summary);
 
+sealed record SongProductionProfile(
+    bool HasProducerBrief,
+    bool HasListeningJournal,
+    bool HasAquaGapLedger,
+    bool HasStudioLesson,
+    float RequiredStudioDocCoverage,
+    float CompositionSectionScore,
+    float TemplateLoopRisk,
+    float NoisePercussionRisk,
+    int AquaGapCount,
+    float MusicianshipScore,
+    string Summary)
+{
+    public bool RequiredStudioDocsPresent => HasProducerBrief && HasListeningJournal && HasAquaGapLedger && HasStudioLesson;
+}
+
 sealed record SongContinuityProfile(
     float TargetActiveCoverage,
     float CandidateActiveCoverage,
@@ -4166,6 +4445,13 @@ sealed record SongSummaryRow(
     float InstrumentVoiceSyrinx,
     float InstrumentDrumSubtractive,
     float InstrumentPadAdditive,
+    float ProducerMusicianshipScore,
+    float RequiredStudioDocsPresent,
+    float RequiredStudioDocCoverage,
+    float TemplateLoopRisk,
+    float NoisePercussionRisk,
+    float CompositionSectionScore,
+    float AquaGapCount,
     float CandidateActiveCoverage,
     float ActiveCoverageRatio,
     float CandidateMotionCoverage,
