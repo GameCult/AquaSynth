@@ -1855,3 +1855,25 @@ Next likely slice:
   passed; zero-pass full-song swarm syntax smoke passed; candidate feature
   smoke wrote the new candidate autocorrelation and analysis artifacts under
   `artifacts/parity/song-candidate-feature-smoke-2`.
+
+2026-05-31 CultCache paged trial-store slice:
+
+- Full-song iterative swarm exposed the storage owner fault: the shared
+  `song-trial-results.cc` single-file MessagePack store grew to ~2.13 GB and
+  failed at the end of pass 3 with `System.OutOfMemoryException` while trying
+  to allocate another whole-store buffer. The issue was not the song agents;
+  it was the backing store treating cold old records as part of every hot write.
+- CultLib now has `DirectoryMessagePackBackingStore`. In directory mode, the
+  `.cc` path is a small schema manifest and each record is an individual
+  MessagePack page under `<store>.records/`. `PushAll` rewrites changed/deleted
+  records and the manifest only; cold record files keep their timestamps and
+  are not serialized into one giant byte array.
+- `CultCacheOpenOptions.UseDirectoryStore` selects the paged store, and
+  `CultCacheMessagePack.Create/OpenAsync` automatically reopen a paged store
+  when the `.records` directory exists. AquaSynth trial-result stores now
+  always use directory mode through `IpaTrialResultCultCacheStore`, so future
+  song/IPA curriculum runs stop dragging the whole archive through RAM on each
+  upsert.
+- Verification: CultLib `BackingStoreTests` pass 14/14, including a cold-record
+  timestamp test; AquaSynth `dotnet build tools/IpaTrialWorker/IpaTrialWorker.csproj
+  --no-restore` passes; AquaSynth `--filter CultCache` tests pass 7/7.
