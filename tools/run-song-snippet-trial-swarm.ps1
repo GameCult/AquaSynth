@@ -407,6 +407,7 @@ Instrument and DSL convention invention:
   - any Strudel-like sugar that would make the patch shorter;
   - the exact lowering into today's AquaSynth syntax using explicit `voice`, `param`, and `curve` lines.
 - The `.aqua` candidate must use today's implemented syntax only: `pattern`, `scale`, `param`, `curve`, and ordinary patch/voice syntax are legal. Proposed future sugar is evidence for the next DSL cut, not magic accepted by the parser.
+- Legal oscillator `wave=` values are `sine`, `square`, `saw`, `triangle`, and `noise` only. Use `square` plus filters/envelopes for pulse-like tone; `pulse` is not accepted syntax.
 
 Evidence contract:
 - Read every assigned challenge report and $preEvidence.

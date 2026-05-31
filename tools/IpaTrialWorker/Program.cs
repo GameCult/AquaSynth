@@ -213,16 +213,8 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
         var scriptCopy = Path.Combine(candidateDir, "candidate.aqua");
         File.Copy(candidate.ScriptPath, scriptCopy, overwrite: true);
         var script = await File.ReadAllTextAsync(scriptCopy, Encoding.UTF8);
-        var patch = PatchScript.Parse(script);
-        var timelineNetwork = patch.VocalNetworks.FirstOrDefault();
-        var timeline = timelineNetwork is null
-            ? Array.Empty<ProbeTimelineSample>()
-            : ProbeTimelineReport.Build(patch, timelineNetwork.Name, 12);
         var timelinePath = Path.Combine(timelineRoot, $"{safeCandidateId}.csv");
-        await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv(timeline), Encoding.UTF8);
-        var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId)).Source;
         var dspPath = Path.Combine(candidateDir, "candidate.dsp");
-        await File.WriteAllTextAsync(dspPath, source, Encoding.UTF8);
 
         var candidateWav = Path.Combine(audioDir, "candidate.wav");
         var metrics = new List<SpeechScoreMetric>();
@@ -231,39 +223,60 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
             Artifact("song-challenge", challengePath),
             Artifact("reference-wav", challenge.ReferenceWavPath),
             Artifact("candidate-script", scriptCopy),
-            Artifact("candidate-dsp", dspPath),
             Artifact("primitive-timeline", timelinePath)
         };
         metrics.AddRange(SongTargetMetrics(challenge, challengeEvidence));
         artifacts.AddRange(SongChallengeArtifacts(challenge));
         artifacts.AddRange(challengeEvidence.Select(SongChallengeEvidenceArtifact));
-        var timelineFacts = PrimitiveTimelineFactExtractor.Extract(timeline).ToArray();
+        var timelineFacts = Array.Empty<PrimitiveTimelineFact>();
         string verdict;
         string evaluation;
-        var render = await FaustCompiler.RenderAsync(
-            source,
-            new FaustRenderOptions(challenge.SampleRate, challenge.DurationSeconds));
-        if (render is null || render.Samples.Length == 0)
+        try
         {
-            verdict = "render-failed";
-            evaluation = render is null
-                ? "Faust was not available to render this song candidate."
-                : $"Faust render produced no samples. stderr: {render.Stderr}";
-            metrics.Add(new SpeechScoreMetric("render_failed", 1, 1));
+            var patch = PatchScript.Parse(script);
+            var timelineNetwork = patch.VocalNetworks.FirstOrDefault();
+            var timeline = timelineNetwork is null
+                ? Array.Empty<ProbeTimelineSample>()
+                : ProbeTimelineReport.Build(patch, timelineNetwork.Name, 12);
+            await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv(timeline), Encoding.UTF8);
+            timelineFacts = PrimitiveTimelineFactExtractor.Extract(timeline).ToArray();
+            var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId)).Source;
+            await File.WriteAllTextAsync(dspPath, source, Encoding.UTF8);
+            artifacts.Add(Artifact("candidate-dsp", dspPath));
+
+            var render = await FaustCompiler.RenderAsync(
+                source,
+                new FaustRenderOptions(challenge.SampleRate, challenge.DurationSeconds));
+            if (render is null || render.Samples.Length == 0)
+            {
+                verdict = "render-failed";
+                evaluation = render is null
+                    ? "Faust was not available to render this song candidate."
+                    : $"Faust render produced no samples. stderr: {render.Stderr}";
+                metrics.Add(new SpeechScoreMetric("render_failed", 1, 1));
+            }
+            else
+            {
+                var matched = MatchLength(render.Samples, referenceSamples.Length);
+                NormalizePeak(matched, .9f);
+                WriteWav(candidateWav, matched, challenge.SampleRate);
+                artifacts.Add(Artifact("candidate-wav", candidateWav));
+                var comparison = analyzer.Compare(referenceSamples, matched);
+                metrics.AddRange(SongComparisonMetrics(comparison));
+                verdict = SongVerdict(comparison);
+                evaluation = SongEvaluationSentence(challenge, comparison, verdict);
+                var comparisonPath = Path.Combine(audioDir, "comparison.txt");
+                await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict), Encoding.UTF8);
+                artifacts.Add(Artifact("comparison-report", comparisonPath));
+            }
         }
-        else
+        catch (Exception ex) when (ex is PatchScriptException or InvalidOperationException or InvalidDataException)
         {
-            var matched = MatchLength(render.Samples, referenceSamples.Length);
-            NormalizePeak(matched, .9f);
-            WriteWav(candidateWav, matched, challenge.SampleRate);
-            artifacts.Add(Artifact("candidate-wav", candidateWav));
-            var comparison = analyzer.Compare(referenceSamples, matched);
-            metrics.AddRange(SongComparisonMetrics(comparison));
-            verdict = SongVerdict(comparison);
-            evaluation = SongEvaluationSentence(challenge, comparison, verdict);
-            var comparisonPath = Path.Combine(audioDir, "comparison.txt");
-            await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict), Encoding.UTF8);
-            artifacts.Add(Artifact("comparison-report", comparisonPath));
+            await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv([]), Encoding.UTF8);
+            verdict = "render-failed";
+            evaluation = $"Candidate could not be parsed, lowered, or prepared for render: {ex.GetType().Name}: {ex.Message}";
+            metrics.Add(new SpeechScoreMetric("render_failed", 1, 1));
+            metrics.Add(new SpeechScoreMetric("candidate_invalid", 1, 1));
         }
 
         var latency = Stopwatch.GetElapsedTime(startedStamp).TotalMilliseconds;
