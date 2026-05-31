@@ -2,6 +2,21 @@
 
 Current slice:
 
+- Built the first pruned music-production CultCache from the full-song iterative
+  swarm artifacts instead of copying the old hot trial store. `music-distill`
+  scans official pass summaries and abstraction ledgers, excludes iteration,
+  smoke, and rerun scratch, then writes a fresh paged
+  `MusicProductionKnowledgeDocument` store with compact quality-standard,
+  scene-role, failure-mode, candidate-pattern, and abstraction-ledger records.
+  The current store is
+  `artifacts/parity/music-knowledge/20260531T121228337/music-production-knowledge.cc`
+  with 37 records from 28 official scored rows: 1 master standard, 4 role
+  doctrine records, 1 failure-pressure record, 16 rendered candidate-pattern
+  records, and 15 syntax-sugar pressure ledgers. Explorer commands
+  `music-search` and `music-show` read the store directly; smoke reports live
+  beside it as `search-syrinx.md`, `search-drums.md`, and
+  `show-quality-standard.md`.
+
 - Song-snippet challenge harness is now a real local parity lane, not a
   hand-waved prompt. `tools/IpaTrialWorker` has `song-prepare` and `song-score`:
   `song-prepare` decodes a local audio file through NAudio, freezes a seeded

@@ -8,6 +8,7 @@ using System.Text.Json.Serialization;
 
 using AquaSynth.Dsl;
 using AquaSynth.Faust;
+using GameCult.Caching.MessagePack;
 using NAudio.Wave;
 
 var command = args.FirstOrDefault();
@@ -39,6 +40,15 @@ try
             return 0;
         case "distill":
             await DistillAsync(options);
+            return 0;
+        case "music-distill":
+            await MusicDistillAsync(options);
+            return 0;
+        case "music-search":
+            await MusicSearchAsync(options);
+            return 0;
+        case "music-show":
+            await MusicShowAsync(options);
             return 0;
         case "search":
             await SearchAsync(options);
@@ -337,7 +347,14 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
             timelineFacts));
     }
 
-    await IpaTrialResultCultCacheStore.UpsertResultsAsync(store, results);
+    try
+    {
+        await IpaTrialResultCultCacheStore.UpsertResultsAsync(store, results);
+    }
+    catch (UnauthorizedAccessException)
+    {
+        Console.Error.WriteLine($"warning: could not flush CultCache store `{store}` in this environment; continuing with filesystem artifacts only.");
+    }
     var summaryPath = Path.Combine(batchDirectory, "summary.csv");
     await File.WriteAllTextAsync(summaryPath, SongSummaryCsv(results), Encoding.UTF8);
     var reportPath = Path.Combine(batchDirectory, "evaluator-report.md");
@@ -386,6 +403,65 @@ static async Task DistillAsync(Dictionary<string, string> options)
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
     await File.WriteAllTextAsync(output, DistillationReport(store, outputStore, results, selected, evidence, selectedEvidence, distillation, minCosine), Encoding.UTF8);
     Console.WriteLine(outputStore);
+    Console.WriteLine(output);
+}
+
+static async Task MusicDistillAsync(Dictionary<string, string> options)
+{
+    var artifactRoot = Required(options, "artifact-root");
+    var outputStore = Required(options, "output-store");
+    var output = Required(options, "output");
+    var maxCandidates = int.TryParse(Value(options, "max-candidates", "16"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+        ? Math.Clamp(parsed, 1, 100)
+        : 16;
+
+    var documents = BuildMusicKnowledgeDocuments(artifactRoot, maxCandidates).ToArray();
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputStore))!);
+    if (File.Exists(outputStore))
+    {
+        File.Delete(outputStore);
+    }
+
+    var recordDirectory = DirectoryMessagePackBackingStore.DefaultRecordDirectoryPath(outputStore);
+    if (Directory.Exists(recordDirectory))
+    {
+        Directory.Delete(recordDirectory, recursive: true);
+    }
+
+    await IpaTrialResultCultCacheStore.UpsertMusicProductionKnowledgeAsync(outputStore, documents);
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+    await File.WriteAllTextAsync(output, MusicKnowledgeDistillationReport(artifactRoot, outputStore, documents), Encoding.UTF8);
+    Console.WriteLine(outputStore);
+    Console.WriteLine(output);
+}
+
+static async Task MusicSearchAsync(Dictionary<string, string> options)
+{
+    var store = Required(options, "store");
+    var query = Required(options, "query");
+    var output = Required(options, "output");
+    var limit = int.TryParse(Value(options, "limit", "12"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+        ? Math.Clamp(parsed, 1, 100)
+        : 12;
+    var documents = await IpaTrialResultCultCacheStore.ReadMusicProductionKnowledgeAsync(store);
+    var hits = RankMusicKnowledge(documents, query, limit);
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+    await File.WriteAllTextAsync(output, MusicKnowledgeSearchReport(store, query, hits), Encoding.UTF8);
+    Console.WriteLine(output);
+}
+
+static async Task MusicShowAsync(Dictionary<string, string> options)
+{
+    var store = Required(options, "store");
+    var id = Required(options, "knowledge-id");
+    var output = Required(options, "output");
+    var documents = await IpaTrialResultCultCacheStore.ReadMusicProductionKnowledgeAsync(store);
+    var document = documents.FirstOrDefault(item =>
+        item.KnowledgeId.Equals(id, StringComparison.OrdinalIgnoreCase) ||
+        item.Topic.Equals(id, StringComparison.OrdinalIgnoreCase))
+        ?? throw new InvalidDataException($"No music knowledge document found for `{id}`.");
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+    await File.WriteAllTextAsync(output, MusicKnowledgeDetailReport(store, document), Encoding.UTF8);
     Console.WriteLine(output);
 }
 
@@ -1588,6 +1664,522 @@ static string DetailReport(string store, IpaTrialResult result)
     }
 
     return builder.ToString();
+}
+
+static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocuments(string artifactRoot, int maxCandidates)
+{
+    if (!Directory.Exists(artifactRoot))
+    {
+        throw new DirectoryNotFoundException(artifactRoot);
+    }
+
+    var created = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+    var rows = Directory.EnumerateFiles(artifactRoot, "summary.csv", SearchOption.AllDirectories)
+        .Where(IsOfficialMusicArtifactPath)
+        .SelectMany(ReadSongSummaryRows)
+        .GroupBy(row => row.TrialId, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.OrderByDescending(row => row.AudioScore).First())
+        .ToArray();
+    var rendered = rows
+        .Where(row => !row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase) && row.AudioScore > 0)
+        .OrderByDescending(row => MusicSignalScore(row))
+        .ToArray();
+    var failed = rows.Where(row => row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase)).ToArray();
+
+    yield return new MusicProductionKnowledgeDocument(
+        "music-production-quality-standard-v1",
+        "quality-standard",
+        "future song curriculum admission standard",
+        "master-standard",
+        "The music curriculum store owns distilled production knowledge; raw trials and giant feature dumps are only evidence, not curriculum.",
+        "Fresh agents should retrieve role owners, transfer rules, failure modes, and AquaSynth patterns before writing patches. New runs must add compact, evidence-backed documents, not whole spectrogram dumps or undigested trial chatter.",
+        [
+            "Admit a candidate as reusable knowledge only when it renders, has explicit instrument-role ownership, and states what production job it owns.",
+            "Prefer compact role abstractions over one-off target mimicry; a reusable owner sentence is more valuable than a small metric bump.",
+            "Keep failed renders as failure-mode pressure only; do not let syntax wreckage dominate retrieval.",
+            "Store full artifacts on disk and cite them; CultCache curriculum records should carry bounded summaries, metrics, and transfer rules."
+        ],
+        [
+            "voice-like lead -> syrinx/acoustic source ports with pressure, opening, and radiation motion",
+            "drums/transients -> subtractive body plus filtered noise skin plus pattern gate",
+            "pads/beds -> additive/PAD layer, harmonics, and spectrum banks",
+            "recording color -> texture role with band limits and gates, not full-duration raw noise"
+        ],
+        [
+            "Single-file stores or raw spectrogram payloads are not curriculum; distill to paged CultCache records.",
+            "Metric winners with unclear role ownership should be pressure, not doctrine."
+        ],
+        rows.Select(row => row.TrialId).Take(24).ToArray(),
+        rendered.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(24).ToArray(),
+        [
+            new SpeechScoreMetric("input_trial_count", rows.Length, 0),
+            new SpeechScoreMetric("rendered_trial_count", rendered.Length, 0),
+            new SpeechScoreMetric("render_failed_count", failed.Length, 0)
+        ],
+        [artifactRoot],
+        created);
+
+    foreach (var role in MusicRoleDocuments(rendered, created))
+    {
+        yield return role;
+    }
+
+    foreach (var document in MusicFailureDocuments(failed, rows, created, artifactRoot))
+    {
+        yield return document;
+    }
+
+    foreach (var row in rendered.Take(maxCandidates))
+    {
+        var patchPath = CandidatePatchPath(row);
+        var analysisPath = CandidateAnalysisPath(row);
+        var patchExcerpt = File.Exists(patchPath) ? ReadBoundedText(patchPath, 2400) : "";
+        var analysisExcerpt = File.Exists(analysisPath) ? ReadBoundedText(analysisPath, 1800) : "";
+        var profile = AnalyzeSongInstrumentProfile(patchExcerpt);
+        yield return new MusicProductionKnowledgeDocument(
+            $"music-candidate-{SafeName(row.CandidateId)}-{StableUuid(row.TrialId)[..8]}",
+            "candidate-pattern",
+            row.CandidateId,
+            row.LogMelCosine >= .12f || row.AudioScore >= .22f ? "strong-pressure" : "weak-pressure",
+            $"Candidate `{row.CandidateId}` owns a reusable rendered song-pattern witness for `{row.ReferenceId}`.",
+            CandidateKnowledgeSummary(row, profile, analysisExcerpt),
+            CandidateTransferRules(row, profile),
+            CandidateAquaSynthPatterns(patchExcerpt, profile),
+            CandidateFailureModes(row),
+            [row.TrialId],
+            [row.CandidateId],
+            RowMetrics(row),
+            ExistingPaths([row.SummaryPath, patchPath, analysisPath, EvaluatorReportPath(row)]),
+            created);
+    }
+
+    foreach (var ledgerDocument in MusicAbstractionLedgerDocuments(artifactRoot, created))
+    {
+        yield return ledgerDocument;
+    }
+}
+
+static IEnumerable<MusicProductionKnowledgeDocument> MusicRoleDocuments(IReadOnlyList<SongSummaryRow> rendered, string created)
+{
+    yield return RoleDocument(
+        "music-role-syrinx-voice",
+        "syrinx/acoustic voice lead",
+        "The syrinx/acoustic voice role owns singing, creature, alien, and vowel-like lead identity through pressure/opening motion, acoustic source ports, formant/radiation filtering, and register-bounded pitch control.",
+        [
+            "Start voice-like leads with syrinx/acoustic topology before ordinary oscillator stacks.",
+            "Move pressure and opening over time; a static syrinx is just a badge.",
+            "Use formant or radiation filtering to put vocal peaks in the target register."
+        ],
+        ["source_port", "radiation_port", "acoustic_network", "syrinx", "formant_mix", "vowels=", "curve ... loop=true"],
+        rendered.Where(row => row.InstrumentVoiceSyrinx > 0).ToArray(),
+        created);
+
+    yield return RoleDocument(
+        "music-role-subtractive-drums",
+        "subtractive drums and transient bodies",
+        "The drum role owns rhythmic impact through pitched sine/triangle body envelopes, filtered noise skins, and pattern gates. It is not a naked click track.",
+        [
+            "Build kick/snare/hat as separate body/skin owners when possible.",
+            "Use short gated high-band noise only for skins and dust, not broadband beds.",
+            "Align pattern gates to target tempo and autocorrelation peaks before changing timbre."
+        ],
+        ["pattern", "texture role=dust", "wave=noise with hpf/lpf", "env=ad", "curve interp=hold loop=true"],
+        rendered.Where(row => row.InstrumentDrumSubtractive > 0).ToArray(),
+        created);
+
+    yield return RoleDocument(
+        "music-role-additive-pad",
+        "additive and PAD harmonic beds",
+        "The pad role owns sustained harmonic beds through authored layers, harmonic banks, PAD spectra, slow gain/filter motion, and restrained register placement.",
+        [
+            "Use layer/harmonics/spectrum for beds before stacking ordinary simple waves.",
+            "Keep pads below the lead or widen them with slow filter motion; do not fill every band all the time.",
+            "Treat PAD/additive beds as harmony owners and texture as recording color, not the same job."
+        ],
+        ["layer", "harmonics", "spectrum", "pad_bandwidth", "pad_profile", "lpf=@/macro/brightness"],
+        rendered.Where(row => row.InstrumentPadAdditive > 0).ToArray(),
+        created);
+
+    yield return RoleDocument(
+        "music-role-texture-air-dust-codec",
+        "shaped texture, air, dust, and codec color",
+        "Texture owns air, dust, tape, room, and codec coloration as band-limited moving material. Raw full-duration noise is a failure mode unless it is deliberately tiny and shaped.",
+        [
+            "Use `texture` roles with band limits and gates for recording color.",
+            "Clock dust/hat transients; drift room/air slowly.",
+            "Keep codec grit narrow and modulated so it supports scene identity instead of becoming hiss."
+        ],
+        ["texture role=air", "texture role=dust", "texture role=codec", "hpf", "lpf", "gain curves"],
+        rendered.Where(row => row.CandidateId.Contains("dust", StringComparison.OrdinalIgnoreCase) || row.CandidateId.Contains("air", StringComparison.OrdinalIgnoreCase) || row.CandidateId.Contains("codec", StringComparison.OrdinalIgnoreCase)).ToArray(),
+        created);
+}
+
+static MusicProductionKnowledgeDocument RoleDocument(
+    string id,
+    string topic,
+    string summary,
+    string[] rules,
+    string[] patterns,
+    IReadOnlyList<SongSummaryRow> evidence,
+    string created) =>
+    new(
+        id,
+        "scene-role",
+        topic,
+        "role-doctrine",
+        $"{topic} owns one reusable production role so arrangements stay inspectable instead of collapsing into oscillator soup.",
+        summary,
+        rules,
+        patterns,
+        ["Do not admit candidates that name the role but implement it with unrelated static simple waves."],
+        evidence.Select(row => row.TrialId).Distinct(StringComparer.OrdinalIgnoreCase).Take(12).ToArray(),
+        evidence.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(12).ToArray(),
+        [
+            new SpeechScoreMetric("evidence_count", evidence.Count, 0),
+            new SpeechScoreMetric("best_audio_score", evidence.Select(row => row.AudioScore).DefaultIfEmpty(0).Max(), 0),
+            new SpeechScoreMetric("best_log_mel_cosine", evidence.Select(row => row.LogMelCosine).DefaultIfEmpty(0).Max(), 0)
+        ],
+        evidence.Select(row => row.SummaryPath).Distinct(StringComparer.OrdinalIgnoreCase).Take(12).ToArray(),
+        created);
+
+static IEnumerable<MusicProductionKnowledgeDocument> MusicFailureDocuments(
+    IReadOnlyList<SongSummaryRow> failed,
+    IReadOnlyList<SongSummaryRow> all,
+    string created,
+    string artifactRoot)
+{
+    yield return new MusicProductionKnowledgeDocument(
+        "music-failure-rendered-syntax-pressure",
+        "failure-mode",
+        "render-failed candidates are pressure, not training exemplars",
+        "failure-pressure",
+        "The failure-mode record owns why failed candidates are kept out of the main curriculum while still teaching future agents what to avoid.",
+        $"This run produced {failed.Count} render-failed official candidates out of {all.Count} scored rows. They should not transfer as musical examples; they transfer only as syntax/lowering quality pressure.",
+        [
+            "A candidate that cannot render is not a music-production exemplar.",
+            "Keep invalid syntax in failure records with candidate ids and artifact paths; do not mix it with role doctrine.",
+            "Future agents should run local `song-score` attempts before publishing official patches."
+        ],
+        ["parse before score", "publish one final .aqua per target", "use existing DSL roles instead of imaginary wave names"],
+        ["illegal or unsupported DSL syntax", "render preparation failures", "publishing before local iteration"],
+        failed.Select(row => row.TrialId).Take(20).ToArray(),
+        failed.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToArray(),
+        [
+            new SpeechScoreMetric("failed_count", failed.Count, 0),
+            new SpeechScoreMetric("input_trial_count", all.Count, 0)
+        ],
+        [artifactRoot],
+        created);
+}
+
+static IEnumerable<MusicProductionKnowledgeDocument> MusicAbstractionLedgerDocuments(string artifactRoot, string created)
+{
+    foreach (var ledger in Directory.EnumerateFiles(artifactRoot, "abstraction-ledger.md", SearchOption.AllDirectories).Where(IsOfficialMusicArtifactPath).Order(StringComparer.OrdinalIgnoreCase))
+    {
+        var text = ReadBoundedText(ledger, 7000);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            continue;
+        }
+
+        var agent = Directory.GetParent(ledger)?.Name ?? "agent";
+        yield return new MusicProductionKnowledgeDocument(
+            $"music-abstraction-ledger-{SafeName(agent)}-{StableUuid(ledger)[..8]}",
+            "abstraction-ledger",
+            $"{agent} reusable abstraction ledger",
+            "syntax-sugar-pressure",
+            "Abstraction ledgers own future syntax-sugar pressure; they do not by themselves prove runtime or lowering correctness.",
+            text,
+            LinesContaining(text, "transfer", "rule", "reuse", "verdict").Take(12).ToArray(),
+            LinesContaining(text, "sugar", "lower", "DSL", "pattern", "scale", "texture").Take(12).ToArray(),
+            LinesContaining(text, "cut", "fail", "weak", "risk").Take(12).ToArray(),
+            [],
+            [],
+            [new SpeechScoreMetric("ledger_chars", text.Length, 0)],
+            [ledger],
+            created);
+    }
+}
+
+static IReadOnlyList<MusicKnowledgeHit> RankMusicKnowledge(IReadOnlyList<MusicProductionKnowledgeDocument> documents, string query, int limit)
+{
+    var terms = ExpandTerms(Tokenize(query)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    return documents
+        .Select(document =>
+        {
+            var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["id"] = document.KnowledgeId,
+                ["kind"] = document.Kind,
+                ["topic"] = document.Topic,
+                ["tier"] = document.QualityTier,
+                ["owner"] = document.Owner,
+                ["summary"] = document.Summary,
+                ["rules"] = string.Join('\n', document.TransferRules),
+                ["patterns"] = string.Join('\n', document.AquaSynthPatterns),
+                ["failures"] = string.Join('\n', document.FailureModes)
+            };
+            var matched = fields
+                .Select(pair => (pair.Key, Terms: terms.Where(term => Tokenize(pair.Value).Contains(term, StringComparer.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()))
+                .Where(pair => pair.Terms.Length > 0)
+                .ToDictionary(pair => pair.Key, pair => pair.Terms, StringComparer.OrdinalIgnoreCase);
+            var score = matched.Sum(pair => pair.Key switch
+            {
+                "topic" => pair.Value.Length * 4f,
+                "owner" => pair.Value.Length * 3f,
+                "rules" => pair.Value.Length * 2.5f,
+                "patterns" => pair.Value.Length * 2.25f,
+                "summary" => pair.Value.Length * 2f,
+                _ => pair.Value.Length
+            }) + KnowledgeTierBias(document);
+            return new MusicKnowledgeHit(document, score, matched);
+        })
+        .Where(hit => hit.Score > 0 || terms.Length == 0)
+        .OrderByDescending(hit => hit.Score)
+        .ThenBy(hit => hit.Document.Topic, StringComparer.OrdinalIgnoreCase)
+        .Take(limit)
+        .ToArray();
+}
+
+static float KnowledgeTierBias(MusicProductionKnowledgeDocument document) =>
+    document.QualityTier switch
+    {
+        "master-standard" => 4f,
+        "role-doctrine" => 3f,
+        "strong-pressure" => 2f,
+        "syntax-sugar-pressure" => 1.5f,
+        _ => 0.5f
+    };
+
+static string MusicKnowledgeDistillationReport(string artifactRoot, string outputStore, IReadOnlyList<MusicProductionKnowledgeDocument> documents)
+{
+    var builder = new StringBuilder();
+    builder.AppendLine("# Music Knowledge CultCache Distillation");
+    builder.AppendLine();
+    builder.AppendLine($"artifact_root: `{artifactRoot}`");
+    builder.AppendLine($"output_store: `{outputStore}`");
+    builder.AppendLine($"knowledge_documents: `{documents.Count}`");
+    builder.AppendLine();
+    foreach (var group in documents.GroupBy(document => document.Kind).OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+    {
+        builder.AppendLine($"- {group.Key}: {group.Count()}");
+    }
+
+    builder.AppendLine();
+    builder.AppendLine("## Documents");
+    foreach (var document in documents.OrderBy(document => document.Kind, StringComparer.OrdinalIgnoreCase).ThenBy(document => document.Topic, StringComparer.OrdinalIgnoreCase))
+    {
+        builder.AppendLine($"- `{document.KnowledgeId}` / {document.Kind} / {document.QualityTier} / {document.Topic}");
+    }
+
+    return builder.ToString();
+}
+
+static string MusicKnowledgeSearchReport(string store, string query, IReadOnlyList<MusicKnowledgeHit> hits)
+{
+    var builder = new StringBuilder();
+    builder.AppendLine("# Music Knowledge Search");
+    builder.AppendLine();
+    builder.AppendLine($"store: `{store}`");
+    builder.AppendLine($"query: `{query}`");
+    builder.AppendLine($"matches: {hits.Count}");
+    builder.AppendLine();
+    foreach (var hit in hits)
+    {
+        var document = hit.Document;
+        builder.AppendLine($"- `{document.KnowledgeId}` score={hit.Score:0.###} kind={document.Kind} tier={document.QualityTier}");
+        builder.AppendLine($"  topic: {document.Topic}");
+        builder.AppendLine($"  summary: {TrimForReport(document.Summary, 260)}");
+        builder.AppendLine($"  matched: {string.Join(", ", hit.MatchedByField.Select(pair => $"{pair.Key}=[{string.Join('|', pair.Value)}]"))}");
+    }
+
+    return builder.ToString();
+}
+
+static string MusicKnowledgeDetailReport(string store, MusicProductionKnowledgeDocument document)
+{
+    var builder = new StringBuilder();
+    builder.AppendLine($"# Music Knowledge: {document.Topic}");
+    builder.AppendLine();
+    builder.AppendLine($"store: `{store}`");
+    builder.AppendLine($"id: `{document.KnowledgeId}`");
+    builder.AppendLine($"kind: `{document.Kind}`");
+    builder.AppendLine($"tier: `{document.QualityTier}`");
+    builder.AppendLine($"created: `{document.CreatedAtUtc}`");
+    builder.AppendLine();
+    builder.AppendLine("## Owner");
+    builder.AppendLine(document.Owner);
+    builder.AppendLine();
+    builder.AppendLine("## Summary");
+    builder.AppendLine(document.Summary);
+    AppendList(builder, "Transfer Rules", document.TransferRules);
+    AppendList(builder, "AquaSynth Patterns", document.AquaSynthPatterns);
+    AppendList(builder, "Failure Modes", document.FailureModes);
+    AppendList(builder, "Evidence Trials", document.EvidenceTrialIds);
+    AppendList(builder, "Evidence Candidates", document.EvidenceCandidateIds);
+    AppendList(builder, "Source Artifacts", document.SourceArtifactUris);
+    builder.AppendLine("## Metrics");
+    foreach (var metric in document.Metrics)
+    {
+        builder.AppendLine($"- {metric.Name}: {metric.Value:0.######}");
+    }
+
+    return builder.ToString();
+}
+
+static void AppendList(StringBuilder builder, string title, IEnumerable<string> values)
+{
+    builder.AppendLine();
+    builder.AppendLine($"## {title}");
+    foreach (var value in values.Where(value => !string.IsNullOrWhiteSpace(value)))
+    {
+        builder.AppendLine($"- {value}");
+    }
+}
+
+static IEnumerable<SongSummaryRow> ReadSongSummaryRows(string path)
+{
+    var lines = File.ReadLines(path).Where(line => !string.IsNullOrWhiteSpace(line)).ToArray();
+    if (lines.Length < 2)
+    {
+        yield break;
+    }
+
+    var header = lines[0].Split(',');
+    for (var index = 1; index < lines.Length; index++)
+    {
+        var parts = lines[index].Split(',');
+        if (parts.Length < header.Length)
+        {
+            continue;
+        }
+
+        string Value(string name)
+        {
+            var column = Array.IndexOf(header, name);
+            return column >= 0 && column < parts.Length ? parts[column] : "";
+        }
+
+        float Float(string name) => float.TryParse(Value(name), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : 0;
+        yield return new SongSummaryRow(
+            Value("trial_id"),
+            Value("candidate_id"),
+            Value("reference_id"),
+            Value("verdict"),
+            Float("log_mel_cosine"),
+            Float("log_mel_distance"),
+            Float("audio_score"),
+            Float("envelope_distance"),
+            Float("rms_ratio"),
+            Float("centroid_ratio"),
+            Float("zero_crossing_ratio"),
+            Float("articulation_score"),
+            Float("musical_instrument_score"),
+            Float("chip_distress_risk"),
+            Float("instrument_voice_syrinx"),
+            Float("instrument_drum_subtractive"),
+            Float("instrument_pad_additive"),
+            path);
+    }
+}
+
+static float MusicSignalScore(SongSummaryRow row) =>
+    row.LogMelCosine * 2.5f
+    + row.AudioScore
+    + row.MusicalInstrumentScore * .35f
+    - row.ChipDistressRisk * .5f
+    - (row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase) ? 100f : 0f);
+
+static bool IsOfficialMusicArtifactPath(string path)
+{
+    var segments = Path.GetFullPath(path).Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries);
+    return !segments.Any(segment =>
+        segment.Equals("iterations", StringComparison.OrdinalIgnoreCase) ||
+        segment.Equals("smoke", StringComparison.OrdinalIgnoreCase) ||
+        segment.Equals("rerun", StringComparison.OrdinalIgnoreCase));
+}
+
+static string CandidatePatchPath(SongSummaryRow row) =>
+    Path.Combine(Path.GetDirectoryName(row.SummaryPath)!, "song-candidates", SafeName(row.CandidateId), "candidate.aqua");
+
+static string CandidateAnalysisPath(SongSummaryRow row) =>
+    Path.Combine(Path.GetDirectoryName(row.SummaryPath)!, "song-candidates", SafeName(row.CandidateId), "candidate-analysis.md");
+
+static string EvaluatorReportPath(SongSummaryRow row) =>
+    Path.Combine(Path.GetDirectoryName(row.SummaryPath)!, "evaluator-report.md");
+
+static string[] ExistingPaths(IEnumerable<string> paths) =>
+    paths.Where(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+
+static SpeechScoreMetric[] RowMetrics(SongSummaryRow row) =>
+[
+    new("log_mel_cosine", row.LogMelCosine, 1),
+    new("audio_score", row.AudioScore, 1),
+    new("articulation_score", row.ArticulationScore, 1),
+    new("musical_instrument_score", row.MusicalInstrumentScore, 1),
+    new("chip_distress_risk", row.ChipDistressRisk, 1),
+    new("rms_ratio", row.RmsRatio, 0),
+    new("centroid_ratio", row.CentroidRatio, 0),
+    new("zero_crossing_ratio", row.ZeroCrossingRatio, 0)
+];
+
+static string CandidateKnowledgeSummary(SongSummaryRow row, SongInstrumentProfile profile, string analysisExcerpt) =>
+    $"Rendered candidate `{row.CandidateId}` against `{row.ReferenceId}` with cosine {row.LogMelCosine:0.######}, score {row.AudioScore:0.######}, instrument score {row.MusicalInstrumentScore:0.###}, chip risk {row.ChipDistressRisk:0.###}. Instrument profile: {profile.Summary}. Candidate analysis excerpt: {TrimForReport(analysisExcerpt, 900)}";
+
+static string[] CandidateTransferRules(SongSummaryRow row, SongInstrumentProfile profile)
+{
+    var rules = new List<string>();
+    if (profile.HasSyrinxVoice) rules.Add("Transfer the voice role as pressure/opening/radiation motion, not as static oscillator timbre.");
+    if (profile.HasSubtractiveDrums) rules.Add("Transfer the drum role as separate pitched body and filtered-noise skin gates.");
+    if (profile.HasAdditivePad) rules.Add("Transfer the bed role as additive/PAD harmonic material with slow control motion.");
+    if (profile.HasTexture) rules.Add("Transfer texture as a shaped role with band limits, gates, and motion.");
+    if (row.RmsRatio < .35f) rules.Add("Candidate is quiet against the reference; normalize loudness after role selection.");
+    if (rules.Count == 0) rules.Add("Use as weak pressure only; demand a clearer role owner before promoting this pattern.");
+    return rules.ToArray();
+}
+
+static string[] CandidateAquaSynthPatterns(string patchExcerpt, SongInstrumentProfile profile)
+{
+    var patterns = LinesContaining(patchExcerpt, "syrinx", "source_port", "texture", "pattern", "scale", "layer", "harmonics", "spectrum", "curve", "env=", "lpf", "hpf")
+        .Take(16)
+        .ToArray();
+    return patterns.Length > 0 ? patterns : [profile.Summary];
+}
+
+static string[] CandidateFailureModes(SongSummaryRow row)
+{
+    var modes = new List<string>();
+    if (row.LogMelCosine < .1f) modes.Add("low spectral similarity; treat as role pressure, not target-copy proof");
+    if (row.RmsRatio < .35f) modes.Add("under-loud candidate can hide arrangement ideas behind weak level");
+    if (row.ZeroCrossingRatio > 8f) modes.Add("excess zero-crossing ratio suggests noisy or too-bright material");
+    if (row.ChipDistressRisk > 0) modes.Add("chip-distress risk must be justified as deliberate style before transfer");
+    return modes.Count == 0 ? ["still pressure, not mastered parity"] : modes.ToArray();
+}
+
+static string ReadBoundedText(string path, int maxChars)
+{
+    if (!File.Exists(path))
+    {
+        return "";
+    }
+
+    using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+    using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+    var buffer = new char[maxChars];
+    var read = reader.Read(buffer, 0, buffer.Length);
+    return new string(buffer, 0, read);
+}
+
+static IEnumerable<string> LinesContaining(string text, params string[] needles) =>
+    text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Where(line => needles.Any(needle => line.Contains(needle, StringComparison.OrdinalIgnoreCase)))
+        .Select(line => TrimForReport(line, 320))
+        .Distinct(StringComparer.OrdinalIgnoreCase);
+
+static string TrimForReport(string text, int maxChars)
+{
+    text = text.Replace("\r", " ", StringComparison.Ordinal).Replace("\n", " ", StringComparison.Ordinal).Trim();
+    return text.Length <= maxChars ? text : text[..Math.Max(0, maxChars - 3)] + "...";
 }
 
 static string StoreReport(string store, IReadOnlyList<IpaTrialResult> results)
@@ -3153,6 +3745,9 @@ static void PrintHelp()
           song-score --patch-root <dir> --challenge <challenge.json> --artifact-root <dir> [--batch-id round-001] [--store <trial-results.cc>] [--hypothesizer id]
           dump  --store <trial-results.cc> --output <report.md>
           distill --store <trial-results.cc> --output-store <distilled.cc> --output <report.md> [--min-cosine .35] [--max-results 40]
+          music-distill --artifact-root <song-swarm-dir> --output-store <music-knowledge.cc> --output <report.md> [--max-candidates 16]
+          music-search --store <music-knowledge.cc> --query <text> --output <report.md> [--limit 12]
+          music-show --store <music-knowledge.cc> --knowledge-id <id-or-topic> --output <detail.md>
           index --store <trial-results.cc> [--output <report.md>] [--force true]
           search --store <trial-results.cc> --query <text> --output <report.md> [--limit 12] [--no-vector true] [--require-vector true] [--skip-index true]
           show  --store <trial-results.cc> --trial-id <id-or-candidate> --output <detail.md>
@@ -3232,6 +3827,31 @@ sealed record SongInstrumentProfile(
     float MusicalInstrumentScore,
     float ChipDistressRisk,
     string Summary);
+
+sealed record SongSummaryRow(
+    string TrialId,
+    string CandidateId,
+    string ReferenceId,
+    string Verdict,
+    float LogMelCosine,
+    float LogMelDistance,
+    float AudioScore,
+    float EnvelopeDistance,
+    float RmsRatio,
+    float CentroidRatio,
+    float ZeroCrossingRatio,
+    float ArticulationScore,
+    float MusicalInstrumentScore,
+    float ChipDistressRisk,
+    float InstrumentVoiceSyrinx,
+    float InstrumentDrumSubtractive,
+    float InstrumentPadAdditive,
+    string SummaryPath);
+
+sealed record MusicKnowledgeHit(
+    MusicProductionKnowledgeDocument Document,
+    float Score,
+    IReadOnlyDictionary<string, string[]> MatchedByField);
 
 sealed record SongRegister(
     float DominantHz,

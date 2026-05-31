@@ -74,6 +74,26 @@ public sealed record SongTrialDistillationDocument(
     [property: Key(10)] string[] DroppedTrialIds,
     [property: Key(11)] SpeechScoreMetric[] AggregateMetrics);
 
+[CultDocument("aquasynth.music_production_knowledge", "aquasynth.music_production_knowledge.v1")]
+[MessagePackObject]
+public sealed record MusicProductionKnowledgeDocument(
+    [property: Key(0)]
+    [property: CultName]
+    string KnowledgeId,
+    [property: Key(1)] string Kind,
+    [property: Key(2)] string Topic,
+    [property: Key(3)] string QualityTier,
+    [property: Key(4)] string Owner,
+    [property: Key(5)] string Summary,
+    [property: Key(6)] string[] TransferRules,
+    [property: Key(7)] string[] AquaSynthPatterns,
+    [property: Key(8)] string[] FailureModes,
+    [property: Key(9)] string[] EvidenceTrialIds,
+    [property: Key(10)] string[] EvidenceCandidateIds,
+    [property: Key(11)] SpeechScoreMetric[] Metrics,
+    [property: Key(12)] string[] SourceArtifactUris,
+    [property: Key(13)] string CreatedAtUtc);
+
 public static class IpaTrialResultCultCacheStore
 {
     public static Task UpsertResultsAsync(string filePath, IEnumerable<IpaTrialResult> results) =>
@@ -84,6 +104,9 @@ public static class IpaTrialResultCultCacheStore
 
     public static Task UpsertSongTrialDistillationsAsync(string filePath, IEnumerable<SongTrialDistillationDocument> documents) =>
         UpsertAsync(filePath, documents, document => $"song-trial-distillation:{document.DistillationId}");
+
+    public static Task UpsertMusicProductionKnowledgeAsync(string filePath, IEnumerable<MusicProductionKnowledgeDocument> documents) =>
+        UpsertAsync(filePath, documents, document => $"music-production-knowledge:{document.KnowledgeId}");
 
     public static async Task<IReadOnlyList<IpaTrialResult>> ReadResultsAsync(string filePath)
     {
@@ -121,6 +144,19 @@ public static class IpaTrialResultCultCacheStore
         using var cache = await OpenTrialStoreAsync(filePath, pullOnOpen: true).ConfigureAwait(false);
         return cache.GetAll<SongTrialDistillationDocument>()
             .OrderBy(document => document.DistillationId, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public static async Task<IReadOnlyList<MusicProductionKnowledgeDocument>> ReadMusicProductionKnowledgeAsync(string filePath)
+    {
+        if (!StoreExists(filePath))
+        {
+            return [];
+        }
+
+        using var cache = await OpenTrialStoreAsync(filePath, pullOnOpen: true).ConfigureAwait(false);
+        return cache.GetAll<MusicProductionKnowledgeDocument>()
+            .OrderBy(document => document.KnowledgeId, StringComparer.Ordinal)
             .ToArray();
     }
 
