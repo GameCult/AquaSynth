@@ -371,7 +371,9 @@ Return a short final summary naming the patch and report.
             "--store",
             $storePath,
             "--output",
-            (Join-Path $passDir "vector-index-after.md")
+            (Join-Path $passDir "vector-index-after.md"),
+            "--timeout-seconds",
+            "300"
         ) `
         -LogPath (Join-Path $logRoot "$passId-index-after.log")
 

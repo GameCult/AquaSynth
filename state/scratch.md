@@ -1734,3 +1734,6 @@ Next likely slice:
   `artifacts/parity/song-snippet-smoke/cultmesh-evidence/song-trial-results.cc`
   has one scored candidate, five target evidence docs, six Qdrant chunks, and a
   search hit whose vector chunk is the song challenge analysis report.
+- Follow-up fix: full target evidence remains in `.cc`, but Qdrant chunks now
+  carry bounded excerpts with content hash/size metadata so the semantic organ
+  does not try to embed multi-megabyte spectrogram CSVs as single documents.

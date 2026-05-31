@@ -1229,12 +1229,33 @@ static IEnumerable<EvidenceChunk> BuildEvidenceChunks(IReadOnlyList<IpaTrialResu
                     content_type {document.ContentType}
                     content_hash {document.ContentHash}
                     source {document.SourcePath}
-                    {document.Content}
+                    {EvidenceIndexText(document)}
                     """,
                     store);
             }
         }
     }
+}
+
+static string EvidenceIndexText(SongChallengeEvidenceDocument document)
+{
+    const int maxIndexedChars = 32768;
+    if (document.Content.Length <= maxIndexedChars)
+    {
+        return document.Content;
+    }
+
+    var builder = new StringBuilder();
+    builder.AppendLine($"indexed_excerpt_only true");
+    builder.AppendLine($"full_content_hash {document.ContentHash}");
+    builder.AppendLine($"full_content_chars {document.Content.Length.ToString(CultureInfo.InvariantCulture)}");
+    if (document.Kind.Contains("spectrogram", StringComparison.OrdinalIgnoreCase))
+    {
+        builder.AppendLine("spectrogram evidence is stored in full in CultCache; vector index carries a bounded CSV excerpt.");
+    }
+
+    builder.Append(document.Content.AsSpan(0, maxIndexedChars));
+    return builder.ToString();
 }
 
 static string[] EvidenceTags(IpaTrialResult result, SearchDocument document)
