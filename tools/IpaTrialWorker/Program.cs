@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 using System.Net.Http.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -7,6 +8,7 @@ using System.Text.Json.Serialization;
 
 using AquaSynth.Dsl;
 using AquaSynth.Faust;
+using NAudio.Wave;
 
 var command = args.FirstOrDefault();
 if (string.IsNullOrWhiteSpace(command) || command is "-h" or "--help")
@@ -25,6 +27,12 @@ try
             return 0;
         case "score":
             await ScoreAsync(options);
+            return 0;
+        case "song-prepare":
+            await SongPrepareAsync(options);
+            return 0;
+        case "song-score":
+            await SongScoreAsync(options);
             return 0;
         case "dump":
             await DumpAsync(options);
@@ -77,6 +85,205 @@ static async Task ScoreAsync(Dictionary<string, string> options)
         options: new IpaTrialOrchestrationOptions(BatchId: batchId, HypothesizerId: hypothesizer));
     await IpaTrialResultCultCacheStore.UpsertResultsAsync(store, result.TrialResults);
     Console.WriteLine(result.ArtifactDirectory);
+    Console.WriteLine(store);
+}
+
+static async Task SongPrepareAsync(Dictionary<string, string> options)
+{
+    var source = Required(options, "source");
+    var artifactRoot = Required(options, "artifact-root");
+    var durationSeconds = FloatValue(options, "duration-seconds", 10f);
+    var sampleRate = IntValue(options, "sample-rate", 44100);
+    var seed = IntValue(options, "seed", RandomNumberGenerator.GetInt32(1, int.MaxValue));
+    var challengeId = Value(options, "challenge-id", $"song-snippet-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfff}");
+    var output = Value(options, "output", Path.Combine(artifactRoot, "challenge.json"));
+
+    if (!File.Exists(source))
+    {
+        throw new FileNotFoundException("Song source file was not found.", source);
+    }
+
+    Directory.CreateDirectory(artifactRoot);
+    var decoded = DecodeMono(source);
+    var resampled = Resample(decoded.Samples, decoded.SampleRate, sampleRate);
+    var clipLength = Math.Min(resampled.Length, Math.Max(1, (int)MathF.Round(durationSeconds * sampleRate)));
+    var maxStart = Math.Max(0, resampled.Length - clipLength);
+    var random = new Random(seed);
+    var startSample = maxStart == 0 ? 0 : random.Next(0, maxStart + 1);
+    var clip = new float[clipLength];
+    Array.Copy(resampled, startSample, clip, 0, clipLength);
+    NormalizePeak(clip, .9f);
+
+    var referenceWav = Path.Combine(artifactRoot, "reference.wav");
+    WriteWav(referenceWav, clip, sampleRate);
+    var analyzer = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: sampleRate));
+    var analysis = analyzer.Analyze(clip);
+    var tempo = EstimateTempo(clip, sampleRate);
+    var register = EstimateRegister(clip, sampleRate, analysis.Features.SpectralCentroidHz);
+    var features = new SongChallengeFeatures(
+        analysis.Features.DurationSeconds,
+        analysis.Features.Peak,
+        analysis.Features.Rms,
+        analysis.Features.ZeroCrossingRate,
+        analysis.Features.SpectralCentroidHz,
+        analysis.Features.SpectralRolloffHz,
+        ActiveDuty(clip, sampleRate),
+        SpectralFlux(clip, sampleRate),
+        tempo.Bpm,
+        tempo.BeatSeconds,
+        tempo.Confidence,
+        register.DominantHz,
+        register.LowHz,
+        register.HighHz,
+        register.RootNote,
+        register.SuggestedScale,
+        string.Join(",", register.ScaleFrequencies.Select(value => value.ToString("0.###", CultureInfo.InvariantCulture))));
+    var challenge = new SongChallenge(
+        challengeId,
+        source,
+        Path.GetFileName(source),
+        seed,
+        startSample / (float)sampleRate,
+        clipLength / (float)sampleRate,
+        sampleRate,
+        referenceWav,
+        features);
+    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+    await File.WriteAllTextAsync(output, JsonSerializer.Serialize(challenge, JsonOptions()), Encoding.UTF8);
+    await File.WriteAllTextAsync(Path.Combine(artifactRoot, "challenge.md"), SongChallengeReport(challenge), Encoding.UTF8);
+    Console.WriteLine(output);
+}
+
+static async Task SongScoreAsync(Dictionary<string, string> options)
+{
+    var patchRoot = Required(options, "patch-root");
+    var challengePath = Required(options, "challenge");
+    var artifactRoot = Required(options, "artifact-root");
+    var batchId = Value(options, "batch-id", $"song-round-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssfff}");
+    var store = Value(options, "store", Path.Combine(artifactRoot, "song-trial-results.cc"));
+    var hypothesizer = Value(options, "hypothesizer", "external-codex-song-worker");
+    var challenge = JsonSerializer.Deserialize<SongChallenge>(
+        await File.ReadAllTextAsync(challengePath, Encoding.UTF8),
+        JsonOptions()) ?? throw new InvalidDataException($"Could not read song challenge `{challengePath}`.");
+    var referenceSamples = ReadMonoPcm16Wav(challenge.ReferenceWavPath);
+    var candidates = SongCandidateScripts(patchRoot, hypothesizer);
+    if (candidates.Count == 0)
+    {
+        throw new InvalidDataException($"No .aqua song candidates found under `{patchRoot}`.");
+    }
+
+    var batchDirectory = Path.Combine(artifactRoot, batchId);
+    var candidateRoot = Path.Combine(batchDirectory, "song-candidates");
+    var timelineRoot = Path.Combine(batchDirectory, "song-timelines");
+    Directory.CreateDirectory(candidateRoot);
+    Directory.CreateDirectory(timelineRoot);
+    var analyzer = new AudioAnalyzer(new AudioAnalysisConfig(SampleRate: challenge.SampleRate));
+    var results = new List<IpaTrialResult>();
+
+    foreach (var candidate in candidates)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        var startedStamp = Stopwatch.GetTimestamp();
+        var safeCandidateId = SafeName(candidate.CandidateId);
+        var candidateDir = Path.Combine(candidateRoot, safeCandidateId);
+        var audioDir = Path.Combine(candidateDir, "audio");
+        Directory.CreateDirectory(audioDir);
+        var scriptCopy = Path.Combine(candidateDir, "candidate.aqua");
+        File.Copy(candidate.ScriptPath, scriptCopy, overwrite: true);
+        var script = await File.ReadAllTextAsync(scriptCopy, Encoding.UTF8);
+        var patch = PatchScript.Parse(script);
+        var timelineNetwork = patch.VocalNetworks.FirstOrDefault();
+        var timeline = timelineNetwork is null
+            ? Array.Empty<ProbeTimelineSample>()
+            : ProbeTimelineReport.Build(patch, timelineNetwork.Name, 12);
+        var timelinePath = Path.Combine(timelineRoot, $"{safeCandidateId}.csv");
+        await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv(timeline), Encoding.UTF8);
+        var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId)).Source;
+        var dspPath = Path.Combine(candidateDir, "candidate.dsp");
+        await File.WriteAllTextAsync(dspPath, source, Encoding.UTF8);
+
+        var candidateWav = Path.Combine(audioDir, "candidate.wav");
+        var metrics = new List<SpeechScoreMetric>();
+        var artifacts = new List<SpeechRenderArtifact>
+        {
+            Artifact("song-challenge", challengePath),
+            Artifact("reference-wav", challenge.ReferenceWavPath),
+            Artifact("candidate-script", scriptCopy),
+            Artifact("candidate-dsp", dspPath),
+            Artifact("primitive-timeline", timelinePath)
+        };
+        var timelineFacts = PrimitiveTimelineFactExtractor.Extract(timeline).ToArray();
+        string verdict;
+        string evaluation;
+        var render = await FaustCompiler.RenderAsync(
+            source,
+            new FaustRenderOptions(challenge.SampleRate, challenge.DurationSeconds));
+        if (render is null || render.Samples.Length == 0)
+        {
+            verdict = "render-failed";
+            evaluation = render is null
+                ? "Faust was not available to render this song candidate."
+                : $"Faust render produced no samples. stderr: {render.Stderr}";
+            metrics.Add(new SpeechScoreMetric("render_failed", 1, 1));
+        }
+        else
+        {
+            var matched = MatchLength(render.Samples, referenceSamples.Length);
+            NormalizePeak(matched, .9f);
+            WriteWav(candidateWav, matched, challenge.SampleRate);
+            artifacts.Add(Artifact("candidate-wav", candidateWav));
+            var comparison = analyzer.Compare(referenceSamples, matched);
+            metrics.AddRange(SongComparisonMetrics(comparison));
+            verdict = SongVerdict(comparison);
+            evaluation = SongEvaluationSentence(challenge, comparison, verdict);
+            var comparisonPath = Path.Combine(audioDir, "comparison.txt");
+            await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict), Encoding.UTF8);
+            artifacts.Add(Artifact("comparison-report", comparisonPath));
+        }
+
+        var latency = Stopwatch.GetElapsedTime(startedStamp).TotalMilliseconds;
+        results.Add(new IpaTrialResult(
+            $"{batchId}:song-snippet:{safeCandidateId}",
+            batchId,
+            startedAt.ToString("O", CultureInfo.InvariantCulture),
+            "song-snippet",
+            ["song", "snippet", "alien-gibberish"],
+            challenge.ChallengeId,
+            safeCandidateId,
+            candidate.HypothesizerId,
+            candidate.Hypothesis,
+            scriptCopy,
+            challenge.ReferenceWavPath,
+            File.Exists(candidateWav) ? candidateWav : "",
+            timelinePath,
+            metrics.ToArray(),
+            artifacts.ToArray(),
+            "song-snippet-audio-evaluator",
+            evaluation,
+            verdict,
+            [
+                "This is a local-only song clip challenge; reference audio is not redistributed by the repo.",
+                "The target is a randomly selected ten-second scene-audio snippet, not IPA articulation truth.",
+                "Full-patch FM/AM/noise/scene modeling is allowed; primitive timeline facts remain diagnostic when present."
+            ],
+            [
+                new SpeechTimingReceipt(
+                    "song-snippet-render-score",
+                    startedAt.ToString("O", CultureInfo.InvariantCulture),
+                    latency,
+                    0,
+                    SongConfidence(metrics),
+                    "Local worker rendered an AquaSynth candidate against a frozen song snippet and wrote CultCache trial result data.")
+            ],
+            timelineFacts));
+    }
+
+    await IpaTrialResultCultCacheStore.UpsertResultsAsync(store, results);
+    var summaryPath = Path.Combine(batchDirectory, "summary.csv");
+    await File.WriteAllTextAsync(summaryPath, SongSummaryCsv(results), Encoding.UTF8);
+    var reportPath = Path.Combine(batchDirectory, "evaluator-report.md");
+    await File.WriteAllTextAsync(reportPath, SongEvaluatorReport(challenge, results), Encoding.UTF8);
+    Console.WriteLine(batchDirectory);
     Console.WriteLine(store);
 }
 
@@ -405,6 +612,28 @@ static IReadOnlyList<IpaTrialScriptCandidate> CandidateScripts(string patchRoot,
                 path,
                 hypothesizer,
                 $"External Codex-authored IPA patch candidate `{stem}` for target `{target}`.");
+        })
+        .ToArray();
+}
+
+static IReadOnlyList<IpaTrialScriptCandidate> SongCandidateScripts(string patchRoot, string hypothesizer)
+{
+    if (!Directory.Exists(patchRoot))
+    {
+        throw new DirectoryNotFoundException(patchRoot);
+    }
+
+    return Directory.EnumerateFiles(patchRoot, "*.aqua", SearchOption.AllDirectories)
+        .Order(StringComparer.OrdinalIgnoreCase)
+        .Select(path =>
+        {
+            var stem = Path.GetFileNameWithoutExtension(path);
+            return new IpaTrialScriptCandidate(
+                "song-snippet",
+                stem,
+                path,
+                hypothesizer,
+                $"External Codex-authored song-snippet patch candidate `{stem}`.");
         })
         .ToArray();
 }
@@ -1246,6 +1475,24 @@ static string TimelineFact(IpaTrialResult result, string name) =>
         .Max() ?? 0)
     .ToString("0.######", CultureInfo.InvariantCulture);
 
+static SpeechRenderArtifact Artifact(string kind, string path) =>
+    new(kind, path, File.Exists(path) ? Sha256(path) : "");
+
+static string Sha256(string path)
+{
+    using var stream = File.OpenRead(path);
+    var hash = SHA256.HashData(stream);
+    return "sha256:" + Convert.ToHexString(hash).ToLowerInvariant();
+}
+
+static string SafeName(string value) =>
+    new(value.Select(character => char.IsLetterOrDigit(character) ? character : '_').ToArray());
+
+static string Escape(string value) =>
+    value.Contains(',') || value.Contains('"') || value.Contains('\n') || value.Contains('\r')
+        ? $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\""
+        : value;
+
 static IpaTrialResult? ContrastCandidate(IpaTrialResult result, IReadOnlyList<IpaTrialResult> allResults)
 {
     var sameTarget = allResults
@@ -1286,9 +1533,550 @@ static string StableUuid(string id)
     return $"{hex[..8]}-{hex[8..12]}-{hex[12..16]}-{hex[16..20]}-{hex[20..32]}";
 }
 
+static DecodedAudio DecodeMono(string path)
+{
+    using var reader = new AudioFileReader(path);
+    var interleaved = new float[4096 * reader.WaveFormat.Channels];
+    var mono = new List<float>();
+    int read;
+    while ((read = reader.Read(interleaved, 0, interleaved.Length)) > 0)
+    {
+        for (var index = 0; index < read; index += reader.WaveFormat.Channels)
+        {
+            var sum = 0f;
+            for (var channel = 0; channel < reader.WaveFormat.Channels && index + channel < read; channel++)
+            {
+                sum += interleaved[index + channel];
+            }
+
+            mono.Add(sum / reader.WaveFormat.Channels);
+        }
+    }
+
+    return new DecodedAudio(reader.WaveFormat.SampleRate, mono.ToArray());
+}
+
+static float[] Resample(IReadOnlyList<float> samples, int sourceRate, int targetRate)
+{
+    if (sourceRate == targetRate)
+    {
+        return samples.ToArray();
+    }
+
+    var result = new float[Math.Max(1, (int)Math.Round(samples.Count * (double)targetRate / sourceRate))];
+    for (var index = 0; index < result.Length; index++)
+    {
+        var position = index * (sourceRate / (double)targetRate);
+        var left = Math.Clamp((int)Math.Floor(position), 0, samples.Count - 1);
+        var right = Math.Clamp(left + 1, 0, samples.Count - 1);
+        var t = (float)(position - left);
+        result[index] = samples[left] * (1 - t) + samples[right] * t;
+    }
+
+    return result;
+}
+
+static float[] MatchLength(IReadOnlyList<float> samples, int length)
+{
+    var result = new float[length];
+    for (var index = 0; index < result.Length && index < samples.Count; index++)
+    {
+        result[index] = samples[index];
+    }
+
+    return result;
+}
+
+static void NormalizePeak(IList<float> samples, float peak)
+{
+    var current = samples.Select(MathF.Abs).DefaultIfEmpty(0).Max();
+    if (current <= 0)
+    {
+        return;
+    }
+
+    var gain = peak / current;
+    for (var index = 0; index < samples.Count; index++)
+    {
+        samples[index] *= gain;
+    }
+}
+
+static float[] ReadMonoPcm16Wav(string path)
+{
+    using var stream = File.OpenRead(path);
+    using var reader = new BinaryReader(stream, Encoding.ASCII);
+    if (new string(reader.ReadChars(4)) != "RIFF")
+    {
+        throw new InvalidDataException($"`{path}` is not a RIFF WAV file.");
+    }
+
+    reader.ReadInt32();
+    if (new string(reader.ReadChars(4)) != "WAVE")
+    {
+        throw new InvalidDataException($"`{path}` is not a WAVE file.");
+    }
+
+    short channels = 1;
+    short bitsPerSample = 16;
+    byte[]? data = null;
+    while (stream.Position < stream.Length)
+    {
+        var chunkId = new string(reader.ReadChars(4));
+        var chunkSize = reader.ReadInt32();
+        if (chunkId == "fmt ")
+        {
+            var format = reader.ReadInt16();
+            channels = reader.ReadInt16();
+            reader.ReadInt32();
+            reader.ReadInt32();
+            reader.ReadInt16();
+            bitsPerSample = reader.ReadInt16();
+            if (chunkSize > 16)
+            {
+                reader.ReadBytes(chunkSize - 16);
+            }
+
+            if (format != 1 || bitsPerSample != 16)
+            {
+                throw new InvalidDataException($"`{path}` must be PCM16.");
+            }
+        }
+        else if (chunkId == "data")
+        {
+            data = reader.ReadBytes(chunkSize);
+        }
+        else
+        {
+            reader.ReadBytes(chunkSize);
+        }
+    }
+
+    if (data is null)
+    {
+        throw new InvalidDataException($"`{path}` has no data chunk.");
+    }
+
+    var samples = new List<float>(data.Length / Math.Max(1, channels * sizeof(short)));
+    for (var offset = 0; offset + sizeof(short) * channels <= data.Length; offset += sizeof(short) * channels)
+    {
+        var sum = 0f;
+        for (var channel = 0; channel < channels; channel++)
+        {
+            sum += BitConverter.ToInt16(data, offset + channel * sizeof(short)) / (float)short.MaxValue;
+        }
+
+        samples.Add(sum / channels);
+    }
+
+    return samples.ToArray();
+}
+
+static void WriteWav(string path, IReadOnlyList<float> samples, int sampleRate)
+{
+    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+    using var stream = File.Create(path);
+    using var writer = new BinaryWriter(stream, Encoding.ASCII);
+    var dataSize = samples.Count * sizeof(short);
+    writer.Write("RIFF"u8);
+    writer.Write(36 + dataSize);
+    writer.Write("WAVE"u8);
+    writer.Write("fmt "u8);
+    writer.Write(16);
+    writer.Write((short)1);
+    writer.Write((short)1);
+    writer.Write(sampleRate);
+    writer.Write(sampleRate * sizeof(short));
+    writer.Write((short)sizeof(short));
+    writer.Write((short)16);
+    writer.Write("data"u8);
+    writer.Write(dataSize);
+    foreach (var sample in samples)
+    {
+        writer.Write((short)Math.Clamp(MathF.Round(sample * short.MaxValue), short.MinValue, short.MaxValue));
+    }
+}
+
+static float ActiveDuty(IReadOnlyList<float> samples, int sampleRate)
+{
+    var frameSize = Math.Max(64, sampleRate / 100);
+    var peak = samples.Select(MathF.Abs).DefaultIfEmpty(0).Max();
+    var threshold = Math.Max(.01f, peak * .04f);
+    var active = 0;
+    var frames = 0;
+    for (var start = 0; start < samples.Count; start += frameSize)
+    {
+        var end = Math.Min(samples.Count, start + frameSize);
+        var rms = MathF.Sqrt(samples.Skip(start).Take(end - start).Select(sample => sample * sample).DefaultIfEmpty(0).Average());
+        if (rms >= threshold)
+        {
+            active++;
+        }
+
+        frames++;
+    }
+
+    return active / (float)Math.Max(1, frames);
+}
+
+static float SpectralFlux(IReadOnlyList<float> samples, int sampleRate)
+{
+    var frameSize = Math.Max(64, sampleRate / 100);
+    var previous = 0f;
+    var flux = 0f;
+    var frames = 0;
+    for (var start = 0; start < samples.Count; start += frameSize)
+    {
+        var end = Math.Min(samples.Count, start + frameSize);
+        var rms = MathF.Sqrt(samples.Skip(start).Take(end - start).Select(sample => sample * sample).DefaultIfEmpty(0).Average());
+        if (frames > 0)
+        {
+            flux += MathF.Abs(rms - previous);
+        }
+
+        previous = rms;
+        frames++;
+    }
+
+    var peak = samples.Select(MathF.Abs).DefaultIfEmpty(0).Max();
+    return frames <= 1 || peak <= 0 ? 0 : Math.Clamp(flux / (frames * peak), 0, 1);
+}
+
+static TempoEstimate EstimateTempo(IReadOnlyList<float> samples, int sampleRate)
+{
+    var hopSize = Math.Max(64, sampleRate / 100);
+    var frameRate = sampleRate / (float)hopSize;
+    var envelope = RmsEnvelope(samples, hopSize)
+        .Select(value => MathF.Log(1e-7f + value))
+        .ToArray();
+    if (envelope.Length < 4)
+    {
+        return new TempoEstimate(0, 0, 0);
+    }
+
+    var onset = new float[envelope.Length];
+    for (var index = 1; index < envelope.Length; index++)
+    {
+        onset[index] = MathF.Max(0, envelope[index] - envelope[index - 1]);
+    }
+
+    var mean = onset.Average();
+    for (var index = 0; index < onset.Length; index++)
+    {
+        onset[index] = MathF.Max(0, onset[index] - mean);
+    }
+
+    var minBpm = 60f;
+    var maxBpm = 200f;
+    var minLag = Math.Max(1, (int)MathF.Floor(frameRate * 60f / maxBpm));
+    var maxLag = Math.Min(onset.Length - 1, (int)MathF.Ceiling(frameRate * 60f / minBpm));
+    var bestLag = 0;
+    var best = 0f;
+    var energy = onset.Sum(value => value * value);
+    if (energy <= 1e-9f)
+    {
+        return new TempoEstimate(0, 0, 0);
+    }
+
+    for (var lag = minLag; lag <= maxLag; lag++)
+    {
+        var sum = 0f;
+        for (var index = 0; index + lag < onset.Length; index++)
+        {
+            sum += onset[index] * onset[index + lag];
+        }
+
+        var normalized = sum / energy;
+        if (normalized > best)
+        {
+            best = normalized;
+            bestLag = lag;
+        }
+    }
+
+    if (bestLag <= 0)
+    {
+        return new TempoEstimate(0, 0, 0);
+    }
+
+    var beatSeconds = bestLag / frameRate;
+    var bpm = 60f / Math.Max(1e-6f, beatSeconds);
+    return new TempoEstimate(bpm, beatSeconds, Math.Clamp(best, 0, 1));
+}
+
+static SongRegister EstimateRegister(IReadOnlyList<float> samples, int sampleRate, float spectralCentroidHz)
+{
+    var dominantHz = DominantFrequency(samples, sampleRate);
+    if (dominantHz <= 0)
+    {
+        var fallback = Math.Clamp(spectralCentroidHz * .25f, 55f, 880f);
+        dominantHz = float.IsFinite(fallback) ? fallback : 220f;
+    }
+
+    var midi = (int)MathF.Round(69f + 12f * MathF.Log2(dominantHz / 440f));
+    var rootMidi = midi;
+    while (rootMidi > 72)
+    {
+        rootMidi -= 12;
+    }
+
+    while (rootMidi < 36)
+    {
+        rootMidi += 12;
+    }
+
+    var rootHz = MidiToFrequency(rootMidi);
+    var lowHz = rootHz;
+    while (lowHz > 220f)
+    {
+        lowHz *= .5f;
+    }
+
+    while (lowHz < 55f)
+    {
+        lowHz *= 2f;
+    }
+
+    var highHz = Math.Min(4000f, lowHz * 8f);
+    var scaleName = spectralCentroidHz > 1800f ? "minor-pentatonic-plus-tritone" : "minor-pentatonic";
+    var intervals = scaleName == "minor-pentatonic-plus-tritone"
+        ? new[] { 0, 3, 5, 6, 7, 10, 12, 15, 17, 18, 19, 22, 24 }
+        : new[] { 0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24 };
+    var scaleFrequencies = intervals
+        .Select(interval => MidiToFrequency(rootMidi + interval))
+        .Where(value => value >= lowHz * .9f && value <= highHz * 1.1f)
+        .ToArray();
+
+    return new SongRegister(
+        dominantHz,
+        lowHz,
+        highHz,
+        NoteName(rootMidi),
+        scaleName,
+        scaleFrequencies);
+}
+
+static float DominantFrequency(IReadOnlyList<float> samples, int sampleRate)
+{
+    if (samples.Count < 128)
+    {
+        return 0;
+    }
+
+    var windowSize = Math.Min(samples.Count, Math.Max(2048, sampleRate / 5));
+    var hopSize = Math.Max(256, windowSize / 4);
+    var bestStart = 0;
+    var bestEnergy = 0f;
+    for (var start = 0; start + windowSize <= samples.Count; start += hopSize)
+    {
+        var energy = 0f;
+        for (var index = start; index < start + windowSize; index++)
+        {
+            energy += samples[index] * samples[index];
+        }
+
+        if (energy > bestEnergy)
+        {
+            bestEnergy = energy;
+            bestStart = start;
+        }
+    }
+
+    if (bestEnergy <= 1e-9f)
+    {
+        return 0;
+    }
+
+    var minLag = Math.Max(1, sampleRate / 2000);
+    var maxLag = Math.Min(windowSize - 1, sampleRate / 40);
+    var bestLag = 0;
+    var bestScore = 0f;
+    for (var lag = minLag; lag <= maxLag; lag++)
+    {
+        var sum = 0f;
+        var left = 0f;
+        var right = 0f;
+        for (var offset = 0; offset + lag < windowSize; offset++)
+        {
+            var a = samples[bestStart + offset];
+            var b = samples[bestStart + offset + lag];
+            sum += a * b;
+            left += a * a;
+            right += b * b;
+        }
+
+        var normalized = sum / MathF.Sqrt(Math.Max(1e-12f, left * right));
+        if (normalized > bestScore)
+        {
+            bestScore = normalized;
+            bestLag = lag;
+        }
+    }
+
+    return bestLag <= 0 || bestScore < .08f ? 0 : sampleRate / (float)bestLag;
+}
+
+static float MidiToFrequency(int midi) =>
+    440f * MathF.Pow(2f, (midi - 69) / 12f);
+
+static string NoteName(int midi)
+{
+    ReadOnlySpan<string> names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    var octave = midi / 12 - 1;
+    var pitchClass = ((midi % 12) + 12) % 12;
+    return $"{names[pitchClass]}{octave}";
+}
+
+static float[] RmsEnvelope(IReadOnlyList<float> samples, int frameSize)
+{
+    var envelope = new List<float>();
+    for (var start = 0; start < samples.Count; start += frameSize)
+    {
+        var end = Math.Min(samples.Count, start + frameSize);
+        var sum = 0f;
+        for (var index = start; index < end; index++)
+        {
+            sum += samples[index] * samples[index];
+        }
+
+        envelope.Add(MathF.Sqrt(sum / Math.Max(1, end - start)));
+    }
+
+    return envelope.ToArray();
+}
+
+static IReadOnlyList<SpeechScoreMetric> SongComparisonMetrics(AudioComparison comparison) =>
+[
+    new("log_mel_cosine", comparison.LogMelCosineSimilarity, .25f),
+    new("log_mel_distance", comparison.LogMelDistance, .15f),
+    new("audio_score", comparison.Score, .15f),
+    new("envelope_distance", comparison.EnvelopeDistance, .10f),
+    new("rms_ratio", comparison.RmsRatio, .10f),
+    new("centroid_ratio", comparison.CentroidRatio, .10f),
+    new("zero_crossing_ratio", comparison.ZeroCrossingRatio, .05f),
+    new("articulation_score", comparison.Articulation.ArticulationScore, .05f),
+    new("speech_band_ratio", comparison.Articulation.SpeechBandRatio, .05f)
+];
+
+static string SongVerdict(AudioComparison comparison)
+{
+    if (comparison.LogMelCosineSimilarity >= .70f && comparison.Score >= .45f)
+    {
+        return "promising";
+    }
+
+    if (comparison.LogMelCosineSimilarity >= .35f || comparison.Score >= .30f)
+    {
+        return "pressure";
+    }
+
+    return "weak";
+}
+
+static float SongConfidence(IReadOnlyList<SpeechScoreMetric> metrics)
+{
+    var cosine = metrics.FirstOrDefault(metric => metric.Name == "log_mel_cosine")?.Value ?? 0;
+    var score = metrics.FirstOrDefault(metric => metric.Name == "audio_score")?.Value ?? 0;
+    return Math.Clamp((cosine + score) * .5f, 0, 1);
+}
+
+static string SongEvaluationSentence(SongChallenge challenge, AudioComparison comparison, string verdict) =>
+    $"Song snippet `{challenge.ChallengeId}` is `{verdict}`: logMelCosine={comparison.LogMelCosineSimilarity:0.0000}, logMelDistance={comparison.LogMelDistance:0.0000}, score={comparison.Score:0.0000}, rmsRatio={comparison.RmsRatio:0.0000}, centroidRatio={comparison.CentroidRatio:0.0000}.";
+
+static string SongChallengeReport(SongChallenge challenge) =>
+    $"""
+    # Song Snippet Challenge: {challenge.ChallengeId}
+
+    source: `{challenge.SourcePath}`
+    file: `{challenge.SourceFileName}`
+    seed: `{challenge.Seed}`
+    start_seconds: `{challenge.StartSeconds.ToString("0.######", CultureInfo.InvariantCulture)}`
+    duration_seconds: `{challenge.DurationSeconds.ToString("0.######", CultureInfo.InvariantCulture)}`
+    sample_rate: `{challenge.SampleRate}`
+    reference_wav: `{challenge.ReferenceWavPath}`
+
+    ## Reference Features
+    peak: `{challenge.Features.Peak.ToString("0.######", CultureInfo.InvariantCulture)}`
+    rms: `{challenge.Features.Rms.ToString("0.######", CultureInfo.InvariantCulture)}`
+    active_duty: `{challenge.Features.ActiveDuty.ToString("0.######", CultureInfo.InvariantCulture)}`
+    zero_crossing_rate: `{challenge.Features.ZeroCrossingRate.ToString("0.######", CultureInfo.InvariantCulture)}`
+    spectral_centroid_hz: `{challenge.Features.SpectralCentroidHz.ToString("0.######", CultureInfo.InvariantCulture)}`
+    spectral_rolloff_hz: `{challenge.Features.SpectralRolloffHz.ToString("0.######", CultureInfo.InvariantCulture)}`
+    spectral_flux: `{challenge.Features.SpectralFlux.ToString("0.######", CultureInfo.InvariantCulture)}`
+    tempo_bpm: `{challenge.Features.TempoBpm.ToString("0.######", CultureInfo.InvariantCulture)}`
+    beat_seconds: `{challenge.Features.BeatSeconds.ToString("0.######", CultureInfo.InvariantCulture)}`
+    tempo_confidence: `{challenge.Features.TempoConfidence.ToString("0.######", CultureInfo.InvariantCulture)}`
+    dominant_hz: `{challenge.Features.DominantHz.ToString("0.######", CultureInfo.InvariantCulture)}`
+    register_low_hz: `{challenge.Features.RegisterLowHz.ToString("0.######", CultureInfo.InvariantCulture)}`
+    register_high_hz: `{challenge.Features.RegisterHighHz.ToString("0.######", CultureInfo.InvariantCulture)}`
+    root_note: `{challenge.Features.RootNote}`
+    suggested_scale: `{challenge.Features.SuggestedScale}`
+    scale_frequencies_hz: `{challenge.Features.ScaleFrequenciesHz}`
+    """;
+
+static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandidate candidate, AudioComparison comparison, string verdict) =>
+    $"""
+    candidate={candidate.CandidateId}
+    challenge={challenge.ChallengeId}
+    verdict={verdict}
+    logMelCosine={comparison.LogMelCosineSimilarity:0.######}
+    logMelDistance={comparison.LogMelDistance:0.######}
+    score={comparison.Score:0.######}
+    envelopeDistance={comparison.EnvelopeDistance:0.######}
+    rmsRatio={comparison.RmsRatio:0.######}
+    centroidRatio={comparison.CentroidRatio:0.######}
+    zeroCrossingRatio={comparison.ZeroCrossingRatio:0.######}
+    articulation={comparison.Articulation.ArticulationScore:0.######}
+    speechBandRatio={comparison.Articulation.SpeechBandRatio:0.######}
+    """;
+
+static string SongSummaryCsv(IReadOnlyList<IpaTrialResult> results)
+{
+    var builder = new StringBuilder();
+    builder.AppendLine("trial_id,candidate_id,reference_id,verdict,log_mel_cosine,log_mel_distance,audio_score,envelope_distance,rms_ratio,centroid_ratio,zero_crossing_ratio,articulation_score");
+    foreach (var result in results)
+    {
+        builder.Append(Escape(result.TrialId)).Append(',');
+        builder.Append(Escape(result.CandidateId)).Append(',');
+        builder.Append(Escape(result.ReferenceId)).Append(',');
+        builder.Append(Escape(result.Verdict)).Append(',');
+        builder.Append(Metric(result, "log_mel_cosine")).Append(',');
+        builder.Append(Metric(result, "log_mel_distance")).Append(',');
+        builder.Append(Metric(result, "audio_score")).Append(',');
+        builder.Append(Metric(result, "envelope_distance")).Append(',');
+        builder.Append(Metric(result, "rms_ratio")).Append(',');
+        builder.Append(Metric(result, "centroid_ratio")).Append(',');
+        builder.Append(Metric(result, "zero_crossing_ratio")).Append(',');
+        builder.AppendLine(Metric(result, "articulation_score"));
+    }
+
+    return builder.ToString();
+}
+
+static string SongEvaluatorReport(SongChallenge challenge, IReadOnlyList<IpaTrialResult> results)
+{
+    var builder = new StringBuilder();
+    builder.AppendLine($"# Song Snippet Evaluator Report: {challenge.ChallengeId}");
+    builder.AppendLine();
+    builder.AppendLine(SongChallengeReport(challenge));
+    builder.AppendLine();
+    builder.AppendLine("| candidate | verdict | logMelCosine | score | envelopeDistance | rmsRatio | centroidRatio |");
+    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: |");
+    foreach (var result in results.OrderByDescending(result => MetricValue(result, "log_mel_cosine")))
+    {
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| {result.CandidateId} | {result.Verdict} | {MetricValue(result, "log_mel_cosine"):0.######} | {MetricValue(result, "audio_score"):0.######} | {MetricValue(result, "envelope_distance"):0.######} | {MetricValue(result, "rms_ratio"):0.######} | {MetricValue(result, "centroid_ratio"):0.######} |");
+    }
+
+    return builder.ToString();
+}
+
+static float MetricValue(IpaTrialResult result, string name) =>
+    result.Metrics.FirstOrDefault(metric => metric.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Value ?? 0;
+
 static JsonSerializerOptions JsonOptions() => new(JsonSerializerDefaults.Web)
 {
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    WriteIndented = true
 };
 
 static SearchOptions SearchOptionsFrom(Dictionary<string, string> options) => new(
@@ -1367,6 +2155,16 @@ static bool BoolValue(Dictionary<string, string> options, string key) =>
      value.Equals("1", StringComparison.OrdinalIgnoreCase) ||
      value.Equals("yes", StringComparison.OrdinalIgnoreCase));
 
+static int IntValue(Dictionary<string, string> options, string key, int fallback) =>
+    int.TryParse(Value(options, key, fallback.ToString(CultureInfo.InvariantCulture)), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+        ? parsed
+        : fallback;
+
+static float FloatValue(Dictionary<string, string> options, string key, float fallback) =>
+    float.TryParse(Value(options, key, fallback.ToString(CultureInfo.InvariantCulture)), NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)
+        ? parsed
+        : fallback;
+
 static void PrintHelp()
 {
     Console.WriteLine("""
@@ -1375,6 +2173,8 @@ static void PrintHelp()
         Commands:
           seed  --artifact-root <dir> [--batch-id five-seed-trials] [--store <trial-results.cc>]
           score --patch-root <dir> --artifact-root <dir> [--batch-id round-001] [--store <trial-results.cc>] [--hypothesizer id]
+          song-prepare --source <audio-file> --artifact-root <dir> [--duration-seconds 10] [--seed n] [--output challenge.json]
+          song-score --patch-root <dir> --challenge <challenge.json> --artifact-root <dir> [--batch-id round-001] [--store <trial-results.cc>] [--hypothesizer id]
           dump  --store <trial-results.cc> --output <report.md>
           index --store <trial-results.cc> [--output <report.md>] [--force true]
           search --store <trial-results.cc> --query <text> --output <report.md> [--limit 12] [--no-vector true] [--require-vector true] [--skip-index true]
@@ -1400,6 +2200,48 @@ static string ReadPayloadString(Dictionary<string, JsonElement> payload, string 
 
     return value.ValueKind == JsonValueKind.String ? value.GetString() ?? "" : value.ToString();
 }
+
+sealed record DecodedAudio(int SampleRate, float[] Samples);
+
+sealed record TempoEstimate(float Bpm, float BeatSeconds, float Confidence);
+
+sealed record SongChallenge(
+    string ChallengeId,
+    string SourcePath,
+    string SourceFileName,
+    int Seed,
+    float StartSeconds,
+    float DurationSeconds,
+    int SampleRate,
+    string ReferenceWavPath,
+    SongChallengeFeatures Features);
+
+sealed record SongChallengeFeatures(
+    float DurationSeconds,
+    float Peak,
+    float Rms,
+    float ZeroCrossingRate,
+    float SpectralCentroidHz,
+    float SpectralRolloffHz,
+    float ActiveDuty,
+    float SpectralFlux,
+    float TempoBpm,
+    float BeatSeconds,
+    float TempoConfidence,
+    float DominantHz,
+    float RegisterLowHz,
+    float RegisterHighHz,
+    string RootNote,
+    string SuggestedScale,
+    string ScaleFrequenciesHz);
+
+sealed record SongRegister(
+    float DominantHz,
+    float LowHz,
+    float HighHz,
+    string RootNote,
+    string SuggestedScale,
+    float[] ScaleFrequencies);
 
 sealed record SearchOptions(
     string QdrantUrl,

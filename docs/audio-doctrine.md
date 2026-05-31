@@ -78,6 +78,31 @@ When a scene voice exists mainly to match background noise or capture color, the
 report must name that role and score it as context, not as proof that the
 primary body learned to speak.
 
+## Song Snippet Challenges
+
+Song-reference golfing is a scene-audio challenge, not an IPA or anatomy oracle.
+Local music clips may be used as private parity pressure, but the repo stores
+only derived challenge metadata and local artifact paths unless a fixture is
+explicitly licensed for redistribution.
+
+The worker freezes a random clip into a local `reference.wav`, then exposes
+features that patch-writing agents can treat as control hints:
+
+- tempo comes from onset-envelope autocorrelation and is reported as
+  `tempo_bpm`, `beat_seconds`, and `tempo_confidence`;
+- register comes from dominant-frequency autocorrelation plus spectral fallback
+  and is reported as `dominant_hz`, `register_low_hz`, `register_high_hz`, and
+  `root_note`;
+- scale hints are deterministic authoring pressure, not musicology truth:
+  `suggested_scale` and `scale_frequencies_hz` give agents a bounded pitch set
+  so candidates do not spray every octave while trying to match one song clip.
+
+Current Strudel-like sequencing is expressed through existing AquaSynth
+controls: declare a `param`, drive it with `curve ... interp=hold loop=true`,
+then bind the parameter into voice fields such as `freq=@/seq/pitch` or
+`gain=@/seq/kick`. Native `scale`, `note`, and pattern sugar should be added
+only when the DSL owns the lowering and the emitted Faust remains inspectable.
+
 ## Faust Boundary
 
 Faust describes pure DSP: inputs to outputs. Architecture files and host code

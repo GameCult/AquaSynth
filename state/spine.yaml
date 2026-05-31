@@ -1,6 +1,6 @@
 project: AquaSynth
 spine_version: 1
-updated: 2026-05-29T15:36:32+01:00
+updated: 2026-05-31T01:31:00+01:00
 
 prime_directive: >
   Build coherent synth machinery. References exist to reveal missing structure,
@@ -56,6 +56,7 @@ current_mechanism:
 live_invariants:
   - AquaSynth owns its patch graph; external synths are references, not runtime dependencies.
   - Patch scripts lower into explicit graph records before Faust emission.
+  - Song-snippet parity is scene-audio pressure, not redistributed fixture data. The worker may derive local tempo/register/scale hints from private clips, but agents must express live rhythm and pitch motion through owned AquaSynth controls until native sequencing sugar has an explicit DSL/lowering owner.
   - Operator graphs own FM topology: operators, modulation edges, carriers, and feedback. Do not hide this authority inside Voice fields.
   - Readable operator graph authoring uses `operator`, `route`, and `carrier` declarations; compact `ops=`/`edges=` is only scaffolding/interchange.
   - Notes own frequency, gate duration, and host/MIDI source; envelopes own ADSR level shape. Do not put note duration or SFXR punch back into the general envelope model.

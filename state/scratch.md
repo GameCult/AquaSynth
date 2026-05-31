@@ -2,6 +2,37 @@
 
 Current slice:
 
+- Song-snippet challenge harness is now a real local parity lane, not a
+  hand-waved prompt. `tools/IpaTrialWorker` has `song-prepare` and `song-score`:
+  `song-prepare` decodes a local audio file through NAudio, freezes a seeded
+  ten-second mono 44.1 kHz `reference.wav`, writes `challenge.json` and
+  `challenge.md`, and reports scene features including spectral centroid,
+  rolloff, active duty, spectral flux, onset-autocorrelation tempo
+  (`tempo_bpm`, `beat_seconds`, `tempo_confidence`), dominant pitch/register
+  (`dominant_hz`, `register_low_hz`, `register_high_hz`, `root_note`), and
+  deterministic scale hints (`suggested_scale`, `scale_frequencies_hz`).
+  `song-score` renders agent-authored `.aqua` candidates against that frozen
+  reference, writes candidate WAV/DSP/timeline/comparison artifacts, and stores
+  typed `IpaTrialResult` records in a song `.cc` store.
+
+- `tools/run-song-snippet-trial-swarm.ps1` prepares the random clip from
+  `D:\Music\Reinier\Heyoka\Gate Code\Heyoka - Alien Gibberish.mp3`, then can
+  dispatch passes of parallel external Codex agents. Agents are prompted to use
+  scene voices, FM/AM/noise/envelopes, rhythmic controls from
+  autocorrelation-derived tempo, and register-bounded explicit scale-frequency
+  curves. Until native Strudel-like `scale`/`note` sugar exists, the live syntax
+  is `param` plus `curve ... interp=hold loop=true` bound into voice fields.
+  Smoke prep with seed `123` produced a clip starting at `305.2523s` with
+  `tempo_bpm=92.30769`, `beat_seconds=0.65`, `dominant_hz=175`, `root_note=F3`,
+  and `minor-pentatonic-plus-tritone` scale frequencies from about `174.614` to
+  `698.457` Hz. Focused worker build and `-Passes 0` swarm prep pass. A
+  one-candidate score smoke at
+  `artifacts/parity/song-snippet-score-smoke/smoke-001` now proves ordinary
+  non-vocal scene patches can score; the first attempt failed because
+  `song-score` assumed every candidate had a `VocalNetwork` named `voice`, so
+  primitive timelines are now optional witnesses for song scenes instead of a
+  required anatomy gate.
+
 - User correctly called out that the loose agents learned nothing. The actual
   failure was not just weak metrics; the candidate assignment was incoherent.
   Families were rotated across targets instead of aligned to phonetic owners:
