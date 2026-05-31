@@ -326,6 +326,13 @@ records in the `.cc` CultCache/CultMesh store and references them from each
 trial result. Qdrant/Ollama retrieval may derive vectors from those records, but
 the `.cc` records remain truth.
 
+Noise is not a scene by itself. Background air, dust, codec grit, tape, vinyl,
+and room color need a role owner that shapes spectrum and time. Prefer
+`texture`/`noise_texture` sugar or an equivalently gated, band-shaped explicit
+voice for scene noise. Full-duration raw `wave=noise` beds with broad filters
+are failed evidence: they sound like broken subtractive synthesis because that
+is exactly what they are.
+
 Do not confuse high metric agreement with musical success. The game context,
 the reference sound, and the user’s ear still outrank the spreadsheet. Annoying,
 but civilization has survived worse.

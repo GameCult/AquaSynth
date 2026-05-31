@@ -1744,3 +1744,8 @@ Next likely slice:
   0.502573. Best overall was
   `agent_04__shard_vowel_lead__bright_dust_grid_v2`; strongest repeated pattern
   is bright formant/vowel lead plus clocked dust/noise grid.
+- Listening correction: those clocked dust/noise grids still sit on persistent
+  broad white hiss. Added `texture`/`noise_texture` DSL sugar so air, dust,
+  codec, room, and tape/vinyl noise are owned as gated, band-shaped scene
+  roles. Future agents should not use full-duration raw `wave=noise` beds for
+  recording color.

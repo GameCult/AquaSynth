@@ -100,6 +100,31 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsShapedNoiseTextureSugar()
+    {
+        var patch = PatchScript.Parse("""
+            texture name=dust_hat role=dust pattern=x..x step=.125 gain=.12 sustain=30
+            texture name=air_wash role=air gain=.04 sustain=30
+            voice wave=saw freq=220 gain=.1
+            """);
+
+        Assert.Equal(3, patch.Voices.Count);
+        Assert.All(patch.Voices.Take(2), voice => Assert.Equal(Waveform.Noise, voice.Oscillator.Waveform));
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/textures/dust_hat/gate");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/textures/air_wash/gate");
+        Assert.Contains(patch.ControlCurves, curve => curve.Name == "dust_hat_gate" && curve.Interpolation == ControlCurveInterpolation.Hold);
+        Assert.Contains(patch.ControlCurves, curve => curve.Name == "air_wash_gate_motion" && curve.Interpolation == ControlCurveInterpolation.Linear);
+        var dust = patch.Voices[0];
+        Assert.True(dust.Filter.BandPass > 0);
+        Assert.True(dust.Filter.BandPassQ > 1);
+        Assert.True(dust.Color.TremoloDepth > 0);
+
+        var faust = FaustEmitter.Emit(patch).Source;
+        Assert.Contains("fi.resonbp", faust);
+        Assert.Contains("/textures/dust_hat/gate", faust);
+    }
+
+    [Fact]
     public void ParserSupportsVoiceVowelFrames()
     {
         var patch = PatchScript.Parse("v w=saw f=90 fmix=.7 vowel_hz=.8 vowels=600:90:1,1200:160:.7|500:80:1,900:120:.8");

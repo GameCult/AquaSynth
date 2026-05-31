@@ -275,6 +275,10 @@ public static class PatchScript
                     FlushPendingOperatorGraph();
                     Voices.Add(ParseVoice(ExpandVoiceFields(fields, line), VoicePath(Voices.Count), line));
                     break;
+                case "texture":
+                    FlushPendingOperatorGraph();
+                    AddNoiseTexture(fields, line);
+                    break;
                 case "acoustic_voice":
                     FlushPendingOperatorGraph();
                     Voices.Add(ParseAcousticVoice(ExpandVoiceFields(fields, line), VoicePath(Voices.Count), line));
@@ -2604,6 +2608,59 @@ public static class PatchScript
                 ("depth", GetAny(fields, ["depth", "amount", "mix"], "1"))), line);
         }
 
+        private void AddNoiseTexture(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(GetAny(fields, ["name", "n"], $"texture_{Voices.Count}"));
+            var role = NoiseTextureRole(GetAny(fields, ["role", "kind", "type"], name));
+            var duration = GetAny(fields, ["sustain", "s", "gate", "hold", "duration"], "30");
+            var gainText = GetAny(fields, ["gain", "g"], role.Gain.ToString(CultureInfo.InvariantCulture));
+            var gatePath = GetAny(fields, ["path", "gate_path"], $"/textures/{name}/gate");
+
+            if (!gainText.StartsWith('@'))
+            {
+                var gainValue = Math.Clamp(ParseFloat(gainText, line), 0, 1);
+                if (TryGetAny(fields, ["pattern", "pat", "steps"], out var pattern))
+                {
+                    AddPatternCurve(SyntheticFields(
+                        ("name", $"{name}_gate"),
+                        ("path", gatePath),
+                        ("pattern", pattern),
+                        ("step", GetAny(fields, ["step", "step_seconds", "dt"], role.StepSeconds.ToString(CultureInfo.InvariantCulture))),
+                        ("high", GetAny(fields, ["high", "on", "hit"], gainValue.ToString(CultureInfo.InvariantCulture))),
+                        ("low", GetAny(fields, ["low", "off", "rest"], (gainValue * role.RestScale).ToString(CultureInfo.InvariantCulture))),
+                        ("loop", GetAny(fields, ["loop"], "true"))), line);
+                }
+                else
+                {
+                    EnsureParameter(gatePath, gainValue, 0, Math.Max(gainValue * 2, 0.001f), 0.001f, "", line);
+                    AddControlCurve(SyntheticFields(
+                        ("name", $"{name}_gate_motion"),
+                        ("path", gatePath),
+                        ("points", TextureGatePoints(gainValue, role.MotionScale)),
+                        ("interp", "linear"),
+                        ("loop", "true")), line);
+                }
+
+                gainText = "@" + gatePath;
+            }
+
+            Voices.Add(ParseVoice(ExpandVoiceFields(SyntheticFields(
+                ("wave", "noise"),
+                ("freq", GetAny(fields, ["freq", "frequency"], role.FrequencyHz.ToString(CultureInfo.InvariantCulture))),
+                ("gain", gainText),
+                ("attack", GetAny(fields, ["attack", "a"], role.AttackSeconds.ToString(CultureInfo.InvariantCulture))),
+                ("sustain", duration),
+                ("decay", GetAny(fields, ["decay", "d", "release", "rel"], role.DecaySeconds.ToString(CultureInfo.InvariantCulture))),
+                ("noise", GetAny(fields, ["noise", "nz"], "1")),
+                ("hpf", GetAny(fields, ["hpf", "h"], role.HighPass.ToString(CultureInfo.InvariantCulture))),
+                ("lpf", GetAny(fields, ["lpf", "l"], role.LowPass.ToString(CultureInfo.InvariantCulture))),
+                ("bpf", GetAny(fields, ["bpf", "bp"], role.BandPass.ToString(CultureInfo.InvariantCulture))),
+                ("bpf_q", GetAny(fields, ["bpf_q", "bpq"], role.BandPassQ.ToString(CultureInfo.InvariantCulture))),
+                ("tremolo", GetAny(fields, ["tremolo", "tr"], role.TremoloDepth.ToString(CultureInfo.InvariantCulture))),
+                ("tremolo_hz", GetAny(fields, ["tremolo_hz", "th"], role.TremoloHz.ToString(CultureInfo.InvariantCulture))),
+                ("drive", GetAny(fields, ["drive"], role.Drive.ToString(CultureInfo.InvariantCulture)))), line), VoicePath(Voices.Count), line));
+        }
+
         private void EnsureParameter(string path, float defaultValue, float min, float max, float step, string unit, int line)
         {
             if (_parameters.Any(parameter => parameter.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
@@ -3447,6 +3504,7 @@ public static class PatchScript
         "acoustic_network" or "port_network" or "network" => "acoustic_network",
         "vocal_network" or "vocalnetwork" => "vocal_network",
         "v" or "voice" => "voice",
+        "texture" or "noise_texture" or "scene_texture" or "dust" or "air" or "air_wash" or "codec_bed" => "texture",
         "acoustic" or "acoustic_voice" or "av" => "acoustic_voice",
         "vocal" or "vocal_voice" or "vv" => "vocal_voice",
         "tract" or "vt" or "tractvoice" or "tract_voice" => "tract",
@@ -3674,6 +3732,50 @@ public static class PatchScript
     private static Dictionary<string, string> SyntheticFields(params (string Key, string Value)[] fields) =>
         fields.ToDictionary(field => field.Key, field => field.Value, StringComparer.OrdinalIgnoreCase);
 
+    private static string TextureGatePoints(float gain, float motionScale)
+    {
+        var low = Math.Max(0, gain * Math.Max(0, 1 - motionScale));
+        var high = Math.Min(1, gain * (1 + motionScale));
+        return string.Join(",", new[]
+        {
+            (0f, gain),
+            (0.37f, high),
+            (0.91f, low),
+            (1.43f, gain * 0.85f),
+            (2.11f, high * 0.9f),
+            (3.0f, gain)
+        }.Select(point =>
+            point.Item1.ToString("0.######", CultureInfo.InvariantCulture) +
+            ":" +
+            point.Item2.ToString("0.######", CultureInfo.InvariantCulture)));
+    }
+
+    private static NoiseTextureDefaults NoiseTextureRole(string role)
+    {
+        var normalized = role.ToLowerInvariant().Replace("_", "-", StringComparison.Ordinal);
+        if (normalized.Contains("dust", StringComparison.Ordinal) || normalized.Contains("hat", StringComparison.Ordinal))
+        {
+            return new(7600, 0.075f, 0.001f, 0.09f, 0.78f, 0.42f, 0.66f, 4.5f, 0.22f, 5.0f, 0.16f, 0.08f, 0.35f, 0.125f);
+        }
+
+        if (normalized.Contains("codec", StringComparison.Ordinal) || normalized.Contains("bit", StringComparison.Ordinal))
+        {
+            return new(4200, 0.045f, 0.015f, 0.55f, 0.38f, 0.34f, 0.44f, 5.5f, 0.18f, 1.7f, 0.20f, 0.18f, 0.45f, 0.25f);
+        }
+
+        if (normalized.Contains("room", StringComparison.Ordinal) || normalized.Contains("bed", StringComparison.Ordinal))
+        {
+            return new(1800, 0.04f, 0.05f, 0.8f, 0.14f, 0.32f, 0.24f, 0.9f, 0.20f, 0.23f, 0.05f, 0.35f, 0.55f, 0.5f);
+        }
+
+        if (normalized.Contains("tape", StringComparison.Ordinal) || normalized.Contains("vinyl", StringComparison.Ordinal))
+        {
+            return new(2600, 0.04f, 0.02f, 0.7f, 0.22f, 0.48f, 0.34f, 1.2f, 0.15f, 0.67f, 0.10f, 0.25f, 0.5f, 0.25f);
+        }
+
+        return new(5800, 0.045f, 0.02f, 0.55f, 0.58f, 0.48f, 0.56f, 1.8f, 0.24f, 0.31f, 0.08f, 0.24f, 0.5f, 0.25f);
+    }
+
     private static string PointsText(IEnumerable<(float Time, float Value)> points) =>
         string.Join(",", points.Select(point =>
             point.Time.ToString("0.######", CultureInfo.InvariantCulture) +
@@ -3886,4 +3988,20 @@ public static class PatchScript
         return fields.Where(pair => !excluded.Contains(pair.Key))
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
     }
+
+    private sealed record NoiseTextureDefaults(
+        float FrequencyHz,
+        float Gain,
+        float AttackSeconds,
+        float DecaySeconds,
+        float HighPass,
+        float LowPass,
+        float BandPass,
+        float BandPassQ,
+        float TremoloDepth,
+        float TremoloHz,
+        float Drive,
+        float RestScale,
+        float MotionScale,
+        float StepSeconds);
 }

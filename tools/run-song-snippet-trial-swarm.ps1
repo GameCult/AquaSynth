@@ -278,6 +278,11 @@ Challenge:
 Goal:
 Write exactly one parseable AquaSynth `.aqua` patch that tries to reproduce the frozen $DurationSeconds second reference clip. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, curves, and helper voices.
 
+Noise and texture:
+- Do not model background or recording color as a full-duration raw `voice wave=noise` bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
+- Use the shaped texture owner for noise roles: `texture name=dust_hat role=dust pattern=x..x step=<beat_seconds/4> gain=.08 sustain=$DurationSeconds`, `texture name=air_wash role=air gain=.035 sustain=$DurationSeconds`, `texture name=codec_bed role=codec gain=.04 sustain=$DurationSeconds`.
+- `texture` lowers to a gated noise voice with role-specific bandpass/highpass/lowpass/tremolo defaults and a control curve or pattern gate. Raw `voice wave=noise` is only acceptable for short transients with explicit gates and narrow filters.
+
 Rhythm and tempo:
 - The challenge report includes `tempo_bpm`, `beat_seconds`, and `tempo_confidence`, estimated from spectral/RMS onset autocorrelation.
 - The challenge report also points to `analysis_report`, `log_mel_spectrogram_csv`, `log_mel_band_stats_csv`, `rms_envelope_csv`, and `rms_envelope_autocorr_csv`; read them before writing the patch.
@@ -315,6 +320,7 @@ Evidence contract:
 - Write $agentDir/hypotheses.md with: reference features, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement, known risks.
 - Write exactly one `.aqua` file under $agentPatchDir named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch, such as primary alien-voice/body, rhythmic transient/noise, and background/recording color.
+- Background/recording-color layers must use `texture` or an equivalently gated and band-shaped explicit voice; a static full-duration white-noise bed is failed evidence.
 - Make the patch duration/gates cover the $DurationSeconds second target.
 
 Return a short final summary naming the patch and report.
