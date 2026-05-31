@@ -71,7 +71,7 @@ function Start-CodexAgentJob {
         "--full-auto",
         "--output-last-message", $OutputPath,
         "--config", 'shell_environment_policy.inherit="all"',
-        "--config", 'sandbox_permissions=["workspace-write"]'
+        "--add-dir", (Join-Path (Split-Path -Parent $RepoRoot) "CultLib")
     )
     if ($CodexModel.Length -gt 0) {
         $args += @("--model", $CodexModel)
