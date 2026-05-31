@@ -2,6 +2,23 @@
 
 Current slice:
 
+- Loose one-round IPA source-golf run completed under
+  `artifacts/parity/ipa-trial-loops/20260531T001831690` with 25 candidates,
+  source edits enabled, and focused pre-score build passing. The external agent
+  did not edit tracked source and chose `Source Edit Decision: none`, which is
+  acceptable evidence: the round found value-sweep pressure, not a repeated
+  DSL/Faust owner failure. Metrics did not improve: seed logMean `0.42306004`
+  vs loose logMean `0.41700276`, artMean stayed flat around `0.181`,
+  rmsMean dropped from `0.48316268` to `0.445383`, releaseMean dropped from
+  `0.06991132` to `0.06348304`, and radiationMean rose slightly from
+  `0.27946476` to `0.28285928`. The useful lesson was harness coherence: the
+  evaluator incorrectly judged `hypothesis-agent.md` instead of the actual
+  full report `hypotheses.md`, and the scene-voice prompt allowed prose-only
+  background modeling. `tools/run-ipa-trial-loop.ps1` now names
+  `hypotheses.md` as the report of record and requires at least one
+  scene/noise or recording-condition family to add actual auxiliary `.aqua`
+  `voice` declarations while preserving the primary articulatory vocal network.
+
 - Expanded the IPA trial-loop agent contract so future rounds can golf DSL
   syntax, lowering, and Faust machinery when the evidence says the owner is
   wrong. `tools/run-ipa-trial-loop.ps1` now gives source-edit-enabled

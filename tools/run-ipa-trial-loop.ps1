@@ -346,6 +346,8 @@ Scene voice model:
 - Every candidate patch represents a scene, not a single naked waveform. The report must name the scene voices and say how each is synthesized.
 - Required scene voice roles: `primary-articulatory`, `tract-noise`, `release/transient`, `background-room`, and `recording-condition`.
 - Use ordinary AquaSynth primitives for helper voices where useful: `voice` layers, noise, FM, AM/tremolo, envelopes, filters, formants, additive/spectral voices, macros, and modulation. These helper voices are allowed in full parity.
+- At least one hypothesis family must implement real helper/background scene voices in the `.aqua` scripts using ordinary `voice` declarations, such as filtered `wave=noise`, FM partials, AM/tremolo beds, or formant-colored capture layers. Do not satisfy the scene voice requirement with prose alone.
+- When adding helper voices, keep gain low and name the role in the report. The primary articulatory `vocal network=...` voice must remain present unless the family explicitly tests a source-edit replacement.
 - Helper/background voices must not count as articulation evidence unless gesture, primitive timeline, and clean vocal metrics move coherently.
 - For each family, say which voices are active, which controls they expose, and which metric/timeline witness would prove the helper is not merely dressing.
 
@@ -365,7 +367,7 @@ Candidate design contract:
 - A seam claim must use an owner sentence: `X owns Y so Z remains true`.
 - A seam is actionable only if the next candidate family proposes at least five micro-sweep perturbations across that seam, spread across target lanes when possible.
 - Novelty gate: a family must move a new owner, control axis, timing contour, or primitive relationship. Raising loudness, burst gain, or dressing alone is not novel.
-- Scene novelty can be valid only when it changes a named voice role, routing/lowering primitive, modulation relationship, or background-noise synthesis model and predicts a non-articulation witness such as noise-floor, spectral tilt, RMS stability, or room/recording match.
+- Scene novelty can be valid only when it changes a named voice role, routing/lowering primitive, modulation relationship, or background-noise synthesis model and predicts a non-articulation witness such as noise-floor, spectral tilt, RMS stability, or room/recording match. A scene-noise or recording-condition family that does not add an actual helper voice is not novel.
 - Include a class-consistent reference matrix that maps each target id to the exact reference trial or fixture id used for comparison; mixed-set evidence cannot silently stand in for single-phoneme evidence.
 
 Required `$roundDir/hypotheses.md` shape:
@@ -380,7 +382,7 @@ Required `$roundDir/hypotheses.md` shape:
 - `Novelty Gate`: one row per family saying which new owner/control axis/timing contour/primitive relationship is being explored; write `dressing-only` if the family mainly changes loudness/FM/AM/noise/envelopes.
 - `Candidate Matrix`: exactly 25 rows with target id, filename, family, expected metric movement, and risk.
 - `Source Edit Decision`: `none` unless source edits are allowed and justified by evidence; if source was edited, link `$roundDir/source-change-plan.md`, list files changed, tests/builds run or pending, and rollback trigger.
-- `Acceptance Checklist`: 25 files, one per target id, filename schema, required report sections, >=3 search receipts, >=3 show receipts.
+- `Acceptance Checklist`: 25 files, one per target id, filename schema, required report sections, >=3 search receipts, >=3 show receipts, and at least one family with actual auxiliary `voice` helper/background declarations in its candidate scripts.
 
 Authority boundary:
 - Source edits allowed: $AllowCodexSourceEdits
@@ -489,7 +491,7 @@ Before judging:
    - weak regressions / failed articulation;
    - promising transfer / generalization, including DSL lowering/Faust/scene-voice source-edit evidence when source edits were allowed.
 2. Use `show` on at least one promising and one weak candidate from the current round.
-3. If the hypothesis worker skipped the required 25-lane matrix or retrieval receipts, mark orchestration/prompt compliance as failed even if some audio metrics improved.
+3. If the hypothesis worker skipped the required 25-lane matrix or retrieval receipts in `$roundDir/hypotheses.md`, mark orchestration/prompt compliance as failed even if some audio metrics improved.
 4. If source edits were allowed, inspect `$roundDir/source-change-plan.md` when present and verify the source edit is a coherent owner move, not a metric hack.
 
 Use the worker as your search organ:
@@ -511,8 +513,9 @@ Verify compliance from disk as well as the hypothesis report:
 - validate family ids are lowercase kebab-case.
 - derive canonical family ids only from the filename family segment; ignore prose family names when they disagree.
 - validate that each actionable seam has a contrast pair, a primitive timeline excerpt or explicit `missing`, an owner sentence, and at least five planned micro-sweep perturbations.
-- validate that the hypothesis report includes a class-consistent reference matrix, scene voice model, and novelty gate.
+- validate that `$roundDir/hypotheses.md` includes a class-consistent reference matrix, scene voice model, and novelty gate. `hypothesis-agent.md` is only the external agent's final chat summary and must not be treated as the full report.
 - validate that every family identifies primary-articulatory, tract-noise, release/transient, background-room, and recording-condition roles, even if some are explicitly silent.
+- validate that at least one family actually adds ordinary helper/background `voice` declarations in its `.aqua` scripts for scene noise or recording-condition modeling.
 - validate that helper/background voices are evaluated separately from articulation evidence.
 - validate source edit compliance if source edits were allowed: coherent owner map, edited file list, invariant, expected metric movement, verification command, and rollback trigger.
 - If any required section, receipt class, per-target validation, filename validation, family extraction, reference matrix, scene voice model, contrast pair, owner sentence, or novelty gate is incomplete, set `Round Compliance: failed`.
@@ -527,7 +530,7 @@ $roundDir/evaluation.md
 Required `$roundDir/evaluation.md` shape:
 - `Retrieval Receipts`: exactly five receipts: three search outputs plus one weak show output and one promising show output. Cite no other evidence files in this section. Only cite claims backed by these file paths; write `unknown` when evidence is absent.
 - `Commands Run`: exact search/show commands and output paths used to support claims.
-- `Round Compliance`: passed/failed, candidate count, target coverage, naming validity, family extraction, reference matrix, contrast-pair coverage, owner-sentence coverage, micro-sweep coverage, novelty gate, and whether the report had the required matrix.
+- `Round Compliance`: passed/failed, candidate count, target coverage, naming validity, family extraction, reference matrix, contrast-pair coverage, owner-sentence coverage, micro-sweep coverage, novelty gate, auxiliary scene voice presence, and whether `hypotheses.md` had the required matrix.
 - `Family Verdicts`: one row per canonical filename family with improved/flat/regressed/unknown metrics. Treat |delta| < 0.01 as flat; if deltas are not present in cited show artifacts, write `unknown` and reason=`no delta in receipts`.
 - `Evidence Quality Verdicts`: one row per family with specificity, comparability, falsifiability, reuse value, primitive timeline support, and weakest missing evidence. Penalize vague receipts, search-summary-only claims, missing contrast pairs, missing reference ids, and missing timeline excerpts even when metrics improve.
 - `Seam Audit`: one row per named seam with owner sentence, contrast pair, timeline excerpt, planned perturbation count, and verdict `actionable` or `not actionable`; fewer than five perturbations means `not actionable`.

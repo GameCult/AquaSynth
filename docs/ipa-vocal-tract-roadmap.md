@@ -748,6 +748,12 @@ movement, verification command, and rollback trigger in `source-change-plan.md`.
 The outer loop runs a focused build before scoring so malformed syntax or
 broken lowering fails before it pollutes the trial store.
 
+`hypotheses.md` is the hypothesis worker's report of record. The external
+agent's final chat transcript (`hypothesis-agent.md`) is only a summary and
+must not be used by the evaluator as a substitute for the 25-lane matrix,
+retrieval receipts, reference matrix, novelty gate, source-edit decision, and
+scene voice audit.
+
 ### Scene Voice Model
 
 IPA parity candidates are now scenes, not isolated waveforms. Every hypothesis
@@ -770,6 +776,11 @@ clean vocal metrics also move. The scientific question is not "can a noise bed
 hide the failure?" It is "which voices are in the scene, which owner synthesizes
 each one, and which witness proves that the helper voice is not impersonating
 speech?"
+
+At least one scene/noise or recording-condition hypothesis family in a
+source-golf round must implement those helpers as real `.aqua` `voice`
+declarations, not prose. The primary `vocal network=...` voice remains present
+unless the family explicitly tests a coherent source/lowering replacement.
 
 Five prompt-optimization smokes on 2026-05-29 sharpened that contract. The best
 agent output came from a fixed receipt packet and a constrained reasoning pass,
