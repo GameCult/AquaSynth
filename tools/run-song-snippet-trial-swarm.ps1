@@ -261,6 +261,7 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 "@
 
 $latestDistilledStore = ""
+$latestMusicKnowledgeStore = ""
 for ($pass = 1; $pass -le $Passes; $pass++) {
     $passId = "pass-{0:000}" -f $pass
     $passDir = Join-Path $loopRoot $passId
@@ -294,6 +295,31 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
     }
     else {
         Set-Content -LiteralPath $preEvidence -Value "# No prior song-snippet evidence yet"
+    }
+
+    $preMusicEvidence = Join-Path $passDir "music-knowledge-before.md"
+    if ($latestMusicKnowledgeStore.Length -gt 0 -and (Test-Path -LiteralPath $latestMusicKnowledgeStore)) {
+        Invoke-LoggedProcess `
+            -FilePath "dotnet" `
+            -ArgumentList @(
+                "run",
+                "--project",
+                $workerProject,
+                "--",
+                "music-search",
+                "--store",
+                $latestMusicKnowledgeStore,
+                "--query",
+                "syrinx voice subtractive drums additive pad texture reusable abstraction music production quality standard",
+                "--limit",
+                "40",
+                "--output",
+                $preMusicEvidence
+            ) `
+        -LogPath (Join-Path $logRoot "$passId-music-search-before.log")
+    }
+    else {
+        Set-Content -LiteralPath $preMusicEvidence -Value "# No prior music-production knowledge store yet"
     }
 
     $jobs = @()
@@ -370,6 +396,7 @@ Challenge:
 $challengeList
 $challengeReportList
 - shared prior evidence: $preEvidence
+- shared music-production knowledge: $preMusicEvidence
 - patch output directory: $agentPatchDir
 $targetPatchList
 - candidate filename prefix: $agentId
@@ -385,8 +412,8 @@ Goal:
 Write exactly one parseable AquaSynth `.aqua` patch for each frozen $targetKind reference assigned to you. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
 
 Generalization:
-- You own two target patches, but your report must compare both targets and state what reusable scene/instrument knowledge transfers between them.
-- The two patches may share instrument roles, texture roles, control idioms, and DSL conventions, but each patch should fit its own target's tempo/register/spectral evidence.
+- You own $SongsPerAgent target patches, and your report must compare all assigned targets and state what reusable scene/instrument knowledge transfers between them.
+- The patches may share instrument roles, texture roles, control idioms, and DSL conventions, but each patch should fit its own target's tempo/register/spectral evidence.
 - Future agents will receive distilled evidence from this trial when asked to zero-shot an audio production request. Make your `hypotheses.md` useful retrieval context: name what transferred, what did not, and what evidence would change your next patch.
 
 Self-iteration loop:
@@ -409,7 +436,7 @@ Reusable abstraction mining:
   - `attempt evidence`: which attempt used it, score movement, candidate analysis facts, and what changed after listening to the rendered output;
   - `sugar sketch`: the shortest future syntax you wish existed;
   - `keep/cut verdict`: whether this abstraction should be mined into DSL sugar, kept as a stock patch idiom, or discarded.
-- Prefer abstractions that transfer across both assigned songs. A one-off trick is allowed only if you label it as target-specific and say why it should not become syntax.
+- Prefer abstractions that transfer across multiple assigned songs. A one-off trick is allowed only if you label it as target-specific and say why it should not become syntax.
 - Do not propose sugar that hides ownership. The future shorthand must still lower into visible syrinx, subtractive, additive/PAD, texture, pattern, scale, or curve owners.
 
 Noise and texture:
@@ -573,6 +600,44 @@ Return a short final summary naming the patch and report.
         ) `
         -LogPath (Join-Path $logRoot "$passId-distill.log")
     $latestDistilledStore = $distilledStore
+
+    $musicKnowledgeStore = Join-Path $passDir "music-production-knowledge.cc"
+    Invoke-LoggedProcess `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            "run",
+            "--project",
+            $workerProject,
+            "--",
+            "music-distill",
+            "--artifact-root",
+            $loopRoot,
+            "--output-store",
+            $musicKnowledgeStore,
+            "--output",
+            (Join-Path $passDir "music-production-knowledge-report.md"),
+            "--max-candidates",
+            "40"
+        ) `
+        -LogPath (Join-Path $logRoot "$passId-music-distill.log")
+    $latestMusicKnowledgeStore = $musicKnowledgeStore
+
+    Invoke-LoggedProcess `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            "run",
+            "--project",
+            $workerProject,
+            "--",
+            "music-show",
+            "--store",
+            $musicKnowledgeStore,
+            "--knowledge-id",
+            "music-production-quality-standard-v1",
+            "--output",
+            (Join-Path $passDir "music-production-quality-standard.md")
+        ) `
+        -LogPath (Join-Path $logRoot "$passId-music-show-standard.log")
 }
 
 Write-Host "Song snippet trial swarm complete: $loopRoot"
