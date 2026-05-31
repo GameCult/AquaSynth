@@ -100,6 +100,34 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsCompositionScaleSugar()
+    {
+        var patch = PatchScript.Parse("""
+            meter bpm=120 beats=4
+            sequence name=kick pattern=x..x step=0.5 high=0.8 low=0
+            chords name=pad root=220 scale=minor progression=0,5,3,4 voicing=0,2,4 paths=/chords/pad/root,/chords/pad/third,/chords/pad/fifth step=bar
+            mix name=pad points=0:.18,4:.28,8:.16
+            voice wave=sine freq=@/chords/pad/root gain=@/mix/pad/gain sustain=10 decay=.2
+            voice wave=sine freq=@/chords/pad/third gain=@/mix/pad/gain sustain=10 decay=.2
+            voice wave=sine freq=@/chords/pad/fifth gain=@/mix/pad/gain sustain=10 decay=.2
+            voice wave=sine freq=58 gain=@/seq/kick sustain=.05 decay=.2
+            """);
+
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/seq/kick");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/mix/pad/gain");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/chords/pad/root" && parameter.Unit == "Hz");
+        Assert.Contains(patch.ControlCurves, curve => curve.Name == "kick_seq" && curve.Interpolation == ControlCurveInterpolation.Hold);
+        var root = Assert.Single(patch.ControlCurves, curve => curve.Name == "pad_0");
+        Assert.Equal(220f, root.Points[0].Value, 3);
+        Assert.Equal(349.228f, root.Points[1].Value, 3);
+        Assert.Equal(293.665f, root.Points[2].Value, 3);
+        Assert.Equal(329.628f, root.Points[3].Value, 3);
+        Assert.Equal([0f, 2f, 4f, 6f], root.Points.Select(point => point.TimeSeconds).ToArray());
+        var mix = Assert.Single(patch.ControlCurves, curve => curve.Name == "pad_mix");
+        Assert.Equal([.18f, .28f, .16f], mix.Points.Select(point => point.Value).ToArray());
+    }
+
+    [Fact]
     public void ParserSupportsShapedNoiseTextureSugar()
     {
         var patch = PatchScript.Parse("""

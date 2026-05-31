@@ -99,6 +99,8 @@ public static class PatchScript
         private Playback Playback { get; set; } = new();
         private float Gain { get; set; } = 1;
         private bool SoftClip { get; set; } = true;
+        private float BeatSeconds { get; set; } = 0.5f;
+        private int BeatsPerBar { get; set; } = 4;
 
         public SynthPatch Build()
         {
@@ -330,6 +332,22 @@ public static class PatchScript
                 case "scale":
                     FlushPendingOperatorGraph();
                     AddScaleCurve(fields, line);
+                    break;
+                case "meter":
+                    FlushPendingOperatorGraph();
+                    AddMeter(fields, line);
+                    break;
+                case "sequence":
+                    FlushPendingOperatorGraph();
+                    AddSequencePattern(fields, line);
+                    break;
+                case "chords":
+                    FlushPendingOperatorGraph();
+                    AddChordProgression(fields, line);
+                    break;
+                case "mix":
+                    FlushPendingOperatorGraph();
+                    AddMixAutomation(fields, line);
                     break;
                 case "control_spline":
                     FlushPendingOperatorGraph();
@@ -2570,7 +2588,7 @@ public static class PatchScript
         private void AddScaleCurve(IReadOnlyDictionary<string, string> fields, int line)
         {
             var parameterPath = Required(fields, "path", line);
-            var stepSeconds = GetFloat(fields, line, GetFloat(fields, line, 0.25f, "beat"), "step", "step_seconds", "dt");
+            var stepSeconds = GetFloat(fields, line, GetFloat(fields, line, BeatSeconds / 2, "beat"), "step", "step_seconds", "dt");
             if (stepSeconds <= 0)
             {
                 throw new PatchScriptException(line, "scale step must be greater than zero");
@@ -2606,6 +2624,108 @@ public static class PatchScript
                 ("loop", GetAny(fields, ["loop"], "true")),
                 ("mode", GetAny(fields, ["mode"], "blend")),
                 ("depth", GetAny(fields, ["depth", "amount", "mix"], "1"))), line);
+        }
+
+        private void AddMeter(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var bpm = GetFloat(fields, line, 60f / BeatSeconds, "bpm", "tempo");
+            if (bpm <= 0)
+            {
+                throw new PatchScriptException(line, "meter bpm must be greater than zero");
+            }
+
+            BeatSeconds = 60f / bpm;
+            BeatsPerBar = Math.Max(1, GetInt(fields, line, BeatsPerBar, "beats", "beats_per_bar", "numerator"));
+        }
+
+        private void AddSequencePattern(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(RequiredAny(fields, ["name", "n", "voice", "lane", "instrument"], line));
+            var path = GetAny(fields, ["path", "gate_path"], $"/seq/{name}");
+            var stepSeconds = GetMusicalStepSeconds(fields, line, BeatSeconds / 4, "step", "step_seconds", "dt");
+            AddPatternCurve(SyntheticFields(
+                ("name", GetAny(fields, ["curve", "curve_name"], $"{name}_seq")),
+                ("path", path),
+                ("pattern", RequiredAny(fields, ["pattern", "pat", "steps"], line)),
+                ("step", stepSeconds.ToString(CultureInfo.InvariantCulture)),
+                ("high", GetAny(fields, ["high", "on", "hit", "gain"], "1")),
+                ("low", GetAny(fields, ["low", "off", "rest"], "0")),
+                ("loop", GetAny(fields, ["loop"], "true"))), line);
+        }
+
+        private void AddChordProgression(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(GetAny(fields, ["name", "n"], "chords"));
+            var root = GetFloat(fields, line, 220, "root", "freq", "base");
+            var scaleIntervals = TryGetAny(fields, ["scale_intervals", "intervals"], out var scaleIntervalsText)
+                ? ParseLooseIntList(scaleIntervalsText, line)
+                : ScaleIntervals(GetAny(fields, ["scale", "mode"], "minor"));
+            var progression = TryGetAny(fields, ["progression", "prog", "roots"], out var progressionText)
+                ? ParseLooseIntList(progressionText, line)
+                : [0, 5, 3, 4];
+            var voicing = TryGetAny(fields, ["voicing", "degrees"], out var voicingText)
+                ? ParseLooseIntList(voicingText, line)
+                : [0, 2, 4];
+            if (progression.Count == 0 || voicing.Count == 0)
+            {
+                throw new PatchScriptException(line, "chords need progression and voicing degrees");
+            }
+
+            var stepSeconds = GetMusicalStepSeconds(fields, line, BeatSeconds * BeatsPerBar, "step", "bar", "bar_seconds");
+            var paths = TryGetAny(fields, ["paths"], out var pathsText)
+                ? ParseNameList(pathsText)
+                : voicing.Select((_, index) => $"/chords/{name}/{index}").ToArray();
+            if (paths.Count != voicing.Count)
+            {
+                throw new PatchScriptException(line, "chords paths count must match voicing count");
+            }
+
+            for (var voiceIndex = 0; voiceIndex < voicing.Count; voiceIndex++)
+            {
+                var values = progression
+                    .Select(rootDegree => ChordToneFrequency(root, scaleIntervals, rootDegree, voicing[voiceIndex]))
+                    .ToArray();
+                var path = paths[voiceIndex];
+                EnsureParameter(path, values[0], values.Min() * 0.5f, values.Max() * 2f, 0.01f, "Hz", line);
+                AddControlCurve(SyntheticFields(
+                    ("name", $"{name}_{voiceIndex}"),
+                    ("path", path),
+                    ("points", PointsText(values.Select((value, index) => (index * stepSeconds, value)))),
+                    ("interp", "hold"),
+                    ("loop", GetAny(fields, ["loop"], "true")),
+                    ("mode", GetAny(fields, ["curve_mode"], "blend"))), line);
+            }
+        }
+
+        private void AddMixAutomation(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(RequiredAny(fields, ["name", "n", "lane", "voice", "bus"], line));
+            var path = GetAny(fields, ["path"], $"/mix/{name}/gain");
+            if (TryGetAny(fields, ["pattern", "pat", "steps"], out var pattern))
+            {
+                AddPatternCurve(SyntheticFields(
+                    ("name", $"{name}_mix"),
+                    ("path", path),
+                    ("pattern", pattern),
+                    ("step", GetMusicalStepSeconds(fields, line, BeatSeconds, "step", "step_seconds", "dt").ToString(CultureInfo.InvariantCulture)),
+                    ("high", GetAny(fields, ["high", "on"], GetAny(fields, ["gain", "g"], "1"))),
+                    ("low", GetAny(fields, ["low", "off"], "0")),
+                    ("loop", GetAny(fields, ["loop"], "true"))), line);
+                return;
+            }
+
+            var points = TryGetAny(fields, ["points", "pts", "values"], out var pointsText)
+                ? pointsText
+                : $"0:{GetAny(fields, ["gain", "g", "default"], "1")}";
+            var values = ParseControlCurvePoints(points, line).Select(point => point.Value).ToArray();
+            EnsureParameter(path, values.Length == 0 ? 1 : values[0], 0, Math.Max(1, values.DefaultIfEmpty(1).Max() * 2), 0.001f, "", line);
+            AddControlCurve(SyntheticFields(
+                ("name", $"{name}_mix"),
+                ("path", path),
+                ("points", points),
+                ("interp", GetAny(fields, ["interp", "interpolation"], "linear")),
+                ("loop", GetAny(fields, ["loop"], "false")),
+                ("mode", GetAny(fields, ["mode"], "blend"))), line);
         }
 
         private void AddNoiseTexture(IReadOnlyDictionary<string, string> fields, int line)
@@ -3388,6 +3508,31 @@ public static class PatchScript
             return parameters;
         }
 
+        private float GetMusicalStepSeconds(IReadOnlyDictionary<string, string> fields, int line, float fallback, params string[] keys)
+        {
+            if (!TryGetAny(fields, keys, out var value))
+            {
+                return fallback;
+            }
+
+            if (value.Equals("bar", StringComparison.OrdinalIgnoreCase) || value.Equals("measure", StringComparison.OrdinalIgnoreCase))
+            {
+                return BeatSeconds * BeatsPerBar;
+            }
+
+            if (value.EndsWith("bar", StringComparison.OrdinalIgnoreCase))
+            {
+                return BeatSeconds * BeatsPerBar * ParseFloat(value[..^3], line);
+            }
+
+            if (value.EndsWith("beat", StringComparison.OrdinalIgnoreCase))
+            {
+                return BeatSeconds * ParseFloat(value[..^4], line);
+            }
+
+            return ParseFloat(value, line);
+        }
+
         private sealed record PendingOperatorGraph(
             int Line,
             string Path,
@@ -3517,8 +3662,12 @@ public static class PatchScript
         "param" or "parameter" => "param",
         "control_surface" or "surface" or "controlsurface" => "control_surface",
         "curve" or "control_curve" or "automation" => "curve",
-        "pattern" or "pat" or "seq" or "sequence" => "pattern",
+        "pattern" or "pat" or "seq" => "pattern",
         "scale" or "notes" or "melody" => "scale",
+        "meter" or "time" or "time_signature" or "timesig" => "meter",
+        "sequence" or "voice_seq" or "lane" or "instrument_seq" or "instrument_sequence" => "sequence",
+        "chord" or "chords" or "progression" or "chord_progression" => "chords",
+        "mix" or "mixer" or "mix_bus" or "mixbus" => "mix",
         "control_spline" or "spline" or "gesture_spline" or "gesturespline" => "control_spline",
         "phoneme_gesture" or "phone_gesture" or "ipa_gesture" or "phoneme" or "phone" => "phoneme_gesture",
         "gesture" or "gesture_group" or "gesturegroup" => "gesture",
@@ -3815,6 +3964,14 @@ public static class PatchScript
             ? ParseLooseIntList(intervalsText, line)
             : ScaleIntervals(GetAny(fields, ["scale", "mode"], "minor-pentatonic"));
         return intervals.Select(interval => root * MathF.Pow(2f, interval / 12f)).ToArray();
+    }
+
+    private static float ChordToneFrequency(float root, IReadOnlyList<int> scaleIntervals, int rootDegree, int voicingDegree)
+    {
+        var degree = rootDegree + voicingDegree;
+        var octave = MathF.Floor(degree / (float)scaleIntervals.Count);
+        var wrapped = ((degree % scaleIntervals.Count) + scaleIntervals.Count) % scaleIntervals.Count;
+        return root * MathF.Pow(2f, (scaleIntervals[wrapped] + octave * 12f) / 12f);
     }
 
     private static IReadOnlyList<int> ScaleIntervals(string scale) => scale.ToLowerInvariant() switch

@@ -348,6 +348,16 @@ first-second energy share, tail energy share, and mode-collapse risk; distillati
 should treat high collapse risk as negative pressure even when log-mel similarity
 looks superficially acceptable.
 
+Composition structure is now part of song-scene authorship. Sound roles answer
+"what is playing"; composition roles answer "why does time keep mattering."
+Future song agents should declare meter/time signature, chord or tonal
+progression, note-degree sampling, instrument-lane gates, section events,
+composition-scale automation, and mix movement before polishing timbre. The
+current Strudel-ish sugar is intentionally small: `meter` stores the beat grid;
+`sequence` owns lane gates; `scale` owns sampled note degrees; `chords` owns
+progression/voicing lanes; and `mix` owns gain automation. Each lowers to
+ordinary `param` and `curve` records, so the realtime truth remains inspectable.
+
 Song-scene instrument roles are scored as curriculum evidence. Voice-like
 leads should prefer syrinx/acoustic source ownership with pressure/opening
 motion and radiation shaping; percussion should prefer subtractive pitched body

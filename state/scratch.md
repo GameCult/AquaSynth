@@ -15,6 +15,16 @@ Current slice:
   and the swarm prompt now requires later-section motifs/events instead of
   hiding behind noise or pads.
 
+- Follow-up trawl found real generalizable sound-production knowledge but weak
+  composition: stable role owners for syrinx/acoustic leads, subtractive drums,
+  additive/PAD beds, shaped texture/air/codec, and strong negative pressure
+  against mode collapse. The redirect is composition-first: next passes must
+  publish a Composition Map with meter/time signature, progression or tonal
+  center, note-degree sampling, instrument-lane gates, section events,
+  composition-scale automation, and mix movement. Parser sugar now includes
+  `meter`, `sequence`, `chords`, and `mix`, lowering to ordinary `param` and
+  `curve` owners alongside existing `pattern` and `scale`.
+
 - Completed a three-pass corpus song curriculum run under
   `artifacts/parity/song-snippet-swarms/20260531T171802519`: each pass prepared
   25 ten-second targets from `D:\Music\Reinier` for five agents with five

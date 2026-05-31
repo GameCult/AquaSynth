@@ -1699,6 +1699,7 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
         [
             "Admit a candidate as reusable knowledge only when it renders, has explicit instrument-role ownership, and states what production job it owns.",
             "Reject one-phrase-plus-texture arrangements as failure pressure; continuity across the clip is part of the production contract.",
+            "Require an explicit composition map: meter, progression or tonal center, instrument lanes, section events, composition-scale automation, and mix movement.",
             "Prefer compact role abstractions over one-off target mimicry; a reusable owner sentence is more valuable than a small metric bump.",
             "Keep failed renders as failure-mode pressure only; do not let syntax wreckage dominate retrieval.",
             "Store full artifacts on disk and cite them; CultCache curriculum records should carry bounded summaries, metrics, and transfer rules."
@@ -1707,12 +1708,14 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
             "voice-like lead -> syrinx/acoustic source ports with pressure, opening, and radiation motion",
             "drums/transients -> subtractive body plus filtered noise skin plus pattern gate",
             "pads/beds -> additive/PAD layer, harmonics, and spectrum banks",
-            "recording color -> texture role with band limits and gates, not full-duration raw noise"
+            "recording color -> texture role with band limits and gates, not full-duration raw noise",
+            "composition form -> `meter`, `sequence`, `chords`, `scale`, `pattern`, and `mix` sugar lowering to visible `param`/`curve` owners"
         ],
         [
             "Single-file stores or raw spectrogram payloads are not curriculum; distill to paged CultCache records.",
             "Metric winners with unclear role ownership should be pressure, not doctrine.",
-            "High cosine with high mode-collapse risk is a trap: it copies a moment, not a song."
+            "High cosine with high mode-collapse risk is a trap: it copies a moment, not a song.",
+            "Instrument timbre without phrase, progression, lane entrances, and mix movement is sound design, not composition."
         ],
         rows.Select(row => row.TrialId).Take(24).ToArray(),
         rendered.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(24).ToArray(),
@@ -1767,6 +1770,19 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
 
 static IEnumerable<MusicProductionKnowledgeDocument> MusicRoleDocuments(IReadOnlyList<SongSummaryRow> rendered, string created)
 {
+    yield return RoleDocument(
+        "music-role-composition-form",
+        "composition form, lanes, and mix motion",
+        "The composition role owns meter, chord/progression movement, note sampling, instrument-lane gates, section events, automation, and mix motion so a ten-second clip behaves like arranged music rather than a timbre demo.",
+        [
+            "Start every song candidate with `meter` and at least one progression or tonal-center declaration.",
+            "Use `sequence`/`pattern` for lane gates and `scale`/`chords` for pitch material before hand-writing isolated frequencies.",
+            "Add section events after the opening and use `mix` or ordinary curves for lane entrances, drops, swells, and exits."
+        ],
+        ["meter", "sequence", "pattern", "scale", "chords", "progression", "mix", "curve"],
+        rendered.Where(row => row.ModeCollapseRisk < .45f).ToArray(),
+        created);
+
     yield return RoleDocument(
         "music-role-syrinx-voice",
         "syrinx/acoustic voice lead",

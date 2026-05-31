@@ -417,6 +417,11 @@ $agentSeedList
 Goal:
 Write exactly one parseable AquaSynth `.aqua` patch for each frozen $targetKind reference assigned to you. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
 
+Composition objective:
+- The previous corpus learned useful sound-production roles but collapsed into short phrases plus texture. Your job is now composition parity: declare meter, tonal center or progression, instrument lanes, section events, automation, and mix motion before polishing timbre.
+- Every final patch must include a composition spine using today's implemented sugar: `meter`, `sequence`, `chords` or `scale`, and `mix` where appropriate. These lower to ordinary `param` and `curve` owners; they are not hidden magic.
+- Treat the target as arranged music across time. There should be distinct musical events or motif mutations after the first second, preferably near seconds 2, 4, 6, and 8 for ten-second clips.
+
 Generalization:
 - You own $SongsPerAgent target patches, and your report must compare all assigned targets and state what reusable scene/instrument knowledge transfers between them.
 - The patches may share instrument roles, texture roles, control idioms, and DSL conventions, but each patch should fit its own target's tempo/register/spectral evidence.
@@ -446,6 +451,7 @@ Reusable abstraction mining:
   - `keep/cut verdict`: whether this abstraction should be mined into DSL sugar, kept as a stock patch idiom, or discarded.
 - Prefer abstractions that transfer across multiple assigned songs. A one-off trick is allowed only if you label it as target-specific and say why it should not become syntax.
 - Do not propose sugar that hides ownership. The future shorthand must still lower into visible syrinx, subtractive, additive/PAD, texture, pattern, scale, or curve owners.
+- Composition abstractions are now first-class sugar candidates. Prefer reusable names like `metered_progression`, `hook_degrees`, `lane_sequence`, `section_rise`, `drop_fill`, `mix_scene`, or better target-grounded names. Each one must say which `meter`, `sequence`, `chords`, `scale`, `mix`, `param`, and `curve` lines it lowers into.
 
 Noise and texture:
 - Do not model background or recording color as a full-duration raw `voice wave=noise` bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
@@ -472,6 +478,14 @@ Rhythm and tempo:
   - bind parameters into voices or primitives, for example `gain=@/seq/kick`, `tremolo_hz=<tempo_bpm/60>`, `noise=@/seq/hiss`, `freq=@/seq/pitch`.
 - Do not invent unimplemented syntax like `s("bd sn")` inside the `.aqua` candidate. You may propose it in `instrument-conventions.md`.
 
+Composition sugar available today:
+- Set the meter before sequencing: `meter bpm=<tempo_bpm> beats=4`.
+- Sequence any instrument lane without hand-declaring the gate parameter: `sequence name=kick pattern=x..x step=<beat_seconds> high=.8 low=0`, then bind `gain=@/seq/kick`.
+- Declare chord/progression control lanes for pads or bass: `chords name=prog root=<root_hz> scale=minor progression=0,5,3,4 voicing=0,2,4 paths=/chords/prog/root,/chords/prog/third,/chords/prog/fifth step=bar`, then bind voices to those paths.
+- Use `scale` for sampled note degrees inside the register: `scale name=hook path=/seq/pitch root=<root_hz> scale=minor degrees=0,2,4,2,5,4 step=<beat_seconds/2>`.
+- Use `mix` for composition-scale lane motion: `mix name=pad points=0:.12,2:.18,4:.08,6:.24,8:.16`, then bind `gain=@/mix/pad/gain`.
+- These are Strudel-ish authoring conveniences, but the lowered truth remains inspectable parameters and curves.
+
 Register and scale:
 - The challenge report includes `dominant_hz`, `register_low_hz`, `register_high_hz`, `root_note`, `suggested_scale`, and `scale_frequencies_hz`.
 - Songs tend to pick a register and stay there. Treat those bounds as the default melodic playground unless your hypothesis explicitly tests octave spread.
@@ -490,11 +504,13 @@ Instrument and DSL convention invention:
   - any Strudel-like sugar that would make the patch shorter;
   - the exact lowering into today's AquaSynth syntax using explicit `voice`, `texture`, `pattern`, `scale`, `param`, and `curve` lines.
 - The `.aqua` candidate must use today's implemented syntax only: `pattern`, `scale`, `param`, `curve`, and ordinary patch/voice syntax are legal. Proposed future sugar is evidence for the next DSL cut, not magic accepted by the parser.
+- Today's implemented composition syntax also includes `meter`, `sequence`, `chords`, and `mix`. Prefer those over raw `param`/`curve` boilerplate when writing composition-scale structure.
 - Legal oscillator `wave=` values are `sine`, `square`, `saw`, `triangle`, and `noise` only. Use `square` plus filters/envelopes for pulse-like tone; `pulse` is not accepted syntax.
 
 Evidence contract:
 - Read every assigned challenge report and $preEvidence.
 - Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on both targets, known risks.
+- Include a `Composition Map` section in $agentDir/hypotheses.md: meter/time signature, progression or tonal center, instrument lanes, section events after the opening, automation/mix moves, and which evaluator metrics should prove the arrangement did not collapse.
 - Write exactly one `.aqua` file under each target patch output directory named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch: a primary voice/body, a rhythmic drum/transient/noise role, and a pad/bed/recording-color role. Prefer syrinx for the primary voice when it is voice-like, subtractive for the drum/transient, and additive/PAD or shaped texture for the bed.
 - The ten-second clip must have full-form continuity: at least four distinct musical events or motif mutations after the first second, with audible activity distributed across the beginning, middle, and ending. A one-second riff followed by nine seconds of gently textured pink noise is mode collapse and should not be submitted.
