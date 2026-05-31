@@ -1,0 +1,40 @@
+# syrinx-voice
+# Family: advanced
+# Source: BuiltInScripts.ReferenceScripts
+# Notes: Graph-native paired-labium voice with modulated pressure, opening, and beak radiation.
+
+patch
+    gain=0.46
+    soft_clip=true
+
+param path=/voice/left/pressure default=.78 min=0 max=1.5 step=.001 rate=audio
+param path=/voice/right/pressure default=.66 min=0 max=1.5 step=.001 rate=audio
+param path=/voice/left/opening default=.23 min=0 max=1 step=.001 rate=audio
+param path=/voice/right/opening default=.19 min=0 max=1 step=.001 rate=audio
+param path=/voice/left/tension default=.43 min=0 max=1 step=.001 rate=audio
+param path=/voice/right/tension default=.50 min=0 max=1 step=.001 rate=audio
+param path=/voice/beak/opening default=.88 min=0 max=1.5 step=.001
+
+curve name=left_phrase_pressure path=/voice/left/pressure points=0:.05,.04:.82,.28:.76,.56:.88,.92:.24 mode=blend depth=.92 rate=audio
+curve name=right_phrase_pressure path=/voice/right/pressure points=0:.03,.06:.68,.24:.74,.50:.58,.92:.18 mode=blend depth=.92 rate=audio
+curve name=left_phrase_opening path=/voice/left/opening points=0:.02,.035:.24,.46:.18,.92:.05 mode=blend depth=.85 rate=audio
+curve name=right_phrase_opening path=/voice/right/opening points=0:.02,.04:.20,.42:.15,.92:.05 mode=blend depth=.85 rate=audio
+curve name=beak_phrase path=/voice/beak/opening points=0:.34,.08:.94,.52:1.08,.92:.58 mode=blend depth=.72
+gesture name=syrinx_phrase curves=left_phrase_pressure,right_phrase_pressure,left_phrase_opening,right_phrase_opening,beak_phrase depth=1
+
+path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
+path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
+path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
+
+source_port name=left_labium path=left_bronchus kind=syrinx model=tissue_valve position=0 pressure=@/voice/left/pressure tension=@/voice/left/tension opening=@/voice/left/opening noise=.018 impedance=.82 mass=.30 damping=.14 stiffness=.028 saturation=.88 flow_scale=1.15 tissue_loss=.18 aperture_shape=.40 flow_loss=.35 load_coupling=.42 rest_opening=.024
+source_port name=right_labium path=right_bronchus kind=syrinx model=tissue_valve position=0 pressure=@/voice/right/pressure tension=@/voice/right/tension opening=@/voice/right/opening noise=.016 balance=.94 impedance=.78 mass=.32 damping=.16 stiffness=.032 saturation=.88 flow_scale=1.08 tissue_loss=.20 aperture_shape=.40 flow_loss=.35 load_coupling=.42 rest_opening=.024
+
+terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
+terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1
+terminal name=trachea_base path=trachea position=0 kind=junction area_scale=1
+connect name=syrinx_merge terminals=left_merge,right_merge,trachea_base law=area_scatter coupling=1
+
+radiation_port name=beak path=trachea kind=beak model=beak position=1 opening=@/voice/beak/opening reflection=-.72 loss=.98
+wave_clock name=syrinx_clock strategy=linear max_delay=2048 smoothing_ms=2
+acoustic_network name=singing_syrinx path=trachea wave_clock=syrinx_clock sources=left_labium,right_labium radiation=beak terminals=left_merge,right_merge,trachea_base connections=syrinx_merge
+acoustic_voice network=singing_syrinx freq=920 gain=.30 sustain=.92 decay=.12 vibrato=.008 vibrato_hz=5.2 lpf=.82 hpf=.03 bpf=.36 bpf_q=1.5

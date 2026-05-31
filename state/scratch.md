@@ -1802,3 +1802,30 @@ Next likely slice:
   `0.220027`, and 2 render-failed syntax casualties. Pass 2 used distilled
   pass-1 evidence, produced 10 playable candidates, best cosine `0.502435`,
   mean cosine `0.352907`, and 8 pressure verdicts.
+
+2026-05-31 song instrument-owner correction:
+
+- User clarified the "8-bit distress signals" problem is the procedural song
+  scoring/curriculum harness, not only the stock patch catalog. The harness is
+  becoming the music generator's memory feeder through CultCache and Qdrant, so
+  it must store instrument-role evidence, not just log-mel winners.
+- `song-score` now analyzes every candidate script and records
+  `instrument_voice_syrinx`, `instrument_drum_subtractive`,
+  `instrument_pad_additive`, `musical_instrument_score`, and
+  `chip_distress_risk` metrics in the trial result. Verdict selection and
+  distillation ranking now include this role evidence so simple oscillator blips
+  cannot quietly train the future generator unless they are explicitly useful
+  contrast.
+- `run-song-snippet-trial-swarm.ps1` now tells agents the role ownership rule:
+  voice-like leads should use syrinx/acoustic source ports with pressure/opening
+  motion; drums/transients should use subtractive pitched bodies plus filtered
+  noise skins; pads/beds should use additive/PAD `layer`, `harmonics`, and
+  `spectrum` banks. Ordinary voices remain helpers, not the main answer.
+- Added stock reference patches for `syrinx-voice`, `subtractive-drums`, and
+  `additive-pad`, and changed `Presets.AquaSynthVoice()` to use the syrinx
+  script instead of the old triangle/formant proxy. These are examples for the
+  harness and agents, not a substitute for scoring ownership.
+- Smoke proof:
+  `artifacts/parity/song-instrument-metric-smoke/smoke/summary.csv` records a
+  syrinx candidate with `instrument_voice_syrinx=1`,
+  `musical_instrument_score=0.34`, and `chip_distress_risk=0`.

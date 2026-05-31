@@ -333,6 +333,14 @@ voice for scene noise. Full-duration raw `wave=noise` beds with broad filters
 are failed evidence: they sound like broken subtractive synthesis because that
 is exactly what they are.
 
+Song-scene instrument roles are scored as curriculum evidence. Voice-like
+leads should prefer syrinx/acoustic source ownership with pressure/opening
+motion and radiation shaping; percussion should prefer subtractive pitched body
+plus filtered noise skin; pads, beds, and drones should prefer additive/PAD
+banks through `layer`, `harmonics`, and `spectrum`. Simple oscillator blips
+without one of these owners are chip-distress-risk contrast material, not a
+strong lesson for the music generator.
+
 Do not confuse high metric agreement with musical success. The game context,
 the reference sound, and the user’s ear still outrank the spreadsheet. Annoying,
 but civilization has survived worse.

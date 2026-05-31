@@ -1,0 +1,63 @@
+# subtractive-drums
+# Family: advanced
+# Source: BuiltInScripts.ReferenceScripts
+# Notes: Filtered subtractive drum voices with pitched bodies, noise skins, and bright metal.
+
+patch
+    gain=0.72
+    soft_clip=true
+
+defaults
+    drive=.14
+    sustain_level=.62
+
+voice
+    wave=sine
+    freq=58
+    gain=.82
+    sustain=.038
+    decay=.38
+    pitch_ramp=-3.6
+    min_freq=32
+    lpf=.78
+    lpf_q=.28
+
+voice
+    wave=noise
+    freq=1700
+    gain=.26
+    sustain=.018
+    decay=.18
+    noise=.95
+    hpf=.48
+    bpf=.38
+    bpf_q=2.2
+
+voice
+    wave=triangle
+    freq=188
+    gain=.12
+    sustain=.026
+    decay=.13
+    pitch_ramp=-1.05
+    lpf=.52
+
+voice
+    wave=noise
+    freq=8200
+    gain=.11
+    sustain=.005
+    decay=.052
+    noise=1
+    hpf=.88
+    lpf=.20
+
+voice
+    wave=square
+    freq=540
+    gain=.08
+    sustain=.035
+    decay=.16
+    duty=.42
+    hpf=.18
+    lpf=.72

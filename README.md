@@ -71,9 +71,9 @@ published packages.
 - `AquaSynthNativeCompiler` remains the lower native `libfaust` compiler
   machinery behind that boundary.
 - `BuiltInScripts.ReferenceScripts()` carries readable SFXR, BFXR-flavored,
-  808, FM bell, wobble bass, and advanced layered patches. They are stable
-  references for testing and for judging whether the DSL can express useful
-  sound designs cleanly.
+  808, FM bell, wobble bass, syrinx-voice, subtractive-drum, additive/PAD, and
+  advanced layered patches. They are stable references for testing and for
+  judging whether the DSL can express useful sound designs cleanly.
 - `SfxrParams`, `PatchScriptScoring`, `AudioAnalyzer`, and `Presets` carry the
   reusable AquaSynth-rs-side analysis, scoring, SFXR, and preset tools.
 

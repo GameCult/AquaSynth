@@ -1,0 +1,47 @@
+# additive-pad
+# Family: advanced
+# Source: BuiltInScripts.ReferenceScripts
+# Notes: Additive body plus PAD spectral halo; slow controls own bloom and air.
+
+patch
+    gain=0.74
+    soft_clip=true
+
+param name=bloom path=/macro/bloom default=.72 min=0 max=1 step=.001
+param name=air path=/macro/air default=.12 min=0 max=.3 step=.001
+
+mod name=slow_bloom
+    wave=sine
+    hz=.13
+    gain=.045
+    pitch=.006
+    lpf=.08
+
+layer name=body engine=add min_key=36 max_key=96 gain=.14 env=rl rates=.35,.62,1.1,1.4 levels=1,.92,.84,0 curves=lin,exp,lin,lin gate=2.6
+layer name=halo engine=pad min_key=48 max_key=108 gain=.10 env=rl rates=.55,.8,1.35,1.8 levels=.85,.95,.78,0 curves=lin,exp,lin,lin gate=3.0
+
+harmonics layer=body root=110 partials=1:.12,2:.055,3:.032,4:.018,5:.012
+spectrum layer=halo root=110 freq=220 spread=.008 pad_mode=bandwidth pad_bandwidth=520 pad_bwscale=2 pad_profile=gaussian:88:4:10:42:127:sine:mult:72:24:yes:full partials=1:.08,1.5:.026,2:.022,2.5:.014,3:.011
+
+voice
+    layer=body
+    wave=sine
+    freq=110
+    gain=.08
+    attack=.32
+    sustain=1.8
+    decay=1.5
+    lpf=@/macro/bloom
+    hpf=.015
+
+voice
+    layer=halo
+    wave=noise
+    freq=1800
+    gain=@/macro/air
+    attack=.7
+    sustain=1.6
+    decay=1.9
+    noise=.72
+    hpf=.58
+    lpf=.34

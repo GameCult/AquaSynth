@@ -218,6 +218,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
 
         var candidateWav = Path.Combine(audioDir, "candidate.wav");
         var metrics = new List<SpeechScoreMetric>();
+        var instrumentProfile = AnalyzeSongInstrumentProfile(script);
         var artifacts = new List<SpeechRenderArtifact>
         {
             Artifact("song-challenge", challengePath),
@@ -226,6 +227,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
             Artifact("primitive-timeline", timelinePath)
         };
         metrics.AddRange(SongTargetMetrics(challenge, challengeEvidence));
+        metrics.AddRange(SongInstrumentMetrics(instrumentProfile));
         artifacts.AddRange(SongChallengeArtifacts(challenge));
         artifacts.AddRange(challengeEvidence.Select(SongChallengeEvidenceArtifact));
         var timelineFacts = Array.Empty<PrimitiveTimelineFact>();
@@ -263,10 +265,10 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
                 artifacts.Add(Artifact("candidate-wav", candidateWav));
                 var comparison = analyzer.Compare(referenceSamples, matched);
                 metrics.AddRange(SongComparisonMetrics(comparison));
-                verdict = SongVerdict(comparison);
-                evaluation = SongEvaluationSentence(challenge, comparison, verdict);
+                verdict = SongVerdict(comparison, instrumentProfile);
+                evaluation = SongEvaluationSentence(challenge, comparison, verdict, instrumentProfile);
                 var comparisonPath = Path.Combine(audioDir, "comparison.txt");
-                await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict), Encoding.UTF8);
+                await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict, instrumentProfile), Encoding.UTF8);
                 artifacts.Add(Artifact("comparison-report", comparisonPath));
             }
         }
@@ -303,7 +305,10 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
                 "This is a local-only song clip challenge; reference audio is not redistributed by the repo.",
                 $"The target is a randomly selected {challenge.DurationSeconds:0.###}-second scene-audio snippet, not IPA articulation truth.",
                 "Challenge spectrogram, derivative, envelope, and autocorrelation artifacts are stored as typed CultMesh/CultCache evidence documents in the .cc database.",
-                "Full-patch FM/AM/noise/scene modeling is allowed; primitive timeline facts remain diagnostic when present."
+                "Full-patch FM/AM/noise/scene modeling is allowed; primitive timeline facts remain diagnostic when present.",
+                instrumentProfile.ChipDistressRisk >= .6f
+                    ? "Instrument profile is chip-distress-risky: simple oscillator/noise roles are not enough curriculum evidence for the music generator."
+                    : "Instrument profile uses at least some owned musical role evidence instead of only simple oscillator distress."
             ],
             [
                 new SpeechTimingReceipt(
@@ -1808,6 +1813,18 @@ static SongTrialDistillationDocument SongTrialDistillation(
 static IEnumerable<string> SceneRolesFrom(string text)
 {
     var lower = text.ToLowerInvariant();
+    if (lower.Contains("syrinx", StringComparison.Ordinal) || lower.Contains("labium", StringComparison.Ordinal) || lower.Contains("beak", StringComparison.Ordinal))
+    {
+        yield return "syrinx voice: owns singing/creature/alien lead material through acoustic source ports, pressure/opening motion, and radiation filtering.";
+    }
+    if (lower.Contains("additive", StringComparison.Ordinal) || lower.Contains("spectrum", StringComparison.Ordinal) || lower.Contains("pad", StringComparison.Ordinal) || lower.Contains("harmonics", StringComparison.Ordinal))
+    {
+        yield return "additive/PAD texture: owns sustained harmonic beds through `layer`, `harmonics`, and `spectrum` banks with slow filter or gain motion.";
+    }
+    if (lower.Contains("subtractive", StringComparison.Ordinal) || lower.Contains("kick", StringComparison.Ordinal) || lower.Contains("snare", StringComparison.Ordinal))
+    {
+        yield return "subtractive drums: own rhythmic bodies through pitched sine/triangle envelopes plus filtered noise skins, not generic blips.";
+    }
     if (lower.Contains("formant", StringComparison.Ordinal) || lower.Contains("vowel", StringComparison.Ordinal))
     {
         yield return "bright formant/vowel lead: owns pitched synthetic body and vocal-ish spectral peaks.";
@@ -1847,6 +1864,9 @@ static IEnumerable<string> TransferRulesFrom(IReadOnlyList<IpaTrialResult> selec
     }
 
     yield return "Use `texture` for background/recording noise and reserve raw `wave=noise` for short gated transients with narrow filters.";
+    yield return "When the scene wants a singing or creature voice, start with a syrinx/acoustic voice role and modulate pressure/opening/radiation before falling back to ordinary formant oscillators.";
+    yield return "When the scene wants a bed or pad, start with additive/PAD banks (`layer`, `harmonics`, `spectrum`) instead of stacked simple waves.";
+    yield return "When the scene wants percussion, use subtractive drum ownership: pitched body, filtered noise skin, envelope, and pattern gate.";
     yield return "Treat repeated pressure verdicts as reusable direction, not acceptance; keep the patch family but mutate timing/register/noise shaping.";
 }
 
@@ -1867,10 +1887,25 @@ static IEnumerable<string> FailurePatternsFrom(IReadOnlyList<IpaTrialResult> all
     {
         yield return "Scene/noise helper voices are allowed, but only shaped role owners should transfer.";
     }
+
+    if (allResults.Any(result => MetricValue(result, "chip_distress_risk") >= .6f))
+    {
+        yield return "Chip-distress-risk candidates may be useful contrast, but they should not train the music generator unless the target explicitly calls for chip/SFX vocabulary.";
+    }
+
+    if (selected.Any(result => MetricValue(result, "musical_instrument_score") < .34f))
+    {
+        yield return "Low instrument-role coverage is a scoring smell: require at least one owned role such as syrinx voice, subtractive drums, additive/PAD bed, or shaped texture.";
+    }
 }
 
-static float ScoreSort(IpaTrialResult result) =>
-    result.Metrics.FirstOrDefault(metric => metric.Name == "log_mel_cosine")?.Value ?? float.NegativeInfinity;
+static float ScoreSort(IpaTrialResult result)
+{
+    var cosine = MetricValue(result, "log_mel_cosine");
+    var instrument = MetricValue(result, "musical_instrument_score");
+    var chipRisk = MetricValue(result, "chip_distress_risk");
+    return cosine + instrument * .10f - chipRisk * .15f;
+}
 
 static string Metric(IpaTrialResult result, string name) =>
     (result.Metrics.FirstOrDefault(metric => metric.Name == name)?.Value ?? 0)
@@ -2626,8 +2661,88 @@ static IReadOnlyList<SpeechScoreMetric> SongComparisonMetrics(AudioComparison co
     new("speech_band_ratio", comparison.Articulation.SpeechBandRatio, .05f)
 ];
 
-static string SongVerdict(AudioComparison comparison)
+static IReadOnlyList<SpeechScoreMetric> SongInstrumentMetrics(SongInstrumentProfile profile) =>
+[
+    new("instrument_voice_syrinx", profile.HasSyrinxVoice ? 1 : 0, .05f),
+    new("instrument_drum_subtractive", profile.HasSubtractiveDrums ? 1 : 0, .05f),
+    new("instrument_pad_additive", profile.HasAdditivePad ? 1 : 0, .05f),
+    new("musical_instrument_score", profile.MusicalInstrumentScore, .10f),
+    new("chip_distress_risk", profile.ChipDistressRisk, .10f)
+];
+
+static SongInstrumentProfile AnalyzeSongInstrumentProfile(string script)
 {
+    var lower = script.ToLowerInvariant();
+    var voiceCount = CountOccurrences(lower, "voice");
+    var hasTexture = lower.Contains("texture ", StringComparison.Ordinal) ||
+                     lower.Contains("noise_texture", StringComparison.Ordinal);
+    var hasSyrinxVoice = lower.Contains("kind=syrinx", StringComparison.Ordinal) ||
+                         lower.Contains("kind = syrinx", StringComparison.Ordinal) ||
+                         lower.Contains("syrinx", StringComparison.Ordinal) && lower.Contains("acoustic_voice", StringComparison.Ordinal);
+    var hasAdditivePad = lower.Contains("spectrum ", StringComparison.Ordinal) ||
+                         lower.Contains("harmonics ", StringComparison.Ordinal) ||
+                         lower.Contains("engine=pad", StringComparison.Ordinal) ||
+                         lower.Contains("engine = pad", StringComparison.Ordinal) ||
+                         lower.Contains("engine=add", StringComparison.Ordinal) ||
+                         lower.Contains("engine = add", StringComparison.Ordinal);
+    var hasSubtractiveDrums = lower.Contains("role=dust", StringComparison.Ordinal) ||
+                              lower.Contains("dust_hat", StringComparison.Ordinal) ||
+                              lower.Contains("kick", StringComparison.Ordinal) ||
+                              lower.Contains("snare", StringComparison.Ordinal) ||
+                              lower.Contains("hat", StringComparison.Ordinal) ||
+                              (lower.Contains("pitch_ramp", StringComparison.Ordinal) &&
+                               (lower.Contains("wave=sine", StringComparison.Ordinal) || lower.Contains("wave=triangle", StringComparison.Ordinal)) &&
+                               (lower.Contains("wave=noise", StringComparison.Ordinal) || lower.Contains("noise=", StringComparison.Ordinal)) &&
+                               (lower.Contains("hpf=", StringComparison.Ordinal) || lower.Contains("bpf=", StringComparison.Ordinal)));
+    var hasSimpleChipTone = lower.Contains("wave=square", StringComparison.Ordinal) ||
+                            lower.Contains("wave=sine", StringComparison.Ordinal) ||
+                            lower.Contains("wave=saw", StringComparison.Ordinal);
+    var lacksOwnedRoles = !hasSyrinxVoice && !hasAdditivePad && !hasSubtractiveDrums && !hasTexture;
+    var chipRisk = lacksOwnedRoles && hasSimpleChipTone
+        ? Math.Clamp(.45f + Math.Max(0, 4 - voiceCount) * .12f, 0, 1)
+        : 0f;
+    if (lower.Contains("laser", StringComparison.Ordinal) ||
+        lower.Contains("blip", StringComparison.Ordinal) ||
+        lower.Contains("sfxr", StringComparison.Ordinal))
+    {
+        chipRisk = Math.Max(chipRisk, .65f);
+    }
+
+    var score = 0f;
+    if (hasSyrinxVoice) score += .34f;
+    if (hasSubtractiveDrums) score += .33f;
+    if (hasAdditivePad) score += .33f;
+    if (hasTexture) score = Math.Min(1, score + .10f);
+
+    var summary =
+        $"syrinx_voice={(hasSyrinxVoice ? "yes" : "no")}; " +
+        $"subtractive_drums={(hasSubtractiveDrums ? "yes" : "no")}; " +
+        $"additive_pad={(hasAdditivePad ? "yes" : "no")}; " +
+        $"texture={(hasTexture ? "yes" : "no")}; " +
+        $"chip_distress_risk={chipRisk:0.###}";
+    return new SongInstrumentProfile(hasSyrinxVoice, hasSubtractiveDrums, hasAdditivePad, hasTexture, score, chipRisk, summary);
+}
+
+static int CountOccurrences(string haystack, string needle)
+{
+    var count = 0;
+    var index = 0;
+    while ((index = haystack.IndexOf(needle, index, StringComparison.Ordinal)) >= 0)
+    {
+        count++;
+        index += needle.Length;
+    }
+
+    return count;
+}
+
+static string SongVerdict(AudioComparison comparison, SongInstrumentProfile profile)
+{
+    if (profile.ChipDistressRisk >= .75f && comparison.LogMelCosineSimilarity < .60f)
+    {
+        return "weak";
+    }
+
     if (comparison.LogMelCosineSimilarity >= .70f && comparison.Score >= .45f)
     {
         return "promising";
@@ -2648,8 +2763,8 @@ static float SongConfidence(IReadOnlyList<SpeechScoreMetric> metrics)
     return Math.Clamp((cosine + score) * .5f, 0, 1);
 }
 
-static string SongEvaluationSentence(SongChallenge challenge, AudioComparison comparison, string verdict) =>
-    $"Song snippet `{challenge.ChallengeId}` is `{verdict}`: logMelCosine={comparison.LogMelCosineSimilarity:0.0000}, logMelDistance={comparison.LogMelDistance:0.0000}, score={comparison.Score:0.0000}, rmsRatio={comparison.RmsRatio:0.0000}, centroidRatio={comparison.CentroidRatio:0.0000}.";
+static string SongEvaluationSentence(SongChallenge challenge, AudioComparison comparison, string verdict, SongInstrumentProfile profile) =>
+    $"Song snippet `{challenge.ChallengeId}` is `{verdict}`: logMelCosine={comparison.LogMelCosineSimilarity:0.0000}, logMelDistance={comparison.LogMelDistance:0.0000}, score={comparison.Score:0.0000}, rmsRatio={comparison.RmsRatio:0.0000}, centroidRatio={comparison.CentroidRatio:0.0000}. Instrument profile: {profile.Summary}.";
 
 static string SongAnalysisReport(SongChallenge challenge, AudioAnalysis analysis)
 {
@@ -2724,7 +2839,7 @@ static string SongChallengeReport(SongChallenge challenge) =>
     rms_envelope_autocorr_csv: `{challenge.Artifacts?.RmsEnvelopeAutocorrCsv ?? ""}`
     """;
 
-static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandidate candidate, AudioComparison comparison, string verdict) =>
+static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandidate candidate, AudioComparison comparison, string verdict, SongInstrumentProfile profile) =>
     $"""
     candidate={candidate.CandidateId}
     challenge={challenge.ChallengeId}
@@ -2738,12 +2853,18 @@ static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandid
     zeroCrossingRatio={comparison.ZeroCrossingRatio:0.######}
     articulation={comparison.Articulation.ArticulationScore:0.######}
     speechBandRatio={comparison.Articulation.SpeechBandRatio:0.######}
+    instrumentVoiceSyrinx={(profile.HasSyrinxVoice ? 1 : 0)}
+    instrumentDrumSubtractive={(profile.HasSubtractiveDrums ? 1 : 0)}
+    instrumentPadAdditive={(profile.HasAdditivePad ? 1 : 0)}
+    musicalInstrumentScore={profile.MusicalInstrumentScore:0.######}
+    chipDistressRisk={profile.ChipDistressRisk:0.######}
+    instrumentSummary={profile.Summary}
     """;
 
 static string SongSummaryCsv(IReadOnlyList<IpaTrialResult> results)
 {
     var builder = new StringBuilder();
-    builder.AppendLine("trial_id,candidate_id,reference_id,verdict,log_mel_cosine,log_mel_distance,audio_score,envelope_distance,rms_ratio,centroid_ratio,zero_crossing_ratio,articulation_score");
+    builder.AppendLine("trial_id,candidate_id,reference_id,verdict,log_mel_cosine,log_mel_distance,audio_score,envelope_distance,rms_ratio,centroid_ratio,zero_crossing_ratio,articulation_score,musical_instrument_score,chip_distress_risk,instrument_voice_syrinx,instrument_drum_subtractive,instrument_pad_additive");
     foreach (var result in results)
     {
         builder.Append(Escape(result.TrialId)).Append(',');
@@ -2757,7 +2878,12 @@ static string SongSummaryCsv(IReadOnlyList<IpaTrialResult> results)
         builder.Append(Metric(result, "rms_ratio")).Append(',');
         builder.Append(Metric(result, "centroid_ratio")).Append(',');
         builder.Append(Metric(result, "zero_crossing_ratio")).Append(',');
-        builder.AppendLine(Metric(result, "articulation_score"));
+        builder.Append(Metric(result, "articulation_score")).Append(',');
+        builder.Append(Metric(result, "musical_instrument_score")).Append(',');
+        builder.Append(Metric(result, "chip_distress_risk")).Append(',');
+        builder.Append(Metric(result, "instrument_voice_syrinx")).Append(',');
+        builder.Append(Metric(result, "instrument_drum_subtractive")).Append(',');
+        builder.AppendLine(Metric(result, "instrument_pad_additive"));
     }
 
     return builder.ToString();
@@ -2770,11 +2896,11 @@ static string SongEvaluatorReport(SongChallenge challenge, IReadOnlyList<IpaTria
     builder.AppendLine();
     builder.AppendLine(SongChallengeReport(challenge));
     builder.AppendLine();
-    builder.AppendLine("| candidate | verdict | logMelCosine | score | envelopeDistance | rmsRatio | centroidRatio |");
-    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: |");
+    builder.AppendLine("| candidate | verdict | logMelCosine | score | instrument | chipRisk | envelopeDistance | rmsRatio | centroidRatio |");
+    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
     foreach (var result in results.OrderByDescending(result => MetricValue(result, "log_mel_cosine")))
     {
-        builder.AppendLine(CultureInfo.InvariantCulture, $"| {result.CandidateId} | {result.Verdict} | {MetricValue(result, "log_mel_cosine"):0.######} | {MetricValue(result, "audio_score"):0.######} | {MetricValue(result, "envelope_distance"):0.######} | {MetricValue(result, "rms_ratio"):0.######} | {MetricValue(result, "centroid_ratio"):0.######} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| {result.CandidateId} | {result.Verdict} | {MetricValue(result, "log_mel_cosine"):0.######} | {MetricValue(result, "audio_score"):0.######} | {MetricValue(result, "musical_instrument_score"):0.######} | {MetricValue(result, "chip_distress_risk"):0.######} | {MetricValue(result, "envelope_distance"):0.######} | {MetricValue(result, "rms_ratio"):0.######} | {MetricValue(result, "centroid_ratio"):0.######} |");
     }
 
     return builder.ToString();
@@ -2953,6 +3079,15 @@ sealed record SongChallengeFeatures(
     string RootNote,
     string SuggestedScale,
     string ScaleFrequenciesHz);
+
+sealed record SongInstrumentProfile(
+    bool HasSyrinxVoice,
+    bool HasSubtractiveDrums,
+    bool HasAdditivePad,
+    bool HasTexture,
+    float MusicalInstrumentScore,
+    float ChipDistressRisk,
+    string Summary);
 
 sealed record SongRegister(
     float DominantHz,

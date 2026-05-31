@@ -602,6 +602,8 @@ public static class BuiltInScripts
             """)
     ];
 
+    public static readonly IReadOnlyList<string> InstrumentNames = ["syrinx-voice", "subtractive-drums", "additive-pad"];
+
     public static readonly IReadOnlyList<string> AdvancedNames = ["aurora-pad", "machine-breath", "glass-creature", "ritual-sequence"];
 
     public static readonly IReadOnlyList<string> Dx7StyleNames = ["algo32-additive-organ", "algo8-bright-pair", "public-domain-mc-mm-5-3"];
@@ -966,6 +968,157 @@ public static class BuiltInScripts
             formant_mix=0.3
         """;
 
+    public const string SyrinxVoiceInstrument = """
+        patch
+            gain=0.46
+            soft_clip=true
+
+        param path=/voice/left/pressure default=.78 min=0 max=1.5 step=.001 rate=audio
+        param path=/voice/right/pressure default=.66 min=0 max=1.5 step=.001 rate=audio
+        param path=/voice/left/opening default=.23 min=0 max=1 step=.001 rate=audio
+        param path=/voice/right/opening default=.19 min=0 max=1 step=.001 rate=audio
+        param path=/voice/left/tension default=.43 min=0 max=1 step=.001 rate=audio
+        param path=/voice/right/tension default=.50 min=0 max=1 step=.001 rate=audio
+        param path=/voice/beak/opening default=.88 min=0 max=1.5 step=.001
+
+        curve name=left_phrase_pressure path=/voice/left/pressure points=0:.05,.04:.82,.28:.76,.56:.88,.92:.24 mode=blend depth=.92 rate=audio
+        curve name=right_phrase_pressure path=/voice/right/pressure points=0:.03,.06:.68,.24:.74,.50:.58,.92:.18 mode=blend depth=.92 rate=audio
+        curve name=left_phrase_opening path=/voice/left/opening points=0:.02,.035:.24,.46:.18,.92:.05 mode=blend depth=.85 rate=audio
+        curve name=right_phrase_opening path=/voice/right/opening points=0:.02,.04:.20,.42:.15,.92:.05 mode=blend depth=.85 rate=audio
+        curve name=beak_phrase path=/voice/beak/opening points=0:.34,.08:.94,.52:1.08,.92:.58 mode=blend depth=.72
+        gesture name=syrinx_phrase curves=left_phrase_pressure,right_phrase_pressure,left_phrase_opening,right_phrase_opening,beak_phrase depth=1
+
+        path name=left_bronchus length_cm=3.8 diameters=.22,.30,.36,.42
+        path name=right_bronchus length_cm=3.6 diameters=.20,.28,.34,.40
+        path name=trachea length_cm=8.4 diameters=.38,.48,.56,.46
+
+        source_port name=left_labium path=left_bronchus kind=syrinx model=tissue_valve position=0 pressure=@/voice/left/pressure tension=@/voice/left/tension opening=@/voice/left/opening noise=.018 impedance=.82 mass=.30 damping=.14 stiffness=.028 saturation=.88 flow_scale=1.15 tissue_loss=.18 aperture_shape=.40 flow_loss=.35 load_coupling=.42 rest_opening=.024
+        source_port name=right_labium path=right_bronchus kind=syrinx model=tissue_valve position=0 pressure=@/voice/right/pressure tension=@/voice/right/tension opening=@/voice/right/opening noise=.016 balance=.94 impedance=.78 mass=.32 damping=.16 stiffness=.032 saturation=.88 flow_scale=1.08 tissue_loss=.20 aperture_shape=.40 flow_loss=.35 load_coupling=.42 rest_opening=.024
+
+        terminal name=left_merge path=left_bronchus position=1 kind=junction area_scale=1
+        terminal name=right_merge path=right_bronchus position=1 kind=junction area_scale=1
+        terminal name=trachea_base path=trachea position=0 kind=junction area_scale=1
+        connect name=syrinx_merge terminals=left_merge,right_merge,trachea_base law=area_scatter coupling=1
+
+        radiation_port name=beak path=trachea kind=beak model=beak position=1 opening=@/voice/beak/opening reflection=-.72 loss=.98
+        wave_clock name=syrinx_clock strategy=linear max_delay=2048 smoothing_ms=2
+        acoustic_network name=singing_syrinx path=trachea wave_clock=syrinx_clock sources=left_labium,right_labium radiation=beak terminals=left_merge,right_merge,trachea_base connections=syrinx_merge
+        acoustic_voice network=singing_syrinx freq=920 gain=.30 sustain=.92 decay=.12 vibrato=.008 vibrato_hz=5.2 lpf=.82 hpf=.03 bpf=.36 bpf_q=1.5
+        """;
+
+    public const string SubtractiveDrumsInstrument = """
+        patch
+            gain=0.72
+            soft_clip=true
+
+        defaults
+            drive=.14
+            sustain_level=.62
+
+        voice
+            wave=sine
+            freq=58
+            gain=.82
+            sustain=.038
+            decay=.38
+            pitch_ramp=-3.6
+            min_freq=32
+            lpf=.78
+            lpf_q=.28
+
+        voice
+            wave=noise
+            freq=1700
+            gain=.26
+            sustain=.018
+            decay=.18
+            noise=.95
+            hpf=.48
+            bpf=.38
+            bpf_q=2.2
+
+        voice
+            wave=triangle
+            freq=188
+            gain=.12
+            sustain=.026
+            decay=.13
+            pitch_ramp=-1.05
+            lpf=.52
+
+        voice
+            wave=noise
+            freq=8200
+            gain=.11
+            sustain=.005
+            decay=.052
+            noise=1
+            hpf=.88
+            lpf=.20
+
+        voice
+            wave=square
+            freq=540
+            gain=.08
+            sustain=.035
+            decay=.16
+            duty=.42
+            hpf=.18
+            lpf=.72
+        """;
+
+    public const string AdditivePadInstrument = """
+        patch
+            gain=0.74
+            soft_clip=true
+
+        param name=bloom path=/macro/bloom default=.72 min=0 max=1 step=.001
+        param name=air path=/macro/air default=.12 min=0 max=.3 step=.001
+
+        mod name=slow_bloom
+            wave=sine
+            hz=.13
+            gain=.045
+            pitch=.006
+            lpf=.08
+
+        layer name=body engine=add min_key=36 max_key=96 gain=.14 env=rl rates=.35,.62,1.1,1.4 levels=1,.92,.84,0 curves=lin,exp,lin,lin gate=2.6
+        layer name=halo engine=pad min_key=48 max_key=108 gain=.10 env=rl rates=.55,.8,1.35,1.8 levels=.85,.95,.78,0 curves=lin,exp,lin,lin gate=3.0
+
+        harmonics layer=body root=110 partials=1:.12,2:.055,3:.032,4:.018,5:.012
+        spectrum layer=halo root=110 freq=220 spread=.008 pad_mode=bandwidth pad_bandwidth=520 pad_bwscale=2 pad_profile=gaussian:88:4:10:42:127:sine:mult:72:24:yes:full partials=1:.08,1.5:.026,2:.022,2.5:.014,3:.011
+
+        voice
+            layer=body
+            wave=sine
+            freq=110
+            gain=.08
+            attack=.32
+            sustain=1.8
+            decay=1.5
+            lpf=@/macro/bloom
+            hpf=.015
+
+        voice
+            layer=halo
+            wave=noise
+            freq=1800
+            gain=@/macro/air
+            attack=.7
+            sustain=1.6
+            decay=1.9
+            noise=.72
+            hpf=.58
+            lpf=.34
+        """;
+
+    public static readonly IReadOnlyList<(string Name, string Script)> InstrumentReferenceScripts =
+    [
+        ("syrinx-voice", SyrinxVoiceInstrument),
+        ("subtractive-drums", SubtractiveDrumsInstrument),
+        ("additive-pad", AdditivePadInstrument)
+    ];
+
     public static readonly IReadOnlyList<(string Name, string Script)> AdvancedReferenceScripts =
     [
         ("aurora-pad", """
@@ -1158,6 +1311,7 @@ public static class BuiltInScripts
         yield return ("pink-trombone", "current-aquasynth-graph", PinkTromboneProxy);
         foreach (var item in ReferenceRebuildCatalog.Dx7Rebuilds) yield return ("dx7", item.Name, item.Script);
         foreach (var item in ReferenceRebuildCatalog.ZynRebuilds) yield return ("zynaddsubfx", item.Name, item.Script);
+        foreach (var item in InstrumentReferenceScripts) yield return ("advanced", item.Name, item.Script);
         foreach (var item in AdvancedReferenceScripts) yield return ("advanced", item.Name, item.Script);
     }
 

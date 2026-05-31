@@ -372,7 +372,7 @@ $agentSeedList
 - required duration: $DurationSeconds seconds
 
 Goal:
-Write exactly one parseable AquaSynth `.aqua` patch for each frozen $DurationSeconds second reference clip assigned to you. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, curves, and helper voices.
+Write exactly one parseable AquaSynth `.aqua` patch for each frozen $DurationSeconds second reference clip assigned to you. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
 
 Generalization:
 - You own two target patches, but your report must compare both targets and state what reusable scene/instrument knowledge transfers between them.
@@ -383,6 +383,13 @@ Noise and texture:
 - Do not model background or recording color as a full-duration raw `voice wave=noise` bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
 - Use the shaped texture owner for noise roles: `texture name=dust_hat role=dust pattern=x..x step=<beat_seconds/4> gain=.08 sustain=$DurationSeconds`, `texture name=air_wash role=air gain=.035 sustain=$DurationSeconds`, `texture name=codec_bed role=codec gain=.04 sustain=$DurationSeconds`.
 - `texture` lowers to a gated noise voice with role-specific bandpass/highpass/lowpass/tremolo defaults and a control curve or pattern gate. Raw `voice wave=noise` is only acceptable for short transients with explicit gates and narrow filters.
+
+Instrument ownership:
+- This harness is feeding the music-generator curriculum, so do not solve the target with three naked oscillators and a prayer. The scorer now records instrument-role metrics and chip-distress risk in CultCache.
+- If the patch has a singing, creature, or alien lead role, use the syrinx/acoustic owner: `source_port kind=syrinx`, pressure/opening curves, `acoustic_network`, and `acoustic_voice`, then shape it with filters/modulation.
+- If the patch has drums or rhythmic transients, use subtractive ownership: pitched sine/triangle body, filtered noise skin, short envelope, and pattern gate.
+- If the patch has a pad, bed, drone, or harmonic wash, use additive/PAD ownership: `layer engine=add` or `engine=pad`, `harmonics`, `spectrum`, and slow modulation.
+- Ordinary simple voices are still legal as helpers, but a candidate built mostly from square/sine/saw blips with no syrinx, subtractive drum, additive/PAD, or shaped texture role will be treated as chip-distress-risk evidence.
 
 Rhythm and tempo:
 - The challenge report includes `tempo_bpm`, `beat_seconds`, and `tempo_confidence`, estimated from spectral/RMS onset autocorrelation.
@@ -421,7 +428,7 @@ Evidence contract:
 - Read every assigned challenge report and $preEvidence.
 - Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on both targets, known risks.
 - Write exactly one `.aqua` file under each target patch output directory named `<agent-id>__<family>__<hypothesis>.aqua`.
-- Include at least three scene voices or layers in the patch, such as primary alien-voice/body, rhythmic transient/noise, and background/recording color.
+- Include at least three scene voices or layers in the patch: a primary voice/body, a rhythmic drum/transient/noise role, and a pad/bed/recording-color role. Prefer syrinx for the primary voice when it is voice-like, subtractive for the drum/transient, and additive/PAD or shaped texture for the bed.
 - Background/recording-color layers must use `texture` or an equivalently gated and band-shaped explicit voice; a static full-duration white-noise bed is failed evidence.
 - Make each patch duration/gates cover its matching $DurationSeconds second target.
 
