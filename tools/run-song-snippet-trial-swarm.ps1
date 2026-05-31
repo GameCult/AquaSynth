@@ -2,9 +2,11 @@ param(
     [int]$Passes = 1,
     [int]$AgentsPerPass = 5,
     [string]$Source = "D:\Music\Reinier\Heyoka\Gate Code\Heyoka - Alien Gibberish.mp3",
-    [float]$DurationSeconds = 10,
+    [string]$SourceFolder = "",
+    [float]$DurationSeconds = 30,
     [int]$Seed = 0,
     [switch]$NewSegmentPerPass,
+    [switch]$RandomSourcePerAgent,
     [string]$CodexCommand = "codex",
     [string]$CodexModel = "gpt-5.3-codex"
 )
@@ -132,6 +134,26 @@ function Assert-SongCandidates {
     }
 }
 
+function Get-SongSources {
+    param(
+        [string]$Source,
+        [string]$SourceFolder
+    )
+
+    if ($SourceFolder.Length -gt 0) {
+        $files = @(Get-ChildItem -LiteralPath $SourceFolder -File |
+            Where-Object { $_.Extension -in @(".mp3", ".wav", ".flac", ".aiff", ".aif", ".ogg") } |
+            Sort-Object Name)
+        if ($files.Count -eq 0) {
+            throw "No supported song files found in '$SourceFolder'."
+        }
+
+        return @($files | ForEach-Object { $_.FullName })
+    }
+
+    return @($Source)
+}
+
 $repoRoot = Resolve-RepoRoot
 $codex = Get-Command $CodexCommand -ErrorAction Stop
 $loopId = New-Timestamp
@@ -140,6 +162,7 @@ $logRoot = Join-Path $loopRoot "logs"
 $workerProject = Join-Path $repoRoot "tools/IpaTrialWorker/IpaTrialWorker.csproj"
 $storePath = Join-Path $loopRoot "song-trial-results.cc"
 $seedValue = if ($Seed -eq 0) { Get-Random -Minimum 1 -Maximum ([int]::MaxValue) } else { $Seed }
+$songSources = @(Get-SongSources -Source $Source -SourceFolder $SourceFolder)
 New-Item -ItemType Directory -Force -Path $loopRoot, $logRoot | Out-Null
 
 Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
@@ -147,12 +170,15 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 
 - repo: $repoRoot
 - source: $Source
+- source_folder: $SourceFolder
+- song_sources: $($songSources -join '; ')
 - codex: $($codex.Source)
 - passes: $Passes
 - agents_per_pass: $AgentsPerPass
 - seed: $seedValue
 - duration_seconds: $DurationSeconds
 - new_segment_per_pass: $NewSegmentPerPass
+- random_source_per_agent: $RandomSourcePerAgent
 - store: $storePath
 - worker: $workerProject
 
@@ -162,35 +188,8 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
     $passId = "pass-{0:000}" -f $pass
     $passDir = Join-Path $loopRoot $passId
     $patchRoot = Join-Path $passDir "proposed-patches"
-    $challengeRoot = Join-Path $passDir "challenge"
-    $challengePath = Join-Path $challengeRoot "challenge.json"
     $phaseSeed = if ($NewSegmentPerPass) { $seedValue + (($pass - 1) * 7919) } else { $seedValue }
-    New-Item -ItemType Directory -Force -Path $passDir, $patchRoot, $challengeRoot | Out-Null
-
-    Invoke-LoggedProcess `
-        -FilePath "dotnet" `
-        -ArgumentList @(
-            "run",
-            "--project",
-            $workerProject,
-            "--",
-            "song-prepare",
-            "--source",
-            $Source,
-            "--artifact-root",
-            $challengeRoot,
-            "--duration-seconds",
-            ([string]$DurationSeconds),
-            "--seed",
-            ([string]$phaseSeed),
-            "--challenge-id",
-            "song-snippet-$loopId-$passId",
-            "--output",
-            $challengePath
-        ) `
-        -LogPath (Join-Path $logRoot "$passId-challenge-prepare.log")
-
-    $challengeMarkdown = Join-Path $challengeRoot "challenge.md"
+    New-Item -ItemType Directory -Force -Path $passDir, $patchRoot | Out-Null
 
     $preEvidence = Join-Path $passDir "semantic-search-before.md"
     if (Test-Path -LiteralPath $storePath) {
@@ -224,7 +223,40 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
         $agentId = "agent-{0:00}" -f $agent
         $agentDir = Join-Path $passDir $agentId
         $agentPatchDir = Join-Path $patchRoot $agentId
-        New-Item -ItemType Directory -Force -Path $agentDir, $agentPatchDir | Out-Null
+        $agentChallengeRoot = Join-Path $agentDir "challenge"
+        $agentChallengePath = Join-Path $agentChallengeRoot "challenge.json"
+        New-Item -ItemType Directory -Force -Path $agentDir, $agentPatchDir, $agentChallengeRoot | Out-Null
+        $sourceIndex = if ($RandomSourcePerAgent) {
+            (($phaseSeed + ($agent * 1543)) % $songSources.Count)
+        }
+        else {
+            (($phaseSeed - $seedValue) / 7919) % $songSources.Count
+        }
+        $agentSource = $songSources[[int]$sourceIndex]
+        $agentSeed = $phaseSeed + ($agent * 104729)
+        Invoke-LoggedProcess `
+            -FilePath "dotnet" `
+            -ArgumentList @(
+                "run",
+                "--project",
+                $workerProject,
+                "--",
+                "song-prepare",
+                "--source",
+                $agentSource,
+                "--artifact-root",
+                $agentChallengeRoot,
+                "--duration-seconds",
+                ([string]$DurationSeconds),
+                "--seed",
+                ([string]$agentSeed),
+                "--challenge-id",
+                "song-snippet-$loopId-$passId-$agentId",
+                "--output",
+                $agentChallengePath
+            ) `
+            -LogPath (Join-Path $logRoot "$passId-$agentId-challenge-prepare.log")
+        $challengeMarkdown = Join-Path $agentChallengeRoot "challenge.md"
         $outputPath = Join-Path $agentDir "hypothesis-agent.md"
         $promptPath = Join-Path $agentDir "hypothesis-agent.prompt.md"
         $logPath = Join-Path $logRoot "$passId-$agentId-hypothesis-agent.log"
@@ -232,26 +264,32 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
 You are an AquaSynth song-snippet parity worker.
 
 Challenge:
-- frozen challenge JSON: $challengePath
+- frozen challenge JSON: $agentChallengePath
 - human-readable challenge report: $challengeMarkdown
 - shared prior evidence: $preEvidence
 - patch output directory: $agentPatchDir
 - candidate filename prefix: $agentId
 - phase id: $passId
 - phase seed: $phaseSeed
+- assigned source: $agentSource
+- agent seed: $agentSeed
+- required duration: $DurationSeconds seconds
 
 Goal:
-Write exactly one parseable AquaSynth `.aqua` patch that tries to reproduce the frozen 10 second reference clip. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, curves, and helper voices.
+Write exactly one parseable AquaSynth `.aqua` patch that tries to reproduce the frozen $DurationSeconds second reference clip. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, curves, and helper voices.
 
 Rhythm and tempo:
 - The challenge report includes `tempo_bpm`, `beat_seconds`, and `tempo_confidence`, estimated from spectral/RMS onset autocorrelation.
+- The challenge report also points to `analysis_report`, `log_mel_spectrogram_csv`, `log_mel_band_stats_csv`, `rms_envelope_csv`, and `rms_envelope_autocorr_csv`; read them before writing the patch.
+- Use spectrogram band means, first derivatives, second derivatives, and envelope autocorrelation peaks as evidence for which voices should be steady, pulsed, noisy, bright, or accelerating.
 - Use those timing facts to build rhythmic controls.
 - Current sequencing syntax is Strudel-ish through ordinary AquaSynth parameter curves:
   - declare a parameter: `param path=/seq/kick default=0 min=0 max=1 step=.001`
   - step a pattern with hold interpolation: `curve name=kick_seq path=/seq/kick points=0:1,0.12:0,0.48:1,0.60:0 interp=hold loop=true`
+  - new sugar now exists: `pattern name=kick_seq path=/seq/kick pattern=x..x step=<beat_seconds/4> high=1 low=0`
   - use beat-derived times from `beat_seconds`; eighth notes are `beat_seconds/2`, sixteenths are `beat_seconds/4`.
   - bind parameters into voices or primitives, for example `gain=@/seq/kick`, `tremolo_hz=<tempo_bpm/60>`, `noise=@/seq/hiss`, `freq=@/seq/pitch`.
-- Do not invent unimplemented syntax like `s("bd sn")` unless you also make a source-edit plan; use `param` + `curve interp=hold loop=true` as the live DSP sequencing surface.
+- Do not invent unimplemented syntax like `s("bd sn")` inside the `.aqua` candidate. You may propose it in `instrument-conventions.md`.
 
 Register and scale:
 - The challenge report includes `dominant_hz`, `register_low_hz`, `register_high_hz`, `root_note`, `suggested_scale`, and `scale_frequencies_hz`.
@@ -259,8 +297,9 @@ Register and scale:
 - Current scale sugar is explicit frequency sequencing:
   - declare pitch: `param path=/seq/pitch default=<dominant_hz> min=<register_low_hz> max=<register_high_hz> step=.01 unit=Hz`
   - step the scale: `curve name=lead_scale path=/seq/pitch points=0:<scale0>,0.25:<scale1>,0.5:<scale2>,0.75:<scale3> interp=hold loop=true`
+  - new sugar now exists: `scale name=lead_scale path=/seq/pitch freqs=<scale_frequencies_hz> degrees=0,1,3,2 step=<beat_seconds/4>`
   - bind it: `freq=@/seq/pitch`
-- Do not invent native `scale`, `note`, or Strudel pattern syntax in the patch unless you also edit the DSL/lowering source and document the new syntax. For candidate patches, explicit scale frequencies are the contract.
+- Candidate patches may use implemented `pattern` and `scale` sugar or the explicit lowered `param`/`curve` form. Proposed future sugar goes in the report.
 
 Instrument and DSL convention invention:
 - Invent at least one reusable instrument role for this segment, such as `alien-lead`, `dust-hat`, `codec-bed`, `rubber-bass`, `vowel-drone`, or another precise name.
@@ -269,14 +308,14 @@ Instrument and DSL convention invention:
   - the control surfaces each role would want;
   - any Strudel-like sugar that would make the patch shorter;
   - the exact lowering into today's AquaSynth syntax using explicit `voice`, `param`, and `curve` lines.
-- The `.aqua` candidate must use today's implemented syntax only. Proposed sugar is evidence for the next DSL cut, not magic accepted by the parser.
+- The `.aqua` candidate must use today's implemented syntax only: `pattern`, `scale`, `param`, `curve`, and ordinary patch/voice syntax are legal. Proposed future sugar is evidence for the next DSL cut, not magic accepted by the parser.
 
 Evidence contract:
 - Read $challengeMarkdown and $preEvidence.
-- Write $agentDir/hypotheses.md with: reference features, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement, known risks.
+- Write $agentDir/hypotheses.md with: reference features, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement, known risks.
 - Write exactly one `.aqua` file under $agentPatchDir named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch, such as primary alien-voice/body, rhythmic transient/noise, and background/recording color.
-- Make the patch duration/gates cover the 10 second target.
+- Make the patch duration/gates cover the $DurationSeconds second target.
 
 Return a short final summary naming the patch and report.
 "@
@@ -294,28 +333,32 @@ Return a short final summary naming the patch and report.
     Wait-CodexJobs -Jobs $jobs
     Assert-SongCandidates -PatchDirectory $patchRoot -ExpectedCount $AgentsPerPass
 
-    Invoke-LoggedProcess `
-        -FilePath "dotnet" `
-        -ArgumentList @(
-            "run",
-            "--project",
-            $workerProject,
-            "--",
-            "song-score",
-            "--patch-root",
-            $patchRoot,
-            "--challenge",
-            $challengePath,
-            "--artifact-root",
-            $passDir,
-            "--batch-id",
-            $passId,
-            "--store",
-            $storePath,
-            "--hypothesizer",
-            "external-codex-song-swarm-$passId"
-        ) `
-        -LogPath (Join-Path $logRoot "$passId-score-candidates.log")
+    for ($agent = 1; $agent -le $AgentsPerPass; $agent++) {
+        $agentId = "agent-{0:00}" -f $agent
+        $agentDir = Join-Path $passDir $agentId
+        Invoke-LoggedProcess `
+            -FilePath "dotnet" `
+            -ArgumentList @(
+                "run",
+                "--project",
+                $workerProject,
+                "--",
+                "song-score",
+                "--patch-root",
+                (Join-Path $patchRoot $agentId),
+                "--challenge",
+                (Join-Path $agentDir "challenge/challenge.json"),
+                "--artifact-root",
+                $agentDir,
+                "--batch-id",
+                "$passId-$agentId",
+                "--store",
+                $storePath,
+                "--hypothesizer",
+                "external-codex-song-swarm-$passId-$agentId"
+            ) `
+            -LogPath (Join-Path $logRoot "$passId-$agentId-score-candidate.log")
+    }
 
     Invoke-LoggedProcess `
         -FilePath "dotnet" `

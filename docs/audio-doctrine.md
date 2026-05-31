@@ -318,6 +318,14 @@ Useful metrics:
 - zero-crossing and centroid ratios for noise/brightness drift
 - script readability and terseness scores for DSL golf work
 
+Song-scene parity targets must publish target evidence before candidate golf:
+log-mel spectrogram CSV, per-band statistics, first and second derivative
+summaries, RMS envelope, and envelope autocorrelation. Those artifacts are not
+loose side files only; scoring writes them as typed song challenge evidence
+records in the `.cc` CultCache/CultMesh store and references them from each
+trial result. Qdrant/Ollama retrieval may derive vectors from those records, but
+the `.cc` records remain truth.
+
 Do not confuse high metric agreement with musical success. The game context,
 the reference sound, and the user’s ear still outrank the spreadsheet. Annoying,
 but civilization has survived worse.

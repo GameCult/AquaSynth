@@ -42,10 +42,27 @@ public sealed record PrimitiveTimelineFact(
     [property: Key(6)] int BlockEnd,
     [property: Key(7)] string Summary);
 
+[CultDocument("aquasynth.song_challenge_evidence", "aquasynth.song_challenge_evidence.v1")]
+[MessagePackObject]
+public sealed record SongChallengeEvidenceDocument(
+    [property: Key(0)]
+    [property: CultName]
+    string EvidenceId,
+    [property: Key(1)] string ChallengeId,
+    [property: Key(2)] string Kind,
+    [property: Key(3)] string ContentType,
+    [property: Key(4)] string Content,
+    [property: Key(5)] string ContentHash,
+    [property: Key(6)] string SourcePath,
+    [property: Key(7)] string CreatedAtUtc);
+
 public static class IpaTrialResultCultCacheStore
 {
     public static Task UpsertResultsAsync(string filePath, IEnumerable<IpaTrialResult> results) =>
         UpsertAsync(filePath, results, result => $"ipa-trial-result:{result.TrialId}");
+
+    public static Task UpsertSongChallengeEvidenceAsync(string filePath, IEnumerable<SongChallengeEvidenceDocument> documents) =>
+        UpsertAsync(filePath, documents, document => $"song-challenge-evidence:{document.EvidenceId}");
 
     public static async Task<IReadOnlyList<IpaTrialResult>> ReadResultsAsync(string filePath)
     {
@@ -57,6 +74,19 @@ public static class IpaTrialResultCultCacheStore
         using var cache = await CultCacheMessagePack.OpenAsync(filePath).ConfigureAwait(false);
         return cache.GetAll<IpaTrialResult>()
             .OrderBy(result => result.TrialId, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    public static async Task<IReadOnlyList<SongChallengeEvidenceDocument>> ReadSongChallengeEvidenceAsync(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return [];
+        }
+
+        using var cache = await CultCacheMessagePack.OpenAsync(filePath).ConfigureAwait(false);
+        return cache.GetAll<SongChallengeEvidenceDocument>()
+            .OrderBy(document => document.EvidenceId, StringComparer.Ordinal)
             .ToArray();
     }
 

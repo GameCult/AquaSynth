@@ -319,6 +319,14 @@ public static class PatchScript
                     FlushPendingOperatorGraph();
                     AddControlCurve(fields, line);
                     break;
+                case "pattern":
+                    FlushPendingOperatorGraph();
+                    AddPatternCurve(fields, line);
+                    break;
+                case "scale":
+                    FlushPendingOperatorGraph();
+                    AddScaleCurve(fields, line);
+                    break;
                 case "control_spline":
                     FlushPendingOperatorGraph();
                     AddControlSpline(fields, line);
@@ -2531,6 +2539,87 @@ public static class PatchScript
                 GetAny(fields, ["rate", "automation", "automation_rate"], "control")));
         }
 
+        private void AddPatternCurve(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var parameterPath = Required(fields, "path", line);
+            var pattern = RequiredAny(fields, ["pattern", "pat", "steps"], line);
+            var stepSeconds = GetFloat(fields, line, GetFloat(fields, line, 0.25f, "beat"), "step", "step_seconds", "dt");
+            if (stepSeconds <= 0)
+            {
+                throw new PatchScriptException(line, "pattern step must be greater than zero");
+            }
+
+            var high = GetFloat(fields, line, 1, "high", "on", "hit");
+            var low = GetFloat(fields, line, 0, "low", "off", "rest");
+            var values = PatternValues(pattern, high, low, line);
+            EnsureParameter(parameterPath, low, Math.Min(low, high), Math.Max(low, high), GetFloat(fields, line, 0.001f, "step_size"), "", line);
+            AddControlCurve(SyntheticFields(
+                ("name", GetAny(fields, ["name", "n"], SafeName(parameterPath.Trim('/')) + "_pattern")),
+                ("path", parameterPath),
+                ("points", PointsText(values.Select((value, index) => (index * stepSeconds, value)))),
+                ("interp", "hold"),
+                ("loop", GetAny(fields, ["loop"], "true")),
+                ("mode", GetAny(fields, ["mode"], "blend")),
+                ("depth", GetAny(fields, ["depth", "amount", "mix"], "1"))), line);
+        }
+
+        private void AddScaleCurve(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var parameterPath = Required(fields, "path", line);
+            var stepSeconds = GetFloat(fields, line, GetFloat(fields, line, 0.25f, "beat"), "step", "step_seconds", "dt");
+            if (stepSeconds <= 0)
+            {
+                throw new PatchScriptException(line, "scale step must be greater than zero");
+            }
+
+            var frequencies = TryGetAny(fields, ["freqs", "frequencies", "notes"], out var frequenciesText)
+                ? ParseLooseFloatList(frequenciesText, line)
+                : ScaleFrequencies(fields, line);
+            if (frequencies.Count == 0)
+            {
+                throw new PatchScriptException(line, "scale needs at least one frequency");
+            }
+
+            var degrees = TryGetAny(fields, ["degrees", "pattern", "pat", "steps"], out var degreeText)
+                ? ParseLooseIntList(degreeText, line)
+                : Enumerable.Range(0, frequencies.Count).ToArray();
+            if (degrees.Count == 0)
+            {
+                throw new PatchScriptException(line, "scale needs at least one degree");
+            }
+
+            var values = degrees
+                .Select(degree => frequencies[Math.Clamp(degree, 0, frequencies.Count - 1)])
+                .ToArray();
+            var min = GetFloat(fields, line, frequencies.Min(), "min");
+            var max = GetFloat(fields, line, frequencies.Max(), "max");
+            EnsureParameter(parameterPath, values[0], min, max, GetFloat(fields, line, 0.01f, "step_size"), "Hz", line);
+            AddControlCurve(SyntheticFields(
+                ("name", GetAny(fields, ["name", "n"], SafeName(parameterPath.Trim('/')) + "_scale")),
+                ("path", parameterPath),
+                ("points", PointsText(values.Select((value, index) => (index * stepSeconds, value)))),
+                ("interp", "hold"),
+                ("loop", GetAny(fields, ["loop"], "true")),
+                ("mode", GetAny(fields, ["mode"], "blend")),
+                ("depth", GetAny(fields, ["depth", "amount", "mix"], "1"))), line);
+        }
+
+        private void EnsureParameter(string path, float defaultValue, float min, float max, float step, string unit, int line)
+        {
+            if (_parameters.Any(parameter => parameter.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            AddParameter(SyntheticFields(
+                ("path", path),
+                ("default", defaultValue.ToString(CultureInfo.InvariantCulture)),
+                ("min", min.ToString(CultureInfo.InvariantCulture)),
+                ("max", max.ToString(CultureInfo.InvariantCulture)),
+                ("step", step.ToString(CultureInfo.InvariantCulture)),
+                ("unit", unit)), line);
+        }
+
         private void AddGestureGroup(IReadOnlyDictionary<string, string> fields, int line)
         {
             var name = Required(fields, "name", line);
@@ -3370,6 +3459,8 @@ public static class PatchScript
         "param" or "parameter" => "param",
         "control_surface" or "surface" or "controlsurface" => "control_surface",
         "curve" or "control_curve" or "automation" => "curve",
+        "pattern" or "pat" or "seq" or "sequence" => "pattern",
+        "scale" or "notes" or "melody" => "scale",
         "control_spline" or "spline" or "gesture_spline" or "gesturespline" => "control_spline",
         "phoneme_gesture" or "phone_gesture" or "ipa_gesture" or "phoneme" or "phone" => "phoneme_gesture",
         "gesture" or "gesture_group" or "gesturegroup" => "gesture",
@@ -3579,6 +3670,71 @@ public static class PatchScript
         string.IsNullOrWhiteSpace(value)
             ? Array.Empty<string>()
             : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static Dictionary<string, string> SyntheticFields(params (string Key, string Value)[] fields) =>
+        fields.ToDictionary(field => field.Key, field => field.Value, StringComparer.OrdinalIgnoreCase);
+
+    private static string PointsText(IEnumerable<(float Time, float Value)> points) =>
+        string.Join(",", points.Select(point =>
+            point.Time.ToString("0.######", CultureInfo.InvariantCulture) +
+            ":" +
+            point.Value.ToString("0.######", CultureInfo.InvariantCulture)));
+
+    private static IReadOnlyList<float> PatternValues(string pattern, float high, float low, int line)
+    {
+        var compact = pattern.Replace("\"", "", StringComparison.Ordinal).Replace("'", "", StringComparison.Ordinal);
+        var values = new List<float>();
+        foreach (var token in compact.Split([',', ' ', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            foreach (var character in token)
+            {
+                values.Add(character switch
+                {
+                    'x' or 'X' or '1' or '*' => high,
+                    '.' or '-' or '_' or '~' or '0' => low,
+                    _ when char.IsDigit(character) => Math.Clamp((character - '0') / 9f, 0, 1) * (high - low) + low,
+                    _ => throw new PatchScriptException(line, $"bad pattern step `{character}`")
+                });
+            }
+        }
+
+        if (values.Count == 0)
+        {
+            throw new PatchScriptException(line, "pattern needs at least one step");
+        }
+
+        return values;
+    }
+
+    private static IReadOnlyList<float> ScaleFrequencies(IReadOnlyDictionary<string, string> fields, int line)
+    {
+        var root = GetFloat(fields, line, 440, "root", "freq", "base");
+        var intervals = TryGetAny(fields, ["intervals"], out var intervalsText)
+            ? ParseLooseIntList(intervalsText, line)
+            : ScaleIntervals(GetAny(fields, ["scale", "mode"], "minor-pentatonic"));
+        return intervals.Select(interval => root * MathF.Pow(2f, interval / 12f)).ToArray();
+    }
+
+    private static IReadOnlyList<int> ScaleIntervals(string scale) => scale.ToLowerInvariant() switch
+    {
+        "major" or "ionian" => [0, 2, 4, 5, 7, 9, 11, 12],
+        "minor" or "aeolian" => [0, 2, 3, 5, 7, 8, 10, 12],
+        "pentatonic" or "major-pentatonic" => [0, 2, 4, 7, 9, 12],
+        "minor-pentatonic" or "minor_pentatonic" => [0, 3, 5, 7, 10, 12],
+        "minor-pentatonic-plus-tritone" or "minor_pentatonic_plus_tritone" or "alien" => [0, 3, 5, 6, 7, 10, 12],
+        "chromatic" => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        _ => [0, 3, 5, 7, 10, 12]
+    };
+
+    private static IReadOnlyList<float> ParseLooseFloatList(string value, int line) =>
+        value.Split([',', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(item => ParseFloat(item, line))
+            .ToArray();
+
+    private static IReadOnlyList<int> ParseLooseIntList(string value, int line) =>
+        value.Split([',', '|', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(item => ParseInt(item, line))
+            .ToArray();
 
     private static IReadOnlyList<ControlCurvePoint> ParseControlCurvePoints(string value, int line)
     {

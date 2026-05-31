@@ -66,6 +66,40 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsStrudelLikePatternAndScaleSugar()
+    {
+        var patch = PatchScript.Parse("""
+            scale name=lead_scale path=/seq/pitch freqs=493.883,587.33,659.255,698.457 degrees=0,1,3,2 step=.2
+            pattern name=lead_gate path=/seq/gate pattern=x.-x step=.1 high=.8 low=.05
+            voice wave=saw freq=@/seq/pitch gain=@/seq/gate sustain=30 decay=.2
+            """);
+
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/seq/pitch" && parameter.Unit == "Hz");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/seq/gate");
+        var scale = Assert.Single(patch.ControlCurves, curve => curve.Name == "lead_scale");
+        Assert.Equal(ControlCurveInterpolation.Hold, scale.Interpolation);
+        Assert.True(scale.Loop);
+        Assert.Equal([493.883f, 587.33f, 698.457f, 659.255f], scale.Points.Select(point => point.Value).ToArray());
+        var gate = Assert.Single(patch.ControlCurves, curve => curve.Name == "lead_gate");
+        Assert.Equal([.8f, .05f, .05f, .8f], gate.Points.Select(point => point.Value).ToArray());
+    }
+
+    [Fact]
+    public void ParserSupportsNamedScaleIntervals()
+    {
+        var patch = PatchScript.Parse("""
+            scale path=/seq/pitch root=440 scale=minor-pentatonic-plus-tritone degrees=0,1,2,3 step=.25
+            voice freq=@/seq/pitch gain=.1
+            """);
+
+        var curve = Assert.Single(patch.ControlCurves);
+        Assert.Equal(440, curve.Points[0].Value, 3);
+        Assert.Equal(523.251f, curve.Points[1].Value, 3);
+        Assert.Equal(587.33f, curve.Points[2].Value, 3);
+        Assert.Equal(622.254f, curve.Points[3].Value, 3);
+    }
+
+    [Fact]
     public void ParserSupportsVoiceVowelFrames()
     {
         var patch = PatchScript.Parse("v w=saw f=90 fmix=.7 vowel_hz=.8 vowels=600:90:1,1200:160:.7|500:80:1,900:120:.8");

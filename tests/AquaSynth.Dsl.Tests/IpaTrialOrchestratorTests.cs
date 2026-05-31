@@ -36,7 +36,21 @@ public sealed class IpaTrialOrchestratorTests
                 [new PrimitiveTimelineFact("contact_release_peak", "contact:contact", "released_flow", .12f, "flow", 2, 2, "release witness")]);
 
             await IpaTrialResultCultCacheStore.UpsertResultsAsync(store, [result]);
+            await IpaTrialResultCultCacheStore.UpsertSongChallengeEvidenceAsync(
+                store,
+                [
+                    new SongChallengeEvidenceDocument(
+                        "challenge-a:logmel-band-stats",
+                        "challenge-a",
+                        "logmel-band-stats",
+                        "text/csv",
+                        "band,mean,abs_delta_mean\n0,-1.2,.3",
+                        "sha256:evidence",
+                        "reference.wav",
+                        "2026-05-29T12:00:00.0000000Z")
+                ]);
             var loaded = await IpaTrialResultCultCacheStore.ReadResultsAsync(store);
+            var evidence = await IpaTrialResultCultCacheStore.ReadSongChallengeEvidenceAsync(store);
 
             var single = Assert.Single(loaded);
             Assert.Equal("trial-a", single.TrialId);
@@ -44,6 +58,9 @@ public sealed class IpaTrialOrchestratorTests
             Assert.Contains(single.Metrics, metric => metric.Name == "log_mel_cosine");
             Assert.Contains(single.KnownLies, lie => lie.Contains("not an IPA sample", StringComparison.Ordinal));
             Assert.Contains(single.TimelineFacts, fact => fact.Name == "contact_release_peak" && fact.Value > 0);
+            var evidenceDocument = Assert.Single(evidence);
+            Assert.Equal("logmel-band-stats", evidenceDocument.Kind);
+            Assert.Contains("abs_delta_mean", evidenceDocument.Content, StringComparison.Ordinal);
         }
         finally
         {

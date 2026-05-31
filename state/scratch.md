@@ -1713,3 +1713,24 @@ Next likely slice:
   current frequency/gate controls.
 - Keep tests focused on structure first, then add rendered audio comparison once
   the render path is explicit.
+
+2026-05-31 song-scene evidence slice:
+
+- `pattern` and `scale` patch-script sugar are live. They create the backing
+  parameter when needed and lower to hold-loop control curves, giving song
+  workers Strudel-ish rhythmic/pitch controls without inventing parser magic.
+- Song snippet challenges now default to 30 seconds in the swarm harness, can
+  assign random album sources per agent, and prepare a separate seeded challenge
+  for each agent.
+- `song-prepare` writes target analysis artifacts:
+  `logmel-spectrogram.csv`, `logmel-band-stats.csv`, `rms-envelope.csv`,
+  `rms-envelope-autocorr.csv`, and `analysis.md`.
+- `song-score` upserts those artifacts into the `.cc` store as typed
+  `SongChallengeEvidenceDocument` records and adds target metrics plus
+  `cultmesh://aquasynth/song-challenge-evidence/...` artifact URIs to each
+  result. Qdrant indexing now creates evidence chunks from those database
+  records as well as trial summaries.
+- Smoke proof:
+  `artifacts/parity/song-snippet-smoke/cultmesh-evidence/song-trial-results.cc`
+  has one scored candidate, five target evidence docs, six Qdrant chunks, and a
+  search hit whose vector chunk is the song challenge analysis report.
