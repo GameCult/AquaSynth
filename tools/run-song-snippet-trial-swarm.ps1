@@ -2,7 +2,7 @@ param(
     [int]$Passes = 1,
     [int]$AgentsPerPass = 5,
     [string]$Source = "D:\Music\Reinier\Heyoka\Gate Code\Heyoka - Alien Gibberish.mp3",
-    [string]$SourceFolder = "",
+    [string]$SourceFolder = "D:\Music\Reinier\Heyoka",
     [float]$DurationSeconds = 30,
     [int]$Seed = 0,
     [switch]$NewSegmentPerPass,
@@ -141,9 +141,9 @@ function Get-SongSources {
     )
 
     if ($SourceFolder.Length -gt 0) {
-        $files = @(Get-ChildItem -LiteralPath $SourceFolder -File |
+        $files = @(Get-ChildItem -LiteralPath $SourceFolder -File -Recurse |
             Where-Object { $_.Extension -in @(".mp3", ".wav", ".flac", ".aiff", ".aif", ".ogg") } |
-            Sort-Object Name)
+            Sort-Object FullName)
         if ($files.Count -eq 0) {
             throw "No supported song files found in '$SourceFolder'."
         }

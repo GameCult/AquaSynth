@@ -1749,3 +1749,7 @@ Next likely slice:
   codec, room, and tape/vinyl noise are owned as gated, band-shaped scene
   roles. Future agents should not use full-duration raw `wave=noise` beds for
   recording color.
+- Source corpus widened one folder up: `run-song-snippet-trial-swarm.ps1`
+  defaults `SourceFolder` to `D:\Music\Reinier\Heyoka` and recursively discovers
+  supported audio files. Current local corpus is eight tracks across `Gate Code`,
+  `Mandelbass`, and `Marklar`.
