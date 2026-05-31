@@ -8,6 +8,7 @@ param(
     [int]$Seed = 0,
     [switch]$NewSegmentPerPass,
     [switch]$RandomSourcePerAgent,
+    [int]$PlaylistTopCount = 10,
     [string]$CodexCommand = "codex",
     [string]$CodexModel = "gpt-5.3-codex"
 )
@@ -155,6 +156,66 @@ function Get-SongSources {
     return @($Source)
 }
 
+function Write-PassPlaylist {
+    param(
+        [string]$PassDirectory,
+        [int]$TopCount
+    )
+
+    $summaryFiles = @(Get-ChildItem -LiteralPath $PassDirectory -Filter "summary.csv" -File -Recurse)
+    $rows = @()
+    foreach ($summaryFile in $summaryFiles) {
+        $batchDirectory = Split-Path -Parent $summaryFile.FullName
+        foreach ($row in (Import-Csv -LiteralPath $summaryFile.FullName)) {
+            $candidateId = $row.candidate_id
+            $candidateWav = Join-Path $batchDirectory (Join-Path "song-candidates" (Join-Path $candidateId "audio/candidate.wav"))
+            $referenceWav = Join-Path (Split-Path -Parent $batchDirectory) "reference.wav"
+            $rows += [pscustomobject]@{
+                CandidateId = $candidateId
+                TrialId = $row.trial_id
+                ReferenceId = $row.reference_id
+                Verdict = $row.verdict
+                LogMelCosine = [double]$row.log_mel_cosine
+                AudioScore = [double]$row.audio_score
+                RmsRatio = [double]$row.rms_ratio
+                CentroidRatio = [double]$row.centroid_ratio
+                CandidateWav = $candidateWav
+                ReferenceWav = $referenceWav
+                SummaryPath = $summaryFile.FullName
+            }
+        }
+    }
+
+    $ranked = @($rows | Sort-Object -Property @{ Expression = "LogMelCosine"; Descending = $true }, @{ Expression = "AudioScore"; Descending = $true } | Select-Object -First $TopCount)
+    $playlistPath = Join-Path $PassDirectory "top-scoring-candidates.m3u"
+    $reportPath = Join-Path $PassDirectory "top-scoring-candidates.md"
+    $playlist = New-Object System.Collections.Generic.List[string]
+    $playlist.Add("#EXTM3U")
+    $report = New-Object System.Collections.Generic.List[string]
+    $report.Add("# Top Scoring Song Candidates")
+    $report.Add("")
+    $report.Add(('playlist: `{0}`' -f $playlistPath))
+    $report.Add("")
+
+    $rank = 1
+    foreach ($row in $ranked) {
+        if (Test-Path -LiteralPath $row.CandidateWav) {
+            $title = "#{0} {1} cosine={2:0.######} score={3:0.######} verdict={4}" -f $rank, $row.CandidateId, $row.LogMelCosine, $row.AudioScore, $row.Verdict
+            $playlist.Add("#EXTINF:-1,$title")
+            $playlist.Add($row.CandidateWav)
+        }
+
+        $report.Add(('- {0}. `{1}` / verdict `{2}` / cosine `{3:0.######}` / score `{4:0.######}` / rms `{5:0.######}` / centroid `{6:0.######}`' -f $rank, $row.CandidateId, $row.Verdict, $row.LogMelCosine, $row.AudioScore, $row.RmsRatio, $row.CentroidRatio))
+        $report.Add(('  - candidate: `{0}`' -f $row.CandidateWav))
+        $report.Add(('  - reference: `{0}`' -f $row.ReferenceWav))
+        $report.Add(('  - summary: `{0}`' -f $row.SummaryPath))
+        $rank++
+    }
+
+    Set-Content -LiteralPath $playlistPath -Value $playlist
+    Set-Content -LiteralPath $reportPath -Value $report
+}
+
 $repoRoot = Resolve-RepoRoot
 $codex = Get-Command $CodexCommand -ErrorAction Stop
 $loopId = New-Timestamp
@@ -177,6 +238,7 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 - passes: $Passes
 - agents_per_pass: $AgentsPerPass
 - songs_per_agent: $SongsPerAgent
+- playlist_top_count: $PlaylistTopCount
 - seed: $seedValue
 - duration_seconds: $DurationSeconds
 - new_segment_per_pass: $NewSegmentPerPass
@@ -399,6 +461,8 @@ Return a short final summary naming the patch and report.
                 -LogPath (Join-Path $logRoot "$passId-$agentId-$songId-score-candidate.log")
         }
     }
+
+    Write-PassPlaylist -PassDirectory $passDir -TopCount $PlaylistTopCount
 
     $distilledStore = Join-Path $passDir "song-trial-results.distilled.cc"
     Invoke-LoggedProcess `
