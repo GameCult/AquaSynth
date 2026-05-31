@@ -2,6 +2,23 @@
 
 Current slice:
 
+- Completed a three-pass corpus song curriculum run under
+  `artifacts/parity/song-snippet-swarms/20260531T171802519`: each pass prepared
+  25 ten-second targets from `D:\Music\Reinier` for five agents with five
+  assignments each, then ran official scoring, playlist generation, semantic
+  search, trial distillation, and `music-distill` promotion. Pass 1 promoted 34
+  music-production knowledge records, pass 2 promoted 56, and pass 3 promoted
+  58. Final pass artifacts include `pass-003/top-scoring-candidates.m3u`,
+  `pass-003/distillation-report.md`,
+  `pass-003/music-production-knowledge.cc`, and
+  `pass-003/music-production-quality-standard.md`. The run exposed two harness
+  quality faults: spawned agents needed `E:\Projects\CultLib` as an added Codex
+  directory to run private scorers, and render-failed attempts must be handled
+  as negative evidence because candidate analysis files are absent. The pass-3
+  outer swarm failed after agent jobs 2/3/4/5 exited nonzero, so the run was
+  finished by promoting existing attempt-05 patches from those agents into the
+  official patch tree and running official scoring/promotion manually.
+
 - Built the first pruned music-production CultCache from the full-song iterative
   swarm artifacts instead of copying the old hot trial store. `music-distill`
   scans official pass summaries and abstraction ledgers, excludes iteration,
