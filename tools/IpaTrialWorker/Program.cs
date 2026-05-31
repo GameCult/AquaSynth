@@ -109,10 +109,13 @@ static async Task SongPrepareAsync(Dictionary<string, string> options)
     Directory.CreateDirectory(artifactRoot);
     var decoded = DecodeMono(source);
     var resampled = Resample(decoded.Samples, decoded.SampleRate, sampleRate);
-    var clipLength = Math.Min(resampled.Length, Math.Max(1, (int)MathF.Round(durationSeconds * sampleRate)));
+    var fullSong = durationSeconds <= 0;
+    var clipLength = fullSong
+        ? resampled.Length
+        : Math.Min(resampled.Length, Math.Max(1, (int)MathF.Round(durationSeconds * sampleRate)));
     var maxStart = Math.Max(0, resampled.Length - clipLength);
     var random = new Random(seed);
-    var startSample = maxStart == 0 ? 0 : random.Next(0, maxStart + 1);
+    var startSample = fullSong || maxStart == 0 ? 0 : random.Next(0, maxStart + 1);
     var clip = new float[clipLength];
     Array.Copy(resampled, startSample, clip, 0, clipLength);
     NormalizePeak(clip, .9f);
@@ -127,11 +130,13 @@ static async Task SongPrepareAsync(Dictionary<string, string> options)
     var bandStatsPath = Path.Combine(artifactRoot, "logmel-band-stats.csv");
     var envelopePath = Path.Combine(artifactRoot, "rms-envelope.csv");
     var envelopeAutocorrPath = Path.Combine(artifactRoot, "rms-envelope-autocorr.csv");
+    var whitenedSpectralAutocorrPath = Path.Combine(artifactRoot, "whitened-spectral-autocorr.csv");
     var analysisReportPath = Path.Combine(artifactRoot, "analysis.md");
     await File.WriteAllTextAsync(spectrogramPath, SpectrogramCsv(analysis.LogMelSpectrogram), Encoding.UTF8);
     await File.WriteAllTextAsync(bandStatsPath, SpectrogramBandStatsCsv(analysis.LogMelSpectrogram), Encoding.UTF8);
     await File.WriteAllTextAsync(envelopePath, EnvelopeCsv(analysis.RmsEnvelope, sampleRate, analyzer.Config.HopSize), Encoding.UTF8);
     await File.WriteAllTextAsync(envelopeAutocorrPath, AutocorrelationCsv(analysis.RmsEnvelope, sampleRate / (float)Math.Max(1, analyzer.Config.HopSize)), Encoding.UTF8);
+    await File.WriteAllTextAsync(whitenedSpectralAutocorrPath, WhitenedSpectralAutocorrelationCsv(analysis.LogMelSpectrogram, sampleRate / (float)Math.Max(1, analyzer.Config.HopSize)), Encoding.UTF8);
     var features = new SongChallengeFeatures(
         analysis.Features.DurationSeconds,
         analysis.Features.Peak,
@@ -155,6 +160,7 @@ static async Task SongPrepareAsync(Dictionary<string, string> options)
         bandStatsPath,
         envelopePath,
         envelopeAutocorrPath,
+        whitenedSpectralAutocorrPath,
         analysisReportPath);
     var challenge = new SongChallenge(
         challengeId,
@@ -263,6 +269,13 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
                 NormalizePeak(matched, .9f);
                 WriteWav(candidateWav, matched, challenge.SampleRate);
                 artifacts.Add(Artifact("candidate-wav", candidateWav));
+                var candidateAnalysisArtifacts = await WriteSongRenderAnalysisAsync(
+                    matched,
+                    challenge.SampleRate,
+                    audioDir,
+                    "candidate",
+                    analyzer);
+                artifacts.AddRange(candidateAnalysisArtifacts.Select(ArtifactFromAnalysis));
                 var comparison = analyzer.Compare(referenceSamples, matched);
                 metrics.AddRange(SongComparisonMetrics(comparison));
                 verdict = SongVerdict(comparison, instrumentProfile);
@@ -303,7 +316,9 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
             verdict,
             [
                 "This is a local-only song clip challenge; reference audio is not redistributed by the repo.",
-                $"The target is a randomly selected {challenge.DurationSeconds:0.###}-second scene-audio snippet, not IPA articulation truth.",
+                challenge.StartSeconds <= 0.001f
+                    ? $"The target starts at the source file beginning and lasts {challenge.DurationSeconds:0.###} seconds; in full-song runs this is the whole decoded song, not IPA articulation truth."
+                    : $"The target is a randomly selected {challenge.DurationSeconds:0.###}-second scene-audio snippet, not IPA articulation truth.",
                 "Challenge spectrogram, derivative, envelope, and autocorrelation artifacts are stored as typed CultMesh/CultCache evidence documents in the .cc database.",
                 "Full-patch FM/AM/noise/scene modeling is allowed; primitive timeline facts remain diagnostic when present.",
                 instrumentProfile.ChipDistressRisk >= .6f
@@ -1934,6 +1949,10 @@ static IEnumerable<SpeechRenderArtifact> SongChallengeArtifacts(SongChallenge ch
     yield return Artifact("target-logmel-band-stats", challenge.Artifacts.LogMelBandStatsCsv);
     yield return Artifact("target-rms-envelope", challenge.Artifacts.RmsEnvelopeCsv);
     yield return Artifact("target-rms-envelope-autocorr", challenge.Artifacts.RmsEnvelopeAutocorrCsv);
+    if (!string.IsNullOrWhiteSpace(challenge.Artifacts.WhitenedSpectralAutocorrCsv))
+    {
+        yield return Artifact("target-whitened-spectral-autocorr", challenge.Artifacts.WhitenedSpectralAutocorrCsv);
+    }
 }
 
 static SpeechRenderArtifact SongChallengeEvidenceArtifact(SongChallengeEvidenceDocument document) =>
@@ -1941,6 +1960,9 @@ static SpeechRenderArtifact SongChallengeEvidenceArtifact(SongChallengeEvidenceD
         $"cultmesh-song-challenge-{document.Kind}",
         $"cultmesh://aquasynth/song-challenge-evidence/{Uri.EscapeDataString(document.EvidenceId)}",
         document.ContentHash);
+
+static SpeechRenderArtifact ArtifactFromAnalysis(SongRenderAnalysisArtifacts artifact) =>
+    Artifact($"candidate-{artifact.Kind}", artifact.Path);
 
 static IReadOnlyList<SongChallengeEvidenceDocument> SongChallengeEvidenceDocuments(SongChallenge challenge)
 {
@@ -1955,6 +1977,7 @@ static IReadOnlyList<SongChallengeEvidenceDocument> SongChallengeEvidenceDocumen
     AddSongChallengeEvidence(documents, challenge, "logmel-band-stats", "text/csv", challenge.Artifacts.LogMelBandStatsCsv);
     AddSongChallengeEvidence(documents, challenge, "rms-envelope", "text/csv", challenge.Artifacts.RmsEnvelopeCsv);
     AddSongChallengeEvidence(documents, challenge, "rms-envelope-autocorr", "text/csv", challenge.Artifacts.RmsEnvelopeAutocorrCsv);
+    AddSongChallengeEvidence(documents, challenge, "whitened-spectral-autocorr", "text/csv", challenge.Artifacts.WhitenedSpectralAutocorrCsv);
     return documents;
 }
 
@@ -1979,6 +2002,35 @@ static void AddSongChallengeEvidence(
         Sha256(path),
         challenge.SourcePath,
         DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture)));
+}
+
+static async Task<IReadOnlyList<SongRenderAnalysisArtifacts>> WriteSongRenderAnalysisAsync(
+    IReadOnlyList<float> samples,
+    int sampleRate,
+    string artifactRoot,
+    string prefix,
+    AudioAnalyzer analyzer)
+{
+    Directory.CreateDirectory(artifactRoot);
+    var analysis = analyzer.Analyze(samples.ToArray());
+    var frameRate = sampleRate / (float)Math.Max(1, analyzer.Config.HopSize);
+    var artifacts = new[]
+    {
+        new SongRenderAnalysisArtifacts("analysis-report", Path.Combine(artifactRoot, $"{prefix}-analysis.md")),
+        new SongRenderAnalysisArtifacts("logmel-spectrogram", Path.Combine(artifactRoot, $"{prefix}-logmel-spectrogram.csv")),
+        new SongRenderAnalysisArtifacts("logmel-band-stats", Path.Combine(artifactRoot, $"{prefix}-logmel-band-stats.csv")),
+        new SongRenderAnalysisArtifacts("rms-envelope", Path.Combine(artifactRoot, $"{prefix}-rms-envelope.csv")),
+        new SongRenderAnalysisArtifacts("rms-envelope-autocorr", Path.Combine(artifactRoot, $"{prefix}-rms-envelope-autocorr.csv")),
+        new SongRenderAnalysisArtifacts("whitened-spectral-autocorr", Path.Combine(artifactRoot, $"{prefix}-whitened-spectral-autocorr.csv"))
+    };
+
+    await File.WriteAllTextAsync(artifacts[0].Path, SongRenderAnalysisReport(prefix, analysis, frameRate), Encoding.UTF8);
+    await File.WriteAllTextAsync(artifacts[1].Path, SpectrogramCsv(analysis.LogMelSpectrogram), Encoding.UTF8);
+    await File.WriteAllTextAsync(artifacts[2].Path, SpectrogramBandStatsCsv(analysis.LogMelSpectrogram), Encoding.UTF8);
+    await File.WriteAllTextAsync(artifacts[3].Path, EnvelopeCsv(analysis.RmsEnvelope, sampleRate, analyzer.Config.HopSize), Encoding.UTF8);
+    await File.WriteAllTextAsync(artifacts[4].Path, AutocorrelationCsv(analysis.RmsEnvelope, frameRate), Encoding.UTF8);
+    await File.WriteAllTextAsync(artifacts[5].Path, WhitenedSpectralAutocorrelationCsv(analysis.LogMelSpectrogram, frameRate), Encoding.UTF8);
+    return artifacts;
 }
 
 static AutocorrelationPoint ReadAutocorrPeak(string? path)
@@ -2571,6 +2623,59 @@ static string AutocorrelationCsv(IReadOnlyList<float> values, float frameRate)
     return builder.ToString();
 }
 
+static string WhitenedSpectralAutocorrelationCsv(Spectrogram spectrogram, float frameRate)
+{
+    var series = WhitenedSpectralFluxSeries(spectrogram);
+    var builder = new StringBuilder();
+    builder.AppendLine("lag_frames,lag_seconds,correlation");
+    foreach (var point in Autocorrelation(series, frameRate, Math.Min(Math.Max(1, series.Length - 1), 512)))
+    {
+        builder.Append(point.LagFrames).Append(',');
+        builder.Append(point.LagSeconds.ToString("0.########", CultureInfo.InvariantCulture)).Append(',');
+        builder.AppendLine(point.Correlation.ToString("0.########", CultureInfo.InvariantCulture));
+    }
+
+    return builder.ToString();
+}
+
+static float[] WhitenedSpectralFluxSeries(Spectrogram spectrogram)
+{
+    if (spectrogram.Frames <= 1 || spectrogram.Bands <= 0)
+    {
+        return [];
+    }
+
+    var means = new float[spectrogram.Bands];
+    var stddevs = new float[spectrogram.Bands];
+    for (var band = 0; band < spectrogram.Bands; band++)
+    {
+        var values = new float[spectrogram.Frames];
+        for (var frame = 0; frame < spectrogram.Frames; frame++)
+        {
+            values[frame] = spectrogram.At(frame, band);
+        }
+
+        means[band] = Mean(values);
+        stddevs[band] = Math.Max(1e-4f, StdDev(values));
+    }
+
+    var series = new float[spectrogram.Frames - 1];
+    for (var frame = 1; frame < spectrogram.Frames; frame++)
+    {
+        var sum = 0f;
+        for (var band = 0; band < spectrogram.Bands; band++)
+        {
+            var current = (spectrogram.At(frame, band) - means[band]) / stddevs[band];
+            var previous = (spectrogram.At(frame - 1, band) - means[band]) / stddevs[band];
+            sum += MathF.Abs(current - previous);
+        }
+
+        series[frame - 1] = sum / Math.Max(1, spectrogram.Bands);
+    }
+
+    return series;
+}
+
 static IReadOnlyList<AutocorrelationPoint> Autocorrelation(IReadOnlyList<float> values, float frameRate, int maxLags)
 {
     if (values.Count < 2)
@@ -2645,6 +2750,9 @@ static IReadOnlyList<SpeechScoreMetric> SongTargetMetrics(
     var autocorrPeak = ReadAutocorrPeak(challenge.Artifacts?.RmsEnvelopeAutocorrCsv);
     metrics.Add(new SpeechScoreMetric("target_envelope_autocorr_peak", autocorrPeak.Correlation, 0));
     metrics.Add(new SpeechScoreMetric("target_envelope_autocorr_peak_lag_seconds", autocorrPeak.LagSeconds, 0));
+    var whitenedPeak = ReadAutocorrPeak(challenge.Artifacts?.WhitenedSpectralAutocorrCsv);
+    metrics.Add(new SpeechScoreMetric("target_whitened_spectral_autocorr_peak", whitenedPeak.Correlation, 0));
+    metrics.Add(new SpeechScoreMetric("target_whitened_spectral_autocorr_peak_lag_seconds", whitenedPeak.LagSeconds, 0));
     return metrics;
 }
 
@@ -2798,6 +2906,37 @@ static string SongAnalysisReport(SongChallenge challenge, AudioAnalysis analysis
     builder.AppendLine($"- log_mel_band_stats_csv: `{challenge.Artifacts?.LogMelBandStatsCsv}`");
     builder.AppendLine($"- rms_envelope_csv: `{challenge.Artifacts?.RmsEnvelopeCsv}`");
     builder.AppendLine($"- rms_envelope_autocorr_csv: `{challenge.Artifacts?.RmsEnvelopeAutocorrCsv}`");
+    builder.AppendLine($"- whitened_spectral_autocorr_csv: `{challenge.Artifacts?.WhitenedSpectralAutocorrCsv}`");
+    return builder.ToString();
+}
+
+static string SongRenderAnalysisReport(string label, AudioAnalysis analysis, float frameRate)
+{
+    var bands = SpectrogramBandStats(analysis.LogMelSpectrogram);
+    var brightest = bands.OrderByDescending(band => band.Mean).Take(5).Select(band => band.Band).ToArray();
+    var mostMoving = bands.OrderByDescending(band => band.AbsDeltaMean).Take(5).Select(band => band.Band).ToArray();
+    var spectralAutocorr = Autocorrelation(WhitenedSpectralFluxSeries(analysis.LogMelSpectrogram), frameRate, maxLags: 64)
+        .OrderByDescending(point => point.Correlation)
+        .Take(5)
+        .ToArray();
+    var builder = new StringBuilder();
+    builder.AppendLine($"# Song Render Analysis: {label}");
+    builder.AppendLine();
+    builder.AppendLine($"duration_seconds: `{analysis.Features.DurationSeconds:0.######}`");
+    builder.AppendLine($"peak: `{analysis.Features.Peak:0.######}`");
+    builder.AppendLine($"rms: `{analysis.Features.Rms:0.######}`");
+    builder.AppendLine($"zero_crossing_rate: `{analysis.Features.ZeroCrossingRate:0.######}`");
+    builder.AppendLine($"spectral_centroid_hz: `{analysis.Features.SpectralCentroidHz:0.######}`");
+    builder.AppendLine($"spectral_rolloff_hz: `{analysis.Features.SpectralRolloffHz:0.######}`");
+    builder.AppendLine($"brightest_bands: `{string.Join(",", brightest)}`");
+    builder.AppendLine($"highest_delta_bands: `{string.Join(",", mostMoving)}`");
+    builder.AppendLine();
+    builder.AppendLine("## Whitened Spectral Autocorrelation Peaks");
+    foreach (var point in spectralAutocorr)
+    {
+        builder.AppendLine(CultureInfo.InvariantCulture, $"- lag_frames `{point.LagFrames}`, lag_seconds `{point.LagSeconds:0.######}`, correlation `{point.Correlation:0.######}`");
+    }
+
     return builder.ToString();
 }
 
@@ -2837,6 +2976,7 @@ static string SongChallengeReport(SongChallenge challenge) =>
     log_mel_band_stats_csv: `{challenge.Artifacts?.LogMelBandStatsCsv ?? ""}`
     rms_envelope_csv: `{challenge.Artifacts?.RmsEnvelopeCsv ?? ""}`
     rms_envelope_autocorr_csv: `{challenge.Artifacts?.RmsEnvelopeAutocorrCsv ?? ""}`
+    whitened_spectral_autocorr_csv: `{challenge.Artifacts?.WhitenedSpectralAutocorrCsv ?? ""}`
     """;
 
 static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandidate candidate, AudioComparison comparison, string verdict, SongInstrumentProfile profile) =>
@@ -3023,6 +3163,7 @@ static void PrintHelp()
           --embed-model qwen3-embedding:0.6b
           --collection aquasynth_ipa_trial_results
 
+        Use song-prepare --duration-seconds 0 to freeze the full decoded source file from sample zero.
         Agent-authored patch files must be named <targetId>__candidate-name.aqua.
         Known seed target ids: a, i, u, e, o, m, n, ng, l, r, s, z, f, v, th, p, b, t, d, k, mix-a, mix-m, mix-s, mix-p, mix-u.
         """);
@@ -3059,7 +3200,10 @@ sealed record SongChallengeAnalysisArtifacts(
     string LogMelBandStatsCsv,
     string RmsEnvelopeCsv,
     string RmsEnvelopeAutocorrCsv,
+    string WhitenedSpectralAutocorrCsv,
     string AnalysisReportMarkdown);
+
+sealed record SongRenderAnalysisArtifacts(string Kind, string Path);
 
 sealed record SongChallengeFeatures(
     float DurationSeconds,

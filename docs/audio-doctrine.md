@@ -320,11 +320,19 @@ Useful metrics:
 
 Song-scene parity targets must publish target evidence before candidate golf:
 log-mel spectrogram CSV, per-band statistics, first and second derivative
-summaries, RMS envelope, and envelope autocorrelation. Those artifacts are not
-loose side files only; scoring writes them as typed song challenge evidence
-records in the `.cc` CultCache/CultMesh store and references them from each
-trial result. Qdrant/Ollama retrieval may derive vectors from those records, but
-the `.cc` records remain truth.
+summaries, RMS envelope, envelope autocorrelation, and whitened spectral
+autocorrelation over band-normalized log-mel flux. Those artifacts are not loose
+side files only; scoring writes them as typed song challenge evidence records in
+the `.cc` CultCache/CultMesh store and references them from each trial result.
+Qdrant/Ollama retrieval may derive vectors from those records, but the `.cc`
+records remain truth.
+
+Song-scene agents should iterate like a tiny studio. Render the candidate,
+extract the same features from the Faust output, compare target and candidate
+band motion, envelope autocorrelation, whitened spectral autocorrelation,
+loudness, centroid, and instrument-role metrics, then move sources, filters,
+gates, patterns, and gains. A one-shot patch is sample data; a five-attempt
+revision trace is curriculum.
 
 Noise is not a scene by itself. Background air, dust, codec grit, tape, vinyl,
 and room color need a role owner that shapes spectrum and time. Prefer

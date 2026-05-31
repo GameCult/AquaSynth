@@ -5,6 +5,8 @@ param(
     [string]$Source = "D:\Music\Reinier\Heyoka\Gate Code\Heyoka - Alien Gibberish.mp3",
     [string]$SourceFolder = "D:\Music\Reinier\Heyoka",
     [float]$DurationSeconds = 30,
+    [switch]$FullSongs,
+    [int]$IterationsPerTarget = 5,
     [int]$Seed = 0,
     [switch]$NewSegmentPerPass,
     [switch]$RandomSourcePerAgent,
@@ -144,7 +146,7 @@ function Get-SongSources {
 
     if ($SourceFolder.Length -gt 0) {
         $files = @(Get-ChildItem -LiteralPath $SourceFolder -File -Recurse |
-            Where-Object { $_.Extension -in @(".mp3", ".wav", ".flac", ".aiff", ".aif", ".ogg") } |
+            Where-Object { $_.Extension -in @(".mp3", ".wav", ".flac", ".aiff", ".aif", ".ogg", ".m4a", ".mp4") } |
             Sort-Object FullName)
         if ($files.Count -eq 0) {
             throw "No supported song files found in '$SourceFolder'."
@@ -246,9 +248,11 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 - passes: $Passes
 - agents_per_pass: $AgentsPerPass
 - songs_per_agent: $SongsPerAgent
+- iterations_per_target: $IterationsPerTarget
 - playlist_top_count: $PlaylistTopCount
 - seed: $seedValue
 - duration_seconds: $DurationSeconds
+- full_songs: $FullSongs
 - new_segment_per_pass: $NewSegmentPerPass
 - random_source_per_agent: $RandomSourcePerAgent
 - store: $storePath
@@ -317,6 +321,7 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
             }
             $agentSource = $songSources[[int]$sourceIndex]
             $agentSeed = $phaseSeed + ($agent * 104729) + ($song * 8191)
+            $durationArg = if ($FullSongs) { "0" } else { [string]$DurationSeconds }
             Invoke-LoggedProcess `
                 -FilePath "dotnet" `
                 -ArgumentList @(
@@ -330,7 +335,7 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
                     "--artifact-root",
                     $agentChallengeRoot,
                     "--duration-seconds",
-                    ([string]$DurationSeconds),
+                    $durationArg,
                     "--seed",
                     ([string]$agentSeed),
                     "--challenge-id",
@@ -350,6 +355,9 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
         $targetPatchList = ($targetPatchDirs | ForEach-Object { "- target patch output directory: $_" }) -join "`n"
         $agentSourceList = ($agentSources | ForEach-Object { "- assigned source: $_" }) -join "`n"
         $agentSeedList = ($agentSeeds | ForEach-Object { "- target seed: $_" }) -join "`n"
+        $durationLabel = if ($FullSongs) { "the full decoded song duration from each challenge report" } else { "$DurationSeconds seconds" }
+        $targetKind = if ($FullSongs) { "full-song" } else { "$DurationSeconds second" }
+        $iterationRoot = Join-Path $agentDir "iterations"
         $outputPath = Join-Path $agentDir "hypothesis-agent.md"
         $promptPath = Join-Path $agentDir "hypothesis-agent.prompt.md"
         $logPath = Join-Path $logRoot "$passId-$agentId-hypothesis-agent.log"
@@ -367,21 +375,32 @@ $targetPatchList
 - candidate filename prefix: $agentId
 - phase id: $passId
 - phase seed: $phaseSeed
+- private iteration root: $iterationRoot
+- required self-iteration attempts per target: $IterationsPerTarget
 $agentSourceList
 $agentSeedList
-- required duration: $DurationSeconds seconds
+- required duration: $durationLabel
 
 Goal:
-Write exactly one parseable AquaSynth `.aqua` patch for each frozen $DurationSeconds second reference clip assigned to you. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
+Write exactly one parseable AquaSynth `.aqua` patch for each frozen $targetKind reference assigned to you. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
 
 Generalization:
 - You own two target patches, but your report must compare both targets and state what reusable scene/instrument knowledge transfers between them.
 - The two patches may share instrument roles, texture roles, control idioms, and DSL conventions, but each patch should fit its own target's tempo/register/spectral evidence.
 - Future agents will receive distilled evidence from this trial when asked to zero-shot an audio production request. Make your `hypotheses.md` useful retrieval context: name what transferred, what did not, and what evidence would change your next patch.
 
+Self-iteration loop:
+- For each target, run exactly $IterationsPerTarget local attempts before publishing the final `.aqua` file.
+- Each attempt must write a candidate under `$iterationRoot/attempt-NN/<target-id>/patch`, run the scoring worker against that one target, inspect the rendered candidate evidence, and revise the next attempt.
+- Scoring command pattern:
+  `dotnet run --project "$workerProject" -- song-score --patch-root "<attempt-patch-dir>" --challenge "<challenge-json>" --artifact-root "<attempt-dir>" --batch-id "<agent-id>-<target-id>-attempt-NN" --store "<attempt-dir>/iteration-results.cc" --hypothesizer "$agentId-iteration"`
+- After each score, read the attempt's `evaluator-report.md`, `summary.csv`, `audio/comparison.txt`, `audio/candidate-analysis.md`, `audio/candidate-logmel-band-stats.csv`, `audio/candidate-rms-envelope-autocorr.csv`, and `audio/candidate-whitened-spectral-autocorr.csv`.
+- Use those candidate-side facts the same way you use target facts: compare spectral bands, envelope autocorrelation, whitened spectral autocorrelation, centroid/RMS, instrument-role metrics, and chip-distress risk. Move timings, filters, gains, sources, roles, and patterns between attempts.
+- Keep intermediate candidates inside `$iterationRoot`; publish only one final `.aqua` per target to the official target patch output directory.
+
 Noise and texture:
 - Do not model background or recording color as a full-duration raw `voice wave=noise` bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
-- Use the shaped texture owner for noise roles: `texture name=dust_hat role=dust pattern=x..x step=<beat_seconds/4> gain=.08 sustain=$DurationSeconds`, `texture name=air_wash role=air gain=.035 sustain=$DurationSeconds`, `texture name=codec_bed role=codec gain=.04 sustain=$DurationSeconds`.
+- Use the shaped texture owner for noise roles: `texture name=dust_hat role=dust pattern=x..x step=<beat_seconds/4> gain=.08 sustain=<duration_seconds>`, `texture name=air_wash role=air gain=.035 sustain=<duration_seconds>`, `texture name=codec_bed role=codec gain=.04 sustain=<duration_seconds>`.
 - `texture` lowers to a gated noise voice with role-specific bandpass/highpass/lowpass/tremolo defaults and a control curve or pattern gate. Raw `voice wave=noise` is only acceptable for short transients with explicit gates and narrow filters.
 
 Instrument ownership:
@@ -430,7 +449,7 @@ Evidence contract:
 - Write exactly one `.aqua` file under each target patch output directory named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch: a primary voice/body, a rhythmic drum/transient/noise role, and a pad/bed/recording-color role. Prefer syrinx for the primary voice when it is voice-like, subtractive for the drum/transient, and additive/PAD or shaped texture for the bed.
 - Background/recording-color layers must use `texture` or an equivalently gated and band-shaped explicit voice; a static full-duration white-noise bed is failed evidence.
-- Make each patch duration/gates cover its matching $DurationSeconds second target.
+- Make each patch duration/gates cover its matching target duration from the challenge report.
 
 Return a short final summary naming the patch and report.
 "@

@@ -1829,3 +1829,29 @@ Next likely slice:
   `artifacts/parity/song-instrument-metric-smoke/smoke/summary.csv` records a
   syrinx candidate with `instrument_voice_syrinx=1`,
   `musical_instrument_score=0.34`, and `chip_distress_risk=0`.
+
+2026-05-31 full-song iterative harness slice:
+
+- `song-prepare --duration-seconds 0` now means "freeze the full decoded source
+  file from sample zero" instead of a random excerpt. `run-song-snippet-trial-swarm.ps1`
+  has `-FullSongs`, keeps the source folder recursive, and widened local audio
+  discovery to `.mp3/.wav/.flac/.aiff/.aif/.ogg/.m4a/.mp4`. Current Reinier
+  parent corpus discovery sees 2421 supported audio files.
+- Song challenge analysis now includes `whitened-spectral-autocorr.csv`, derived
+  from autocorrelation of a band-whitened log-mel spectral-flux series. This is
+  intended to expose repeating spectral/rhythmic structure after broad tone
+  color is normalized away.
+- `song-score` writes candidate-side render analysis artifacts from Faust output:
+  `candidate-analysis.md`, `candidate-logmel-spectrogram.csv`,
+  `candidate-logmel-band-stats.csv`, `candidate-rms-envelope.csv`,
+  `candidate-rms-envelope-autocorr.csv`, and
+  `candidate-whitened-spectral-autocorr.csv`. Agents can now inspect their own
+  render with the same feature vocabulary used for the target.
+- The swarm prompt now requires an in-agent studio loop: each worker must run
+  five local attempts per target, call `song-score` on each attempt, read the
+  candidate analysis/comparison artifacts, move timings/filters/gains/sources,
+  and publish only one final `.aqua` per target to the official output folder.
+- Verification: `dotnet build tools/IpaTrialWorker/IpaTrialWorker.csproj`
+  passed; zero-pass full-song swarm syntax smoke passed; candidate feature
+  smoke wrote the new candidate autocorrelation and analysis artifacts under
+  `artifacts/parity/song-candidate-feature-smoke-2`.
