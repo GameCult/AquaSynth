@@ -1983,3 +1983,18 @@ Next likely slice:
   produced a 16-document knowledge store with 2 manuals, indexed it into
   Qdrant, and `music-search` retrieved the AquaSynth DSP manual with
   `retrieval: qdrant-ollama`.
+
+2026-06-01 cumulative music knowledge store correction:
+
+- User caught that `music-distill` should not reseed theory/manual documents
+  after every pass. The swarm now creates one loop-level
+  `music-production-knowledge.cc`, seeds it once with manuals, indexes that
+  base store, and keeps using that store for all pass retrieval.
+- After each pass, `music-distill` runs with `--input-store` equal to the
+  loop-level store, `--learned-only true`, and `--include-manuals false`, so it
+  appends/upserts worker/curator/candidate/failure evidence without rewriting
+  the manual spine.
+- Added `music-intelligence-source-map.md` as a third manual: Every Noise is
+  genre-vocabulary context, Echo Nest is dead, Spotify audio features are not a
+  usable training substrate, AcousticBrainz is historical, and local
+  Essentia-style extraction is the preferred signal path.

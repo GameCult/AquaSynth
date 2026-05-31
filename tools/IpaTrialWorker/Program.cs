@@ -422,19 +422,33 @@ static async Task MusicDistillAsync(Dictionary<string, string> options)
     var artifactRoot = Required(options, "artifact-root");
     var outputStore = Required(options, "output-store");
     var output = Required(options, "output");
+    var inputStore = Value(options, "input-store", "");
+    var includeManuals = !Value(options, "include-manuals", "true").Equals("false", StringComparison.OrdinalIgnoreCase);
+    var manualsOnly = BoolValue(options, "manuals-only");
+    var learnedOnly = BoolValue(options, "learned-only");
     var maxCandidates = int.TryParse(Value(options, "max-candidates", "16"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
         ? Math.Clamp(parsed, 1, 100)
         : 16;
 
-    var documents = BuildMusicKnowledgeDocuments(artifactRoot, maxCandidates).ToArray();
+    var newDocuments = BuildMusicKnowledgeDocuments(artifactRoot, maxCandidates, includeManuals, manualsOnly, learnedOnly).ToArray();
+    var existingDocuments = !string.IsNullOrWhiteSpace(inputStore) && File.Exists(inputStore)
+        ? await IpaTrialResultCultCacheStore.ReadMusicProductionKnowledgeAsync(inputStore)
+        : [];
+    var documents = existingDocuments
+        .Concat(newDocuments)
+        .GroupBy(document => document.KnowledgeId, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.Last())
+        .ToArray();
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputStore))!);
-    if (File.Exists(outputStore))
+    var sameStore = !string.IsNullOrWhiteSpace(inputStore) &&
+                    Path.GetFullPath(inputStore).Equals(Path.GetFullPath(outputStore), StringComparison.OrdinalIgnoreCase);
+    if (!sameStore && File.Exists(outputStore))
     {
         File.Delete(outputStore);
     }
 
     var recordDirectory = DirectoryMessagePackBackingStore.DefaultRecordDirectoryPath(outputStore);
-    if (Directory.Exists(recordDirectory))
+    if (!sameStore && Directory.Exists(recordDirectory))
     {
         Directory.Delete(recordDirectory, recursive: true);
     }
@@ -1847,7 +1861,12 @@ static string DetailReport(string store, IpaTrialResult result)
     return builder.ToString();
 }
 
-static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocuments(string artifactRoot, int maxCandidates)
+static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocuments(
+    string artifactRoot,
+    int maxCandidates,
+    bool includeManuals = true,
+    bool manualsOnly = false,
+    bool learnedOnly = false)
 {
     if (!Directory.Exists(artifactRoot))
     {
@@ -1855,6 +1874,16 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
     }
 
     var created = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+    if (manualsOnly)
+    {
+        foreach (var manualDocument in MusicManualDocuments(created))
+        {
+            yield return manualDocument;
+        }
+
+        yield break;
+    }
+
     var rows = Directory.EnumerateFiles(artifactRoot, "summary.csv", SearchOption.AllDirectories)
         .Where(IsOfficialMusicArtifactPath)
         .SelectMany(ReadSongSummaryRows)
@@ -1871,52 +1900,55 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
     var slopRejected = rows.Where(row => row.TemplateLoopRisk >= .55f || row.NoisePercussionRisk >= .55f).ToArray();
     var missingProducerEvidence = rows.Where(row => row.RequiredStudioDocsPresent < .5f || row.ProducerMusicianshipScore < .45f).ToArray();
 
-    yield return new MusicProductionKnowledgeDocument(
-        "music-production-quality-standard-v1",
-        "quality-standard",
-        "future song curriculum admission standard",
-        "master-standard",
-        "The music curriculum store owns distilled production knowledge; raw trials and giant feature dumps are only evidence, not curriculum.",
-        "Fresh agents should retrieve role owners, transfer rules, failure modes, and AquaSynth patterns before writing patches. New runs must add compact, evidence-backed documents, not whole spectrogram dumps or undigested trial chatter.",
-        [
-            "Admit a candidate as reusable knowledge only when it renders, has explicit instrument-role ownership, includes producer/listening/gap evidence, and states what production job it owns.",
-            "Reject one-phrase-plus-texture arrangements as failure pressure; continuity across the clip is part of the production contract.",
-            "Require an explicit composition map: meter, progression or tonal center, instrument lanes, section events, composition-scale automation, and mix movement.",
-            "Prefer compact role abstractions over one-off target mimicry; a reusable owner sentence is more valuable than a small metric bump.",
-            "Reject stock loop skeletons and raw-noise percussion as failure pressure unless the listening journal proves target-specific role behavior.",
-            "Keep failed renders as failure-mode pressure only; do not let syntax wreckage dominate retrieval.",
-            "Store full artifacts on disk and cite them; CultCache curriculum records should carry bounded summaries, metrics, and transfer rules."
-        ],
-        [
-            "voice-like lead -> syrinx/acoustic source ports with pressure, opening, and radiation motion",
-            "drums/transients -> subtractive body plus filtered noise skin plus pattern gate",
-            "pads/beds -> additive/PAD layer, harmonics, and spectrum banks",
-            "recording color -> texture role with band limits and gates, not full-duration raw noise",
-            "composition form -> `meter`, `sequence`, `chords`, `scale`, `pattern`, and `mix` sugar lowering to visible `param`/`curve` owners"
-        ],
-        [
-            "Single-file stores or raw spectrogram payloads are not curriculum; distill to paged CultCache records.",
-            "Metric winners with unclear role ownership should be pressure, not doctrine.",
-            "High cosine with high mode-collapse risk is a trap: it copies a moment, not a song.",
-            "Instrument timbre without phrase, progression, lane entrances, and mix movement is sound design, not composition."
-        ],
-        rows.Select(row => row.TrialId).Take(24).ToArray(),
-        admissible.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(24).ToArray(),
-        [
-            new SpeechScoreMetric("input_trial_count", rows.Length, 0),
-            new SpeechScoreMetric("rendered_trial_count", rendered.Length, 0),
-            new SpeechScoreMetric("admissible_curriculum_candidate_count", admissible.Length, 0),
-            new SpeechScoreMetric("render_failed_count", failed.Length, 0),
-            new SpeechScoreMetric("mode_collapsed_count", collapsed.Length, 0),
-            new SpeechScoreMetric("slop_template_rejected_count", slopRejected.Length, 0),
-            new SpeechScoreMetric("missing_producer_evidence_count", missingProducerEvidence.Length, 0)
-        ],
-        [artifactRoot],
-        created);
-
-    foreach (var role in MusicRoleDocuments(admissible, created))
+    if (!learnedOnly)
     {
-        yield return role;
+        yield return new MusicProductionKnowledgeDocument(
+            "music-production-quality-standard-v1",
+            "quality-standard",
+            "future song curriculum admission standard",
+            "master-standard",
+            "The music curriculum store owns distilled production knowledge; raw trials and giant feature dumps are only evidence, not curriculum.",
+            "Fresh agents should retrieve role owners, transfer rules, failure modes, and AquaSynth patterns before writing patches. New runs must add compact, evidence-backed documents, not whole spectrogram dumps or undigested trial chatter.",
+            [
+                "Admit a candidate as reusable knowledge only when it renders, has explicit instrument-role ownership, includes producer/listening/gap evidence, and states what production job it owns.",
+                "Reject one-phrase-plus-texture arrangements as failure pressure; continuity across the clip is part of the production contract.",
+                "Require an explicit composition map: meter, progression or tonal center, instrument lanes, section events, composition-scale automation, and mix movement.",
+                "Prefer compact role abstractions over one-off target mimicry; a reusable owner sentence is more valuable than a small metric bump.",
+                "Reject stock loop skeletons and raw-noise percussion as failure pressure unless the listening journal proves target-specific role behavior.",
+                "Keep failed renders as failure-mode pressure only; do not let syntax wreckage dominate retrieval.",
+                "Store full artifacts on disk and cite them; CultCache curriculum records should carry bounded summaries, metrics, and transfer rules."
+            ],
+            [
+                "voice-like lead -> syrinx/acoustic source ports with pressure, opening, and radiation motion",
+                "drums/transients -> subtractive body plus filtered noise skin plus pattern gate",
+                "pads/beds -> additive/PAD layer, harmonics, and spectrum banks",
+                "recording color -> texture role with band limits and gates, not full-duration raw noise",
+                "composition form -> `meter`, `sequence`, `chords`, `scale`, `pattern`, and `mix` sugar lowering to visible `param`/`curve` owners"
+            ],
+            [
+                "Single-file stores or raw spectrogram payloads are not curriculum; distill to paged CultCache records.",
+                "Metric winners with unclear role ownership should be pressure, not doctrine.",
+                "High cosine with high mode-collapse risk is a trap: it copies a moment, not a song.",
+                "Instrument timbre without phrase, progression, lane entrances, and mix movement is sound design, not composition."
+            ],
+            rows.Select(row => row.TrialId).Take(24).ToArray(),
+            admissible.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(24).ToArray(),
+            [
+                new SpeechScoreMetric("input_trial_count", rows.Length, 0),
+                new SpeechScoreMetric("rendered_trial_count", rendered.Length, 0),
+                new SpeechScoreMetric("admissible_curriculum_candidate_count", admissible.Length, 0),
+                new SpeechScoreMetric("render_failed_count", failed.Length, 0),
+                new SpeechScoreMetric("mode_collapsed_count", collapsed.Length, 0),
+                new SpeechScoreMetric("slop_template_rejected_count", slopRejected.Length, 0),
+                new SpeechScoreMetric("missing_producer_evidence_count", missingProducerEvidence.Length, 0)
+            ],
+            [artifactRoot],
+            created);
+
+        foreach (var role in MusicRoleDocuments(admissible, created))
+        {
+            yield return role;
+        }
     }
 
     foreach (var document in MusicFailureDocuments(failed, rows, created, artifactRoot))
@@ -1958,9 +1990,12 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
         yield return curatorDocument;
     }
 
-    foreach (var manualDocument in MusicManualDocuments(created))
+    if (includeManuals)
     {
-        yield return manualDocument;
+        foreach (var manualDocument in MusicManualDocuments(created))
+        {
+            yield return manualDocument;
+        }
     }
 }
 
@@ -4715,7 +4750,7 @@ static void PrintHelp()
           song-score --patch-root <dir> --challenge <challenge.json> --artifact-root <dir> [--batch-id round-001] [--store <trial-results.cc>] [--hypothesizer id]
           dump  --store <trial-results.cc> --output <report.md>
           distill --store <trial-results.cc> --output-store <distilled.cc> --output <report.md> [--min-cosine .35] [--max-results 40]
-          music-distill --artifact-root <song-swarm-dir> --output-store <music-knowledge.cc> --output <report.md> [--max-candidates 16]
+          music-distill --artifact-root <song-swarm-dir> --output-store <music-knowledge.cc> --output <report.md> [--input-store <music-knowledge.cc>] [--max-candidates 16] [--manuals-only true] [--learned-only true]
           music-index --store <music-knowledge.cc> [--output <report.md>] [--force true]
           music-search --store <music-knowledge.cc> --query <text> --output <report.md> [--limit 12] [--allow-lexical-fallback true]
           music-show --store <music-knowledge.cc> --knowledge-id <id-or-topic> --output <detail.md>

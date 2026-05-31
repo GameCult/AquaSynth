@@ -267,7 +267,42 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 "@
 
 $latestDistilledStore = ""
-$latestMusicKnowledgeStore = ""
+$musicKnowledgeStore = Join-Path $loopRoot "music-production-knowledge.cc"
+Invoke-LoggedProcess `
+    -FilePath "dotnet" `
+    -ArgumentList @(
+        "run",
+        "--project",
+        $workerProject,
+        "--",
+        "music-distill",
+        "--artifact-root",
+        $loopRoot,
+        "--output-store",
+        $musicKnowledgeStore,
+        "--output",
+        (Join-Path $loopRoot "music-production-knowledge-seed.md"),
+        "--manuals-only",
+        "true"
+    ) `
+    -LogPath (Join-Path $logRoot "music-knowledge-seed.log")
+Invoke-LoggedProcess `
+    -FilePath "dotnet" `
+    -ArgumentList @(
+        "run",
+        "--project",
+        $workerProject,
+        "--",
+        "music-index",
+        "--store",
+        $musicKnowledgeStore,
+        "--output",
+        (Join-Path $loopRoot "music-vector-index-seed.md"),
+        "--timeout-seconds",
+        "300"
+    ) `
+    -LogPath (Join-Path $logRoot "music-knowledge-seed-index.log")
+$latestMusicKnowledgeStore = $musicKnowledgeStore
 for ($pass = 1; $pass -le $Passes; $pass++) {
     $passId = "pass-{0:000}" -f $pass
     $passDir = Join-Path $loopRoot $passId
@@ -690,7 +725,6 @@ Return a short final note naming knowledge-curation.md.
         -LogPath (Join-Path $logRoot "$passId-distill.log")
     $latestDistilledStore = $distilledStore
 
-    $musicKnowledgeStore = Join-Path $passDir "music-production-knowledge.cc"
     Invoke-LoggedProcess `
         -FilePath "dotnet" `
         -ArgumentList @(
@@ -700,13 +734,19 @@ Return a short final note naming knowledge-curation.md.
             "--",
             "music-distill",
             "--artifact-root",
-            $loopRoot,
+            $passDir,
+            "--input-store",
+            $musicKnowledgeStore,
             "--output-store",
             $musicKnowledgeStore,
             "--output",
             (Join-Path $passDir "music-production-knowledge-report.md"),
             "--max-candidates",
-            "40"
+            "40",
+            "--include-manuals",
+            "false",
+            "--learned-only",
+            "true"
         ) `
         -LogPath (Join-Path $logRoot "$passId-music-distill.log")
 
