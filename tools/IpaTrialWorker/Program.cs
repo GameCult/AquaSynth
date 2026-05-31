@@ -44,6 +44,9 @@ try
         case "music-distill":
             await MusicDistillAsync(options);
             return 0;
+        case "music-index":
+            await MusicIndexAsync(options);
+            return 0;
         case "music-search":
             await MusicSearchAsync(options);
             return 0;
@@ -443,6 +446,36 @@ static async Task MusicDistillAsync(Dictionary<string, string> options)
     Console.WriteLine(output);
 }
 
+static async Task MusicIndexAsync(Dictionary<string, string> options)
+{
+    var store = Required(options, "store");
+    var output = Value(options, "output", "");
+    var documents = await IpaTrialResultCultCacheStore.ReadMusicProductionKnowledgeAsync(store);
+    var searchOptions = MusicSearchOptionsFrom(options);
+    var index = await EnsureMusicVectorIndexAsync(documents, store, searchOptions, force: BoolValue(options, "force"));
+    var report = new StringBuilder();
+    report.AppendLine("# Music Production Knowledge Vector Index");
+    report.AppendLine();
+    report.AppendLine($"store: `{store}`");
+    report.AppendLine($"collection: `{searchOptions.Collection}`");
+    report.AppendLine($"qdrant: `{searchOptions.QdrantUrl}`");
+    report.AppendLine($"ollama: `{searchOptions.OllamaUrl}`");
+    report.AppendLine($"embedder: `{searchOptions.EmbedModel}`");
+    report.AppendLine($"chunks: {index.ChunkCount}");
+    report.AppendLine($"vector_dimensions: {index.VectorSize}");
+    report.AppendLine($"store_key: `{StoreKey(store)}`");
+    if (!string.IsNullOrWhiteSpace(output))
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+        await File.WriteAllTextAsync(output, report.ToString(), Encoding.UTF8);
+        Console.WriteLine(output);
+    }
+    else
+    {
+        Console.Write(report.ToString());
+    }
+}
+
 static async Task MusicSearchAsync(Dictionary<string, string> options)
 {
     var store = Required(options, "store");
@@ -452,9 +485,32 @@ static async Task MusicSearchAsync(Dictionary<string, string> options)
         ? Math.Clamp(parsed, 1, 100)
         : 12;
     var documents = await IpaTrialResultCultCacheStore.ReadMusicProductionKnowledgeAsync(store);
-    var hits = RankMusicKnowledge(documents, query, limit);
+    var searchOptions = MusicSearchOptionsFrom(options);
+    IReadOnlyList<MusicKnowledgeHit> hits;
+    if (!searchOptions.UseVector)
+    {
+        hits = RankMusicKnowledge(documents, query, limit, "lexical-disabled");
+    }
+    else
+    {
+        try
+        {
+            if (!searchOptions.SkipIndex)
+            {
+                await EnsureMusicVectorIndexAsync(documents, store, searchOptions, force: false);
+            }
+
+            var vectorHits = await QueryMusicVectorIndexAsync(query, limit * 3, store, searchOptions);
+            hits = MergeMusicVectorHits(documents, query, limit, vectorHits);
+        }
+        catch when (!searchOptions.RequireVector)
+        {
+            hits = RankMusicKnowledge(documents, query, limit, "lexical-fallback");
+        }
+    }
+
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
-    await File.WriteAllTextAsync(output, MusicKnowledgeSearchReport(store, query, hits), Encoding.UTF8);
+    await File.WriteAllTextAsync(output, MusicKnowledgeSearchReport(store, query, hits, searchOptions), Encoding.UTF8);
     Console.WriteLine(output);
 }
 
@@ -600,6 +656,80 @@ static async Task<VectorIndexResult> EnsureVectorIndexAsync(
 }
 
 static async Task<IReadOnlyList<VectorSearchHit>> QueryVectorIndexAsync(
+    string query,
+    int limit,
+    string store,
+    SearchOptions options)
+{
+    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds) };
+    var queryVector = await EmbedOneAsync(http, options, query);
+    var request = new QdrantSearchRequest(
+        queryVector,
+        Math.Clamp(limit, 1, 100),
+        true,
+        false,
+        QdrantFilter.Store(StoreKey(store), options.EmbedModel));
+    var response = await http.PostAsJsonAsync(
+        $"{options.QdrantUrl.TrimEnd('/')}/collections/{Uri.EscapeDataString(options.Collection)}/points/search",
+        request,
+        JsonOptions());
+    response.EnsureSuccessStatusCode();
+    var result = await response.Content.ReadFromJsonAsync<QdrantSearchResponse>(JsonOptions())
+        ?? new QdrantSearchResponse([]);
+    return result.Result
+        .Select(VectorSearchHitFrom)
+        .Where(hit => !string.IsNullOrWhiteSpace(hit.TrialId))
+        .ToArray();
+}
+
+static async Task<VectorIndexResult> EnsureMusicVectorIndexAsync(
+    IReadOnlyList<MusicProductionKnowledgeDocument> documents,
+    string store,
+    SearchOptions options,
+    bool force)
+{
+    using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds) };
+    var chunks = BuildMusicKnowledgeChunks(documents, store).ToArray();
+    if (chunks.Length == 0)
+    {
+        return new VectorIndexResult(0, 0);
+    }
+
+    if (force)
+    {
+        await DeleteCollectionIfExistsAsync(http, options);
+    }
+
+    var sampleVector = await EmbedOneAsync(http, options, chunks[0].Text);
+    await EnsureQdrantCollectionAsync(http, options, sampleVector.Length);
+
+    const int batchSize = 32;
+    for (var index = 0; index < chunks.Length; index += batchSize)
+    {
+        var batch = chunks.Skip(index).Take(batchSize).ToArray();
+        var vectors = await EmbedManyAsync(http, options, batch.Select(chunk => chunk.Text).ToArray());
+        if (vectors.Length != batch.Length)
+        {
+            throw new InvalidDataException($"Ollama returned {vectors.Length} vectors for {batch.Length} music knowledge chunks.");
+        }
+
+        var points = batch.Select((chunk, offset) => new QdrantPoint(
+            StableUuid(chunk.Id),
+            vectors[offset],
+            QdrantPayloadFrom(chunk, options.EmbedModel, "music_production_knowledge"))).ToArray();
+        var upsert = new QdrantUpsertRequest(points);
+        var response = await http.PutAsJsonAsync(
+            $"{options.QdrantUrl.TrimEnd('/')}/collections/{Uri.EscapeDataString(options.Collection)}/points?wait=true",
+            upsert,
+            JsonOptions());
+        response.EnsureSuccessStatusCode();
+    }
+
+    await EnsurePayloadIndexesAsync(http, options);
+    return new VectorIndexResult(chunks.Length, sampleVector.Length);
+}
+
+static async Task<IReadOnlyList<VectorSearchHit>> QueryMusicVectorIndexAsync(
     string query,
     int limit,
     string store,
@@ -1427,6 +1557,49 @@ static IEnumerable<EvidenceChunk> BuildEvidenceChunks(IReadOnlyList<IpaTrialResu
     }
 }
 
+static IEnumerable<EvidenceChunk> BuildMusicKnowledgeChunks(IReadOnlyList<MusicProductionKnowledgeDocument> documents, string store)
+{
+    foreach (var document in documents)
+    {
+        yield return new EvidenceChunk(
+            $"music-knowledge:{StoreKey(store)}:{document.KnowledgeId}:full",
+            document.KnowledgeId,
+            document.Topic,
+            document.Kind,
+            document.QualityTier,
+            MusicKnowledgeIndexText(document),
+            store);
+    }
+}
+
+static string MusicKnowledgeIndexText(MusicProductionKnowledgeDocument document)
+{
+    var builder = new StringBuilder();
+    builder.AppendLine("music production knowledge");
+    builder.AppendLine($"id {document.KnowledgeId}");
+    builder.AppendLine($"kind {document.Kind}");
+    builder.AppendLine($"topic {document.Topic}");
+    builder.AppendLine($"tier {document.QualityTier}");
+    builder.AppendLine($"owner {document.Owner}");
+    builder.AppendLine("summary");
+    builder.AppendLine(document.Summary);
+    builder.AppendLine("transfer rules");
+    builder.AppendLine(string.Join(Environment.NewLine, document.TransferRules));
+    builder.AppendLine("aquasynth patterns");
+    builder.AppendLine(string.Join(Environment.NewLine, document.AquaSynthPatterns));
+    builder.AppendLine("failure modes");
+    builder.AppendLine(string.Join(Environment.NewLine, document.FailureModes));
+    builder.AppendLine("metrics");
+    builder.AppendLine(string.Join(Environment.NewLine, document.Metrics.Select(metric => $"{metric.Name} {metric.Value.ToString("0.######", CultureInfo.InvariantCulture)} weight {metric.Weight.ToString("0.######", CultureInfo.InvariantCulture)}")));
+    builder.AppendLine("evidence trials");
+    builder.AppendLine(string.Join(Environment.NewLine, document.EvidenceTrialIds));
+    builder.AppendLine("evidence candidates");
+    builder.AppendLine(string.Join(Environment.NewLine, document.EvidenceCandidateIds));
+    builder.AppendLine("source artifacts");
+    builder.AppendLine(string.Join(Environment.NewLine, document.SourceArtifactUris));
+    return builder.ToString();
+}
+
 static string EvidenceIndexText(SongChallengeEvidenceDocument document)
 {
     const int maxIndexedChars = 32768;
@@ -1779,6 +1952,11 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
     {
         yield return ledgerDocument;
     }
+
+    foreach (var curatorDocument in MusicCuratorDocuments(artifactRoot, created))
+    {
+        yield return curatorDocument;
+    }
 }
 
 static IEnumerable<MusicProductionKnowledgeDocument> MusicRoleDocuments(IReadOnlyList<SongSummaryRow> rendered, string created)
@@ -1997,7 +2175,36 @@ static IEnumerable<MusicProductionKnowledgeDocument> MusicAbstractionLedgerDocum
     }
 }
 
-static IReadOnlyList<MusicKnowledgeHit> RankMusicKnowledge(IReadOnlyList<MusicProductionKnowledgeDocument> documents, string query, int limit)
+static IEnumerable<MusicProductionKnowledgeDocument> MusicCuratorDocuments(string artifactRoot, string created)
+{
+    foreach (var ledger in Directory.EnumerateFiles(artifactRoot, "knowledge-curation.md", SearchOption.AllDirectories).Where(IsOfficialMusicArtifactPath).Order(StringComparer.OrdinalIgnoreCase))
+    {
+        var text = ReadBoundedText(ledger, 9000);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            continue;
+        }
+
+        var agent = Directory.GetParent(ledger)?.Name ?? "curator";
+        yield return new MusicProductionKnowledgeDocument(
+            $"music-curator-distillation-{SafeName(agent)}-{StableUuid(ledger)[..8]}",
+            "curator-distillation",
+            $"{agent} actionable music-production distillation",
+            "curated-doctrine-pressure",
+            "The curator distillation owns novel, actionable lessons extracted from musician model output after a phase; it is not a raw transcript.",
+            text,
+            LinesContaining(text, "do:", "transfer", "because", "owner", "keep", "novel").Take(16).ToArray(),
+            LinesContaining(text, "aqua", "lower", "syntax", "pattern", "scale", "chords", "mix", "syrinx", "texture").Take(16).ToArray(),
+            LinesContaining(text, "cut", "reject", "failure", "slop", "static", "missing").Take(16).ToArray(),
+            [],
+            [],
+            [new SpeechScoreMetric("curation_chars", text.Length, 0)],
+            [ledger],
+            created);
+    }
+}
+
+static IReadOnlyList<MusicKnowledgeHit> RankMusicKnowledge(IReadOnlyList<MusicProductionKnowledgeDocument> documents, string query, int limit, string retrievalMode = "lexical")
 {
     var terms = ExpandTerms(Tokenize(query)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     return documents
@@ -2028,9 +2235,43 @@ static IReadOnlyList<MusicKnowledgeHit> RankMusicKnowledge(IReadOnlyList<MusicPr
                 "summary" => pair.Value.Length * 2f,
                 _ => pair.Value.Length
             }) + KnowledgeTierBias(document);
-            return new MusicKnowledgeHit(document, score, matched);
+            return new MusicKnowledgeHit(document, score, matched, retrievalMode, null, "", "");
         })
         .Where(hit => hit.Score > 0 || terms.Length == 0)
+        .OrderByDescending(hit => hit.Score)
+        .ThenBy(hit => hit.Document.Topic, StringComparer.OrdinalIgnoreCase)
+        .Take(limit)
+        .ToArray();
+}
+
+static IReadOnlyList<MusicKnowledgeHit> MergeMusicVectorHits(
+    IReadOnlyList<MusicProductionKnowledgeDocument> documents,
+    string query,
+    int limit,
+    IReadOnlyList<VectorSearchHit> vectorHits)
+{
+    var lexical = RankMusicKnowledge(documents, query, Math.Max(limit, documents.Count), "hybrid-lexical")
+        .ToDictionary(hit => hit.Document.KnowledgeId, StringComparer.OrdinalIgnoreCase);
+    var documentsById = documents.ToDictionary(document => document.KnowledgeId, StringComparer.OrdinalIgnoreCase);
+    return vectorHits
+        .GroupBy(hit => hit.TrialId, StringComparer.OrdinalIgnoreCase)
+        .Select(group => group.OrderByDescending(hit => hit.Score).First())
+        .Where(hit => documentsById.ContainsKey(hit.TrialId))
+        .Select(hit =>
+        {
+            var document = documentsById[hit.TrialId];
+            var lexicalHit = lexical.GetValueOrDefault(document.KnowledgeId);
+            var matched = lexicalHit?.MatchedByField ?? new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            var score = hit.Score * 10f + MathF.Min(lexicalHit?.Score ?? 0, 8f) + KnowledgeTierBias(document);
+            return new MusicKnowledgeHit(
+                document,
+                score,
+                matched,
+                "qdrant-ollama",
+                hit.Score,
+                hit.ChunkId,
+                hit.Text);
+        })
         .OrderByDescending(hit => hit.Score)
         .ThenBy(hit => hit.Document.Topic, StringComparer.OrdinalIgnoreCase)
         .Take(limit)
@@ -2071,22 +2312,69 @@ static string MusicKnowledgeDistillationReport(string artifactRoot, string outpu
     return builder.ToString();
 }
 
-static string MusicKnowledgeSearchReport(string store, string query, IReadOnlyList<MusicKnowledgeHit> hits)
+static string MusicKnowledgeSearchReport(string store, string query, IReadOnlyList<MusicKnowledgeHit> hits, SearchOptions options)
 {
     var builder = new StringBuilder();
     builder.AppendLine("# Music Knowledge Search");
     builder.AppendLine();
     builder.AppendLine($"store: `{store}`");
     builder.AppendLine($"query: `{query}`");
+    builder.AppendLine($"retrieval: `{(hits.Any(hit => hit.RetrievalMode == "qdrant-ollama") ? "qdrant-ollama" : "lexical-fallback")}`");
+    builder.AppendLine($"collection: `{options.Collection}`");
+    builder.AppendLine($"embedder: `{options.EmbedModel}`");
     builder.AppendLine($"matches: {hits.Count}");
     builder.AppendLine();
     foreach (var hit in hits)
     {
         var document = hit.Document;
-        builder.AppendLine($"- `{document.KnowledgeId}` score={hit.Score:0.###} kind={document.Kind} tier={document.QualityTier}");
-        builder.AppendLine($"  topic: {document.Topic}");
-        builder.AppendLine($"  summary: {TrimForReport(document.Summary, 260)}");
-        builder.AppendLine($"  matched: {string.Join(", ", hit.MatchedByField.Select(pair => $"{pair.Key}=[{string.Join('|', pair.Value)}]"))}");
+        builder.AppendLine($"## {document.Topic}");
+        builder.AppendLine();
+        builder.AppendLine($"id: `{document.KnowledgeId}`");
+        builder.AppendLine($"kind: `{document.Kind}`");
+        builder.AppendLine($"tier: `{document.QualityTier}`");
+        builder.AppendLine($"score: `{hit.Score:0.###}`");
+        if (hit.VectorScore is not null)
+        {
+            builder.AppendLine($"vector_score: `{hit.VectorScore.Value:0.###}`");
+            builder.AppendLine($"vector_chunk: `{hit.VectorChunkId}`");
+        }
+
+        builder.AppendLine($"matched: `{string.Join(", ", hit.MatchedByField.Select(pair => $"{pair.Key}=[{string.Join('|', pair.Value)}]"))}`");
+        builder.AppendLine();
+        builder.AppendLine("### Owner");
+        builder.AppendLine(document.Owner);
+        builder.AppendLine();
+        builder.AppendLine("### Summary");
+        builder.AppendLine(document.Summary);
+        builder.AppendLine();
+        builder.AppendLine("### Transfer Rules");
+        foreach (var rule in document.TransferRules.Take(12))
+        {
+            builder.AppendLine($"- {rule}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("### AquaSynth Patterns");
+        foreach (var pattern in document.AquaSynthPatterns.Take(12))
+        {
+            builder.AppendLine($"- {pattern}");
+        }
+
+        builder.AppendLine();
+        builder.AppendLine("### Failure Modes");
+        foreach (var mode in document.FailureModes.Take(8))
+        {
+            builder.AppendLine($"- {mode}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(hit.VectorText))
+        {
+            builder.AppendLine();
+            builder.AppendLine("### Retrieved Chunk");
+            builder.AppendLine(TrimForReport(hit.VectorText, 1600));
+        }
+
+        builder.AppendLine();
     }
 
     return builder.ToString();
@@ -4228,11 +4516,23 @@ static SearchOptions SearchOptionsFrom(Dictionary<string, string> options) => ne
     BoolValue(options, "require-vector"),
     BoolValue(options, "skip-index"));
 
-static QdrantPayload QdrantPayloadFrom(EvidenceChunk chunk, string embedderId) => new(
+static SearchOptions MusicSearchOptionsFrom(Dictionary<string, string> options) => new(
+    Value(options, "qdrant-url", "http://127.0.0.1:6333"),
+    Value(options, "ollama-url", "http://127.0.0.1:11434"),
+    Value(options, "embed-model", "qwen3-embedding:0.6b"),
+    Value(options, "collection", "aquasynth_music_production_knowledge"),
+    int.TryParse(Value(options, "timeout-seconds", "120"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var timeout)
+        ? Math.Clamp(timeout, 5, 600)
+        : 120,
+    !BoolValue(options, "no-vector"),
+    !BoolValue(options, "allow-lexical-fallback") || BoolValue(options, "require-vector"),
+    BoolValue(options, "skip-index"));
+
+static QdrantPayload QdrantPayloadFrom(EvidenceChunk chunk, string embedderId, string corpusKind = "ipa_trial_result") => new(
     chunk.Id,
     chunk.TrialId,
-    "ipa_trial_result",
-    "ipa_trial_result",
+    corpusKind,
+    corpusKind,
     StoreKey(chunk.Store),
     chunk.TrialId,
     chunk.CandidateId,
@@ -4315,7 +4615,8 @@ static void PrintHelp()
           dump  --store <trial-results.cc> --output <report.md>
           distill --store <trial-results.cc> --output-store <distilled.cc> --output <report.md> [--min-cosine .35] [--max-results 40]
           music-distill --artifact-root <song-swarm-dir> --output-store <music-knowledge.cc> --output <report.md> [--max-candidates 16]
-          music-search --store <music-knowledge.cc> --query <text> --output <report.md> [--limit 12]
+          music-index --store <music-knowledge.cc> [--output <report.md>] [--force true]
+          music-search --store <music-knowledge.cc> --query <text> --output <report.md> [--limit 12] [--allow-lexical-fallback true]
           music-show --store <music-knowledge.cc> --knowledge-id <id-or-topic> --output <detail.md>
           index --store <trial-results.cc> [--output <report.md>] [--force true]
           search --store <trial-results.cc> --query <text> --output <report.md> [--limit 12] [--no-vector true] [--require-vector true] [--skip-index true]
@@ -4326,6 +4627,7 @@ static void PrintHelp()
           --ollama-url http://127.0.0.1:11434
           --embed-model qwen3-embedding:0.6b
           --collection aquasynth_ipa_trial_results
+          music-index/music-search default collection: aquasynth_music_production_knowledge
 
         Use song-prepare --duration-seconds 0 to freeze the full decoded source file from sample zero.
         Agent-authored patch files must be named <targetId>__candidate-name.aqua.
@@ -4466,7 +4768,11 @@ sealed record SongSummaryRow(
 sealed record MusicKnowledgeHit(
     MusicProductionKnowledgeDocument Document,
     float Score,
-    IReadOnlyDictionary<string, string[]> MatchedByField);
+    IReadOnlyDictionary<string, string[]> MatchedByField,
+    string RetrievalMode,
+    float? VectorScore,
+    string VectorChunkId,
+    string VectorText);
 
 sealed record SongRegister(
     float DominantHz,

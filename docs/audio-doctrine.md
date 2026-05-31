@@ -375,6 +375,13 @@ form, target-specific roles, and low template/noise-percussion risk. Stock
 four-lane loops and raw noise percussion belong in failure documents even when
 they keep RMS and motion metrics nonzero.
 
+Music-production retrieval must be an evidence packet, not a lexical slogan
+list. Fresh agents should receive Qdrant-backed knowledge hits with owner,
+summary, transfer rules, AquaSynth patterns, failure modes, and the retrieved
+chunk text. A pass-level curator agent should read musician model output after
+scoring and write only novel, actionable entries into the next knowledge store;
+raw musician reports remain evidence, not doctrine.
+
 Do not confuse high metric agreement with musical success. The game context,
 the reference sound, and the user’s ear still outrank the spreadsheet. Annoying,
 but civilization has survived worse.

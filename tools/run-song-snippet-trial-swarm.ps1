@@ -316,9 +316,11 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
                 "--store",
                 $latestMusicKnowledgeStore,
                 "--query",
-                "syrinx voice subtractive drums additive pad texture reusable abstraction music production quality standard",
+                "producer brief listening journal actionable composition arrangement groove harmony melody bass drums syrinx subtractive additive pad texture mix automation failure novelty AquaSynth",
                 "--limit",
                 "40",
+                "--require-vector",
+                "true",
                 "--output",
                 $preMusicEvidence
             ) `
@@ -402,7 +404,7 @@ Challenge:
 $challengeList
 $challengeReportList
 - shared prior evidence: $preEvidence
-- shared music-production knowledge: $preMusicEvidence
+- shared Qdrant music-production knowledge: $preMusicEvidence
 - patch output directory: $agentPatchDir
 $targetPatchList
 - candidate filename prefix: $agentId
@@ -426,7 +428,7 @@ Composition objective:
 Generalization:
 - You own $SongsPerAgent target patches, and your report must compare all assigned targets and state what reusable scene/instrument knowledge transfers between them.
 - The patches may share instrument roles, texture roles, control idioms, and DSL conventions, but each patch should fit its own target's tempo/register/spectral evidence.
-- Future agents will receive distilled evidence from this trial when asked to zero-shot an audio production request. Make your studio reports useful retrieval context: name what transferred, what did not, what sounded alive, what sounded fake, and what evidence would change your next patch.
+- Future agents will receive distilled evidence from this trial when asked to zero-shot an audio production request. Read the shared Qdrant music-production knowledge file before writing patches, then make your studio reports useful retrieval context: name what transferred, what did not, what sounded alive, what sounded fake, and what evidence would change your next patch.
 
 Producer evidence:
 - Write $agentDir/producer-brief.md before patching. For each target, include the artistic reading, likely genre/tempo feel, emotional/energy contour, section map, instrument role map, mix priorities, and the exact challenge artifacts you are trusting.
@@ -517,7 +519,7 @@ Instrument and DSL convention invention:
 - Legal oscillator `wave=` values are `sine`, `square`, `saw`, `triangle`, and `noise` only. Use `square` plus filters/envelopes for pulse-like tone; `pulse` is not accepted syntax.
 
 Evidence contract:
-- Read every assigned challenge report and $preEvidence.
+- Read every assigned challenge report, $preEvidence, and $preMusicEvidence.
 - Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on assigned targets, known risks.
 - Include a `Composition Map` section in $agentDir/hypotheses.md: meter/time signature, progression or tonal center, instrument lanes, section events after the opening, automation/mix moves, and which evaluator metrics should prove the arrangement did not collapse.
 - Also write $agentDir/producer-brief.md, $agentDir/listening-journal.md, $agentDir/aqua-gap-ledger.md, and $agentDir/studio-lesson.md. These reports are now curriculum admission evidence, not decorative paperwork.
@@ -574,6 +576,58 @@ Return a short final summary naming the patch and report.
     }
 
     Write-PassPlaylist -PassDirectory $passDir -TopCount $PlaylistTopCount
+
+    $curatorDir = Join-Path $passDir "knowledge-curator"
+    New-Item -ItemType Directory -Force -Path $curatorDir | Out-Null
+    $curatorPromptPath = Join-Path $curatorDir "knowledge-curator.prompt.md"
+    $curatorOutputPath = Join-Path $curatorDir "knowledge-curator.md"
+    $curatorPrompt = @"
+You are the AquaSynth music-production knowledge curator for $passId.
+
+Your only job is to distill musician model output from this phase into actionable and novel knowledgebase entries. Do not write patches. Do not praise effort. Do not summarize everything. Extract the lessons that should change what the next musician does.
+
+Read:
+- pass directory: $passDir
+- proposed patches: $patchRoot
+- evaluator reports and summary CSV files under each agent target directory
+- producer-brief.md, listening-journal.md, aqua-gap-ledger.md, studio-lesson.md, abstraction-ledger.md, instrument-conventions.md from musician agents
+- playlist report: $(Join-Path $passDir "top-scoring-candidates.md")
+- prior Qdrant music knowledge injection: $preMusicEvidence
+
+Write exactly this file:
+- $curatorDir/knowledge-curation.md
+
+Format knowledge-curation.md as compact entries. Each entry must include:
+- title: short reusable lesson
+- novelty: what this adds beyond the prior Qdrant knowledge file
+- owner sentence: X owns Y so Z remains true
+- do: concrete steps a fresh AquaSynth musician can apply
+- lower to AquaSynth: exact current syntax or patch idiom if applicable
+- evidence: file paths, candidate ids, metrics, and musician report lines used
+- reject: what not to copy from the phase
+
+Admission standard:
+- Keep only lessons with evidence and a clear next action.
+- Prefer composition, arrangement, sound design, mixing, and AquaSynth sugar lessons that transfer across targets.
+- Reject generic advice, duplicate role-name slogans, and anything that merely restates the prompt.
+- If the phase learned mostly negative evidence, write negative entries with precise failure signatures.
+
+Return a short final note naming knowledge-curation.md.
+"@
+    $curatorJob = Start-CodexAgentJob `
+        -RepoRoot $repoRoot `
+        -Prompt $curatorPrompt `
+        -PromptPath $curatorPromptPath `
+        -OutputPath $curatorOutputPath `
+        -LogPath (Join-Path $logRoot "$passId-knowledge-curator.log") `
+        -CodexCommand $CodexCommand `
+        -CodexModel $CodexModel `
+        -JobName "$passId-knowledge-curator"
+    Wait-CodexJobs -Jobs @($curatorJob)
+    if (!(Test-Path -LiteralPath (Join-Path $curatorDir "knowledge-curation.md")) -or
+        ((Get-Item -LiteralPath (Join-Path $curatorDir "knowledge-curation.md")).Length -lt 64)) {
+        throw "Knowledge curator did not write a usable knowledge-curation.md for $passId."
+    }
 
     $distilledStore = Join-Path $passDir "song-trial-results.distilled.cc"
     Invoke-LoggedProcess `
@@ -655,6 +709,23 @@ Return a short final summary naming the patch and report.
             "40"
         ) `
         -LogPath (Join-Path $logRoot "$passId-music-distill.log")
+
+    Invoke-LoggedProcess `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            "run",
+            "--project",
+            $workerProject,
+            "--",
+            "music-index",
+            "--store",
+            $musicKnowledgeStore,
+            "--output",
+            (Join-Path $passDir "music-vector-index-after.md"),
+            "--timeout-seconds",
+            "300"
+        ) `
+        -LogPath (Join-Path $logRoot "$passId-music-index.log")
     $latestMusicKnowledgeStore = $musicKnowledgeStore
 
     Invoke-LoggedProcess `

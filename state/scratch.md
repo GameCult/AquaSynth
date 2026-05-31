@@ -1952,3 +1952,20 @@ Next likely slice:
   `listening-journal.md`, `aqua-gap-ledger.md`, and `studio-lesson.md`, and use
   the self-iteration loop as a listening/revision record rather than a metric
   casino.
+
+2026-06-01 Qdrant music retrieval and curator slice:
+
+- The old music-production "semantic" injection was lexical keyword matching
+  over short summaries. It is no longer the swarm path.
+- `music-index` now embeds full `MusicProductionKnowledgeDocument` packets into
+  Qdrant collection `aquasynth_music_production_knowledge`; `music-search`
+  defaults to Qdrant/Ollama retrieval and emits full owner, summary, transfer
+  rules, AquaSynth patterns, failure modes, vector score, and retrieved chunk
+  text. Lexical fallback is only an explicit debugging escape hatch.
+- After each musician phase, `run-song-snippet-trial-swarm.ps1` starts a
+  dedicated `knowledge-curator` agent. Its only output is
+  `knowledge-curation.md`, with novel actionable entries, evidence paths,
+  owner sentences, current AquaSynth lowering, and rejected-copy notes.
+- `music-distill` ingests those curator files as `curator-distillation`
+  documents, then the pass indexes the resulting `.cc` into Qdrant before the
+  next phase uses it.
