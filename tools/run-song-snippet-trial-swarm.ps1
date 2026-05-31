@@ -316,7 +316,7 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
                 "--store",
                 $latestMusicKnowledgeStore,
                 "--query",
-                "producer brief listening journal actionable composition arrangement groove harmony melody bass drums syrinx subtractive additive pad texture mix automation failure novelty AquaSynth",
+                "AquaSynth DSP manual music theory production arrangement groove harmony melody bass drums syrinx subtractive additive pad texture mix automation failure novelty",
                 "--limit",
                 "40",
                 "--require-vector",

@@ -1969,3 +1969,17 @@ Next likely slice:
 - `music-distill` ingests those curator files as `curator-distillation`
   documents, then the pass indexes the resulting `.cc` into Qdrant before the
   next phase uses it.
+
+2026-06-01 manual/textbook music curriculum slice:
+
+- Added repo-native manuals under `docs/music-production-knowledge/`:
+  `aqua-dsp-usage-manual.md` and
+  `open-music-theory-production-distill.md`.
+- `music-distill` now ingests those manuals as `manual` knowledge documents in
+  every fresh music `.cc`, so musician agents retrieve AquaSynth DSP usage,
+  music theory, arrangement, groove, harmony, melody, production, and failure
+  modes before prior-run candidate pressure.
+- Smoke proof: `artifacts/parity/manual-knowledge-smoke/20260601T001932`
+  produced a 16-document knowledge store with 2 manuals, indexed it into
+  Qdrant, and `music-search` retrieved the AquaSynth DSP manual with
+  `retrieval: qdrant-ollama`.

@@ -1957,6 +1957,11 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
     {
         yield return curatorDocument;
     }
+
+    foreach (var manualDocument in MusicManualDocuments(created))
+    {
+        yield return manualDocument;
+    }
 }
 
 static IEnumerable<MusicProductionKnowledgeDocument> MusicRoleDocuments(IReadOnlyList<SongSummaryRow> rendered, string created)
@@ -2201,6 +2206,102 @@ static IEnumerable<MusicProductionKnowledgeDocument> MusicCuratorDocuments(strin
             [new SpeechScoreMetric("curation_chars", text.Length, 0)],
             [ledger],
             created);
+    }
+}
+
+static IEnumerable<MusicProductionKnowledgeDocument> MusicManualDocuments(string created)
+{
+    var manualRoot = Path.Combine(Directory.GetCurrentDirectory(), "docs", "music-production-knowledge");
+    if (!Directory.Exists(manualRoot))
+    {
+        yield break;
+    }
+
+    foreach (var manual in Directory.EnumerateFiles(manualRoot, "*.md", SearchOption.TopDirectoryOnly).Order(StringComparer.OrdinalIgnoreCase))
+    {
+        var text = ReadBoundedText(manual, 12000);
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            continue;
+        }
+
+        var id = $"music-manual-{SafeName(Path.GetFileNameWithoutExtension(manual))}-{StableUuid(manual)[..8]}";
+        var topic = ManualField(text, "topic") ?? Path.GetFileNameWithoutExtension(manual).Replace('-', ' ');
+        var tier = ManualField(text, "tier") ?? "manual-doctrine";
+        yield return new MusicProductionKnowledgeDocument(
+            id,
+            "manual",
+            topic,
+            tier,
+            LinesAfterHeading(text, "Owner", 900).DefaultIfEmpty("Manual owns reusable music-production knowledge for AquaSynth agents.").First(),
+            text,
+            LinesAfterHeading(text, "Transfer Rules", 16).ToArray(),
+            LinesContaining(text, "meter ", "sequence ", "scale ", "chords ", "mix ", "voice ", "texture ", "source_port", "layer ", "harmonics ", "spectrum ").Take(24).ToArray(),
+            LinesAfterHeading(text, "Failure Modes", 16).ToArray(),
+            [],
+            [],
+            [new SpeechScoreMetric("manual_chars", text.Length, 0)],
+            [manual],
+            created);
+    }
+}
+
+static string? ManualField(string text, string field)
+{
+    var prefix = $"{field}:";
+    return text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .FirstOrDefault(line => line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))?
+        .Substring(prefix.Length)
+        .Trim();
+}
+
+static IEnumerable<string> LinesAfterHeading(string text, string heading, int maxItemsOrChars)
+{
+    var lines = text.Split(['\r', '\n']);
+    var start = Array.FindIndex(lines, line => line.Trim().Equals($"## {heading}", StringComparison.OrdinalIgnoreCase));
+    if (start < 0)
+    {
+        yield break;
+    }
+
+    var collected = new List<string>();
+    for (var index = start + 1; index < lines.Length; index++)
+    {
+        var line = lines[index].Trim();
+        if (line.StartsWith("## ", StringComparison.Ordinal))
+        {
+            break;
+        }
+
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            continue;
+        }
+
+        if (line.StartsWith("- ", StringComparison.Ordinal))
+        {
+            collected.Add(line[2..].Trim());
+        }
+        else if (!line.StartsWith("```", StringComparison.Ordinal))
+        {
+            collected.Add(line);
+        }
+    }
+
+    if (maxItemsOrChars > 32)
+    {
+        var paragraph = TrimForReport(string.Join(' ', collected), maxItemsOrChars);
+        if (!string.IsNullOrWhiteSpace(paragraph))
+        {
+            yield return paragraph;
+        }
+
+        yield break;
+    }
+
+    foreach (var item in collected.Take(maxItemsOrChars))
+    {
+        yield return item;
     }
 }
 
