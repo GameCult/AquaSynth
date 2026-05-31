@@ -740,6 +740,37 @@ specific, comparable, falsifiable, and reusable by the next round. A pretty
 report with vague receipts is a failed science artifact even if it obeys the
 file-count contract.
 
+When the loop is run with source edits enabled, hypothesis agents may golf DSL
+syntax, parser/model records, Faust lowering, worker evidence surfaces, and
+tests. That is not permission to smear metrics. A source edit must name the
+owner it moves, the invariant it protects, files changed, expected metric
+movement, verification command, and rollback trigger in `source-change-plan.md`.
+The outer loop runs a focused build before scoring so malformed syntax or
+broken lowering fails before it pollutes the trial store.
+
+### Scene Voice Model
+
+IPA parity candidates are now scenes, not isolated waveforms. Every hypothesis
+family must describe the voices in the scene and how each voice is synthesized:
+
+- `primary-articulatory`: the vocal tract or vocal primitive that owns speech
+  articulation evidence;
+- `tract-noise`: sustained frication, aspiration, turbulence, or hiss coupled
+  to anatomical controls;
+- `release/transient`: closure release, burst, click, or pressure spill;
+- `background-room`: room tone, bed noise, hum, or environmental coloration;
+- `recording-condition`: microphone/codec/room coloration, gain motion, and
+  other reference-capture artifacts.
+
+General AquaSynth primitives are fair game for helper voices: ordinary `voice`
+layers, noise, FM, AM/tremolo, envelopes, filters, formants, additive/spectral
+layers, macros, and modulation. Those voices are part of full parity, but they
+do not count as articulation evidence unless gesture, primitive timeline, and
+clean vocal metrics also move. The scientific question is not "can a noise bed
+hide the failure?" It is "which voices are in the scene, which owner synthesizes
+each one, and which witness proves that the helper voice is not impersonating
+speech?"
+
 Five prompt-optimization smokes on 2026-05-29 sharpened that contract. The best
 agent output came from a fixed receipt packet and a constrained reasoning pass,
 not from letting an external agent wander the store while thinking. Production

@@ -57,6 +57,27 @@ notch are native AquaSynth filter authorities. Formants remain vowel/body color,
 and PAD spectrum/profile fields remain source-table construction; do not use
 those surfaces as substitutes for ordinary subtractive filters.
 
+## Scene Voices
+
+Reference audio is a scene, not a naked oscillator. A patch may contain several
+voices whose jobs differ:
+
+- primary articulatory or instrumental voice;
+- coupled tract/source noise;
+- release, impact, or transient voice;
+- background room tone, bed noise, hum, or environmental texture;
+- recording-condition voice or processing that approximates microphone, room,
+  codec, or capture coloration.
+
+Those voices can use the whole AquaSynth vocabulary: ordinary `voice` layers,
+noise, FM, AM/tremolo, envelopes, filters, formants, additive/spectral sources,
+macros, and modulation. The contract is honesty, not austerity. Helper voices
+are allowed to improve full parity, but they do not own articulation or
+instrument-body evidence unless the relevant lower-layer witnesses move too.
+When a scene voice exists mainly to match background noise or capture color, the
+report must name that role and score it as context, not as proof that the
+primary body learned to speak.
+
 ## Faust Boundary
 
 Faust describes pure DSP: inputs to outputs. Architecture files and host code

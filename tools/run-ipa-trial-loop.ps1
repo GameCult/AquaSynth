@@ -150,6 +150,31 @@ function Assert-CandidateBatch {
     }
 }
 
+function Invoke-SourceEditVerification {
+    param(
+        [string]$LogPath,
+        [bool]$AllowSourceEdits
+    )
+
+    if (-not $AllowSourceEdits) {
+        return
+    }
+
+    Invoke-LoggedProcess `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            "build",
+            "tests\AquaSynth.Dsl.Tests\AquaSynth.Dsl.Tests.csproj",
+            "--no-restore",
+            "--disable-build-servers",
+            "-p:UseSharedCompilation=false",
+            "-p:BuildInParallel=false",
+            "-v",
+            "minimal"
+        ) `
+        -LogPath $LogPath
+}
+
 $repoRoot = Resolve-RepoRoot
 $codex = Get-Command $CodexCommand -ErrorAction Stop
 $loopId = New-Timestamp
@@ -234,7 +259,7 @@ for ($round = 1; $round -le $Rounds; $round++) {
             "--store",
             $storePath,
             "--query",
-            "weak promising generalization vowel nasal fricative stop articulation owner source tract radiation gesture primitive dressing",
+            "weak promising generalization vowel nasal fricative stop articulation owner source tract radiation gesture primitive dressing DSL lowering Faust machinery scene voices background noise",
             "--limit",
             "40",
             "--output",
@@ -267,9 +292,15 @@ Retrieval failure policy:
 
 Useful repo surfaces:
 - docs/ipa-vocal-tract-roadmap.md
+- docs/audio-doctrine.md
 - src/AquaSynth.Core/IpaGestureExperiment.cs
+- src/AquaSynth.Core/Model.cs
+- src/AquaSynth.Core/PatchScript.cs
+- src/AquaSynth.Core/ControlSplineTimeline.cs
+- src/AquaSynth.Core/ProbeTimelineReport.cs
 - src/AquaSynth.Core/FaustExport.cs
 - src/AquaSynth.Faust/IpaTrialOrchestrator.cs
+- tools/IpaTrialWorker/Program.cs
 - artifacts under $loopRoot
 
 Before writing candidates:
@@ -277,7 +308,7 @@ Before writing candidates:
 1. Run exactly three targeted semantic searches and save the outputs under ${roundDir}:
    - one for weakest stop/plosive closure evidence;
    - one for best vowel/nasal/fricative transferable successes;
-   - one for dressing/FM/AM/noise versus articulation-owner failures.
+   - one for DSL lowering/Faust machinery, scene voices, background-noise modeling, and dressing/FM/AM/noise versus articulation-owner failures.
 2. Open exactly three detailed trial records with `show`: one weak stop/plosive, one transferable success, and one dressing-vs-articulation case when available.
 3. In $roundDir/hypotheses.md, include a `Retrieval Receipts` section listing the exact search/show files you used.
 4. If fewer than three search receipts and three show receipts exist on disk, stop and create the missing retrieval artifacts before writing `.aqua` files.
@@ -301,22 +332,40 @@ $patchDir
 6. Write a concise hypothesis report to:
 $roundDir/hypotheses.md
 
+Source-code golf contract:
+- Source edits allowed: $AllowCodexSourceEdits
+- When source edits are allowed, you may edit `src/`, `tests/`, `docs/`, and `tools/` to test DSL syntax, DSL lowering, Faust emission, worker scoring, or scene-voice evidence surfaces.
+- Do not edit generated artifacts, existing `.cc` stores, existing trial results, or previous round reports.
+- Source edits must move one named owner, not add compensators. Use the sentence `X owns Y so Z remains true`.
+- Valid source hypotheses include: new patch DSL syntax, parser/model records, Faust lowering changes, ProbeTimeline fields, IpaTrialWorker evidence/reporting, or tests that prove the new syntax/lowering path.
+- Invalid source hypotheses include: broad rewrites, changing metric thresholds to flatter candidates, deleting hard evidence, mutating references, or hardcoding a candidate name.
+- If you edit source, write `$roundDir/source-change-plan.md` with: owner map, files edited, invariant, expected metric movement, tests/build commands to run, and rollback trigger.
+- If you do not edit source, write `Source Edit Decision: none` and explain which evidence is still missing.
+
+Scene voice model:
+- Every candidate patch represents a scene, not a single naked waveform. The report must name the scene voices and say how each is synthesized.
+- Required scene voice roles: `primary-articulatory`, `tract-noise`, `release/transient`, `background-room`, and `recording-condition`.
+- Use ordinary AquaSynth primitives for helper voices where useful: `voice` layers, noise, FM, AM/tremolo, envelopes, filters, formants, additive/spectral voices, macros, and modulation. These helper voices are allowed in full parity.
+- Helper/background voices must not count as articulation evidence unless gesture, primitive timeline, and clean vocal metrics move coherently.
+- For each family, say which voices are active, which controls they expose, and which metric/timeline witness would prove the helper is not merely dressing.
+
 Candidate design contract:
 - Produce exactly 25 files: exactly one candidate for each target lane. No extras.
-- Use 3-5 named hypothesis families across the 25 files, for example source-carrier, constriction-place, stop-release, nasal-branch, and dressing-control.
+- Use 3-5 named hypothesis families across the 25 files, for example source-carrier, constriction-place, stop-release, nasal-branch, scene-noise-bed, and lowering-release-owner.
 - Filename schema is mandatory: <targetId>__<family>__<hypothesis-name>.aqua.
 - Family ids must be lowercase kebab-case and reused verbatim in filenames and `Hypothesis Families`.
 - The family segment in filenames is the canonical hypothesis-family id used by the evaluator.
 - The same family name should appear in filenames across multiple target sets when you are testing generalization.
 - A family is transferable only if it appears in at least three target sets; otherwise label it exploratory in the report.
 - Keep `.aqua` scripts parseable and self-contained. Prefer modifying values and gesture contours already visible in seed candidates before inventing new syntax.
-- Do not use source edits as a way to rescue malformed candidate patches.
-- Only edit source if two or more retrieved trials indicate the same owner-layer failure pattern; otherwise `Source Edit Decision: none`.
+- Do not use source edits as a way to rescue malformed candidate patches; use source edits to make a coherent syntax/lowering/Faust owner possible.
+- Only edit source if two or more retrieved trials indicate the same owner-layer failure pattern, or if at least two scene-voice candidates need the same missing DSL/lowering primitive; otherwise `Source Edit Decision: none`.
 - If Source edits allowed is False, do not edit any file outside $patchDir and $roundDir/hypotheses.md.
 - Before finishing, list $patchDir and verify exact count, target coverage, and filename schema in `Acceptance Checklist`.
 - A seam claim must use an owner sentence: `X owns Y so Z remains true`.
 - A seam is actionable only if the next candidate family proposes at least five micro-sweep perturbations across that seam, spread across target lanes when possible.
 - Novelty gate: a family must move a new owner, control axis, timing contour, or primitive relationship. Raising loudness, burst gain, or dressing alone is not novel.
+- Scene novelty can be valid only when it changes a named voice role, routing/lowering primitive, modulation relationship, or background-noise synthesis model and predicts a non-articulation witness such as noise-floor, spectral tilt, RMS stability, or room/recording match.
 - Include a class-consistent reference matrix that maps each target id to the exact reference trial or fixture id used for comparison; mixed-set evidence cannot silently stand in for single-phoneme evidence.
 
 Required `$roundDir/hypotheses.md` shape:
@@ -325,11 +374,12 @@ Required `$roundDir/hypotheses.md` shape:
 - `Loss Landscape Read`: strongest and weakest evidence by family.
 - `Reference Matrix`: one row per target id with reference trial/fixture id, candidate baseline if known, and whether the evidence is class-consistent or mixed/weak.
 - `Hypothesis Families`: 3-5 families, each with owner layer, transfer status, evidence_refs, cited trial_ids, at least one concrete metric key/value from `show`, a contrast pair, an owner sentence of the form `X owns Y so Z remains true`, five planned micro-sweep perturbations, and predicted metric movement using `gesture:+/-/flat`, `logmel:+/-/flat`, `articulation:+/-/flat`, `rms:+/-/flat`, `timeline:+/-/flat/risk`.
+- `Scene Voice Model`: one row per family with primary voice, helper/background voices, AquaSynth primitives used, controls exposed, expected non-articulation witnesses, and dressing risk.
 - `Claim Audit`: one row per family: claim -> evidence file(s) -> contrast pair -> metric key/value(s) -> primitive timeline excerpt or `missing` -> predicted movement.
 - `Evidence Quality Ledger`: one row per family with specificity, comparability, falsifiability, reuse value for the next round, and the weakest missing evidence. Use `high`, `medium`, or `low` for each quality field.
 - `Novelty Gate`: one row per family saying which new owner/control axis/timing contour/primitive relationship is being explored; write `dressing-only` if the family mainly changes loudness/FM/AM/noise/envelopes.
 - `Candidate Matrix`: exactly 25 rows with target id, filename, family, expected metric movement, and risk.
-- `Source Edit Decision`: `none` unless source edits are allowed and justified by evidence.
+- `Source Edit Decision`: `none` unless source edits are allowed and justified by evidence; if source was edited, link `$roundDir/source-change-plan.md`, list files changed, tests/builds run or pending, and rollback trigger.
 - `Acceptance Checklist`: 25 files, one per target id, filename schema, required report sections, >=3 search receipts, >=3 show receipts.
 
 Authority boundary:
@@ -337,7 +387,7 @@ Authority boundary:
 - Do not rewrite existing trial artifacts or the CultCache store directly.
 - The worker process owns measurement and .cc writes; you own candidate invention and optional source refinements.
 - Keep gesture_score, clean vocal/audio evidence, and full parity dressing separate.
-- Patch candidates may use FM, AM, modulators, envelopes, and extra animated voices, but call out when dressing is compensating for failed articulation.
+- Patch candidates should make full use of AquaSynth general synth primitives when modeling the scene: FM, AM, modulators, envelopes, filters, formants, noise voices, additive/spectral layers, and extra animated voices. Call out when these are background/recording-condition voices rather than articulation.
 - Prefer fixing primitive owners over adding audio dressing when the evidence says air is missing.
 
 Return a short final summary naming the files you wrote.
@@ -352,6 +402,11 @@ Return a short final summary naming the files you wrote.
         -AllowSourceEdits:$AllowCodexSourceEdits
 
     Assert-CandidateBatch -PatchDirectory $patchDir
+
+    $sourceVerifyLog = Join-Path $logRoot "$roundId-source-edit-verification.log"
+    Invoke-SourceEditVerification `
+        -LogPath $sourceVerifyLog `
+        -AllowSourceEdits:$AllowCodexSourceEdits
 
     $scoreLog = Join-Path $logRoot "$roundId-score-candidates.log"
     Invoke-LoggedProcess `
@@ -404,7 +459,7 @@ Return a short final summary naming the files you wrote.
             "--store",
             $storePath,
             "--query",
-            "latest round weak promising transfer generalization vowel nasal fricative stop articulation owner source tract radiation gesture primitive dressing",
+            "latest round weak promising transfer generalization vowel nasal fricative stop articulation owner source tract radiation gesture primitive dressing DSL lowering Faust machinery scene voices background noise",
             "--limit",
             "60",
             "--output",
@@ -429,12 +484,13 @@ Round artifacts are under:
 $roundDir
 
 Before judging:
-1. Run at least three targeted semantic searches into ${roundDir}:
+1. Run exactly three targeted semantic searches into ${roundDir}:
    - current round candidates by hypothesizer id or round id;
    - weak regressions / failed articulation;
-   - promising transfer / generalization.
+   - promising transfer / generalization, including DSL lowering/Faust/scene-voice source-edit evidence when source edits were allowed.
 2. Use `show` on at least one promising and one weak candidate from the current round.
 3. If the hypothesis worker skipped the required 25-lane matrix or retrieval receipts, mark orchestration/prompt compliance as failed even if some audio metrics improved.
+4. If source edits were allowed, inspect `$roundDir/source-change-plan.md` when present and verify the source edit is a coherent owner move, not a metric hack.
 
 Use the worker as your search organ:
 `$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "$roundId external-codex-$roundId current round candidates" --limit 30 --output "$roundDir/eval-search-current-round.md" --skip-index true
@@ -455,13 +511,16 @@ Verify compliance from disk as well as the hypothesis report:
 - validate family ids are lowercase kebab-case.
 - derive canonical family ids only from the filename family segment; ignore prose family names when they disagree.
 - validate that each actionable seam has a contrast pair, a primitive timeline excerpt or explicit `missing`, an owner sentence, and at least five planned micro-sweep perturbations.
-- validate that the hypothesis report includes a class-consistent reference matrix and a novelty gate.
-- If any required section, receipt class, per-target validation, filename validation, family extraction, reference matrix, contrast pair, owner sentence, or novelty gate is incomplete, set `Round Compliance: failed`.
+- validate that the hypothesis report includes a class-consistent reference matrix, scene voice model, and novelty gate.
+- validate that every family identifies primary-articulatory, tract-noise, release/transient, background-room, and recording-condition roles, even if some are explicitly silent.
+- validate that helper/background voices are evaluated separately from articulation evidence.
+- validate source edit compliance if source edits were allowed: coherent owner map, edited file list, invariant, expected metric movement, verification command, and rollback trigger.
+- If any required section, receipt class, per-target validation, filename validation, family extraction, reference matrix, scene voice model, contrast pair, owner sentence, or novelty gate is incomplete, set `Round Compliance: failed`.
 
 Task:
 1. Evaluate whether the worker's proposed hypotheses follow from the measured evidence.
 2. Call out any hypothesis that is likely full-patch dressing impersonating articulation.
-3. Recommend exactly one next implementation/refinement target, with file/module owner and why.
+3. Recommend exactly one next implementation/refinement target, with file/module owner and why. It may be DSL syntax, Faust lowering, scene-voice modeling, or worker evidence if the receipts support it.
 4. Write your evaluator report to:
 $roundDir/evaluation.md
 
@@ -472,7 +531,9 @@ Required `$roundDir/evaluation.md` shape:
 - `Family Verdicts`: one row per canonical filename family with improved/flat/regressed/unknown metrics. Treat |delta| < 0.01 as flat; if deltas are not present in cited show artifacts, write `unknown` and reason=`no delta in receipts`.
 - `Evidence Quality Verdicts`: one row per family with specificity, comparability, falsifiability, reuse value, primitive timeline support, and weakest missing evidence. Penalize vague receipts, search-summary-only claims, missing contrast pairs, missing reference ids, and missing timeline excerpts even when metrics improve.
 - `Seam Audit`: one row per named seam with owner sentence, contrast pair, timeline excerpt, planned perturbation count, and verdict `actionable` or `not actionable`; fewer than five perturbations means `not actionable`.
-- `Novelty Audit`: one row per family saying whether it moves a new owner/control axis/timing contour/primitive relationship or is mainly loudness/dressing.
+- `Scene Voice Audit`: one row per family naming scene voices, helper/background synthesis primitives, non-articulation witness, and whether the helper voices are honest context or dressing.
+- `Source Edit Audit`: if source edits were allowed, summarize source files changed, invariant claimed, verification result, and whether the edit should survive; otherwise `not allowed`.
+- `Novelty Audit`: one row per family saying whether it moves a new owner/control axis/timing contour/primitive relationship/scene-voice model or is mainly loudness/dressing.
 - `Generalization Read`: whether effects transferred across target sets or overfit one phoneme.
 - `Dressing Audit`: articulation evidence requires movement in gesture/articulation/primitive timeline metrics; FM/AM/noise/envelope evidence without those is dressing.
 - `Next Target`: exactly one markdown bullet, final line of the file, and no continuation text: `<file-or-module> | <invariant> | <expected metric movement>`.
@@ -480,7 +541,7 @@ Required `$roundDir/evaluation.md` shape:
 Authority boundary:
 - Do not edit source files.
 - Do not rewrite trial artifacts.
-- Be explicit about which layer owns the failure: gesture DSL, primitive source, tract/radiation lowering, audio scoring, or orchestration.
+- Be explicit about which layer owns the failure: gesture DSL, scene voice model, primitive source, tract/radiation lowering, Faust machinery, audio scoring, or orchestration.
 - Treat the CultCache .cc store as the shared trial memory that future hypothesis workers will query through the worker search/show commands.
 
 Return a short final summary naming the report you wrote.

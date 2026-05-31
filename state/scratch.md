@@ -2,6 +2,21 @@
 
 Current slice:
 
+- Expanded the IPA trial-loop agent contract so future rounds can golf DSL
+  syntax, lowering, and Faust machinery when the evidence says the owner is
+  wrong. `tools/run-ipa-trial-loop.ps1` now gives source-edit-enabled
+  hypothesis agents authority to edit `src/`, `tests/`, `docs/`, and `tools/`
+  for named DSL/lowering/Faust/worker evidence hypotheses, requires a
+  `source-change-plan.md` with owner map, invariant, expected movement,
+  verification, and rollback trigger, and runs a focused test-project build
+  before scoring if source edits were allowed. The prompt also requires a
+  `Scene Voice Model` for every family: primary articulatory voice, tract-noise
+  voice, release/transient voice, background-room voice, and
+  recording-condition voice, with ordinary AquaSynth voices/noise/FM/AM/
+  envelopes/filters/formants/additive/spectral primitives available for helper
+  scene voices. Helper voices remain full-parity tools and cannot count as
+  articulation unless primitive/gesture/clean-vocal witnesses move too.
+
 - Added primitive timeline facts to IPA trial results as first-class CultCache
   evidence. `IpaTrialResult` now stores extracted `PrimitiveTimelineFact[]`
   values from `ProbeTimelineReport`: contact opening/closed blocks/reservoir
