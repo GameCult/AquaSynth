@@ -398,6 +398,20 @@ Self-iteration loop:
 - Use those candidate-side facts the same way you use target facts: compare spectral bands, envelope autocorrelation, whitened spectral autocorrelation, centroid/RMS, instrument-role metrics, and chip-distress risk. Move timings, filters, gains, sources, roles, and patterns between attempts.
 - Keep intermediate candidates inside `$iterationRoot`; publish only one final `.aqua` per target to the official target patch output directory.
 
+Reusable abstraction mining:
+- Your second job is to act like a musician designing the future patch language. Every attempt should name at least one reusable abstraction that made the patch easier to think about.
+- Write $agentDir/abstraction-ledger.md as the report of record for syntax-sugar mining. For each proposed abstraction include:
+  - `name`: a lowercase slug such as `syrinx-hook`, `sub-kick-grid`, `spectral-dust-hat`, `additive-wash`, `call-response-bass`;
+  - `role`: what musical job it owns;
+  - `owner sentence`: `X owns Y so Z remains true`;
+  - `controls`: the parameters a musician would expect to tweak;
+  - `current lowering`: exact AquaSynth syntax using today's `voice`, `texture`, `pattern`, `scale`, `layer`, `harmonics`, `spectrum`, `param`, and `curve` commands;
+  - `attempt evidence`: which attempt used it, score movement, candidate analysis facts, and what changed after listening to the rendered output;
+  - `sugar sketch`: the shortest future syntax you wish existed;
+  - `keep/cut verdict`: whether this abstraction should be mined into DSL sugar, kept as a stock patch idiom, or discarded.
+- Prefer abstractions that transfer across both assigned songs. A one-off trick is allowed only if you label it as target-specific and say why it should not become syntax.
+- Do not propose sugar that hides ownership. The future shorthand must still lower into visible syrinx, subtractive, additive/PAD, texture, pattern, scale, or curve owners.
+
 Noise and texture:
 - Do not model background or recording color as a full-duration raw `voice wave=noise` bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
 - Use the shaped texture owner for noise roles: `texture name=dust_hat role=dust pattern=x..x step=<beat_seconds/4> gain=.08 sustain=<duration_seconds>`, `texture name=air_wash role=air gain=.035 sustain=<duration_seconds>`, `texture name=codec_bed role=codec gain=.04 sustain=<duration_seconds>`.
@@ -434,12 +448,12 @@ Register and scale:
 - Candidate patches may use implemented `pattern` and `scale` sugar or the explicit lowered `param`/`curve` form. Proposed future sugar goes in the report.
 
 Instrument and DSL convention invention:
-- Invent at least one reusable instrument role for this segment, such as `alien-lead`, `dust-hat`, `codec-bed`, `rubber-bass`, `vowel-drone`, or another precise name.
-- Write $agentDir/instrument-conventions.md with:
+- Invent at least three reusable instrument or pattern roles across your assigned targets, such as `syrinx-hook`, `dust-hat-grid`, `codec-bed`, `rubber-bass`, `additive-wash`, `vowel-drone`, or another precise name.
+- Write $agentDir/instrument-conventions.md as a concise index that points into `abstraction-ledger.md` and summarizes:
   - the proposed instrument role names;
   - the control surfaces each role would want;
   - any Strudel-like sugar that would make the patch shorter;
-  - the exact lowering into today's AquaSynth syntax using explicit `voice`, `param`, and `curve` lines.
+  - the exact lowering into today's AquaSynth syntax using explicit `voice`, `texture`, `pattern`, `scale`, `param`, and `curve` lines.
 - The `.aqua` candidate must use today's implemented syntax only: `pattern`, `scale`, `param`, `curve`, and ordinary patch/voice syntax are legal. Proposed future sugar is evidence for the next DSL cut, not magic accepted by the parser.
 - Legal oscillator `wave=` values are `sine`, `square`, `saw`, `triangle`, and `noise` only. Use `square` plus filters/envelopes for pulse-like tone; `pulse` is not accepted syntax.
 
