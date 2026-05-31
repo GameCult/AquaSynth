@@ -740,6 +740,20 @@ specific, comparable, falsifiable, and reusable by the next round. A pretty
 report with vague receipts is a failed science artifact even if it obeys the
 file-count contract.
 
+The next round must learn from the previous one. A family that was flat,
+regressed, or failed compliance is falsified until the hypothesis worker states
+what changed: retired owner, surviving lesson, new perturbation, or source
+owner fork. Reusing a family name without that mutation is evidence churn, not
+learning.
+
+Hypothesis families must also stay aligned with phonetic class. Stop-release
+families belong on stop lanes and `mix-p`; nasal-branch families belong on
+nasal/approximant lanes and `mix-m`; frication families belong on fricatives
+and `mix-s`; vowel/source-shape families belong on vowels and vowel-like mixed
+lanes. Cross-class transfer tests are allowed only when the matrix names the
+class-specific controls changed for that target. Round-robin family assignment
+is failed science even when all 25 files exist.
+
 When the loop is run with source edits enabled, hypothesis agents may golf DSL
 syntax, parser/model records, Faust lowering, worker evidence surfaces, and
 tests. That is not permission to smear metrics. A source edit must name the

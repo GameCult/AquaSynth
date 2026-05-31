@@ -271,6 +271,8 @@ for ($round = 1; $round -le $Rounds; $round++) {
 
     $hypothesisOutput = Join-Path $roundDir "hypothesis-agent.md"
     $hypothesisLog = Join-Path $logRoot "$roundId-hypothesis-agent.log"
+    $previousRoundId = "round-{0:000}" -f ($round - 1)
+    $previousEvaluation = if ($round -gt 1) { Join-Path (Join-Path $loopRoot $previousRoundId) "evaluation.md" } else { "none" }
     $hypothesisPrompt = @"
 You are an AquaSynth IPA loss-landscape hypothesis and patch-writing worker.
 
@@ -279,6 +281,9 @@ $preEvidence
 
 The backing store is:
 $storePath
+
+Previous round evaluation:
+$previousEvaluation
 
 Use the worker as your search organ. Do not ask for crude full dumps unless retrieval fails:
 `$env:DOTNET_CLI_HOME="$roundDir/dotnet-home"; `$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE="1"; `$env:DOTNET_CLI_TELEMETRY_OPTOUT="1"; dotnet run --no-build --no-restore --project tools/IpaTrialWorker/IpaTrialWorker.csproj -- search --store "$storePath" --query "<your evidence question>" --limit 20 --output "$roundDir/search-<topic>.md" --skip-index true
@@ -315,6 +320,7 @@ Before writing candidates:
 5. Do not run additional retrieval unless one of the six required receipts is empty or unrelated; spend the rest of the turn reasoning over the evidence.
 6. For every seam you name, cite at least one contrast pair: a weak record and a stronger related record, or two variants that isolate one axis. If the receipts do not contain a contrast pair, mark the seam `not actionable`.
 7. Extract primitive timeline facts when available: closure duration, burst/release window, voicing onset, constriction window, branch admittance, radiation flow, or passivity/energy. If timelines are absent, mark timeline evidence `missing` instead of implying it.
+8. Read the previous round evaluation when it exists. A failed, flat, or regressed family is falsified until you state exactly what changed. Do not reuse family names or rotate old family ideas across new targets unless the report includes a `Previous Round Learning` section with the prior metric movement, accepted lesson, rejected lesson, and mutation that makes the new test different.
 
 Task:
 1. Read the current loss landscape across gesture, log-mel, RMS, articulation, and primitive timeline evidence.
@@ -359,6 +365,9 @@ Candidate design contract:
 - The family segment in filenames is the canonical hypothesis-family id used by the evaluator.
 - The same family name should appear in filenames across multiple target sets when you are testing generalization.
 - A family is transferable only if it appears in at least three target sets; otherwise label it exploratory in the report.
+- A family must be phonetic-class aligned. Stop-release families belong on stop and `mix-p` lanes; nasal-branch families belong on nasal/approximant and `mix-m` lanes; frication families belong on fricative and `mix-s` lanes; vowel-shape/source families belong on vowel and vowel-like mixed lanes. Cross-class use is allowed only when the family explicitly tests transfer and the candidate changes a class-appropriate control subset for that target.
+- Do not distribute families round-robin across target ids. A candidate matrix that assigns stop-release to vowels, nasal-branch to stops, or scene-noise to arbitrary phonemes without a class-specific control plan is failed science even when the file count is correct.
+- Each family must include a target-class lane plan: which target classes it applies to, why those classes are lawful for the owner, and which class-specific controls change. If a target is outside the family class, the matrix must say `transfer-test` and name the class-specific mutation.
 - Keep `.aqua` scripts parseable and self-contained. Prefer modifying values and gesture contours already visible in seed candidates before inventing new syntax.
 - Do not use source edits as a way to rescue malformed candidate patches; use source edits to make a coherent syntax/lowering/Faust owner possible.
 - Only edit source if two or more retrieved trials indicate the same owner-layer failure pattern, or if at least two scene-voice candidates need the same missing DSL/lowering primitive; otherwise `Source Edit Decision: none`.
@@ -371,18 +380,20 @@ Candidate design contract:
 - Include a class-consistent reference matrix that maps each target id to the exact reference trial or fixture id used for comparison; mixed-set evidence cannot silently stand in for single-phoneme evidence.
 
 Required `$roundDir/hypotheses.md` shape:
+- `Previous Round Learning`: if a previous evaluation exists, summarize which family claims were falsified/flat/improved, what lesson survives, and exactly how this round mutates the next test. If no previous round exists, write `first round`.
 - `PreEvidence Digest`: five facts with exact metric keys and values from $preEvidence.
 - `Retrieval Receipts`: search/show files used.
 - `Loss Landscape Read`: strongest and weakest evidence by family.
 - `Reference Matrix`: one row per target id with reference trial/fixture id, candidate baseline if known, and whether the evidence is class-consistent or mixed/weak.
 - `Hypothesis Families`: 3-5 families, each with owner layer, transfer status, evidence_refs, cited trial_ids, at least one concrete metric key/value from `show`, a contrast pair, an owner sentence of the form `X owns Y so Z remains true`, five planned micro-sweep perturbations, and predicted metric movement using `gesture:+/-/flat`, `logmel:+/-/flat`, `articulation:+/-/flat`, `rms:+/-/flat`, `timeline:+/-/flat/risk`.
+- `Target-Class Lane Plan`: one row per family naming allowed target classes, forbidden target classes, lawful transfer lanes, and class-specific controls that change.
 - `Scene Voice Model`: one row per family with primary voice, helper/background voices, AquaSynth primitives used, controls exposed, expected non-articulation witnesses, and dressing risk.
 - `Claim Audit`: one row per family: claim -> evidence file(s) -> contrast pair -> metric key/value(s) -> primitive timeline excerpt or `missing` -> predicted movement.
 - `Evidence Quality Ledger`: one row per family with specificity, comparability, falsifiability, reuse value for the next round, and the weakest missing evidence. Use `high`, `medium`, or `low` for each quality field.
 - `Novelty Gate`: one row per family saying which new owner/control axis/timing contour/primitive relationship is being explored; write `dressing-only` if the family mainly changes loudness/FM/AM/noise/envelopes.
 - `Candidate Matrix`: exactly 25 rows with target id, filename, family, expected metric movement, and risk.
 - `Source Edit Decision`: `none` unless source edits are allowed and justified by evidence; if source was edited, link `$roundDir/source-change-plan.md`, list files changed, tests/builds run or pending, and rollback trigger.
-- `Acceptance Checklist`: 25 files, one per target id, filename schema, required report sections, >=3 search receipts, >=3 show receipts, and at least one family with actual auxiliary `voice` helper/background declarations in its candidate scripts.
+- `Acceptance Checklist`: 25 files, one per target id, filename schema, required report sections, >=3 search receipts, >=3 show receipts, target-class lane plan present, no round-robin family assignment, and at least one family with actual auxiliary `voice` helper/background declarations in its candidate scripts.
 
 Authority boundary:
 - Source edits allowed: $AllowCodexSourceEdits
@@ -514,11 +525,14 @@ Verify compliance from disk as well as the hypothesis report:
 - derive canonical family ids only from the filename family segment; ignore prose family names when they disagree.
 - validate that each actionable seam has a contrast pair, a primitive timeline excerpt or explicit `missing`, an owner sentence, and at least five planned micro-sweep perturbations.
 - validate that `$roundDir/hypotheses.md` includes a class-consistent reference matrix, scene voice model, and novelty gate. `hypothesis-agent.md` is only the external agent's final chat summary and must not be treated as the full report.
+- validate that `$roundDir/hypotheses.md` includes `Previous Round Learning` and `Target-Class Lane Plan`.
+- validate target-class alignment from filenames and family plan: stop-release families should not be assigned to vowel lanes, nasal-branch families should not be assigned to stop lanes, frication families should not be assigned to vowel lanes, and scene-noise families should not be arbitrary catchalls unless each off-class lane is marked `transfer-test` with a class-specific mutation.
+- fail `class alignment` when families are distributed round-robin across target ids or when candidate files reuse the same family script shape without target-class-specific controls.
 - validate that every family identifies primary-articulatory, tract-noise, release/transient, background-room, and recording-condition roles, even if some are explicitly silent.
 - validate that at least one family actually adds ordinary helper/background `voice` declarations in its `.aqua` scripts for scene noise or recording-condition modeling.
 - validate that helper/background voices are evaluated separately from articulation evidence.
 - validate source edit compliance if source edits were allowed: coherent owner map, edited file list, invariant, expected metric movement, verification command, and rollback trigger.
-- If any required section, receipt class, per-target validation, filename validation, family extraction, reference matrix, scene voice model, contrast pair, owner sentence, or novelty gate is incomplete, set `Round Compliance: failed`.
+- If any required section, receipt class, per-target validation, filename validation, family extraction, reference matrix, previous-round learning, target-class lane plan, class alignment, scene voice model, contrast pair, owner sentence, or novelty gate is incomplete, set `Round Compliance: failed`.
 
 Task:
 1. Evaluate whether the worker's proposed hypotheses follow from the measured evidence.
@@ -530,7 +544,7 @@ $roundDir/evaluation.md
 Required `$roundDir/evaluation.md` shape:
 - `Retrieval Receipts`: exactly five receipts: three search outputs plus one weak show output and one promising show output. Cite no other evidence files in this section. Only cite claims backed by these file paths; write `unknown` when evidence is absent.
 - `Commands Run`: exact search/show commands and output paths used to support claims.
-- `Round Compliance`: passed/failed, candidate count, target coverage, naming validity, family extraction, reference matrix, contrast-pair coverage, owner-sentence coverage, micro-sweep coverage, novelty gate, auxiliary scene voice presence, and whether `hypotheses.md` had the required matrix.
+- `Round Compliance`: passed/failed, candidate count, target coverage, naming validity, family extraction, reference matrix, previous-round learning, target-class lane plan, class alignment, contrast-pair coverage, owner-sentence coverage, micro-sweep coverage, novelty gate, auxiliary scene voice presence, and whether `hypotheses.md` had the required matrix.
 - `Family Verdicts`: one row per canonical filename family with improved/flat/regressed/unknown metrics. Treat |delta| < 0.01 as flat; if deltas are not present in cited show artifacts, write `unknown` and reason=`no delta in receipts`.
 - `Evidence Quality Verdicts`: one row per family with specificity, comparability, falsifiability, reuse value, primitive timeline support, and weakest missing evidence. Penalize vague receipts, search-summary-only claims, missing contrast pairs, missing reference ids, and missing timeline excerpts even when metrics improve.
 - `Seam Audit`: one row per named seam with owner sentence, contrast pair, timeline excerpt, planned perturbation count, and verdict `actionable` or `not actionable`; fewer than five perturbations means `not actionable`.
@@ -538,6 +552,7 @@ Required `$roundDir/evaluation.md` shape:
 - `Source Edit Audit`: if source edits were allowed, summarize source files changed, invariant claimed, verification result, and whether the edit should survive; otherwise `not allowed`.
 - `Novelty Audit`: one row per family saying whether it moves a new owner/control axis/timing contour/primitive relationship/scene-voice model or is mainly loudness/dressing.
 - `Generalization Read`: whether effects transferred across target sets or overfit one phoneme.
+- `Learning Audit`: whether failed/flat previous families were mutated, retired, or blindly repeated.
 - `Dressing Audit`: articulation evidence requires movement in gesture/articulation/primitive timeline metrics; FM/AM/noise/envelope evidence without those is dressing.
 - `Next Target`: exactly one markdown bullet, final line of the file, and no continuation text: `<file-or-module> | <invariant> | <expected metric movement>`.
 

@@ -2,6 +2,18 @@
 
 Current slice:
 
+- User correctly called out that the loose agents learned nothing. The actual
+  failure was not just weak metrics; the candidate assignment was incoherent.
+  Families were rotated across targets instead of aligned to phonetic owners:
+  stop-release candidates landed on vowel/approximant lanes, while `p` got an
+  oral-pressure tweak despite the evidence naming stop-release ownership as
+  the weak seam. `tools/run-ipa-trial-loop.ps1` now passes the previous
+  evaluation path into the hypothesizer, requires `Previous Round Learning`,
+  requires a `Target-Class Lane Plan`, forbids round-robin family assignment,
+  and instructs the evaluator to fail class alignment when family/target
+  assignments do not match phonetic owner classes or explicit transfer-test
+  mutations.
+
 - Loose one-round IPA source-golf run completed under
   `artifacts/parity/ipa-trial-loops/20260531T001831690` with 25 candidates,
   source edits enabled, and focused pre-score build passing. The external agent
