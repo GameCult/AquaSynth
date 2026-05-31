@@ -128,8 +128,8 @@ function Assert-SongCandidates {
 
     foreach ($file in $files) {
         $stem = [IO.Path]::GetFileNameWithoutExtension($file.Name)
-        if ($stem -cnotmatch '^[a-z0-9]+(-[a-z0-9]+)*__[a-z0-9]+(-[a-z0-9]+)*__[a-z0-9]+(-[a-z0-9]+)*$') {
-            throw "Candidate '$stem' must be <agent-id>__<family>__<hypothesis>.aqua with lowercase kebab-case segments."
+        if ($stem -cnotmatch '^[a-z0-9]+([-_][a-z0-9]+)*__[a-z0-9]+([-_][a-z0-9]+)*__[a-z0-9]+([-_][a-z0-9]+)*$') {
+            throw "Candidate '$stem' must be <agent-id>__<family>__<hypothesis>.aqua with lowercase slug segments."
         }
     }
 }
