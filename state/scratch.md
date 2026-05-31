@@ -1737,3 +1737,10 @@ Next likely slice:
 - Follow-up fix: full target evidence remains in `.cc`, but Qdrant chunks now
   carry bounded excerpts with content hash/size metadata so the semantic organ
   does not try to embed multi-megabyte spectrogram CSVs as single documents.
+- Full album swarm proof:
+  `artifacts/parity/song-snippet-swarms/20260531T031003707` completed 3 passes
+  x 5 agents x 30-second random album clips. Final store has 15 trials; final
+  vector index has 90 chunks. Best cosine by pass: 0.434277, 0.590958,
+  0.502573. Best overall was
+  `agent_04__shard_vowel_lead__bright_dust_grid_v2`; strongest repeated pattern
+  is bright formant/vowel lead plus clocked dust/noise grid.
