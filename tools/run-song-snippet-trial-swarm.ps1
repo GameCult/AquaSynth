@@ -4,6 +4,7 @@ param(
     [string]$Source = "D:\Music\Reinier\Heyoka\Gate Code\Heyoka - Alien Gibberish.mp3",
     [float]$DurationSeconds = 10,
     [int]$Seed = 0,
+    [switch]$NewSegmentPerPass,
     [string]$CodexCommand = "codex",
     [string]$CodexModel = "gpt-5.3-codex"
 )
@@ -138,10 +139,8 @@ $loopRoot = Join-Path $repoRoot "artifacts/parity/song-snippet-swarms/$loopId"
 $logRoot = Join-Path $loopRoot "logs"
 $workerProject = Join-Path $repoRoot "tools/IpaTrialWorker/IpaTrialWorker.csproj"
 $storePath = Join-Path $loopRoot "song-trial-results.cc"
-$challengePath = Join-Path $loopRoot "challenge.json"
-$challengeRoot = Join-Path $loopRoot "challenge"
 $seedValue = if ($Seed -eq 0) { Get-Random -Minimum 1 -Maximum ([int]::MaxValue) } else { $Seed }
-New-Item -ItemType Directory -Force -Path $loopRoot, $logRoot, $challengeRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $loopRoot, $logRoot | Out-Null
 
 Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 # Song Snippet Trial Swarm $loopId
@@ -153,40 +152,45 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 - agents_per_pass: $AgentsPerPass
 - seed: $seedValue
 - duration_seconds: $DurationSeconds
-- challenge: $challengePath
+- new_segment_per_pass: $NewSegmentPerPass
 - store: $storePath
 - worker: $workerProject
 
 "@
 
-Invoke-LoggedProcess `
-    -FilePath "dotnet" `
-    -ArgumentList @(
-        "run",
-        "--project",
-        $workerProject,
-        "--",
-        "song-prepare",
-        "--source",
-        $Source,
-        "--artifact-root",
-        $challengeRoot,
-        "--duration-seconds",
-        ([string]$DurationSeconds),
-        "--seed",
-        ([string]$seedValue),
-        "--output",
-        $challengePath
-    ) `
-    -LogPath (Join-Path $logRoot "challenge-prepare.log")
-
-$challengeMarkdown = Join-Path $challengeRoot "challenge.md"
-
 for ($pass = 1; $pass -le $Passes; $pass++) {
     $passId = "pass-{0:000}" -f $pass
     $passDir = Join-Path $loopRoot $passId
     $patchRoot = Join-Path $passDir "proposed-patches"
-    New-Item -ItemType Directory -Force -Path $passDir, $patchRoot | Out-Null
+    $challengeRoot = Join-Path $passDir "challenge"
+    $challengePath = Join-Path $challengeRoot "challenge.json"
+    $phaseSeed = if ($NewSegmentPerPass) { $seedValue + (($pass - 1) * 7919) } else { $seedValue }
+    New-Item -ItemType Directory -Force -Path $passDir, $patchRoot, $challengeRoot | Out-Null
+
+    Invoke-LoggedProcess `
+        -FilePath "dotnet" `
+        -ArgumentList @(
+            "run",
+            "--project",
+            $workerProject,
+            "--",
+            "song-prepare",
+            "--source",
+            $Source,
+            "--artifact-root",
+            $challengeRoot,
+            "--duration-seconds",
+            ([string]$DurationSeconds),
+            "--seed",
+            ([string]$phaseSeed),
+            "--challenge-id",
+            "song-snippet-$loopId-$passId",
+            "--output",
+            $challengePath
+        ) `
+        -LogPath (Join-Path $logRoot "$passId-challenge-prepare.log")
+
+    $challengeMarkdown = Join-Path $challengeRoot "challenge.md"
 
     $preEvidence = Join-Path $passDir "semantic-search-before.md"
     if (Test-Path -LiteralPath $storePath) {
@@ -233,6 +237,8 @@ Challenge:
 - shared prior evidence: $preEvidence
 - patch output directory: $agentPatchDir
 - candidate filename prefix: $agentId
+- phase id: $passId
+- phase seed: $phaseSeed
 
 Goal:
 Write exactly one parseable AquaSynth `.aqua` patch that tries to reproduce the frozen 10 second reference clip. This is scene-audio parity, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, curves, and helper voices.
@@ -256,9 +262,18 @@ Register and scale:
   - bind it: `freq=@/seq/pitch`
 - Do not invent native `scale`, `note`, or Strudel pattern syntax in the patch unless you also edit the DSL/lowering source and document the new syntax. For candidate patches, explicit scale frequencies are the contract.
 
+Instrument and DSL convention invention:
+- Invent at least one reusable instrument role for this segment, such as `alien-lead`, `dust-hat`, `codec-bed`, `rubber-bass`, `vowel-drone`, or another precise name.
+- Write $agentDir/instrument-conventions.md with:
+  - the proposed instrument role names;
+  - the control surfaces each role would want;
+  - any Strudel-like sugar that would make the patch shorter;
+  - the exact lowering into today's AquaSynth syntax using explicit `voice`, `param`, and `curve` lines.
+- The `.aqua` candidate must use today's implemented syntax only. Proposed sugar is evidence for the next DSL cut, not magic accepted by the parser.
+
 Evidence contract:
 - Read $challengeMarkdown and $preEvidence.
-- Write $agentDir/hypotheses.md with: reference features, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, expected metric movement, known risks.
+- Write $agentDir/hypotheses.md with: reference features, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement, known risks.
 - Write exactly one `.aqua` file under $agentPatchDir named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch, such as primary alien-voice/body, rhythmic transient/noise, and background/recording color.
 - Make the patch duration/gates cover the 10 second target.

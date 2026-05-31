@@ -33,6 +33,18 @@ Current slice:
   primitive timelines are now optional witnesses for song scenes instead of a
   required anatomy gate.
 
+- Ran a three-phase, three-agent song-snippet experiment across different seeded
+  segments under `artifacts/parity/song-snippet-swarms/20260531T014033022`.
+  Segment starts were `143.0295s`, `169.7126s`, and `196.3956s`; tempo hints
+  varied (`200`, `63.82979`, `150` BPM) while register stayed B4-ish with
+  `dominant_hz=2004.545` and scale frequencies `493.883..987.767`. Best
+  log-mel cosine climbed from `0.308233` in pass 1 to `0.356515` in pass 2 and
+  `0.380805` in pass 3. Still not close; the winning evidence is that agents
+  converged on a reusable scene model: bright FM/formant `alien-lead`, clocked
+  high-band `dust-hat`, continuous `codec-bed`, and `air-wash-hiss`. Syrinx
+  narrative lost to boring formant/noise machinery. Report:
+  `artifacts/parity/song-snippet-swarms/20260531T014033022/experiment-report.md`.
+
 - User correctly called out that the loose agents learned nothing. The actual
   failure was not just weak metrics; the candidate assignment was incoherent.
   Families were rotated across targets instead of aligned to phonetic owners:

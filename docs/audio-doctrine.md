@@ -103,6 +103,13 @@ then bind the parameter into voice fields such as `freq=@/seq/pitch` or
 `gain=@/seq/kick`. Native `scale`, `note`, and pattern sugar should be added
 only when the DSL owns the lowering and the emitted Faust remains inspectable.
 
+Early song-snippet experiments show useful pressure for named scene instruments:
+`alien-lead-chatter`, `dust-hat-grid`, `codec-bed-hum`, and `air-wash-hiss`.
+Those names are not DSP owners yet. They are proposed authoring roles that
+should lower into explicit `param`, `curve`, and `voice` records. The invariant
+for future sugar is: role syntax may own brevity and defaults, but the lowered
+graph still owns pitch lanes, gates, filters, FM/AM, noise, and mix behavior.
+
 ## Faust Boundary
 
 Faust describes pure DSP: inputs to outputs. Architecture files and host code
