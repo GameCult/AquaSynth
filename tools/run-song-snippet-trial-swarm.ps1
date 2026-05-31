@@ -172,6 +172,9 @@ function Write-PassPlaylist {
             $candidateId = $row.candidate_id
             $candidateWav = Join-Path $batchDirectory (Join-Path "song-candidates" (Join-Path $candidateId "audio/candidate.wav"))
             $referenceWav = Join-Path (Split-Path -Parent $batchDirectory) "reference.wav"
+            $motionCoverage = if ([string]::IsNullOrWhiteSpace($row.candidate_motion_coverage)) { 0 } else { [double]$row.candidate_motion_coverage }
+            $firstSecondEnergyShare = if ([string]::IsNullOrWhiteSpace($row.candidate_first_second_energy_share)) { 1 } else { [double]$row.candidate_first_second_energy_share }
+            $modeCollapseRisk = if ([string]::IsNullOrWhiteSpace($row.mode_collapse_risk)) { 1 } else { [double]$row.mode_collapse_risk }
             $rows += [pscustomobject]@{
                 CandidateId = $candidateId
                 TrialId = $row.trial_id
@@ -181,6 +184,9 @@ function Write-PassPlaylist {
                 AudioScore = [double]$row.audio_score
                 RmsRatio = [double]$row.rms_ratio
                 CentroidRatio = [double]$row.centroid_ratio
+                MotionCoverage = $motionCoverage
+                FirstSecondEnergyShare = $firstSecondEnergyShare
+                ModeCollapseRisk = $modeCollapseRisk
                 CandidateWav = $candidateWav
                 ReferenceWav = $referenceWav
                 SummaryPath = $summaryFile.FullName
@@ -189,7 +195,7 @@ function Write-PassPlaylist {
     }
 
     $playable = @($rows | Where-Object { Test-Path -LiteralPath $_.CandidateWav })
-    $ranked = @($playable | Sort-Object -Property @{ Expression = "LogMelCosine"; Descending = $true }, @{ Expression = "AudioScore"; Descending = $true } | Select-Object -First $TopCount)
+    $ranked = @($playable | Sort-Object -Property @{ Expression = "ModeCollapseRisk"; Descending = $false }, @{ Expression = "MotionCoverage"; Descending = $true }, @{ Expression = "LogMelCosine"; Descending = $true }, @{ Expression = "AudioScore"; Descending = $true } | Select-Object -First $TopCount)
     $skipped = @($rows | Where-Object { -not (Test-Path -LiteralPath $_.CandidateWav) })
     $playlistPath = Join-Path $PassDirectory "top-scoring-candidates.m3u"
     $reportPath = Join-Path $PassDirectory "top-scoring-candidates.md"
@@ -203,11 +209,11 @@ function Write-PassPlaylist {
 
     $rank = 1
     foreach ($row in $ranked) {
-        $title = "#{0} {1} cosine={2:0.######} score={3:0.######} verdict={4}" -f $rank, $row.CandidateId, $row.LogMelCosine, $row.AudioScore, $row.Verdict
+        $title = "#{0} {1} collapse={2:0.######} motion={3:0.######} cosine={4:0.######} score={5:0.######} verdict={6}" -f $rank, $row.CandidateId, $row.ModeCollapseRisk, $row.MotionCoverage, $row.LogMelCosine, $row.AudioScore, $row.Verdict
         $playlist.Add("#EXTINF:-1,$title")
         $playlist.Add($row.CandidateWav)
 
-        $report.Add(('- {0}. `{1}` / verdict `{2}` / cosine `{3:0.######}` / score `{4:0.######}` / rms `{5:0.######}` / centroid `{6:0.######}`' -f $rank, $row.CandidateId, $row.Verdict, $row.LogMelCosine, $row.AudioScore, $row.RmsRatio, $row.CentroidRatio))
+        $report.Add(('- {0}. `{1}` / verdict `{2}` / collapse `{3:0.######}` / motion `{4:0.######}` / first-second `{5:0.######}` / cosine `{6:0.######}` / score `{7:0.######}` / rms `{8:0.######}` / centroid `{9:0.######}`' -f $rank, $row.CandidateId, $row.Verdict, $row.ModeCollapseRisk, $row.MotionCoverage, $row.FirstSecondEnergyShare, $row.LogMelCosine, $row.AudioScore, $row.RmsRatio, $row.CentroidRatio))
         $report.Add(('  - candidate: `{0}`' -f $row.CandidateWav))
         $report.Add(('  - reference: `{0}`' -f $row.ReferenceWav))
         $report.Add(('  - summary: `{0}`' -f $row.SummaryPath))
@@ -217,8 +223,8 @@ function Write-PassPlaylist {
     if ($skipped.Count -gt 0) {
         $report.Add("")
         $report.Add("## Skipped Non-Playable Candidates")
-        foreach ($row in $skipped | Sort-Object -Property @{ Expression = "LogMelCosine"; Descending = $true }, @{ Expression = "AudioScore"; Descending = $true }) {
-            $report.Add(('- `{0}` / verdict `{1}` / cosine `{2:0.######}` / score `{3:0.######}` / expected candidate: `{4}`' -f $row.CandidateId, $row.Verdict, $row.LogMelCosine, $row.AudioScore, $row.CandidateWav))
+        foreach ($row in $skipped | Sort-Object -Property @{ Expression = "ModeCollapseRisk"; Descending = $false }, @{ Expression = "MotionCoverage"; Descending = $true }, @{ Expression = "LogMelCosine"; Descending = $true }, @{ Expression = "AudioScore"; Descending = $true }) {
+            $report.Add(('- `{0}` / verdict `{1}` / collapse `{2:0.######}` / motion `{3:0.######}` / cosine `{4:0.######}` / score `{5:0.######}` / expected candidate: `{6}`' -f $row.CandidateId, $row.Verdict, $row.ModeCollapseRisk, $row.MotionCoverage, $row.LogMelCosine, $row.AudioScore, $row.CandidateWav))
         }
     }
 
@@ -421,8 +427,10 @@ Self-iteration loop:
 - Each attempt must write a candidate under `$iterationRoot/attempt-NN/<target-id>/patch`, run the scoring worker against that one target, inspect the rendered candidate evidence, and revise the next attempt.
 - Scoring command pattern:
   `dotnet run --project "$workerProject" -- song-score --patch-root "<attempt-patch-dir>" --challenge "<challenge-json>" --artifact-root "<attempt-dir>" --batch-id "<agent-id>-<target-id>-attempt-NN" --store "<attempt-dir>/iteration-results.cc" --hypothesizer "$agentId-iteration"`
-- After each score, read the attempt's `evaluator-report.md`, `summary.csv`, `audio/comparison.txt`, `audio/candidate-analysis.md`, `audio/candidate-logmel-band-stats.csv`, `audio/candidate-rms-envelope-autocorr.csv`, and `audio/candidate-whitened-spectral-autocorr.csv`.
+- After each score, read the attempt's `evaluator-report.md` and `summary.csv`. If the attempt rendered, also read `audio/comparison.txt`, `audio/candidate-analysis.md`, `audio/candidate-logmel-band-stats.csv`, `audio/candidate-rms-envelope-autocorr.csv`, and `audio/candidate-whitened-spectral-autocorr.csv`. If the attempt is `render-failed`, do not try to read missing candidate audio analysis files; treat the parse/lowering/render failure as negative syntax evidence and fix that before changing the composition.
 - Use those candidate-side facts the same way you use target facts: compare spectral bands, envelope autocorrelation, whitened spectral autocorrelation, centroid/RMS, instrument-role metrics, and chip-distress risk. Move timings, filters, gains, sources, roles, and patterns between attempts.
+- The evaluator records song-continuity metrics: `candidate_motion_coverage`, `motion_coverage_ratio`, `candidate_first_second_energy_share`, `first_second_energy_excess`, `candidate_tail_energy_share`, and `mode_collapse_risk`. A patch that plays a short phrase in the first second and then coasts on low-motion texture/noise is failed song evidence even if its RMS or log-mel score looks tolerable.
+- If an attempt has `mode_collapse_risk >= .45`, the next attempt must add later-section motifs or eventful motion after seconds 2, 4, 6, and 8. Do not merely raise the noise bed or pad gain; that is hiding, not composing.
 - Keep intermediate candidates inside `$iterationRoot`; publish only one final `.aqua` per target to the official target patch output directory.
 
 Reusable abstraction mining:
@@ -489,6 +497,7 @@ Evidence contract:
 - Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on both targets, known risks.
 - Write exactly one `.aqua` file under each target patch output directory named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch: a primary voice/body, a rhythmic drum/transient/noise role, and a pad/bed/recording-color role. Prefer syrinx for the primary voice when it is voice-like, subtractive for the drum/transient, and additive/PAD or shaped texture for the bed.
+- The ten-second clip must have full-form continuity: at least four distinct musical events or motif mutations after the first second, with audible activity distributed across the beginning, middle, and ending. A one-second riff followed by nine seconds of gently textured pink noise is mode collapse and should not be submitted.
 - Background/recording-color layers must use `texture` or an equivalently gated and band-shaped explicit voice; a static full-duration white-noise bed is failed evidence.
 - Make each patch duration/gates cover its matching target duration from the challenge report.
 

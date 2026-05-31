@@ -2,6 +2,19 @@
 
 Current slice:
 
+- User identified the three-pass corpus run's audible failure correctly: mode
+  collapse into a short opening phrase followed by low-motion texture/noise.
+  `song-score` now owns song continuity metrics:
+  `candidate_active_coverage`, `candidate_motion_coverage`,
+  `candidate_first_second_energy_share`, `candidate_tail_energy_share`, and
+  `mode_collapse_risk`. The old top pass-3 candidate
+  `agent_02__retrievedmesh__target_04_a05` now scores as
+  `weak-mode-collapse` with first-second energy share `0.883627` and collapse
+  risk `1`, proving the evaluator sees the cheap trick. Distillation ranking
+  demotes collapse risk, candidate knowledge records carry the failure mode,
+  and the swarm prompt now requires later-section motifs/events instead of
+  hiding behind noise or pads.
+
 - Completed a three-pass corpus song curriculum run under
   `artifacts/parity/song-snippet-swarms/20260531T171802519`: each pass prepared
   25 ten-second targets from `D:\Music\Reinier` for five agents with five

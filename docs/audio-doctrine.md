@@ -341,6 +341,13 @@ voice for scene noise. Full-duration raw `wave=noise` beds with broad filters
 are failed evidence: they sound like broken subtractive synthesis because that
 is exactly what they are.
 
+Song continuity is a scored production invariant. A one-second phrase followed
+by low-motion air, pink noise, room tone, or pad wash is mode collapse, not
+arrangement. The evaluator should publish motion coverage, active coverage,
+first-second energy share, tail energy share, and mode-collapse risk; distillation
+should treat high collapse risk as negative pressure even when log-mel similarity
+looks superficially acceptable.
+
 Song-scene instrument roles are scored as curriculum evidence. Voice-like
 leads should prefer syrinx/acoustic source ownership with pressure/opening
 motion and radiation shaping; percussion should prefer subtractive pitched body

@@ -287,11 +287,13 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
                     analyzer);
                 artifacts.AddRange(candidateAnalysisArtifacts.Select(ArtifactFromAnalysis));
                 var comparison = analyzer.Compare(referenceSamples, matched);
+                var continuity = AnalyzeSongContinuity(comparison);
                 metrics.AddRange(SongComparisonMetrics(comparison));
-                verdict = SongVerdict(comparison, instrumentProfile);
-                evaluation = SongEvaluationSentence(challenge, comparison, verdict, instrumentProfile);
+                metrics.AddRange(SongContinuityMetrics(continuity));
+                verdict = SongVerdict(comparison, instrumentProfile, continuity);
+                evaluation = SongEvaluationSentence(challenge, comparison, verdict, instrumentProfile, continuity);
                 var comparisonPath = Path.Combine(audioDir, "comparison.txt");
-                await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict, instrumentProfile), Encoding.UTF8);
+                await File.WriteAllTextAsync(comparisonPath, SongComparisonReport(challenge, candidate, comparison, verdict, instrumentProfile, continuity), Encoding.UTF8);
                 artifacts.Add(Artifact("comparison-report", comparisonPath));
             }
         }
@@ -1685,6 +1687,7 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
         .OrderByDescending(row => MusicSignalScore(row))
         .ToArray();
     var failed = rows.Where(row => row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase)).ToArray();
+    var collapsed = rows.Where(row => row.ModeCollapseRisk >= .45f).ToArray();
 
     yield return new MusicProductionKnowledgeDocument(
         "music-production-quality-standard-v1",
@@ -1695,6 +1698,7 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
         "Fresh agents should retrieve role owners, transfer rules, failure modes, and AquaSynth patterns before writing patches. New runs must add compact, evidence-backed documents, not whole spectrogram dumps or undigested trial chatter.",
         [
             "Admit a candidate as reusable knowledge only when it renders, has explicit instrument-role ownership, and states what production job it owns.",
+            "Reject one-phrase-plus-texture arrangements as failure pressure; continuity across the clip is part of the production contract.",
             "Prefer compact role abstractions over one-off target mimicry; a reusable owner sentence is more valuable than a small metric bump.",
             "Keep failed renders as failure-mode pressure only; do not let syntax wreckage dominate retrieval.",
             "Store full artifacts on disk and cite them; CultCache curriculum records should carry bounded summaries, metrics, and transfer rules."
@@ -1707,14 +1711,16 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
         ],
         [
             "Single-file stores or raw spectrogram payloads are not curriculum; distill to paged CultCache records.",
-            "Metric winners with unclear role ownership should be pressure, not doctrine."
+            "Metric winners with unclear role ownership should be pressure, not doctrine.",
+            "High cosine with high mode-collapse risk is a trap: it copies a moment, not a song."
         ],
         rows.Select(row => row.TrialId).Take(24).ToArray(),
         rendered.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(24).ToArray(),
         [
             new SpeechScoreMetric("input_trial_count", rows.Length, 0),
             new SpeechScoreMetric("rendered_trial_count", rendered.Length, 0),
-            new SpeechScoreMetric("render_failed_count", failed.Length, 0)
+            new SpeechScoreMetric("render_failed_count", failed.Length, 0),
+            new SpeechScoreMetric("mode_collapsed_count", collapsed.Length, 0)
         ],
         [artifactRoot],
         created);
@@ -1740,7 +1746,7 @@ static IEnumerable<MusicProductionKnowledgeDocument> BuildMusicKnowledgeDocument
             $"music-candidate-{SafeName(row.CandidateId)}-{StableUuid(row.TrialId)[..8]}",
             "candidate-pattern",
             row.CandidateId,
-            row.LogMelCosine >= .12f || row.AudioScore >= .22f ? "strong-pressure" : "weak-pressure",
+            row.ModeCollapseRisk >= .45f ? "failure-pressure" : row.LogMelCosine >= .12f || row.AudioScore >= .22f ? "strong-pressure" : "weak-pressure",
             $"Candidate `{row.CandidateId}` owns a reusable rendered song-pattern witness for `{row.ReferenceId}`.",
             CandidateKnowledgeSummary(row, profile, analysisExcerpt),
             CandidateTransferRules(row, profile),
@@ -1848,6 +1854,7 @@ static IEnumerable<MusicProductionKnowledgeDocument> MusicFailureDocuments(
     string created,
     string artifactRoot)
 {
+    var collapsed = all.Where(row => row.ModeCollapseRisk >= .45f).ToArray();
     yield return new MusicProductionKnowledgeDocument(
         "music-failure-rendered-syntax-pressure",
         "failure-mode",
@@ -1869,6 +1876,40 @@ static IEnumerable<MusicProductionKnowledgeDocument> MusicFailureDocuments(
             new SpeechScoreMetric("input_trial_count", all.Count, 0)
         ],
         [artifactRoot],
+        created);
+
+    if (collapsed.Length == 0)
+    {
+        yield break;
+    }
+
+    yield return new MusicProductionKnowledgeDocument(
+        "music-failure-mode-collapse-pressure",
+        "failure-mode",
+        "one-phrase-plus-texture candidates are not song exemplars",
+        "failure-pressure",
+        "The mode-collapse failure record owns evidence that a rendered candidate can satisfy static audio metrics while failing song continuity.",
+        $"This run produced {collapsed.Length} official candidates with mode-collapse risk >= 0.45. These candidates transfer only as negative pressure unless their abstractions explicitly add later motifs, section changes, or eventful motion.",
+        [
+            "Do not promote candidates that spend most musical energy in the first second and coast on low-motion texture.",
+            "Require motif mutations or distinct musical events after seconds 2, 4, 6, and 8 for ten-second curriculum clips.",
+            "Use motion coverage and first-second energy share beside cosine; similarity to a moment is not similarity to the song."
+        ],
+        ["mode_collapse_risk", "candidate_motion_coverage", "candidate_first_second_energy_share", "motif mutation", "section event"],
+        [
+            "front-loaded musical energy",
+            "low-motion pink-noise or pad tail",
+            "high cosine that copies only the opening phrase"
+        ],
+        collapsed.Select(row => row.TrialId).Take(20).ToArray(),
+        collapsed.Select(row => row.CandidateId).Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToArray(),
+        [
+            new SpeechScoreMetric("mode_collapsed_count", collapsed.Length, 0),
+            new SpeechScoreMetric("input_trial_count", all.Count, 0),
+            new SpeechScoreMetric("max_mode_collapse_risk", collapsed.Select(row => row.ModeCollapseRisk).DefaultIfEmpty(0).Max(), 0),
+            new SpeechScoreMetric("mean_first_second_energy_share", collapsed.Select(row => row.CandidateFirstSecondEnergyShare).DefaultIfEmpty(0).Average(), 0)
+        ],
+        ExistingPaths(collapsed.Select(row => row.SummaryPath).Concat([artifactRoot]).Take(24)),
         created);
 }
 
@@ -2060,7 +2101,7 @@ static IEnumerable<SongSummaryRow> ReadSongSummaryRows(string path)
             return column >= 0 && column < parts.Length ? parts[column] : "";
         }
 
-        float Float(string name) => float.TryParse(Value(name), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : 0;
+        float Float(string name, float fallback = 0) => float.TryParse(Value(name), NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : fallback;
         yield return new SongSummaryRow(
             Value("trial_id"),
             Value("candidate_id"),
@@ -2079,6 +2120,15 @@ static IEnumerable<SongSummaryRow> ReadSongSummaryRows(string path)
             Float("instrument_voice_syrinx"),
             Float("instrument_drum_subtractive"),
             Float("instrument_pad_additive"),
+            Float("candidate_active_coverage", 1),
+            Float("active_coverage_ratio", 1),
+            Float("candidate_motion_coverage", .75f),
+            Float("motion_coverage_ratio", 1),
+            Float("candidate_first_second_energy_share"),
+            Float("first_second_energy_excess"),
+            Float("candidate_tail_energy_share", .2f),
+            Float("tail_energy_ratio", 1),
+            Float("mode_collapse_risk"),
             path);
     }
 }
@@ -2088,6 +2138,8 @@ static float MusicSignalScore(SongSummaryRow row) =>
     + row.AudioScore
     + row.MusicalInstrumentScore * .35f
     - row.ChipDistressRisk * .5f
+    - row.ModeCollapseRisk * .9f
+    - MathF.Max(0, .55f - row.CandidateMotionCoverage) * .35f
     - (row.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase) ? 100f : 0f);
 
 static bool IsOfficialMusicArtifactPath(string path)
@@ -2118,13 +2170,22 @@ static SpeechScoreMetric[] RowMetrics(SongSummaryRow row) =>
     new("articulation_score", row.ArticulationScore, 1),
     new("musical_instrument_score", row.MusicalInstrumentScore, 1),
     new("chip_distress_risk", row.ChipDistressRisk, 1),
+    new("candidate_active_coverage", row.CandidateActiveCoverage, 1),
+    new("active_coverage_ratio", row.ActiveCoverageRatio, 1),
+    new("candidate_motion_coverage", row.CandidateMotionCoverage, 1),
+    new("motion_coverage_ratio", row.MotionCoverageRatio, 1),
+    new("candidate_first_second_energy_share", row.CandidateFirstSecondEnergyShare, 1),
+    new("first_second_energy_excess", row.FirstSecondEnergyExcess, 1),
+    new("candidate_tail_energy_share", row.CandidateTailEnergyShare, 1),
+    new("tail_energy_ratio", row.TailEnergyRatio, 1),
+    new("mode_collapse_risk", row.ModeCollapseRisk, 1),
     new("rms_ratio", row.RmsRatio, 0),
     new("centroid_ratio", row.CentroidRatio, 0),
     new("zero_crossing_ratio", row.ZeroCrossingRatio, 0)
 ];
 
 static string CandidateKnowledgeSummary(SongSummaryRow row, SongInstrumentProfile profile, string analysisExcerpt) =>
-    $"Rendered candidate `{row.CandidateId}` against `{row.ReferenceId}` with cosine {row.LogMelCosine:0.######}, score {row.AudioScore:0.######}, instrument score {row.MusicalInstrumentScore:0.###}, chip risk {row.ChipDistressRisk:0.###}. Instrument profile: {profile.Summary}. Candidate analysis excerpt: {TrimForReport(analysisExcerpt, 900)}";
+    $"Rendered candidate `{row.CandidateId}` against `{row.ReferenceId}` with cosine {row.LogMelCosine:0.######}, score {row.AudioScore:0.######}, instrument score {row.MusicalInstrumentScore:0.###}, chip risk {row.ChipDistressRisk:0.###}, motion coverage {row.CandidateMotionCoverage:0.###}, first-second energy share {row.CandidateFirstSecondEnergyShare:0.###}, collapse risk {row.ModeCollapseRisk:0.###}. Instrument profile: {profile.Summary}. Candidate analysis excerpt: {TrimForReport(analysisExcerpt, 900)}";
 
 static string[] CandidateTransferRules(SongSummaryRow row, SongInstrumentProfile profile)
 {
@@ -2134,6 +2195,7 @@ static string[] CandidateTransferRules(SongSummaryRow row, SongInstrumentProfile
     if (profile.HasAdditivePad) rules.Add("Transfer the bed role as additive/PAD harmonic material with slow control motion.");
     if (profile.HasTexture) rules.Add("Transfer texture as a shaped role with band limits, gates, and motion.");
     if (row.RmsRatio < .35f) rules.Add("Candidate is quiet against the reference; normalize loudness after role selection.");
+    if (row.ModeCollapseRisk >= .45f) rules.Add("Do not transfer the arrangement as-is: it concentrates too much musical action near the opening and must be rewritten with distributed sections.");
     if (rules.Count == 0) rules.Add("Use as weak pressure only; demand a clearer role owner before promoting this pattern.");
     return rules.ToArray();
 }
@@ -2153,6 +2215,9 @@ static string[] CandidateFailureModes(SongSummaryRow row)
     if (row.RmsRatio < .35f) modes.Add("under-loud candidate can hide arrangement ideas behind weak level");
     if (row.ZeroCrossingRatio > 8f) modes.Add("excess zero-crossing ratio suggests noisy or too-bright material");
     if (row.ChipDistressRisk > 0) modes.Add("chip-distress risk must be justified as deliberate style before transfer");
+    if (row.ModeCollapseRisk >= .45f) modes.Add("mode collapse: short opening phrase followed by low-motion texture or noise");
+    if (row.CandidateFirstSecondEnergyShare >= .35f) modes.Add("front-loaded energy; require later motifs or section changes before promotion");
+    if (row.CandidateMotionCoverage > 0 && row.CandidateMotionCoverage < .45f) modes.Add("low musical motion coverage across the ten-second target");
     return modes.Count == 0 ? ["still pressure, not mastered parity"] : modes.ToArray();
 }
 
@@ -2470,6 +2535,11 @@ static IEnumerable<string> TransferRulesFrom(IReadOnlyList<IpaTrialResult> selec
         yield return "Normalize loudness after role selection; high cosine can still hide bad RMS balance.";
     }
 
+    if (selected.Any(result => MetricValue(result, "mode_collapse_risk") >= .45f))
+    {
+        yield return "Reject one-phrase-plus-texture arrangements as reusable song knowledge; distribute motifs, rhythmic events, and harmonic motion across the full clip.";
+    }
+
     yield return "Use `texture` for background/recording noise and reserve raw `wave=noise` for short gated transients with narrow filters.";
     yield return "When the scene wants a singing or creature voice, start with a syrinx/acoustic voice role and modulate pressure/opening/radiation before falling back to ordinary formant oscillators.";
     yield return "When the scene wants a bed or pad, start with additive/PAD banks (`layer`, `harmonics`, `spectrum`) instead of stacked simple waves.";
@@ -2504,6 +2574,12 @@ static IEnumerable<string> FailurePatternsFrom(IReadOnlyList<IpaTrialResult> all
     {
         yield return "Low instrument-role coverage is a scoring smell: require at least one owned role such as syrinx voice, subtractive drums, additive/PAD bed, or shaped texture.";
     }
+
+    var collapsed = allResults.Count(result => MetricValue(result, "mode_collapse_risk") >= .45f);
+    if (collapsed > 0)
+    {
+        yield return $"{collapsed} trials show mode-collapse risk: a short opening phrase followed by low-motion texture/noise. Keep them as negative pressure unless later sections carry motifs or eventful motion.";
+    }
 }
 
 static float ScoreSort(IpaTrialResult result)
@@ -2511,7 +2587,9 @@ static float ScoreSort(IpaTrialResult result)
     var cosine = MetricValue(result, "log_mel_cosine");
     var instrument = MetricValue(result, "musical_instrument_score");
     var chipRisk = MetricValue(result, "chip_distress_risk");
-    return cosine + instrument * .10f - chipRisk * .15f;
+    var collapseRisk = MetricValue(result, "mode_collapse_risk");
+    var motionCoverage = MetricValue(result, "candidate_motion_coverage");
+    return cosine + instrument * .10f + motionCoverage * .08f - chipRisk * .15f - collapseRisk * .25f;
 }
 
 static string Metric(IpaTrialResult result, string name) =>
@@ -3361,6 +3439,22 @@ static IReadOnlyList<SpeechScoreMetric> SongComparisonMetrics(AudioComparison co
     new("speech_band_ratio", comparison.Articulation.SpeechBandRatio, .05f)
 ];
 
+static IReadOnlyList<SpeechScoreMetric> SongContinuityMetrics(SongContinuityProfile profile) =>
+[
+    new("candidate_active_coverage", profile.CandidateActiveCoverage, .08f),
+    new("target_active_coverage", profile.TargetActiveCoverage, 0),
+    new("active_coverage_ratio", profile.ActiveCoverageRatio, .08f),
+    new("candidate_motion_coverage", profile.CandidateMotionCoverage, .12f),
+    new("target_motion_coverage", profile.TargetMotionCoverage, 0),
+    new("motion_coverage_ratio", profile.MotionCoverageRatio, .12f),
+    new("candidate_first_second_energy_share", profile.CandidateFirstSecondEnergyShare, .10f),
+    new("target_first_second_energy_share", profile.TargetFirstSecondEnergyShare, 0),
+    new("first_second_energy_excess", profile.FirstSecondEnergyExcess, .10f),
+    new("candidate_tail_energy_share", profile.CandidateTailEnergyShare, .05f),
+    new("tail_energy_ratio", profile.TailEnergyRatio, .05f),
+    new("mode_collapse_risk", profile.ModeCollapseRisk, .15f)
+];
+
 static IReadOnlyList<SpeechScoreMetric> SongInstrumentMetrics(SongInstrumentProfile profile) =>
 [
     new("instrument_voice_syrinx", profile.HasSyrinxVoice ? 1 : 0, .05f),
@@ -3436,8 +3530,13 @@ static int CountOccurrences(string haystack, string needle)
     return count;
 }
 
-static string SongVerdict(AudioComparison comparison, SongInstrumentProfile profile)
+static string SongVerdict(AudioComparison comparison, SongInstrumentProfile profile, SongContinuityProfile continuity)
 {
+    if (continuity.ModeCollapseRisk >= .60f)
+    {
+        return "weak-mode-collapse";
+    }
+
     if (profile.ChipDistressRisk >= .75f && comparison.LogMelCosineSimilarity < .60f)
     {
         return "weak";
@@ -3456,6 +3555,179 @@ static string SongVerdict(AudioComparison comparison, SongInstrumentProfile prof
     return "weak";
 }
 
+static SongContinuityProfile AnalyzeSongContinuity(AudioComparison comparison)
+{
+    var durationSeconds = Math.Max(1e-3f, comparison.Candidate.Features.DurationSeconds);
+    var targetActive = ActiveCoverage(comparison.Reference.RmsEnvelope);
+    var candidateActive = ActiveCoverage(comparison.Candidate.RmsEnvelope);
+    var targetMotion = MotionCoverage(comparison.Reference.RmsEnvelope, comparison.Reference.LogMelSpectrogram);
+    var candidateMotion = MotionCoverage(comparison.Candidate.RmsEnvelope, comparison.Candidate.LogMelSpectrogram);
+    var targetFirst = EnergyShare(comparison.Reference.RmsEnvelope, comparison.Reference.Features.DurationSeconds, 0, 1);
+    var candidateFirst = EnergyShare(comparison.Candidate.RmsEnvelope, durationSeconds, 0, 1);
+    var targetTail = EnergyShare(comparison.Reference.RmsEnvelope, comparison.Reference.Features.DurationSeconds, MathF.Min(1, comparison.Reference.Features.DurationSeconds * .20f), comparison.Reference.Features.DurationSeconds);
+    var candidateTail = EnergyShare(comparison.Candidate.RmsEnvelope, durationSeconds, MathF.Min(1, durationSeconds * .20f), durationSeconds);
+    var activeRatio = SafeMetricRatio(candidateActive, targetActive);
+    var motionRatio = SafeMetricRatio(candidateMotion, targetMotion);
+    var firstExcess = MathF.Max(0, candidateFirst - MathF.Max(.20f, targetFirst * 1.6f));
+    var tailRatio = SafeMetricRatio(candidateTail, targetTail);
+    var collapseRisk = Math.Clamp(
+        firstExcess * 1.6f +
+        MathF.Max(0, .72f - candidateMotion) * .85f +
+        MathF.Max(0, .65f - motionRatio) * .55f +
+        MathF.Max(0, .55f - candidateActive) * .40f +
+        MathF.Max(0, .50f - tailRatio) * .25f,
+        0,
+        1);
+    return new SongContinuityProfile(
+        targetActive,
+        candidateActive,
+        activeRatio,
+        targetMotion,
+        candidateMotion,
+        motionRatio,
+        targetFirst,
+        candidateFirst,
+        firstExcess,
+        candidateTail,
+        tailRatio,
+        collapseRisk);
+}
+
+static float ActiveCoverage(IReadOnlyList<float> envelope)
+{
+    if (envelope.Count == 0)
+    {
+        return 0;
+    }
+
+    var peak = envelope.Max();
+    var threshold = Math.Max(peak * .08f, 1e-5f);
+    return envelope.Count(value => value >= threshold) / (float)envelope.Count;
+}
+
+static float MotionCoverage(IReadOnlyList<float> envelope, Spectrogram spectrogram)
+{
+    var envelopeFlux = FrameFlux(envelope);
+    var spectralFlux = SpectralFluxSeries(spectrogram);
+    var frames = Math.Max(envelopeFlux.Length, spectralFlux.Length);
+    if (frames == 0)
+    {
+        return 0;
+    }
+
+    var envelopeThreshold = AdaptiveFluxThreshold(envelopeFlux);
+    var spectralThreshold = AdaptiveFluxThreshold(spectralFlux);
+    var moving = 0;
+    for (var index = 0; index < frames; index++)
+    {
+        var env = ResampledAt(envelopeFlux, index, frames);
+        var spec = ResampledAt(spectralFlux, index, frames);
+        if (env >= envelopeThreshold || spec >= spectralThreshold)
+        {
+            moving++;
+        }
+    }
+
+    return moving / (float)frames;
+}
+
+static float[] FrameFlux(IReadOnlyList<float> values)
+{
+    if (values.Count < 2)
+    {
+        return [0];
+    }
+
+    var flux = new float[values.Count - 1];
+    for (var index = 1; index < values.Count; index++)
+    {
+        flux[index - 1] = MathF.Abs(values[index] - values[index - 1]);
+    }
+
+    return flux;
+}
+
+static float[] SpectralFluxSeries(Spectrogram spectrogram)
+{
+    if (spectrogram.Frames < 2)
+    {
+        return [0];
+    }
+
+    var flux = new float[spectrogram.Frames - 1];
+    for (var frame = 1; frame < spectrogram.Frames; frame++)
+    {
+        var sum = 0f;
+        for (var band = 0; band < spectrogram.Bands; band++)
+        {
+            sum += MathF.Abs(spectrogram.At(frame, band) - spectrogram.At(frame - 1, band));
+        }
+
+        flux[frame - 1] = sum / Math.Max(1, spectrogram.Bands);
+    }
+
+    return flux;
+}
+
+static float AdaptiveFluxThreshold(IReadOnlyList<float> values)
+{
+    if (values.Count == 0)
+    {
+        return float.PositiveInfinity;
+    }
+
+    var sorted = values.Order().ToArray();
+    var median = sorted[sorted.Length / 2];
+    var high = sorted[Math.Clamp((int)MathF.Round((sorted.Length - 1) * .75f), 0, sorted.Length - 1)];
+    return Math.Max(1e-6f, median + (high - median) * .35f);
+}
+
+static float EnergyShare(IReadOnlyList<float> envelope, float durationSeconds, float startSeconds, float endSeconds)
+{
+    if (envelope.Count == 0 || durationSeconds <= 0)
+    {
+        return 0;
+    }
+
+    var total = envelope.Sum(value => value * value);
+    if (total <= float.Epsilon)
+    {
+        return 0;
+    }
+
+    var start = Math.Clamp((int)MathF.Floor(startSeconds / durationSeconds * envelope.Count), 0, envelope.Count - 1);
+    var end = Math.Clamp((int)MathF.Ceiling(endSeconds / durationSeconds * envelope.Count), start + 1, envelope.Count);
+    var segment = 0f;
+    for (var index = start; index < end; index++)
+    {
+        segment += envelope[index] * envelope[index];
+    }
+
+    return segment / total;
+}
+
+static float SafeMetricRatio(float candidate, float reference) =>
+    reference <= float.Epsilon ? (candidate <= float.Epsilon ? 1 : 10) : candidate / reference;
+
+static float ResampledAt(IReadOnlyList<float> values, int index, int outputLength)
+{
+    if (values.Count == 0)
+    {
+        return 0;
+    }
+
+    if (values.Count == 1 || outputLength <= 1)
+    {
+        return values[0];
+    }
+
+    var position = index / (float)(outputLength - 1) * (values.Count - 1);
+    var left = Math.Clamp((int)MathF.Floor(position), 0, values.Count - 1);
+    var right = Math.Clamp(left + 1, 0, values.Count - 1);
+    var t = position - left;
+    return values[left] * (1 - t) + values[right] * t;
+}
+
 static float SongConfidence(IReadOnlyList<SpeechScoreMetric> metrics)
 {
     var cosine = metrics.FirstOrDefault(metric => metric.Name == "log_mel_cosine")?.Value ?? 0;
@@ -3463,8 +3735,8 @@ static float SongConfidence(IReadOnlyList<SpeechScoreMetric> metrics)
     return Math.Clamp((cosine + score) * .5f, 0, 1);
 }
 
-static string SongEvaluationSentence(SongChallenge challenge, AudioComparison comparison, string verdict, SongInstrumentProfile profile) =>
-    $"Song snippet `{challenge.ChallengeId}` is `{verdict}`: logMelCosine={comparison.LogMelCosineSimilarity:0.0000}, logMelDistance={comparison.LogMelDistance:0.0000}, score={comparison.Score:0.0000}, rmsRatio={comparison.RmsRatio:0.0000}, centroidRatio={comparison.CentroidRatio:0.0000}. Instrument profile: {profile.Summary}.";
+static string SongEvaluationSentence(SongChallenge challenge, AudioComparison comparison, string verdict, SongInstrumentProfile profile, SongContinuityProfile continuity) =>
+    $"Song snippet `{challenge.ChallengeId}` is `{verdict}`: logMelCosine={comparison.LogMelCosineSimilarity:0.0000}, logMelDistance={comparison.LogMelDistance:0.0000}, score={comparison.Score:0.0000}, rmsRatio={comparison.RmsRatio:0.0000}, centroidRatio={comparison.CentroidRatio:0.0000}, activeCoverage={continuity.CandidateActiveCoverage:0.0000}, motionCoverage={continuity.CandidateMotionCoverage:0.0000}, firstSecondEnergyShare={continuity.CandidateFirstSecondEnergyShare:0.0000}, modeCollapseRisk={continuity.ModeCollapseRisk:0.0000}. Instrument profile: {profile.Summary}.";
 
 static string SongAnalysisReport(SongChallenge challenge, AudioAnalysis analysis)
 {
@@ -3571,7 +3843,7 @@ static string SongChallengeReport(SongChallenge challenge) =>
     whitened_spectral_autocorr_csv: `{challenge.Artifacts?.WhitenedSpectralAutocorrCsv ?? ""}`
     """;
 
-static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandidate candidate, AudioComparison comparison, string verdict, SongInstrumentProfile profile) =>
+static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandidate candidate, AudioComparison comparison, string verdict, SongInstrumentProfile profile, SongContinuityProfile continuity) =>
     $"""
     candidate={candidate.CandidateId}
     challenge={challenge.ChallengeId}
@@ -3585,6 +3857,15 @@ static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandid
     zeroCrossingRatio={comparison.ZeroCrossingRatio:0.######}
     articulation={comparison.Articulation.ArticulationScore:0.######}
     speechBandRatio={comparison.Articulation.SpeechBandRatio:0.######}
+    candidateActiveCoverage={continuity.CandidateActiveCoverage:0.######}
+    activeCoverageRatio={continuity.ActiveCoverageRatio:0.######}
+    candidateMotionCoverage={continuity.CandidateMotionCoverage:0.######}
+    motionCoverageRatio={continuity.MotionCoverageRatio:0.######}
+    candidateFirstSecondEnergyShare={continuity.CandidateFirstSecondEnergyShare:0.######}
+    firstSecondEnergyExcess={continuity.FirstSecondEnergyExcess:0.######}
+    candidateTailEnergyShare={continuity.CandidateTailEnergyShare:0.######}
+    tailEnergyRatio={continuity.TailEnergyRatio:0.######}
+    modeCollapseRisk={continuity.ModeCollapseRisk:0.######}
     instrumentVoiceSyrinx={(profile.HasSyrinxVoice ? 1 : 0)}
     instrumentDrumSubtractive={(profile.HasSubtractiveDrums ? 1 : 0)}
     instrumentPadAdditive={(profile.HasAdditivePad ? 1 : 0)}
@@ -3596,7 +3877,7 @@ static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandid
 static string SongSummaryCsv(IReadOnlyList<IpaTrialResult> results)
 {
     var builder = new StringBuilder();
-    builder.AppendLine("trial_id,candidate_id,reference_id,verdict,log_mel_cosine,log_mel_distance,audio_score,envelope_distance,rms_ratio,centroid_ratio,zero_crossing_ratio,articulation_score,musical_instrument_score,chip_distress_risk,instrument_voice_syrinx,instrument_drum_subtractive,instrument_pad_additive");
+    builder.AppendLine("trial_id,candidate_id,reference_id,verdict,log_mel_cosine,log_mel_distance,audio_score,envelope_distance,rms_ratio,centroid_ratio,zero_crossing_ratio,articulation_score,musical_instrument_score,chip_distress_risk,instrument_voice_syrinx,instrument_drum_subtractive,instrument_pad_additive,candidate_active_coverage,active_coverage_ratio,candidate_motion_coverage,motion_coverage_ratio,candidate_first_second_energy_share,first_second_energy_excess,candidate_tail_energy_share,tail_energy_ratio,mode_collapse_risk");
     foreach (var result in results)
     {
         builder.Append(Escape(result.TrialId)).Append(',');
@@ -3615,7 +3896,16 @@ static string SongSummaryCsv(IReadOnlyList<IpaTrialResult> results)
         builder.Append(Metric(result, "chip_distress_risk")).Append(',');
         builder.Append(Metric(result, "instrument_voice_syrinx")).Append(',');
         builder.Append(Metric(result, "instrument_drum_subtractive")).Append(',');
-        builder.AppendLine(Metric(result, "instrument_pad_additive"));
+        builder.Append(Metric(result, "instrument_pad_additive")).Append(',');
+        builder.Append(Metric(result, "candidate_active_coverage")).Append(',');
+        builder.Append(Metric(result, "active_coverage_ratio")).Append(',');
+        builder.Append(Metric(result, "candidate_motion_coverage")).Append(',');
+        builder.Append(Metric(result, "motion_coverage_ratio")).Append(',');
+        builder.Append(Metric(result, "candidate_first_second_energy_share")).Append(',');
+        builder.Append(Metric(result, "first_second_energy_excess")).Append(',');
+        builder.Append(Metric(result, "candidate_tail_energy_share")).Append(',');
+        builder.Append(Metric(result, "tail_energy_ratio")).Append(',');
+        builder.AppendLine(Metric(result, "mode_collapse_risk"));
     }
 
     return builder.ToString();
@@ -3628,11 +3918,11 @@ static string SongEvaluatorReport(SongChallenge challenge, IReadOnlyList<IpaTria
     builder.AppendLine();
     builder.AppendLine(SongChallengeReport(challenge));
     builder.AppendLine();
-    builder.AppendLine("| candidate | verdict | logMelCosine | score | instrument | chipRisk | envelopeDistance | rmsRatio | centroidRatio |");
-    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
+    builder.AppendLine("| candidate | verdict | logMelCosine | score | instrument | chipRisk | motion | firstSecond | collapse | rmsRatio | centroidRatio |");
+    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
     foreach (var result in results.OrderByDescending(result => MetricValue(result, "log_mel_cosine")))
     {
-        builder.AppendLine(CultureInfo.InvariantCulture, $"| {result.CandidateId} | {result.Verdict} | {MetricValue(result, "log_mel_cosine"):0.######} | {MetricValue(result, "audio_score"):0.######} | {MetricValue(result, "musical_instrument_score"):0.######} | {MetricValue(result, "chip_distress_risk"):0.######} | {MetricValue(result, "envelope_distance"):0.######} | {MetricValue(result, "rms_ratio"):0.######} | {MetricValue(result, "centroid_ratio"):0.######} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| {result.CandidateId} | {result.Verdict} | {MetricValue(result, "log_mel_cosine"):0.######} | {MetricValue(result, "audio_score"):0.######} | {MetricValue(result, "musical_instrument_score"):0.######} | {MetricValue(result, "chip_distress_risk"):0.######} | {MetricValue(result, "candidate_motion_coverage"):0.######} | {MetricValue(result, "candidate_first_second_energy_share"):0.######} | {MetricValue(result, "mode_collapse_risk"):0.######} | {MetricValue(result, "rms_ratio"):0.######} | {MetricValue(result, "centroid_ratio"):0.######} |");
     }
 
     return builder.ToString();
@@ -3828,6 +4118,20 @@ sealed record SongInstrumentProfile(
     float ChipDistressRisk,
     string Summary);
 
+sealed record SongContinuityProfile(
+    float TargetActiveCoverage,
+    float CandidateActiveCoverage,
+    float ActiveCoverageRatio,
+    float TargetMotionCoverage,
+    float CandidateMotionCoverage,
+    float MotionCoverageRatio,
+    float TargetFirstSecondEnergyShare,
+    float CandidateFirstSecondEnergyShare,
+    float FirstSecondEnergyExcess,
+    float CandidateTailEnergyShare,
+    float TailEnergyRatio,
+    float ModeCollapseRisk);
+
 sealed record SongSummaryRow(
     string TrialId,
     string CandidateId,
@@ -3846,6 +4150,15 @@ sealed record SongSummaryRow(
     float InstrumentVoiceSyrinx,
     float InstrumentDrumSubtractive,
     float InstrumentPadAdditive,
+    float CandidateActiveCoverage,
+    float ActiveCoverageRatio,
+    float CandidateMotionCoverage,
+    float MotionCoverageRatio,
+    float CandidateFirstSecondEnergyShare,
+    float FirstSecondEnergyExcess,
+    float CandidateTailEnergyShare,
+    float TailEnergyRatio,
+    float ModeCollapseRisk,
     string SummaryPath);
 
 sealed record MusicKnowledgeHit(
