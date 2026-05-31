@@ -1775,3 +1775,13 @@ Next likely slice:
 - Semantic retrieval now indexes distillation documents as chunks linked to
   kept scored trial IDs, so the search merge can project distilled lessons into
   the next agent context instead of dropping them as orphan curriculum prose.
+- One paired-curriculum pass completed at
+  `artifacts/parity/song-snippet-swarms/20260531T074935298`: five agents, two
+  targets each, ten scored patches, ten challenge evidence bundles, sixty
+  Qdrant chunks, and a distilled `.cc` store. All ten verdicts were `pressure`;
+  best log-mel cosine was `0.502128`, mean `0.377955`, worst `0.27853`, mean
+  audio score `0.339432`.
+- Distillation kept all ten trials and summarized reusable roles as clocked
+  dust/hat texture plus rubber/sub bass. That is useful but still not victory:
+  the scene-noise lesson remains that background/recording color must be a
+  shaped role owner, not static hiss.
