@@ -91,9 +91,16 @@ function Start-CodexAgentJob {
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $JobLogPath) | Out-Null
         $dotnetHome = Join-Path $JobRepoRoot ".dotnet_cli_home"
         $nugetHome = Join-Path $JobRepoRoot ".nuget_packages"
-        New-Item -ItemType Directory -Force -Path $dotnetHome, $nugetHome | Out-Null
+        $appDataHome = Join-Path $JobRepoRoot ".dotnet_appdata"
+        $localAppDataHome = Join-Path $JobRepoRoot ".dotnet_localappdata"
+        $agentHome = Join-Path $JobRepoRoot ".dotnet_agent_home"
+        New-Item -ItemType Directory -Force -Path $dotnetHome, $nugetHome, $appDataHome, $localAppDataHome, $agentHome | Out-Null
         $env:DOTNET_CLI_HOME = $dotnetHome
         $env:NUGET_PACKAGES = $nugetHome
+        $env:APPDATA = $appDataHome
+        $env:LOCALAPPDATA = $localAppDataHome
+        $env:USERPROFILE = $agentHome
+        $env:HOME = $agentHome
         $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
         $env:DOTNET_NOLOGO = "1"
         Add-Content -LiteralPath $JobLogPath -Value "[$([DateTimeOffset]::UtcNow.ToString("O"))] $JobCodexCommand $($JobArgs -join ' ')"
@@ -517,6 +524,7 @@ Noise and texture:
 Instrument ownership:
 - This harness is feeding the music-generator curriculum, so do not solve the target with three naked oscillators and a prayer. The scorer now records instrument-role metrics and chip-distress risk in CultCache.
 - If the patch has a singing, creature, or alien lead role, use the syrinx/acoustic owner: source_port kind=syrinx, pressure/opening curves, acoustic_network, and acoustic_voice, then shape it with filters/modulation.
+- Acoustic/syrinx graph syntax is complete-graph syntax. Do not write isolated source_port or acoustic_network fragments. If you use source_port, you must also define the referenced acoustic_path/path, terminals/connections/radiation_port, wave_clock when needed, acoustic_network, and acoustic_voice. If you cannot build that complete scaffold from a known-valid local patch such as patches/advanced/syrinx-voice.aqua, use a formant-filtered ordinary lead for this attempt and write the missing syrinx scaffold as an Aqua gap instead of submitting a non-rendering badge.
 - If the patch has drums or rhythmic transients, use subtractive ownership: pitched sine/triangle body, filtered noise skin, short envelope, and pattern gate.
 - If the patch has a pad, bed, drone, or harmonic wash, use additive/PAD ownership: `layer engine=add` or `engine=pad`, `harmonics`, `spectrum`, and slow modulation.
 - Ordinary simple voices are still legal as helpers, but a candidate built mostly from square/sine/saw blips with no syrinx, subtractive drum, additive/PAD, or shaped texture role will be treated as chip-distress-risk evidence.

@@ -193,7 +193,8 @@ public static class FaustCompiler
             var dotnet = await RunAsync(
                 "dotnet",
                 ["run", "--project", Path.Combine(tempDir, "Render.csproj"), "--", outputPath, options.SampleRate.ToString(CultureInfo.InvariantCulture), frames.ToString(CultureInfo.InvariantCulture)],
-                cancellationToken);
+                cancellationToken,
+                DotnetRenderEnvironment(tempDir));
             if (dotnet.ExitCode != 0 || !File.Exists(outputPath))
             {
                 return new FaustRender([], options.SampleRate, "dotnet", dotnet.Stdout, dotnet.Stderr);
@@ -273,7 +274,8 @@ public static class FaustCompiler
     private static async Task<(int ExitCode, string Stdout, string Stderr)> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         var start = new ProcessStartInfo(fileName)
         {
@@ -282,6 +284,13 @@ public static class FaustCompiler
             UseShellExecute = false
         };
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        if (environment is not null)
+        {
+            foreach (var (key, value) in environment)
+            {
+                start.Environment[key] = value;
+            }
+        }
 
         using var process = Process.Start(start) ?? throw new InvalidOperationException($"failed to start `{fileName}`");
         var stdout = process.StandardOutput.ReadToEndAsync();
@@ -298,5 +307,28 @@ public static class FaustCompiler
         }
 
         return (process.ExitCode, await stdout, await stderr);
+    }
+
+    private static IReadOnlyDictionary<string, string> DotnetRenderEnvironment(string tempDir)
+    {
+        var home = Path.Combine(tempDir, "dotnet-home");
+        var appData = Path.Combine(tempDir, "dotnet-appdata");
+        var localAppData = Path.Combine(tempDir, "dotnet-localappdata");
+        var packages = Path.Combine(tempDir, "nuget-packages");
+        Directory.CreateDirectory(home);
+        Directory.CreateDirectory(appData);
+        Directory.CreateDirectory(localAppData);
+        Directory.CreateDirectory(packages);
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["DOTNET_CLI_HOME"] = home,
+            ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1",
+            ["DOTNET_NOLOGO"] = "1",
+            ["NUGET_PACKAGES"] = packages,
+            ["APPDATA"] = appData,
+            ["LOCALAPPDATA"] = localAppData,
+            ["USERPROFILE"] = home,
+            ["HOME"] = home
+        };
     }
 }

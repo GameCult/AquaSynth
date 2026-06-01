@@ -42,15 +42,17 @@ voices with `gain=@/seq/kick`, `freq=@/seq/lead/freq`, or
 Voice-like leads:
 
 ```aqua
-source_port name=lead_src kind=syrinx pressure=.75 opening=.42
-acoustic_network name=lead_body source=lead_src radiation=beak
-acoustic_voice name=lead network=lead_body freq=@/seq/lead/freq gain=@/mix/lead/gain
+voice name=vowel_lead wave=saw freq=@/seq/lead/freq gain=@/mix/lead/gain sustain=.18 decay=.22 fm=3 fmi=.25 lpf=.62
 ```
 
 Use syrinx/acoustic ownership when the reference has singing, vocal chops,
-creature calls, reed-like lead, or expressive vowel motion. Move pressure,
-opening, filter/formant color, and pitch. A static syrinx badge is not a vocal
-line.
+creature calls, reed-like lead, or expressive vowel motion, but only if the
+patch includes a complete, known-valid acoustic graph scaffold. A lone
+`source_port` or `acoustic_network` line does not render. Start from
+`patches/advanced/syrinx-voice.aqua` or `patches/advanced/bird-syrinx.aqua`
+when using syrinx in the swarm; otherwise use a formant-filtered ordinary lead
+for the attempt and write the missing syrinx scaffold as an Aqua gap. A static
+syrinx badge is not a vocal line.
 
 Subtractive drums:
 
@@ -109,4 +111,3 @@ pressure.
 - Hand-writing isolated frequencies when the reference suggests a tonal center
   or progression.
 - Treating a metric bump as a lesson without a reusable owner sentence.
-
