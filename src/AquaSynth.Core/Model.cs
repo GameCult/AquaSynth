@@ -77,7 +77,8 @@ public enum PlaybackMode
 public sealed record Note(
     float FrequencyHz = 440,
     float GateSeconds = 0.1f,
-    NoteSource Source = NoteSource.OneShot);
+    NoteSource Source = NoteSource.OneShot,
+    float TriggerIntervalSeconds = 0);
 
 public sealed record Playback(
     PlaybackMode Mode = PlaybackMode.OneShot,

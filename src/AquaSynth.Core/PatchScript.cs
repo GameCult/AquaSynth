@@ -1801,6 +1801,9 @@ public static class PatchScript
                 sustainLevel = 1 / gainScale;
             }
             var noteSource = ParseNoteSource(GetAny(fields, ["note_source", "source"], "oneshot"), line);
+            var triggerInterval = TryGetAny(fields, ["trigger", "retrigger", "trigger_every", "repeat_every", "hit_step"], out var triggerText)
+                ? ParseFloat(triggerText, line)
+                : 0;
             if (TryGetAny(fields, ["midi"], out var midi) && ParseBool(midi, line))
             {
                 noteSource = NoteSource.Host;
@@ -1842,7 +1845,7 @@ public static class PatchScript
                     frequency,
                     GetBoundFloat(fields, line, 0.5f, OwnerField(ownerPath, "osc/duty"), "duty", "du"),
                     GetBoundFloat(fields, line, 0, OwnerField(ownerPath, "osc/phase"), "phase", "pa")),
-                Note = new Note(frequency, gateSeconds, noteSource),
+                Note = new Note(frequency, gateSeconds, noteSource, triggerInterval),
                 Envelope = envelopeSpec?.Envelope ?? new Envelope(
                     GetBoundFloat(fields, line, 0, OwnerField(ownerPath, "env/attack"), "attack", "a"),
                     GetBoundFloat(fields, line, 0, OwnerField(ownerPath, "env/decay"), "env_decay", "ed"),

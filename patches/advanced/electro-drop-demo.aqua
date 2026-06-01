@@ -15,37 +15,35 @@ song_form name=electro unit=bar
     sections=intro:0-4:.35,build:4-8:.85,drop:8-16:1,break:16-20:.55,build2:20-24:.85,final_drop:24-32:1
     energy=0:.22,4:.55,7.5:.92,8:1,16:.42,20:.62,23.5:.95,24:1,32:.18
 
-sub_kick_grid name=main
-    kick=x...x...x...x...
-    snare=....x.......x...
-    hat=x.x.x.xx.x.x.xxx.
-    step=.117187
-    kick_freq=50
-    kick_decay=.11
-    kick_lpf=.52
-    kick_pitch_ramp=-4.2
-    kick_skin_freq=4200
-    kick_skin_decay=.018
-    kick_skin_hpf=.78
-    kick_skin_lpf=.22
-    snare_freq=205
-    snare_decay=.08
-    snare_skin_freq=6200
-    snare_skin_decay=.045
-    snare_skin_hpf=.80
-    snare_skin_lpf=.20
-    hat_gain=.08
-    hat_freq=11200
-    hat_decay=.018
-    hat_hpf=.92
-    hat_lpf=.13
+# 808-derived drum authority: library shapes, then retriggered, driven, folded, and animated.
+sequence name=kick_808 pattern=x...x...x...x... step=.117187 high=1.18 low=0
+sequence name=kick_ghost pattern=..x.....x.....x. step=.117187 high=.30 low=0
+sequence name=snare_808 pattern=....x.......x... step=.117187 high=.72 low=0
+sequence name=clap_808 pattern=....x.......x... step=.117187 high=.42 low=0
+sequence name=hat_808 pattern=x.x.x.xx.x.x.xxx. step=.117187 high=.22 low=.022
+sequence name=hat_open pattern=..x.....x...x... step=.117187 high=.16 low=0
+sequence name=perc_skip pattern=...x......x...x. step=.117187 high=.18 low=0
 
-dust_hat pattern=x..x.x..x..x.x.. step=.117187 gain=.012 sustain=64
+mod name=drum_crush
+    wave=sample_hold
+    hz=16
+    gain=.018
+    drive=.28
+    fold=.18
+    noise=.045
+    hpf=.025
+
+mod name=hat_sizzle
+    wave=square
+    hz=8
+    noise=.055
+    hpf=.045
+    lpf=-.025
 
 bass_response name=sub
     root=55
     progression=0,5,3,4
-    pattern=x..x.x...x..xx..
+    pattern=x.......x...x...
     step=.117187
     scene=0:.04,8:.10,16:.18,24:.14,32:.03,40:.14,56:.20,64:.08
     wave=triangle
@@ -54,16 +52,18 @@ bass_response name=sub
     fmi=.24
 
 chords name=drop_prog root=110 scale=minor progression=0,5,3,4 voicing=0,2,4 paths=/chords/drop/root,/chords/drop/third,/chords/drop/fifth step=bar
-scale name=hook path=/seq/hook/freq root=440 scale=minor degrees=0,2,3,5,7,5,3,2,0,-2,0,3 step=.234375
+scale name=hook path=/seq/hook/freq root=440 scale=minor degrees=0,2,4,2,0,-2,0,4 step=.46875
 
-sequence name=hook_gate pattern=x.x.xx..x..x.xx. step=.117187 high=.32 low=0
-sequence name=bass_a pattern=x...x..x....x.x. step=.117187 high=.36 low=0
-sequence name=bass_b pattern=..x...x.xx...x.. step=.117187 high=.28 low=0
-sequence name=bass_c pattern=...x.xx...x..x.. step=.117187 high=.22 low=0
-sequence name=stab_gate pattern=x...x...xx..x... step=.117187 high=.34 low=0
-sequence name=fill_gate pattern=............xxxx step=.117187 high=.24 low=0
+sequence name=hook_phrase pattern=x...x.......x...x.....x....... step=.117187 high=.26 low=0
+sequence name=hook_answer pattern=........x.......x.......x...x... step=.117187 high=.16 low=0
+sequence name=hook_breath pattern=x...............x............... step=.117187 high=.055 low=0
+sequence name=bass_a pattern=x.......x....... step=.117187 high=.32 low=0
+sequence name=bass_b pattern=....x.......x... step=.117187 high=.22 low=0
+sequence name=bass_c pattern=..........x...x. step=.117187 high=.18 low=0
+sequence name=stab_gate pattern=......x......... step=.117187 high=.22 low=0
+sequence name=fill_gate pattern=..............x. step=.117187 high=.18 low=0
 
-mix name=lead points=0:.02,8:.05,14:.16,16:.24,24:.16,32:.04,40:.15,48:.26,56:.32,64:.08
+mix name=lead points=0:.01,8:.025,14:.06,16:.08,24:.06,32:.015,40:.055,48:.10,56:.12,64:.025
 mix name=pad points=0:.025,8:.06,15:.12,16:.025,28:.03,32:.10,40:.035,48:.07,64:.025
 mix name=air points=0:.006,8:.014,15:.04,16:.004,32:.025,40:.01,47:.05,48:.006,64:.004
 section_rise name=riser start=8 peak=15.5 end=16 low=0 high=.25
@@ -76,13 +76,23 @@ spectrum layer=halo root=110 freq=220 spread=.009 pad_mode=bandwidth pad_bandwid
 texture name=air_wash role=air gain=@/mix/air/gain sustain=64
 texture name=codec_spray role=codec pattern=..x...x...x..x.. step=.117187 gain=.006 sustain=64
 
-# Explicit transient reinforcements. The sugar owns the kit; these make it read.
-voice name=kick_sub_punch wave=sine freq=46 gain=@/seq/main/kick env=ad attack=.001 decay=.075 sustain=64 pitch_ramp=-5.8 lpf=.28 drive=.05
-voice name=snare_crack wave=noise freq=7200 gain=@/seq/main/snare env=ad attack=.001 decay=.032 sustain=64 hpf=.88 lpf=.16 bpf=.72 bpf_q=3.5 drive=.09
-voice name=hat_needle wave=noise freq=12500 gain=@/seq/main/hat env=ad attack=.001 decay=.012 sustain=64 hpf=.94 lpf=.10 bpf=.80 bpf_q=4.5
+# 808 library voices, stretched and dirtied for the drop.
+voice name=eight08_kick_body wave=sine freq=58 gain=@/seq/kick_808 trigger=.117187 attack=.001 sustain=.045 decay=.42 sustain_level=.606 pitch_ramp=-3.8 min_freq=32 lpf=.85 drive=.42 fold=.12
+voice name=eight08_kick_ghost wave=sine freq=52 gain=@/seq/kick_ghost trigger=.117187 attack=.001 sustain=.03 decay=.30 sustain_level=.42 pitch_ramp=-2.4 min_freq=31 lpf=.70 drive=.30 fold=.08
+voice name=eight08_kick_click wave=noise freq=2600 gain=@/seq/kick_808 trigger=.117187 attack=.001 sustain=.006 decay=.024 noise=.92 hpf=.72 lpf=.24 bpf=.50 bpf_q=3.2 drive=.42 fold=.22
+voice name=eight08_snare_body wave=sine freq=180 gain=@/seq/snare_808 trigger=.117187 attack=.001 sustain=.02 decay=.12 pitch_ramp=-1.2 lpf=.52 drive=.28 fold=.08
+voice name=eight08_snare_noise wave=noise freq=140 gain=@/seq/snare_808 trigger=.117187 attack=.001 sustain=.035 decay=.20 noise=.85 hpf=.45 lpf=.55 bpf=.38 bpf_q=2.4 drive=.55 fold=.24
+voice name=eight08_clap_one wave=noise freq=1800 gain=@/seq/clap_808 trigger=.117187 attack=.001 sustain=.018 decay=.11 noise=.95 hpf=.55 lpf=.42 phaser=.004 drive=.38 fold=.16
+voice name=eight08_clap_two wave=noise freq=2200 gain=@/seq/clap_808 trigger=.117187 attack=.006 sustain=.022 decay=.13 noise=.95 hpf=.58 lpf=.38 phaser=.008 drive=.42 fold=.18
+voice name=eight08_clap_three wave=noise freq=2600 gain=@/seq/clap_808 trigger=.117187 attack=.012 sustain=.028 decay=.15 noise=.95 hpf=.62 lpf=.34 phaser=.012 drive=.46 fold=.20
+voice name=eight08_hat_noise wave=noise freq=9000 gain=@/seq/hat_808 trigger=.117187 attack=.001 sustain=.006 decay=.055 noise=1 hpf=.90 lpf=.24 drive=.30 fold=.20
+voice name=eight08_hat_metal wave=square freq=6800 gain=@/seq/hat_808 trigger=.117187 attack=.001 sustain=.005 decay=.04 hpf=.90 lpf=.24 duty=.42 drive=.24 fold=.30
+voice name=eight08_open_hat wave=noise freq=9800 gain=@/seq/hat_open trigger=.117187 attack=.001 sustain=.018 decay=.18 noise=1 hpf=.88 lpf=.28 drive=.34 fold=.22
+voice name=eight08_perc_skip wave=square freq=540 gain=@/seq/perc_skip trigger=.117187 attack=.001 sustain=.025 decay=.14 duty=.42 hpf=.18 lpf=.72 drive=.34 fold=.26
 
-voice name=hook_front wave=saw freq=@/seq/hook/freq gain=@/mix/lead/gain sustain=64 decay=.22 lpf=.58 bpf=.42 bpf_q=2.1 fm=2.8 fmi=.22 drive=.12
-voice name=hook_edge wave=square freq=@/seq/hook/freq gain=@/seq/hook_gate sustain=64 decay=.09 hpf=.18 lpf=.68 duty=.38 fm=4.2 fmi=.18 fold=.05
+voice name=hook_front wave=triangle freq=@/seq/hook/freq gain=@/seq/hook_phrase attack=.004 sustain=.11 decay=.24 lpf=.64 bpf=.44 bpf_q=1.8 fm=.9 fmi=.07 vibrato=.003 vibrato_hz=5.2 formants=620:90:.34,1160:150:.22,2300:320:.10 formant_mix=.16 drive=.04
+voice name=hook_answer wave=sine freq=@/seq/hook/freq gain=@/seq/hook_answer attack=.006 sustain=.08 decay=.18 hpf=.04 lpf=.58 bpf=.38 bpf_q=1.4 fm=1.4 fmi=.05 vibrato=.002 vibrato_hz=6.1 formants=520:100:.22,1320:180:.28 formant_mix=.12
+voice name=hook_breath wave=noise freq=7600 gain=@/seq/hook_breath attack=.006 sustain=.06 decay=.16 hpf=.72 lpf=.18 bpf=.64 bpf_q=2.4
 
 # Complextro cut-ups: separate timbres take turns instead of one polite bass patch.
 voice name=bass_chop_a wave=saw freq=@/chords/drop/root gain=@/seq/bass_a sustain=64 decay=.10 lpf=.24 fm=3.2 fmi=.65 drive=.22 fold=.08

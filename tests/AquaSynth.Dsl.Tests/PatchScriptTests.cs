@@ -219,6 +219,23 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void VoiceTriggerIntervalRetriggersLocalEnvelopeAge()
+    {
+        const string script = """
+            sequence name=kick pattern=x... step=.125 high=.9 low=0
+            voice wave=sine freq=58 gain=@/seq/kick trigger=.125 attack=.001 sustain=.04 decay=.22 pitch_ramp=-3.8
+            """;
+
+        var patch = PatchScript.Parse(script);
+        Assert.Equal(.125f, patch.Voices[0].Note.TriggerIntervalSeconds, 5);
+
+        var export = FaustEmitter.Emit(patch).Source;
+        Assert.Contains("voice_0_age = wrap01(age / 0.125) * 0.125;", export);
+        Assert.Contains("oneshot_adsr_at(voice_0_age", export);
+        Assert.Contains("-3.8 * voice_0_age", export);
+    }
+
+    [Fact]
     public void ParserSupportsVoiceVowelFrames()
     {
         var patch = PatchScript.Parse("v w=saw f=90 fmix=.7 vowel_hz=.8 vowels=600:90:1,1200:160:.7|500:80:1,900:120:.8");

@@ -85,14 +85,28 @@ Subtractive drums:
 
 ```aqua
 sequence name=kick pattern=x...x...x...x... step=.125 high=1 low=0
-voice name=kick_body wave=sine freq=54 gain=@/seq/kick env=ad attack=.002 decay=.14
-voice name=kick_click wave=noise gain=@/seq/kick hpf=2500 lpf=7000 env=ad attack=.001 decay=.035
+voice name=kick_body wave=sine freq=54 gain=@/seq/kick trigger=.125 env=ad attack=.002 decay=.14 pitch_ramp=-3.8
+voice name=kick_click wave=noise gain=@/seq/kick trigger=.125 hpf=.72 lpf=.24 env=ad attack=.001 decay=.035
 ```
 
 Drums need body plus skin. Use sine/triangle bodies for kick/snare weight,
 filtered noise only for click, skin, dust, or air, and gates from target tempo.
 Noise alone is a placeholder unless it has band limits, a gate, and a musical
 job.
+
+Important: sequenced gain is not drum articulation by itself. A normal one-shot
+voice has one song-age envelope; `gain=@/seq/kick` can reopen a dead envelope
+without restarting the kick pitch fall or transient. Patterned percussion must
+use `trigger=<step_seconds>` on every drum voice that needs per-hit envelope,
+pitch-ramp, FM-decay, filter-ramp, or phaser motion. This gives the voice a
+local retrigger clock while the song form keeps running.
+
+808-style percussion should start from the stock `patches/808/*.aqua` shapes,
+then make the role explicit in the song patch: kick body plus click, snare body
+plus filtered noise, clap as staggered filtered noise taps, hats as short
+high-passed noise/metal layers, and optional ghost/skip lanes. Juice them with
+`drive`, `fold`, narrow filters, and sample-hold or square modulators for grit;
+do not submit one broadband pink-noise lane and call it a kit.
 
 `sub_kick_grid` is the reusable drum shorthand. It owns the subtractive drum
 family: kick body, kick skin, snare body, snare skin, and hat tick, plus

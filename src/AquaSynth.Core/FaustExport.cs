@@ -41,7 +41,8 @@ public static class FaustEmitter
         source.AppendLine("softclip(x) = ma.tanh(x * 1.35);");
         source.AppendLine("fold(x) = 2.0 * abs(2.0 * (x / 4.0 - floor(x / 4.0)) - 1.0) - 1.0;");
         source.AppendLine("release_start(a,d,g) = max(g, a + d);");
-        source.AppendLine("oneshot_adsr(a,d,s,r,g) = select2(age < a, select2(age < a + d, select2(age < release_start(a,d,g), select2(age < release_start(a,d,g) + r, 0.0, s * (1.0 - (age - release_start(a,d,g)) / max(0.0001, r))), s), 1.0 - (1.0 - s) * ((age - a) / max(0.0001, d))), age / max(0.0001, a));");
+        source.AppendLine("oneshot_adsr_at(t,a,d,s,r,g) = select2(t < a, select2(t < a + d, select2(t < release_start(a,d,g), select2(t < release_start(a,d,g) + r, 0.0, s * (1.0 - (t - release_start(a,d,g)) / max(0.0001, r))), s), 1.0 - (1.0 - s) * ((t - a) / max(0.0001, d))), t / max(0.0001, a));");
+        source.AppendLine("oneshot_adsr(a,d,s,r,g) = oneshot_adsr_at(age,a,d,s,r,g);");
         source.AppendLine("seg(t,t0,d,a,b) = a + (b - a) * clip01((t - t0) / max(0.0001, d));");
         source.AppendLine("bez(t,a,b,c,d) = (1.0 - t) * (1.0 - t) * (1.0 - t) * a + 3.0 * (1.0 - t) * (1.0 - t) * t * b + 3.0 * (1.0 - t) * t * t * c + t * t * t * d;");
         source.AppendLine("seg_bez(t,t0,d,a,b,c,e) = bez(clip01((t - t0) / max(0.0001, d)), a, b, c, e);");
@@ -50,8 +51,10 @@ public static class FaustEmitter
         source.AppendLine("seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));");
         source.AppendLine("seg_curve(c,t,t0,d,a,b) = select2(c < 0.5, seg_exp(t,t0,d,a,b), seg(t,t0,d,a,b));");
         source.AppendLine("rl_release_start(r1,r2,r3,g) = max(g, r1 + r2 + r3);");
-        source.AppendLine("rl4_env_from(s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = select2(age < r1, select2(age < r1 + r2, select2(age < r1 + r2 + r3, select2(age < rl_release_start(r1,r2,r3,g), select2(age < rl_release_start(r1,r2,r3,g) + r4, l4, seg_curve(c4, age, rl_release_start(r1,r2,r3,g), r4, l3, l4)), l3), seg_curve(c3, age, r1 + r2, r3, l2, l3)), seg_curve(c2, age, r1, r2, l1, l2)), seg_curve(c1, age, 0, r1, s0, l1));");
-        source.AppendLine("rl4_env(r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_from(0.0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);");
+        source.AppendLine("rl4_env_from_at(t,s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = select2(t < r1, select2(t < r1 + r2, select2(t < r1 + r2 + r3, select2(t < rl_release_start(r1,r2,r3,g), select2(t < rl_release_start(r1,r2,r3,g) + r4, l4, seg_curve(c4, t, rl_release_start(r1,r2,r3,g), r4, l3, l4)), l3), seg_curve(c3, t, r1 + r2, r3, l2, l3)), seg_curve(c2, t, r1, r2, l1, l2)), seg_curve(c1, t, 0, r1, s0, l1));");
+        source.AppendLine("rl4_env_at(t,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_from_at(t,0.0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);");
+        source.AppendLine("rl4_env_from(s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_from_at(age,s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);");
+        source.AppendLine("rl4_env(r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_at(age,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);");
         source.AppendLine("lfo_sin(hz, phase) = sin(2.0 * ma.PI * (age * hz + phase));");
         source.AppendLine("lfo_tri(hz, phase) = 1.0 - 4.0 * abs((age * hz + phase - floor(age * hz + phase)) - 0.5);");
         source.AppendLine("lfo_sq(hz, phase) = select2((age * hz + phase - floor(age * hz + phase)) < 0.5, -1.0, 1.0);");
@@ -319,6 +322,10 @@ public static class FaustEmitter
         var formant = ModExpressionForTarget(voice.Modulators, ModTarget.FormantMix);
         var lpfMod = ModExpressionForTarget(voice.Modulators, ModTarget.LowPass);
         var hpfMod = ModExpressionForTarget(voice.Modulators, ModTarget.HighPass);
+        var voiceAge = $"{name}_age";
+        source.AppendLine(voice.Note.TriggerIntervalSeconds > 0
+            ? $"{voiceAge} = wrap01(age / {F(voice.Note.TriggerIntervalSeconds)}) * {F(voice.Note.TriggerIntervalSeconds)};"
+            : $"{voiceAge} = age;");
 
         var minFreq = parameters.Expression(OwnerField(ownerPath, "pitch/min_freq"), voice.Pitch.MinFrequencyHz);
         var noteFreq = NoteFrequencyExpression(source, patch.Playback, voice.Note, name, OwnerField(ownerPath, "note/frequency"), parameters);
@@ -328,19 +335,19 @@ public static class FaustEmitter
         var vibratoDepth = parameters.Expression(OwnerField(ownerPath, "pitch/vibrato"), voice.Pitch.VibratoDepth);
         var vibratoHz = parameters.Expression(OwnerField(ownerPath, "pitch/vibrato_hz"), voice.Pitch.VibratoHz);
         var vibratoDelay = parameters.Expression(OwnerField(ownerPath, "pitch/vibrato_delay"), voice.Pitch.VibratoDelaySeconds);
-        var baseFreq = $"max({minFreq}, {noteFreq} * pow(2.0, {pitchRamp} * age + 0.5 * {pitchDelta} * age * age))";
+        var baseFreq = $"max({minFreq}, {noteFreq} * pow(2.0, {pitchRamp} * {voiceAge} + 0.5 * {pitchDelta} * {voiceAge} * {voiceAge}))";
         var hasVibrato = voice.Pitch.VibratoDepth != 0 && voice.Pitch.VibratoHz > 0 ||
                          parameters.IsBound(OwnerField(ownerPath, "pitch/vibrato")) ||
                          parameters.IsBound(OwnerField(ownerPath, "pitch/vibrato_hz"));
         var vibrato = hasVibrato
-            ? $" * (1.0 + select2(age < {vibratoDelay}, 0.0, sin(2.0 * ma.PI * (age - {vibratoDelay}) * {vibratoHz}) * {vibratoDepth}))"
+            ? $" * (1.0 + select2({voiceAge} < {vibratoDelay}, 0.0, sin(2.0 * ma.PI * ({voiceAge} - {vibratoDelay}) * {vibratoHz}) * {vibratoDepth}))"
             : "";
         var arpeggio = voice.Arpeggio is null
             ? "1.0"
-            : $"select2(age < {parameters.Expression(OwnerField(ownerPath, "arpeggio/delay"), voice.Arpeggio.DelaySeconds)}, {parameters.Expression(OwnerField(ownerPath, "arpeggio/multiplier"), voice.Arpeggio.Multiplier)}, 1.0)";
+            : $"select2({voiceAge} < {parameters.Expression(OwnerField(ownerPath, "arpeggio/delay"), voice.Arpeggio.DelaySeconds)}, {parameters.Expression(OwnerField(ownerPath, "arpeggio/multiplier"), voice.Arpeggio.Multiplier)}, 1.0)";
         var frequency = $"(({baseFreq}){vibrato}) * {arpeggio} * pow(2.0, patch_mod_pitch + {pitch})";
-        var dutyExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "osc/duty"), voice.Oscillator.Duty)} + {parameters.Expression(OwnerField(ownerPath, "duty/ramp"), voice.Duty.RampPerSecond)} * age + patch_mod_duty + {duty})";
-        var fmIndex = $"max(0.0, {parameters.Expression(OwnerField(ownerPath, "fm/index"), voice.Fm.Index)} + patch_mod_fm_index + {fmIndexMod}) * {FmDecay(parameters.Expression(OwnerField(ownerPath, "fm/decay"), voice.Fm.IndexDecaySeconds), voice.Fm.IndexDecaySeconds, parameters.IsBound(OwnerField(ownerPath, "fm/decay")))}";
+        var dutyExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "osc/duty"), voice.Oscillator.Duty)} + {parameters.Expression(OwnerField(ownerPath, "duty/ramp"), voice.Duty.RampPerSecond)} * {voiceAge} + patch_mod_duty + {duty})";
+        var fmIndex = $"max(0.0, {parameters.Expression(OwnerField(ownerPath, "fm/index"), voice.Fm.Index)} + patch_mod_fm_index + {fmIndexMod}) * {FmDecay(parameters.Expression(OwnerField(ownerPath, "fm/decay"), voice.Fm.IndexDecaySeconds), voice.Fm.IndexDecaySeconds, parameters.IsBound(OwnerField(ownerPath, "fm/decay")), voiceAge)}";
         var oscillator = oscillatorOverride ??
                         (voice.VocalNetwork is { } vocalNetwork
                              ? VocalNetworkExpression(source, patch, vocalNetwork, ownerPath, name, frequency, parameters, warnings, options)
@@ -352,11 +359,12 @@ public static class FaustEmitter
                              ? AcousticNetworkExpression(source, patch, acousticNetwork, ownerPath, name, frequency, parameters, warnings, options)
                              : OscillatorExpression(patch, voice, ownerPath, frequency, dutyExpression, fmIndex, parameters));
         var envelope = voice.RateLevelEnvelope is not null
-            ? RateLevelEnvelopeExpression(voice.RateLevelEnvelope, noteGate)
+            ? RateLevelEnvelopeExpression(voice.RateLevelEnvelope, noteGate, voiceAge)
             : EnvelopeExpression(
                 voice.Envelope,
                 noteGate,
                 UsesHostPlayback(patch.Playback) || voice.Note.Source == NoteSource.Host,
+                voiceAge,
                 field => parameters.Expression(OwnerField(ownerPath, field), field switch
                 {
                     "env/attack" => voice.Envelope.AttackSeconds,
@@ -378,13 +386,13 @@ public static class FaustEmitter
         var foldExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "color/fold"), voice.Color.Fold)} + patch_mod_fold + {fold})";
         var formantMix = $"clip01({parameters.Expression(OwnerField(ownerPath, "color/formant_mix"), voice.Color.FormantMix)} + patch_mod_formant_mix + {formant})";
         var lpfEnvelope = voice.Filter.LowPassEnvelope is { } filterEnvelope
-            ? $" + {RateLevelEnvelopeExpression(filterEnvelope, noteGate)}"
+            ? $" + {RateLevelEnvelopeExpression(filterEnvelope, noteGate, voiceAge)}"
             : "";
         var hpfEnvelope = voice.Filter.HighPassEnvelope is { } highPassEnvelope
-            ? $" + {RateLevelEnvelopeExpression(highPassEnvelope, noteGate)}"
+            ? $" + {RateLevelEnvelopeExpression(highPassEnvelope, noteGate, voiceAge)}"
             : "";
-        var lpf = $"clip01({parameters.Expression(OwnerField(ownerPath, "filter/lpf"), voice.Filter.LowPass)} * (1.0 + {parameters.Expression(OwnerField(ownerPath, "filter/lpf_ramp"), voice.Filter.LowPassRamp)} * age * 1.8){lpfEnvelope} + patch_mod_lpf + {lpfMod})";
-        var hpf = $"clip01({parameters.Expression(OwnerField(ownerPath, "filter/hpf"), voice.Filter.HighPass)} * (1.0 + {parameters.Expression(OwnerField(ownerPath, "filter/hpf_ramp"), voice.Filter.HighPassRamp)} * age * 2.0){hpfEnvelope} + patch_mod_hpf + {hpfMod})";
+        var lpf = $"clip01({parameters.Expression(OwnerField(ownerPath, "filter/lpf"), voice.Filter.LowPass)} * (1.0 + {parameters.Expression(OwnerField(ownerPath, "filter/lpf_ramp"), voice.Filter.LowPassRamp)} * {voiceAge} * 1.8){lpfEnvelope} + patch_mod_lpf + {lpfMod})";
+        var hpf = $"clip01({parameters.Expression(OwnerField(ownerPath, "filter/hpf"), voice.Filter.HighPass)} * (1.0 + {parameters.Expression(OwnerField(ownerPath, "filter/hpf_ramp"), voice.Filter.HighPassRamp)} * {voiceAge} * 2.0){hpfEnvelope} + patch_mod_hpf + {hpfMod})";
         var bpf = $"clip01({parameters.Expression(OwnerField(ownerPath, "filter/bpf"), voice.Filter.BandPass)})";
         var notch = $"clip01({parameters.Expression(OwnerField(ownerPath, "filter/notch"), voice.Filter.Notch)})";
         var highPassOrder = Math.Clamp(voice.Filter.HighPassOrder, 1, 12);
@@ -423,7 +431,7 @@ public static class FaustEmitter
             parameters.IsBound(OwnerField(ownerPath, "phaser/offset")) ||
             parameters.IsBound(OwnerField(ownerPath, "phaser/ramp")))
         {
-            var delay = $"min(2047.0, max(0.0, abs({parameters.Expression(OwnerField(ownerPath, "phaser/offset"), voice.Phaser.OffsetSeconds)} + {parameters.Expression(OwnerField(ownerPath, "phaser/ramp"), voice.Phaser.RampSecondsPerSecond)} * age) * ma.SR))";
+            var delay = $"min(2047.0, max(0.0, abs({parameters.Expression(OwnerField(ownerPath, "phaser/offset"), voice.Phaser.OffsetSeconds)} + {parameters.Expression(OwnerField(ownerPath, "phaser/ramp"), voice.Phaser.RampSecondsPerSecond)} * {voiceAge}) * ma.SR))";
             source.AppendLine($"{name}_phased = {name}_filtered + ({name}_filtered : de.fdelay(2048, {delay}));");
         }
         else
@@ -508,7 +516,7 @@ public static class FaustEmitter
         return control;
     }
 
-    private static string EnvelopeExpression(Envelope envelope, string gate, bool hostGate, Func<string, string> value)
+    private static string EnvelopeExpression(Envelope envelope, string gate, bool hostGate, string age, Func<string, string> value)
     {
         var attack = value("env/attack");
         var decay = value("env/decay");
@@ -516,13 +524,13 @@ public static class FaustEmitter
         var release = value("env/release");
         return hostGate
             ? $"en.adsr({attack}, {decay}, {sustain}, {release}, {gate})"
-            : $"oneshot_adsr({attack}, {decay}, {sustain}, {release}, {gate})";
+            : $"oneshot_adsr_at({age}, {attack}, {decay}, {sustain}, {release}, {gate})";
     }
 
-    private static string RateLevelEnvelopeExpression(RateLevelEnvelope envelope, string gate) =>
+    private static string RateLevelEnvelopeExpression(RateLevelEnvelope envelope, string gate, string age = "age") =>
         envelope.StartLevel == 0
-            ? $"rl4_env({F(envelope.Rate1Seconds)}, {F(envelope.Level1)}, {Curve(envelope.Curve1)}, {F(envelope.Rate2Seconds)}, {F(envelope.Level2)}, {Curve(envelope.Curve2)}, {F(envelope.Rate3Seconds)}, {F(envelope.Level3)}, {Curve(envelope.Curve3)}, {F(envelope.Rate4Seconds)}, {F(envelope.Level4)}, {Curve(envelope.Curve4)}, {gate})"
-            : $"rl4_env_from({F(envelope.StartLevel)}, {F(envelope.Rate1Seconds)}, {F(envelope.Level1)}, {Curve(envelope.Curve1)}, {F(envelope.Rate2Seconds)}, {F(envelope.Level2)}, {Curve(envelope.Curve2)}, {F(envelope.Rate3Seconds)}, {F(envelope.Level3)}, {Curve(envelope.Curve3)}, {F(envelope.Rate4Seconds)}, {F(envelope.Level4)}, {Curve(envelope.Curve4)}, {gate})";
+            ? $"rl4_env_at({age}, {F(envelope.Rate1Seconds)}, {F(envelope.Level1)}, {Curve(envelope.Curve1)}, {F(envelope.Rate2Seconds)}, {F(envelope.Level2)}, {Curve(envelope.Curve2)}, {F(envelope.Rate3Seconds)}, {F(envelope.Level3)}, {Curve(envelope.Curve3)}, {F(envelope.Rate4Seconds)}, {F(envelope.Level4)}, {Curve(envelope.Curve4)}, {gate})"
+            : $"rl4_env_from_at({age}, {F(envelope.StartLevel)}, {F(envelope.Rate1Seconds)}, {F(envelope.Level1)}, {Curve(envelope.Curve1)}, {F(envelope.Rate2Seconds)}, {F(envelope.Level2)}, {Curve(envelope.Curve2)}, {F(envelope.Rate3Seconds)}, {F(envelope.Level3)}, {Curve(envelope.Curve3)}, {F(envelope.Rate4Seconds)}, {F(envelope.Level4)}, {Curve(envelope.Curve4)}, {gate})";
 
     private static string Curve(RateLevelCurve curve) =>
         curve == RateLevelCurve.Exponential ? "1" : "0";
@@ -1439,6 +1447,7 @@ public static class FaustEmitter
                     op.Envelope,
                     UsesHostPlayback(playback) || op.Note.Source == NoteSource.Host ? graphNoteGate : F(op.Note.GateSeconds),
                     UsesHostPlayback(playback) || op.Note.Source == NoteSource.Host,
+                    "age",
                     field => field switch
                     {
                         "env/attack" => parameters.Expression($"{operatorPath}/env/attack", op.Envelope.AttackSeconds),
@@ -1580,8 +1589,8 @@ public static class FaustEmitter
 
     private static string FmDecay(float seconds) => seconds > 0 ? $"exp(-age / {F(Math.Max(seconds, 0.0001f))})" : "1.0";
 
-    private static string FmDecay(string seconds, float defaultSeconds, bool isBound) =>
-        defaultSeconds > 0 || isBound ? $"exp(-age / max({seconds}, 0.0001))" : "1.0";
+    private static string FmDecay(string seconds, float defaultSeconds, bool isBound, string age = "age") =>
+        defaultSeconds > 0 || isBound ? $"exp(-{age} / max({seconds}, 0.0001))" : "1.0";
 
     private static string ParameterIdentifier(int index) => $"patch_param_{index}";
 

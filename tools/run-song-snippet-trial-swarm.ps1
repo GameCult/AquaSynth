@@ -674,6 +674,7 @@ Self-iteration loop:
 - The analysis worker records song-continuity metrics: candidate_motion_coverage, motion_coverage_ratio, candidate_first_second_energy_share, first_second_energy_excess, candidate_tail_energy_share, and mode_collapse_risk. A patch that plays a short phrase in the first second and then coasts on low-motion texture/noise is failed song evidence even if its RMS or log-mel score looks tolerable.
 - If an attempt has mode_collapse_risk >= .45, the next attempt must add later-section motifs or eventful motion across the target's full duration. Do not merely raise the noise bed or pad gain; that is hiding, not composing.
 - If an attempt has high template_loop_risk or noise_percussion_risk, rebuild the role ownership before touching level: drums need pitched body plus filtered skin and target-specific gates; texture needs band limits and musical motion.
+- Percussion articulation warning: sequenced gain alone does not retrigger a one-shot drum envelope. For patterned drums, every body/click/skin/hat/clap voice that should strike per step must include `trigger=<step_seconds>` matching the lane step, otherwise pitch ramps and envelopes age from song start and later hits become dead-gate mush.
 - Keep intermediate candidates inside the private iteration root; publish only one final .aqua per target to the official target patch output directory.
 
 Reusable abstraction mining:
@@ -701,6 +702,7 @@ Instrument ownership:
 - If the patch has a singing, creature, or alien lead role, use the syrinx/acoustic owner: source_port kind=syrinx, pressure/opening curves, acoustic_network, and acoustic_voice, then shape it with filters/modulation.
 - Acoustic/syrinx graph syntax is complete-graph syntax. Do not write isolated source_port or acoustic_network fragments. If you use source_port, you must also define the referenced acoustic_path/path, terminals/connections/radiation_port, wave_clock when needed, acoustic_network, and acoustic_voice. If you cannot build that complete scaffold from a known-valid local patch such as patches/advanced/syrinx-voice.aqua, use a formant-filtered ordinary lead for this attempt and write the missing syrinx scaffold as an Aqua gap instead of submitting a non-rendering badge.
 - If the patch has drums or rhythmic transients, use subtractive ownership: pitched sine/triangle body, filtered noise skin, short envelope, and pattern gate.
+- For 808 percussion, start from `patches/808/kick.aqua`, `snare.aqua`, `hat.aqua`, and `clap.aqua` as reference shapes. In the song patch, split them into explicit retriggered layers: kick body/click/ghost, snare body/noise, staggered clap taps, closed/open hats, and optional perc skips. Add `drive`, `fold`, narrow hpf/lpf/bpf values, and sample-hold or square LFO modulators for crushed texture. If the render still sounds like generic pink noise, the drum owner failed; do not solve it with global gain.
 - If the patch has a pad, bed, drone, or harmonic wash, use additive/PAD ownership: `layer engine=add` or `engine=pad`, `harmonics`, `spectrum`, and slow modulation.
 - Ordinary simple voices are still legal as helpers, but a candidate built mostly from square/sine/saw blips with no syrinx, subtractive drum, additive/PAD, or shaped texture role will be treated as chip-distress-risk evidence.
 
@@ -715,6 +717,7 @@ Rhythm and tempo:
   - new sugar now exists: `pattern name=kick_seq path=/seq/kick pattern=x..x step=<beat_seconds/4> high=1 low=0`
   - use beat-derived times from `beat_seconds`; eighth notes are `beat_seconds/2`, sixteenths are `beat_seconds/4`.
   - bind parameters into voices or primitives, for example gain=@/seq/kick, tremolo_hz=<tempo_bpm/60>, noise=@/seq/hiss, freq=@/seq/pitch.
+- Use `trigger=<step_seconds>` on sequenced drum/transient voices when their envelope, pitch fall, FM decay, or filter motion must restart per hit. Example: `voice name=kick_body wave=sine freq=58 gain=@/seq/kick trigger=<beat_seconds/4> attack=.001 sustain=.045 decay=.42 sustain_level=.606 pitch_ramp=-3.8 drive=.42 fold=.12`.
 - Do not invent unimplemented syntax like `s("bd sn")` inside the `.aqua` candidate. You may propose it in `instrument-conventions.md`.
 
 Composition sugar available today:
