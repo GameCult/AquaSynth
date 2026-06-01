@@ -6,6 +6,7 @@ mission: >
 surfaces:
   instructions: AGENTS.md
   doctrine: docs/audio-doctrine.md
+  music_agent_orchestration_lessons: docs/music-agent-orchestration-lessons.md
   memory: state/memory.json
   scratch: state/scratch.md
   evidence: state/evidence.jsonl
