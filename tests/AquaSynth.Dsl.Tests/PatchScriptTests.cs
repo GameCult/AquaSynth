@@ -52,6 +52,18 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsAdEnvelopeWithNamedAttackAndDecayFields()
+    {
+        var patch = PatchScript.Parse("voice wave=sine freq=60 env=ad attack=.002 decay=.14");
+
+        var voice = Assert.Single(patch.Voices);
+        Assert.Equal(.002f, voice.Envelope.AttackSeconds, 5);
+        Assert.Equal(.14f, voice.Envelope.DecaySeconds, 5);
+        Assert.Equal(0, voice.Envelope.SustainLevel);
+        Assert.Equal(.142f, voice.Note.GateSeconds, 5);
+    }
+
+    [Fact]
     public void ParserSupportsExplicitControlLane()
     {
         var patch = PatchScript.Parse("lfo n=wob t=p w=sin hz=6 d=.04 ph=.25 b=.01;v w=saw f=80");

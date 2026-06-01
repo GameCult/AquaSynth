@@ -2950,6 +2950,9 @@ public static class PatchScript
             var pieces = value.Split(':');
             return pieces[0].ToLowerInvariant() switch
             {
+                "ad" when pieces.Length == 1 => AdEnvelope(
+                    GetBoundFloat(fields, line, 0, $"{fieldPath}/env/attack", "attack", "a"),
+                    GetBoundFloat(fields, line, 0.1f, $"{fieldPath}/env/decay", "decay", "d", "env_decay", "ed")),
                 "ad" when pieces.Length == 3 => AdEnvelope(
                     ParseBoundFloat(pieces[1], line, 0, $"{fieldPath}/env/attack"),
                     ParseBoundFloat(pieces[2], line, 0.1f, $"{fieldPath}/env/decay")),

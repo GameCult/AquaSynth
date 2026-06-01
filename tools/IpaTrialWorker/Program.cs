@@ -237,6 +237,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
         var script = await File.ReadAllTextAsync(scriptCopy, Encoding.UTF8);
         var timelinePath = Path.Combine(timelineRoot, $"{safeCandidateId}.csv");
         var dspPath = Path.Combine(candidateDir, "candidate.dsp");
+        var failurePath = Path.Combine(audioDir, "render-failure.txt");
 
         var candidateWav = Path.Combine(audioDir, "candidate.wav");
         var metrics = new List<SpeechScoreMetric>();
@@ -278,7 +279,9 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
                 verdict = "render-failed";
                 evaluation = render is null
                     ? "Faust was not available to render this song candidate."
-                    : $"Faust render produced no samples. stderr: {render.Stderr}";
+                    : $"Faust render produced no samples. stdout: {render.Stdout} stderr: {render.Stderr}";
+                await File.WriteAllTextAsync(failurePath, evaluation, Encoding.UTF8);
+                artifacts.Add(Artifact("render-failure", failurePath));
                 metrics.Add(new SpeechScoreMetric("render_failed", 1, 1));
             }
             else
@@ -311,6 +314,8 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
             await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv([]), Encoding.UTF8);
             verdict = "render-failed";
             evaluation = $"Candidate could not be parsed, lowered, or prepared for render: {ex.GetType().Name}: {ex.Message}";
+            await File.WriteAllTextAsync(failurePath, evaluation, Encoding.UTF8);
+            artifacts.Add(Artifact("render-failure", failurePath));
             metrics.Add(new SpeechScoreMetric("render_failed", 1, 1));
             metrics.Add(new SpeechScoreMetric("candidate_invalid", 1, 1));
         }
@@ -4746,6 +4751,24 @@ static string SongEvaluatorReport(SongChallenge challenge, IReadOnlyList<IpaTria
     foreach (var result in results.OrderByDescending(result => MetricValue(result, "log_mel_cosine")))
     {
         builder.AppendLine(CultureInfo.InvariantCulture, $"| {result.CandidateId} | {result.Verdict} | {MetricValue(result, "log_mel_cosine"):0.######} | {MetricValue(result, "audio_score"):0.######} | {MetricValue(result, "musical_instrument_score"):0.######} | {MetricValue(result, "producer_musicianship_score"):0.######} | {MetricValue(result, "required_studio_docs_present"):0.######} | {MetricValue(result, "template_loop_risk"):0.######} | {MetricValue(result, "noise_percussion_risk"):0.######} | {MetricValue(result, "candidate_motion_coverage"):0.######} | {MetricValue(result, "candidate_first_second_energy_share"):0.######} | {MetricValue(result, "mode_collapse_risk"):0.######} | {MetricValue(result, "rms_ratio"):0.######} | {MetricValue(result, "centroid_ratio"):0.######} |");
+    }
+
+    var failures = results
+        .Where(result => result.Verdict.Equals("render-failed", StringComparison.OrdinalIgnoreCase))
+        .ToArray();
+    if (failures.Length > 0)
+    {
+        builder.AppendLine();
+        builder.AppendLine("## Render Failure Details");
+        foreach (var failure in failures)
+        {
+            var failureArtifact = failure.Artifacts.FirstOrDefault(artifact => artifact.Kind.Equals("render-failure", StringComparison.OrdinalIgnoreCase));
+            builder.AppendLine($"- `{failure.CandidateId}`: {failure.EvaluationSummary}");
+            if (failureArtifact is not null && !string.IsNullOrWhiteSpace(failureArtifact.Uri))
+            {
+                builder.AppendLine($"  - failure_artifact: `{failureArtifact.Uri}`");
+            }
+        }
     }
 
     return builder.ToString();

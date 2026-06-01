@@ -78,16 +78,24 @@ function Start-CodexAgentJob {
     }
     $args += "-"
 
-    Start-Job -Name $JobName -ArgumentList $CodexCommand, $args, $PromptPath, $LogPath -ScriptBlock {
+    Start-Job -Name $JobName -ArgumentList $CodexCommand, $args, $PromptPath, $LogPath, $RepoRoot -ScriptBlock {
         param(
             [string]$JobCodexCommand,
             [string[]]$JobArgs,
             [string]$JobPromptPath,
-            [string]$JobLogPath
+            [string]$JobLogPath,
+            [string]$JobRepoRoot
         )
 
         $ErrorActionPreference = "Continue"
         New-Item -ItemType Directory -Force -Path (Split-Path -Parent $JobLogPath) | Out-Null
+        $dotnetHome = Join-Path $JobRepoRoot ".dotnet_cli_home"
+        $nugetHome = Join-Path $JobRepoRoot ".nuget_packages"
+        New-Item -ItemType Directory -Force -Path $dotnetHome, $nugetHome | Out-Null
+        $env:DOTNET_CLI_HOME = $dotnetHome
+        $env:NUGET_PACKAGES = $nugetHome
+        $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
+        $env:DOTNET_NOLOGO = "1"
         Add-Content -LiteralPath $JobLogPath -Value "[$([DateTimeOffset]::UtcNow.ToString("O"))] $JobCodexCommand $($JobArgs -join ' ')"
         Get-Content -LiteralPath $JobPromptPath -Raw | & $JobCodexCommand @JobArgs 2>&1 | Tee-Object -FilePath $JobLogPath -Append
         [pscustomobject]@{
