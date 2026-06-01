@@ -165,6 +165,35 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsProductionAbstractionSugar()
+    {
+        var patch = PatchScript.Parse("""
+            meter bpm=140 beats=4
+            sub_kick_grid name=kit kick=x...x..x snare=....x... hat=x.x.xx.x step=.107 kick_freq=52
+            dust_hat pattern=x..x.x.. step=.107 gain=.045 sustain=30
+            bass_response name=bass root=110 progression=0,5,3,4 pattern=x..x.x.. scene=0:.16,8:.24,16:.18
+            additive_wash name=pad root=@/chords/bass_prog/root partials=1:.12,2:.07,3:.04 scene=0:.05,8:.14,16:.08
+            section_rise name=lead start=0 peak=12 end=24 low=.04 high=.18
+            voice name=lead wave=saw freq=330 gain=@/mix/lead/gain sustain=.12 decay=.18
+            """);
+
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/seq/kit/kick");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/seq/kit/snare");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/seq/kit/hat");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/textures/dust_hat/gate");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/seq/bass/gate");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/mix/bass/gain");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/mix/pad/gain");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/mix/lead/gain");
+        Assert.Contains(patch.ControlCurves, curve => curve.Name == "kit_kick" && curve.Interpolation == ControlCurveInterpolation.Hold);
+        Assert.Contains(patch.ControlCurves, curve => curve.Name == "bass_mix");
+        Assert.Contains(patch.ControlCurves, curve => curve.Name == "lead_mix");
+        Assert.Contains(patch.Layers, layer => layer.Name == "pad" && layer.Engine == "add");
+        Assert.Contains(patch.HarmonicBanks, bank => bank.LayerName == "pad");
+        Assert.True(patch.Voices.Count >= 10);
+    }
+
+    [Fact]
     public void ParserSupportsVoiceVowelFrames()
     {
         var patch = PatchScript.Parse("v w=saw f=90 fmix=.7 vowel_hz=.8 vowels=600:90:1,1200:160:.7|500:80:1,900:120:.8");

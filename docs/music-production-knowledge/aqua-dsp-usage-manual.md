@@ -18,8 +18,13 @@ AquaSynth technique instead of copying weak prior patches.
 - Treat every sound as a role owner. Leads, bass, drums, pads, and texture need
   separate control surfaces so the next agent can adjust them without surgery.
 - Use reference analysis as constraints: tempo/autocorrelation for gates,
-  register/root/scale for pitch lanes, band stats for filtering, and RMS/motion
-  coverage for arrangement density.
+  register/root/scale for pitch lanes, and log-mel spectrogram structure for
+  filter/register/lane balance. RMS and motion are warning lights, not goals to
+  golf.
+- Between patch attempts, compare target and candidate log-mel images/features
+  directly: where is energy missing, smeared, too bright, too static, or
+  entering at the wrong time? Change the owner lane that explains that visual
+  mismatch before touching global gain.
 - Write the simplest patch that makes ownership inspectable. Do not hide a song
   in one giant voice or one full-duration noise bed.
 
@@ -38,6 +43,21 @@ mix name=pad points=0:.10,4:.22,8:.15,12:.30,16:.12
 The sugar lowers into visible `param` and `curve` owners. Bind those paths from
 voices with `gain=@/seq/kick`, `freq=@/seq/lead/freq`, or
 `gain=@/mix/pad/gain`.
+
+Reusable production abstractions:
+
+```aqua
+sub_kick_grid name=kit kick=x...x..x snare=....x... hat=x.x.xx.x step=.125
+dust_hat pattern=x..x.x.. step=.125 gain=.045 sustain=30
+bass_response name=bass root=110 progression=0,5,3,4 pattern=x..x.x.. scene=0:.16,8:.24,16:.18
+additive_wash name=pad root=@/chords/bass_prog/root partials=1:.12,2:.07,3:.04 scene=0:.05,8:.14,16:.08
+section_rise name=lead start=0 peak=12 end=24 low=.04 high=.18
+```
+
+These are not hidden instruments. They lower into visible `sequence`, `texture`,
+`chords`, `mix`, `voice`, `layer`, and `harmonics` owners. Use them when the
+role is actually present in the reference; rewrite their patterns and scene
+points from the target's log-mel/onset evidence.
 
 Voice-like leads:
 
@@ -67,6 +87,11 @@ filtered noise only for click, skin, dust, or air, and gates from target tempo.
 Noise alone is a placeholder unless it has band limits, a gate, and a musical
 job.
 
+`sub_kick_grid` is the reusable drum shorthand. It owns the subtractive drum
+family: kick body, kick skin, snare body, snare skin, and hat tick, plus
+tempo-derived lane gates. Keep the owner names but rewrite `kick`, `snare`,
+`hat`, and `step` per target; copied lane strings are template pressure.
+
 Additive/PAD beds:
 
 ```aqua
@@ -78,6 +103,11 @@ spectrum name=pad_air source=pad_bank centroid=1800 bandwidth=.35
 Pads own harmonic field and emotional bed. Use harmonic banks and slow
 brightness/gain motion. Do not let a pad occupy every band for the full target
 unless the reference really does.
+
+`additive_wash` is the reusable harmonic-bed shorthand. It owns an additive/PAD
+layer, harmonic partials, and a mix scene. Use it when the log-mel target shows
+stable harmonic bed energy or section swells; do not use it to wallpaper over a
+missing bass/drum/lead owner.
 
 Texture and recording color:
 
@@ -91,6 +121,23 @@ Texture owns band-limited color, not arrangement. It should support a scene with
 motion, gates, or slow modulation. A static broadband noise voice is failure
 pressure.
 
+`dust_hat` is the reusable high-band texture shorthand. It owns gated spectral
+dust, not percussion by itself. If the target spectrogram shows high-band ticks,
+use `dust_hat`; if it shows drum body, use `sub_kick_grid` first.
+
+Bass and section motion:
+
+```aqua
+bass_response name=bass root=110 progression=0,5,3,4 pattern=x..x.x.. scene=0:.14,8:.24,16:.16
+section_rise name=lead start=0 peak=16 end=30 low=.04 high=.2
+```
+
+`bass_response` owns low-mid call/answer motion: a bass gate, chord root lane,
+mix scene, driven bass body, and short pulse layer. Use it when log-mel bands
+show low/mid movement between downbeats. `section_rise` owns one lane's
+macro-energy contour; use it to place entrances, lifts, drops, and endings
+where the target spectrogram actually changes.
+
 ## Production Checklist
 
 - Producer brief: target feel, energy contour, meter, tonal center, section map,
@@ -98,6 +145,9 @@ pressure.
 - First attempt: prove parsing, duration coverage, and audible lane ownership.
 - Later attempts: change one hypothesis at a time: timing, register, role
   assignment, filter band, envelope, or section/mix motion.
+- Before chasing a scalar metric, inspect target-vs-candidate log-mel evidence.
+  Ask which visible region is wrong, which owner controls that region, and what
+  single owner edit would test the hypothesis.
 - Listening journal: write what sounded alive, fake, static, missing, or too
   generic after every render.
 - Gap ledger: name missing AquaSynth primitives or sugar only when a concrete
@@ -107,6 +157,8 @@ pressure.
 
 - Naming `kick`, `hat`, `pad`, or `syrinx` without audible role behavior.
 - Copying one stock drum grid across unrelated targets.
+- Golfing RMS or another scalar while the spectrogram says the wrong lane,
+  register, or section is being edited.
 - Letting texture keep the tail non-silent while composition dies.
 - Hand-writing isolated frequencies when the reference suggests a tonal center
   or progression.

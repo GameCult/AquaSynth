@@ -349,6 +349,26 @@ public static class PatchScript
                     FlushPendingOperatorGraph();
                     AddMixAutomation(fields, line);
                     break;
+                case "drumkit":
+                    FlushPendingOperatorGraph();
+                    AddSubKickGrid(fields, line);
+                    break;
+                case "dust_hat":
+                    FlushPendingOperatorGraph();
+                    AddDustHat(fields, line);
+                    break;
+                case "bass_response":
+                    FlushPendingOperatorGraph();
+                    AddBassResponse(fields, line);
+                    break;
+                case "additive_wash":
+                    FlushPendingOperatorGraph();
+                    AddAdditiveWash(fields, line);
+                    break;
+                case "section_rise":
+                    FlushPendingOperatorGraph();
+                    AddSectionRise(fields, line);
+                    break;
                 case "control_spline":
                     FlushPendingOperatorGraph();
                     AddControlSpline(fields, line);
@@ -2781,6 +2801,205 @@ public static class PatchScript
                 ("drive", GetAny(fields, ["drive"], role.Drive.ToString(CultureInfo.InvariantCulture)))), line), VoicePath(Voices.Count), line));
         }
 
+        private void AddSubKickGrid(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(GetAny(fields, ["name", "n"], "drums"));
+            var stepSeconds = GetMusicalStepSeconds(fields, line, BeatSeconds / 4, "step", "step_seconds", "dt");
+            var kickPath = GetAny(fields, ["kick_path"], $"/seq/{name}/kick");
+            var snarePath = GetAny(fields, ["snare_path"], $"/seq/{name}/snare");
+            var hatPath = GetAny(fields, ["hat_path"], $"/seq/{name}/hat");
+            var kickPattern = GetAny(fields, ["kick", "kick_pattern"], "x...x...x...x...");
+            var snarePattern = GetAny(fields, ["snare", "snare_pattern"], "....x.......x...");
+            var hatPattern = GetAny(fields, ["hat", "hat_pattern"], "x.x.x.x.x.x.x.x.");
+
+            AddPatternCurve(SyntheticFields(
+                ("name", $"{name}_kick"),
+                ("path", kickPath),
+                ("pattern", kickPattern),
+                ("step", F(stepSeconds)),
+                ("high", GetAny(fields, ["kick_gain", "kg"], "1")),
+                ("low", "0"),
+                ("loop", GetAny(fields, ["loop"], "true"))), line);
+            AddPatternCurve(SyntheticFields(
+                ("name", $"{name}_snare"),
+                ("path", snarePath),
+                ("pattern", snarePattern),
+                ("step", F(stepSeconds)),
+                ("high", GetAny(fields, ["snare_gain", "sg"], ".8")),
+                ("low", "0"),
+                ("loop", GetAny(fields, ["loop"], "true"))), line);
+            AddPatternCurve(SyntheticFields(
+                ("name", $"{name}_hat"),
+                ("path", hatPath),
+                ("pattern", hatPattern),
+                ("step", F(stepSeconds)),
+                ("high", GetAny(fields, ["hat_gain", "hg"], ".18")),
+                ("low", GetAny(fields, ["hat_rest", "hr"], ".02")),
+                ("loop", GetAny(fields, ["loop"], "true"))), line);
+
+            Voices.Add(ParseVoice(ExpandVoiceFields(SyntheticFields(
+                ("name", $"{name}_kick_body"),
+                ("wave", "sine"),
+                ("freq", GetAny(fields, ["kick_freq", "kf"], "54")),
+                ("gain", "@" + kickPath),
+                ("env", "ad"),
+                ("attack", GetAny(fields, ["kick_attack"], ".002")),
+                ("decay", GetAny(fields, ["kick_decay"], ".14")),
+                ("lpf", GetAny(fields, ["kick_lpf"], ".74")),
+                ("pitch_ramp", GetAny(fields, ["kick_pitch_ramp"], "-2.2"))), line), VoicePath(Voices.Count), line));
+            Voices.Add(ParseVoice(ExpandVoiceFields(SyntheticFields(
+                ("name", $"{name}_kick_skin"),
+                ("wave", "noise"),
+                ("freq", GetAny(fields, ["kick_skin_freq"], "2600")),
+                ("gain", "@" + kickPath),
+                ("env", "ad"),
+                ("attack", GetAny(fields, ["skin_attack"], ".001")),
+                ("decay", GetAny(fields, ["kick_skin_decay"], ".035")),
+                ("hpf", GetAny(fields, ["kick_skin_hpf"], ".55")),
+                ("lpf", GetAny(fields, ["kick_skin_lpf"], ".35"))), line), VoicePath(Voices.Count), line));
+            Voices.Add(ParseVoice(ExpandVoiceFields(SyntheticFields(
+                ("name", $"{name}_snare_body"),
+                ("wave", "triangle"),
+                ("freq", GetAny(fields, ["snare_freq", "sf"], "185")),
+                ("gain", "@" + snarePath),
+                ("env", "ad"),
+                ("attack", GetAny(fields, ["snare_attack"], ".001")),
+                ("decay", GetAny(fields, ["snare_decay"], ".11")),
+                ("lpf", GetAny(fields, ["snare_lpf"], ".55"))), line), VoicePath(Voices.Count), line));
+            Voices.Add(ParseVoice(ExpandVoiceFields(SyntheticFields(
+                ("name", $"{name}_snare_skin"),
+                ("wave", "noise"),
+                ("freq", GetAny(fields, ["snare_skin_freq"], "3400")),
+                ("gain", "@" + snarePath),
+                ("env", "ad"),
+                ("attack", GetAny(fields, ["skin_attack"], ".001")),
+                ("decay", GetAny(fields, ["snare_skin_decay"], ".08")),
+                ("hpf", GetAny(fields, ["snare_skin_hpf"], ".62")),
+                ("lpf", GetAny(fields, ["snare_skin_lpf"], ".42"))), line), VoicePath(Voices.Count), line));
+            Voices.Add(ParseVoice(ExpandVoiceFields(SyntheticFields(
+                ("name", $"{name}_hat_tick"),
+                ("wave", "noise"),
+                ("freq", GetAny(fields, ["hat_freq", "hf"], "9200")),
+                ("gain", "@" + hatPath),
+                ("env", "ad"),
+                ("attack", GetAny(fields, ["hat_attack"], ".001")),
+                ("decay", GetAny(fields, ["hat_decay"], ".035")),
+                ("hpf", GetAny(fields, ["hat_hpf"], ".88")),
+                ("lpf", GetAny(fields, ["hat_lpf"], ".23"))), line), VoicePath(Voices.Count), line));
+        }
+
+        private void AddDustHat(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var merged = SyntheticFields(
+                ("name", GetAny(fields, ["name", "n"], "dust_hat")),
+                ("role", "dust"),
+                ("pattern", RequiredAny(fields, ["pattern", "pat", "steps"], line)),
+                ("step", GetAny(fields, ["step", "step_seconds", "dt"], F(BeatSeconds / 4))),
+                ("gain", GetAny(fields, ["gain", "g"], ".05")),
+                ("sustain", GetAny(fields, ["sustain", "duration", "hold"], "30")));
+            Merge(merged, Without(fields, "name", "n", "role", "kind", "type", "pattern", "pat", "steps", "step", "step_seconds", "dt", "gain", "g", "sustain", "duration", "hold"));
+            AddNoiseTexture(merged, line);
+        }
+
+        private void AddBassResponse(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(GetAny(fields, ["name", "n"], "bass"));
+            var gatePath = GetAny(fields, ["gate_path"], $"/seq/{name}/gate");
+            var mixPath = GetAny(fields, ["mix_path", "path"], $"/mix/{name}/gain");
+            var chordName = SafeName(GetAny(fields, ["chords", "prog_name"], $"{name}_prog"));
+            var chordRootPath = GetAny(fields, ["root_path", "freq_path"], $"/chords/{chordName}/root");
+
+            AddSequencePattern(SyntheticFields(
+                ("name", $"{name}_gate"),
+                ("path", gatePath),
+                ("pattern", GetAny(fields, ["pattern", "pat", "gate"], "x..x.x...x..xx..")),
+                ("step", GetAny(fields, ["step", "step_seconds", "dt"], F(BeatSeconds / 4))),
+                ("high", GetAny(fields, ["gate_high", "high"], ".6")),
+                ("low", GetAny(fields, ["gate_low", "low"], ".05")),
+                ("loop", GetAny(fields, ["loop"], "true"))), line);
+            AddChordProgression(SyntheticFields(
+                ("name", chordName),
+                ("root", GetAny(fields, ["root", "freq", "base"], "110")),
+                ("scale", GetAny(fields, ["scale", "mode"], "minor")),
+                ("progression", GetAny(fields, ["progression", "prog"], "0,5,3,4")),
+                ("voicing", "0"),
+                ("paths", chordRootPath),
+                ("step", GetAny(fields, ["chord_step", "bar"], "bar"))), line);
+            AddMixAutomation(SyntheticFields(
+                ("name", name),
+                ("path", mixPath),
+                ("points", GetAny(fields, ["scene", "points", "pts"], "0:.18,4:.25,8:.14,12:.3,16:.18"))), line);
+
+            Voices.Add(ParseVoice(ExpandVoiceFields(SyntheticFields(
+                ("name", $"{name}_body"),
+                ("wave", GetAny(fields, ["wave", "w"], "triangle")),
+                ("freq", "@" + chordRootPath),
+                ("gain", "@" + mixPath),
+                ("attack", GetAny(fields, ["attack", "a"], ".002")),
+                ("sustain", GetAny(fields, ["sustain", "s"], ".09")),
+                ("decay", GetAny(fields, ["decay", "d"], ".22")),
+                ("lpf", GetAny(fields, ["lpf"], ".34")),
+                ("fm", GetAny(fields, ["fm"], "1.8")),
+                ("fmi", GetAny(fields, ["fmi"], ".22")),
+                ("tremolo_hz", GetAny(fields, ["tremolo_hz", "th"], F(1 / Math.Max(BeatSeconds, 0.001f)))),
+                ("tremolo", GetAny(fields, ["tremolo", "tr"], ".08"))), line), VoicePath(Voices.Count), line));
+            Voices.Add(ParseVoice(ExpandVoiceFields(SyntheticFields(
+                ("name", $"{name}_pulse"),
+                ("wave", GetAny(fields, ["pulse_wave"], "sine")),
+                ("freq", "@" + chordRootPath),
+                ("gain", "@" + gatePath),
+                ("env", "ad"),
+                ("attack", GetAny(fields, ["pulse_attack"], ".001")),
+                ("decay", GetAny(fields, ["pulse_decay"], ".09")),
+                ("lpf", GetAny(fields, ["pulse_lpf"], ".4"))), line), VoicePath(Voices.Count), line));
+        }
+
+        private void AddAdditiveWash(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(GetAny(fields, ["name", "n"], "wash"));
+            var gainPath = GetAny(fields, ["mix_path", "path"], $"/mix/{name}/gain");
+            AddMixAutomation(SyntheticFields(
+                ("name", name),
+                ("path", gainPath),
+                ("points", GetAny(fields, ["scene", "points", "pts"], "0:.08,4:.18,8:.12,12:.24,16:.08"))), line);
+            if (!_layerDefaults.ContainsKey(name))
+            {
+                AddLayer(SyntheticFields(
+                    ("name", name),
+                    ("engine", GetAny(fields, ["engine", "e"], "add")),
+                    ("gain", "@" + gainPath),
+                    ("attack", GetAny(fields, ["attack", "a"], ".5")),
+                    ("sustain", GetAny(fields, ["sustain", "s"], "30")),
+                    ("decay", GetAny(fields, ["decay", "d"], "1.5"))), line);
+            }
+
+            AddHarmonicBank(SyntheticFields(
+                ("layer", name),
+                ("root", GetAny(fields, ["root", "freq", "base"], "220")),
+                ("partials", GetAny(fields, ["partials", "bank"], "1:.12,2:.06,3:.035,5:.018")),
+                ("wave", GetAny(fields, ["wave", "w"], "sine")),
+                ("attack", GetAny(fields, ["attack", "a"], ".5")),
+                ("sustain", GetAny(fields, ["sustain", "s"], "30")),
+                ("decay", GetAny(fields, ["decay", "d"], "1.5")),
+                ("lpf", GetAny(fields, ["lpf"], ".62"))), line);
+        }
+
+        private void AddSectionRise(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(RequiredAny(fields, ["name", "n", "lane", "voice", "bus"], line));
+            var start = GetFloat(fields, line, 0, "start", "from");
+            var peak = GetFloat(fields, line, start + BeatSeconds * BeatsPerBar * 2, "peak", "at");
+            var end = GetFloat(fields, line, peak + BeatSeconds * BeatsPerBar * 2, "end", "to");
+            var low = GetFloat(fields, line, .08f, "low", "base");
+            var high = GetFloat(fields, line, .24f, "high", "top");
+            AddMixAutomation(SyntheticFields(
+                ("name", name),
+                ("path", GetAny(fields, ["path"], $"/mix/{name}/gain")),
+                ("points", GetAny(fields, ["points", "pts"], $"{F(start)}:{F(low)},{F(peak)}:{F(high)},{F(end)}:{F(low)}")),
+                ("interp", GetAny(fields, ["interp", "interpolation"], "linear")),
+                ("loop", GetAny(fields, ["loop"], "false"))), line);
+        }
+
         private void EnsureParameter(string path, float defaultValue, float min, float max, float step, string unit, int line)
         {
             if (_parameters.Any(parameter => parameter.Path.Equals(path, StringComparison.OrdinalIgnoreCase)))
@@ -3671,6 +3890,11 @@ public static class PatchScript
         "sequence" or "voice_seq" or "lane" or "instrument_seq" or "instrument_sequence" => "sequence",
         "chord" or "chords" or "progression" or "chord_progression" => "chords",
         "mix" or "mixer" or "mix_bus" or "mixbus" => "mix",
+        "drumkit" or "drum_kit" or "sub_kick_grid" or "sub-kick-grid" => "drumkit",
+        "dust_hat" or "dust-hat" or "spectral_dust_hat" or "spectral-dust-hat" => "dust_hat",
+        "bass_response" or "bass-response" or "call_response_bass" or "call-response-bass" => "bass_response",
+        "additive_wash" or "additive-wash" or "additive_wash_bed" or "additive-wash-bed" or "wash_bed" => "additive_wash",
+        "section_rise" or "section-rise" or "mix_scene" or "mix-scene" => "section_rise",
         "control_spline" or "spline" or "gesture_spline" or "gesturespline" => "control_spline",
         "phoneme_gesture" or "phone_gesture" or "ipa_gesture" or "phoneme" or "phone" => "phoneme_gesture",
         "gesture" or "gesture_group" or "gesturegroup" => "gesture",
