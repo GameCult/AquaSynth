@@ -139,6 +139,32 @@ function Wait-CodexJobs {
     }
 }
 
+function New-AgentWorktree {
+    param(
+        [string]$RepoRoot,
+        [string]$WorktreeRoot,
+        [string]$LogPath
+    )
+
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $WorktreeRoot) | Out-Null
+    if (Test-Path -LiteralPath $WorktreeRoot) {
+        throw "Agent worktree already exists: $WorktreeRoot"
+    }
+
+    Invoke-LoggedProcess `
+        -FilePath "git" `
+        -ArgumentList @(
+            "worktree",
+            "add",
+            "--detach",
+            $WorktreeRoot,
+            "HEAD"
+        ) `
+        -LogPath $LogPath
+
+    return $WorktreeRoot
+}
+
 function Assert-SongCandidates {
     param(
         [string]$PatchDirectory,
@@ -370,6 +396,7 @@ $codex = Get-Command $CodexCommand -ErrorAction Stop
 $loopId = New-Timestamp
 $loopRoot = Join-Path $repoRoot "artifacts/parity/song-snippet-swarms/$loopId"
 $logRoot = Join-Path $loopRoot "logs"
+$agentWorktreeRoot = Join-Path (Split-Path -Parent $repoRoot) "AquaSynth-agent-worktrees/$loopId"
 $workerProject = Join-Path $repoRoot "tools/IpaTrialWorker/IpaTrialWorker.csproj"
 $storePath = Join-Path $loopRoot "song-trial-results.cc"
 $seedValue = if ($Seed -eq 0) { Get-Random -Minimum 1 -Maximum ([int]::MaxValue) } else { $Seed }
@@ -396,6 +423,7 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 - random_source_per_agent: $RandomSourcePerAgent
 - store: $storePath
 - worker: $workerProject
+- agent_worktrees: $agentWorktreeRoot
 
 "@
 
@@ -515,6 +543,22 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
         $agentDir = Join-Path $passDir $agentId
         $agentPatchDir = Join-Path $patchRoot $agentId
         New-Item -ItemType Directory -Force -Path $agentDir, $agentPatchDir | Out-Null
+        $agentWorktree = New-AgentWorktree `
+            -RepoRoot $repoRoot `
+            -WorktreeRoot (Join-Path $agentWorktreeRoot (Join-Path $passId $agentId)) `
+            -LogPath (Join-Path $logRoot "$passId-$agentId-worktree.log")
+        $agentWorkerProject = Join-Path $agentWorktree "tools/IpaTrialWorker/IpaTrialWorker.csproj"
+        Invoke-LoggedProcess `
+            -FilePath "dotnet" `
+            -ArgumentList @(
+                "build",
+                $agentWorkerProject,
+                "--no-restore",
+                "--disable-build-servers",
+                "-p:UseSharedCompilation=false",
+                "-p:BuildInParallel=false"
+            ) `
+            -LogPath (Join-Path $logRoot "$passId-$agentId-worker-prebuild.log")
         $challengePaths = @()
         $challengeReports = @()
         $targetPatchDirs = @()
@@ -592,6 +636,7 @@ $targetPatchList
 - phase id: $passId
 - phase seed: $phaseSeed
 - private iteration root: $iterationRoot
+- isolated repo worktree for your commands: $agentWorktree
 - required self-iteration attempts per target: $IterationsPerTarget
 $agentSourceList
 $agentSeedList
@@ -623,7 +668,7 @@ Self-iteration loop:
 - For each target, run exactly $IterationsPerTarget local attempts before publishing the final .aqua file.
 - Each attempt must write a candidate under the private iteration root at attempt-NN/<target-id>/patch, run the analysis worker against that one target, inspect the rendered candidate evidence, write the spectrogram review entry, and revise the next attempt.
 - Analysis command pattern:
-  dotnet run --no-build --project "$workerProject" -- song-score --patch-root "<attempt-patch-dir>" --challenge "<challenge-json>" --artifact-root "<attempt-dir>" --batch-id "<agent-id>-<target-id>-attempt-NN" --store "<attempt-dir>/iteration-results.cc" --hypothesizer "$agentId-iteration"
+  dotnet run --no-build --project "$agentWorkerProject" -- song-score --patch-root "<attempt-patch-dir>" --challenge "<challenge-json>" --artifact-root "<attempt-dir>" --batch-id "<agent-id>-<target-id>-attempt-NN" --store "<attempt-dir>/iteration-results.cc" --hypothesizer "$agentId-iteration"
 - After each analysis run, read the attempt's evaluator-report.md and summary.csv as machine telemetry, not judgment. If the attempt rendered, also read audio/comparison.txt, audio/candidate-analysis.md, audio/candidate-logmel-spectrogram.csv, audio/candidate-logmel-band-stats.csv, audio/candidate-rms-envelope-autocorr.csv, and audio/candidate-whitened-spectral-autocorr.csv. Compare these with the target analysis_report, log_mel_spectrogram_csv, log_mel_band_stats_csv, rms_envelope_csv, and autocorrelation artifacts named in challenge.md.
 - Use those candidate-side facts the same way you use target facts: directly compare log-mel energy by time window and band/register, then use envelope autocorrelation, whitened spectral autocorrelation, centroid/RMS, instrument-role metrics, and chip-distress risk as supporting clues. Move timings, filters, gains, sources, roles, and patterns between attempts.
 - The analysis worker records song-continuity metrics: candidate_motion_coverage, motion_coverage_ratio, candidate_first_second_energy_share, first_second_energy_excess, candidate_tail_energy_share, and mode_collapse_risk. A patch that plays a short phrase in the first second and then coasts on low-motion texture/noise is failed song evidence even if its RMS or log-mel score looks tolerable.
@@ -700,7 +745,7 @@ Instrument and DSL convention invention:
 - The `.aqua` candidate must use today's implemented syntax only: `pattern`, `scale`, `param`, `curve`, and ordinary patch/voice syntax are legal. Proposed future sugar is evidence for the next DSL cut, not magic accepted by the parser.
 - Today's implemented composition syntax also includes `meter`, `sequence`, `chords`, and `mix`. Prefer those over raw `param`/`curve` boilerplate when writing composition-scale structure.
 - Legal oscillator wave= values are sine, square, saw, triangle, and noise only. Use square plus filters/envelopes for pulse-like tone; pulse is not accepted syntax.
-- You do not own the AquaSynth source tree during this job. Do not edit `src/`, `tests/`, `docs/`, `patches/library.yaml`, or shared repo state. Write only under your assigned artifact/report/patch directories. Proposed DSL/source changes belong in `abstraction-ledger.md` and `aqua-gap-ledger.md`.
+- You do not own the main AquaSynth source tree during this job. Your command workspace is an isolated worktree, and shared outputs must be written only under your assigned artifact/report/patch directories. Do not edit main `src/`, `tests/`, `docs/`, `patches/library.yaml`, or shared repo state. Proposed DSL/source changes belong in `abstraction-ledger.md` and `aqua-gap-ledger.md`.
 
 Evidence contract:
 - Read every assigned challenge report, target music intelligence report, $preEvidence, and $preMusicEvidence.
@@ -716,7 +761,7 @@ Evidence contract:
 Return a short final summary naming the patch and report.
 "@
         $jobs += Start-CodexAgentJob `
-            -RepoRoot $repoRoot `
+            -RepoRoot $agentWorktree `
             -Prompt $prompt `
             -PromptPath $promptPath `
             -OutputPath $outputPath `
@@ -724,7 +769,7 @@ Return a short final summary naming the patch and report.
             -CodexCommand $CodexCommand `
             -CodexModel $CodexModel `
             -JobName "$passId-$agentId" `
-            -SandboxMode "read-only" `
+            -SandboxMode "workspace-write" `
             -WritableDirs @($agentDir, $agentPatchDir)
     }
 
@@ -770,6 +815,10 @@ Return a short final summary naming the patch and report.
 
     $curatorDir = Join-Path $passDir "knowledge-curator"
     New-Item -ItemType Directory -Force -Path $curatorDir | Out-Null
+    $curatorWorktree = New-AgentWorktree `
+        -RepoRoot $repoRoot `
+        -WorktreeRoot (Join-Path $agentWorktreeRoot (Join-Path $passId "knowledge-curator")) `
+        -LogPath (Join-Path $logRoot "$passId-knowledge-curator-worktree.log")
     $curatorPromptPath = Join-Path $curatorDir "knowledge-curator.prompt.md"
     $curatorOutputPath = Join-Path $curatorDir "knowledge-curator.md"
     $curatorPrompt = @"
@@ -807,7 +856,7 @@ Admission standard:
 Return a short final note naming knowledge-curation.md.
 "@
     $curatorJob = Start-CodexAgentJob `
-        -RepoRoot $repoRoot `
+        -RepoRoot $curatorWorktree `
         -Prompt $curatorPrompt `
         -PromptPath $curatorPromptPath `
         -OutputPath $curatorOutputPath `
@@ -815,8 +864,8 @@ Return a short final note naming knowledge-curation.md.
         -CodexCommand $CodexCommand `
         -CodexModel $CodexModel `
         -JobName "$passId-knowledge-curator" `
-        -SandboxMode "read-only" `
-        -WritableDirs @($curatorDir)
+        -SandboxMode "workspace-write" `
+        -WritableDirs @($passDir, $curatorDir)
     Wait-CodexJobs -Jobs @($curatorJob)
     if (!(Test-Path -LiteralPath (Join-Path $curatorDir "knowledge-curation.md")) -or
         ((Get-Item -LiteralPath (Join-Path $curatorDir "knowledge-curation.md")).Length -lt 64)) {
