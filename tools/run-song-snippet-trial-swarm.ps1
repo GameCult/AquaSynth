@@ -397,7 +397,7 @@ $codex = Get-Command $CodexCommand -ErrorAction Stop
 $loopId = New-Timestamp
 $loopRoot = Join-Path $repoRoot "artifacts/parity/song-snippet-swarms/$loopId"
 $logRoot = Join-Path $loopRoot "logs"
-$agentWorktreeRoot = Join-Path (Split-Path -Parent $repoRoot) "AquaSynth-agent-worktrees/$loopId"
+$agentWorktreePrefix = Join-Path (Split-Path -Parent $repoRoot) "AquaSynth-agent-$loopId"
 $workerProject = Join-Path $repoRoot "tools/IpaTrialWorker/IpaTrialWorker.csproj"
 $storePath = Join-Path $loopRoot "song-trial-results.cc"
 $seedValue = if ($Seed -eq 0) { Get-Random -Minimum 1 -Maximum ([int]::MaxValue) } else { $Seed }
@@ -424,7 +424,7 @@ Set-Content -LiteralPath (Join-Path $loopRoot "loop-index.md") -Value @"
 - random_source_per_agent: $RandomSourcePerAgent
 - store: $storePath
 - worker: $workerProject
-- agent_worktrees: $agentWorktreeRoot
+- agent_worktree_prefix: $agentWorktreePrefix
 
 "@
 
@@ -546,7 +546,7 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
         New-Item -ItemType Directory -Force -Path $agentDir, $agentPatchDir | Out-Null
         $agentWorktree = New-AgentWorktree `
             -RepoRoot $repoRoot `
-            -WorktreeRoot (Join-Path $agentWorktreeRoot (Join-Path $passId $agentId)) `
+            -WorktreeRoot "$agentWorktreePrefix-$passId-$agentId" `
             -LogPath (Join-Path $logRoot "$passId-$agentId-worktree.log")
         $agentWorkerProject = Join-Path $agentWorktree "tools/IpaTrialWorker/IpaTrialWorker.csproj"
         Invoke-LoggedProcess `
@@ -817,7 +817,7 @@ Return a short final summary naming the patch and report.
     New-Item -ItemType Directory -Force -Path $curatorDir | Out-Null
     $curatorWorktree = New-AgentWorktree `
         -RepoRoot $repoRoot `
-        -WorktreeRoot (Join-Path $agentWorktreeRoot (Join-Path $passId "knowledge-curator")) `
+        -WorktreeRoot "$agentWorktreePrefix-$passId-knowledge-curator" `
         -LogPath (Join-Path $logRoot "$passId-knowledge-curator-worktree.log")
     $curatorPromptPath = Join-Path $curatorDir "knowledge-curator.prompt.md"
     $curatorOutputPath = Join-Path $curatorDir "knowledge-curator.md"
