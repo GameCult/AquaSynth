@@ -247,6 +247,58 @@ function Write-PassPlaylist {
     Set-Content -LiteralPath $reportPath -Value $report
 }
 
+function Write-MusicStandardSnapshot {
+    param(
+        [string]$StorePath,
+        [string]$PassDirectory,
+        [string]$WorkerProject,
+        [string]$LogPath
+    )
+
+    $outputPath = Join-Path $PassDirectory "music-production-quality-standard.md"
+    try {
+        Invoke-LoggedProcess `
+            -FilePath "dotnet" `
+            -ArgumentList @(
+                "run",
+                "--project",
+                $WorkerProject,
+                "--",
+                "music-show",
+                "--store",
+                $StorePath,
+                "--knowledge-id",
+                "music-production-quality-standard-v1",
+                "--output",
+                $outputPath
+            ) `
+            -LogPath $LogPath
+    }
+    catch {
+        Add-Content -LiteralPath $LogPath -Value "[$([DateTimeOffset]::UtcNow.ToString("O"))] quality-standard document not present in current learned-only store; wrote pass knowledge snapshot instead."
+        $reportPath = Join-Path $PassDirectory "music-production-knowledge-report.md"
+        $indexPath = Join-Path $PassDirectory "music-vector-index-after.md"
+        $lines = New-Object System.Collections.Generic.List[string]
+        $lines.Add("# Music Production Quality Standard Snapshot")
+        $lines.Add("")
+        $lines.Add("The canonical seed standard was not re-emitted by this learned-only pass. That is expected: pass distillation appends current lessons instead of reseeding manuals and static doctrine.")
+        $lines.Add("")
+        $lines.Add(('- store: `{0}`' -f $StorePath))
+        $lines.Add(('- distillation report: `{0}`' -f $reportPath))
+        $lines.Add(('- vector index: `{0}`' -f $indexPath))
+        $lines.Add("")
+        if (Test-Path -LiteralPath $reportPath) {
+            $lines.Add("## Current Pass Knowledge Documents")
+            $lines.Add("")
+            foreach ($line in (Get-Content -LiteralPath $reportPath | Where-Object { $_ -like '- `*' })) {
+                $lines.Add($line)
+            }
+        }
+
+        Set-Content -LiteralPath $outputPath -Value $lines
+    }
+}
+
 $repoRoot = Resolve-RepoRoot
 $codex = Get-Command $CodexCommand -ErrorAction Stop
 $loopId = New-Timestamp
@@ -786,21 +838,10 @@ Return a short final note naming knowledge-curation.md.
         -LogPath (Join-Path $logRoot "$passId-music-index.log")
     $latestMusicKnowledgeStore = $musicKnowledgeStore
 
-    Invoke-LoggedProcess `
-        -FilePath "dotnet" `
-        -ArgumentList @(
-            "run",
-            "--project",
-            $workerProject,
-            "--",
-            "music-show",
-            "--store",
-            $musicKnowledgeStore,
-            "--knowledge-id",
-            "music-production-quality-standard-v1",
-            "--output",
-            (Join-Path $passDir "music-production-quality-standard.md")
-        ) `
+    Write-MusicStandardSnapshot `
+        -StorePath $musicKnowledgeStore `
+        -PassDirectory $passDir `
+        -WorkerProject $workerProject `
         -LogPath (Join-Path $logRoot "$passId-music-show-standard.log")
 }
 
