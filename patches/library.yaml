@@ -37,6 +37,11 @@ entries:
     name: "aurora-pad"
     source: "BuiltInScripts.ReferenceScripts"
     notes: "Stock reference patch exported from the in-code catalog."
+  - path: patches/advanced/electro-drop-demo.aqua
+    family: advanced
+    name: "electro-drop-demo"
+    source: "AquaSynth song-swarm synthesis demo"
+    notes: "Electro/complextro demo with intro/build/drop section gates, layered bass chops, additive wash, shaped texture, and mix automation."
   - path: patches/advanced/additive-pad.aqua
     family: advanced
     name: "additive-pad"

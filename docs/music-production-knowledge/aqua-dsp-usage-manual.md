@@ -34,6 +34,7 @@ Composition sugar:
 
 ```aqua
 meter bpm=128 beats=4
+song_form name=club unit=bar sections=intro:0-4:.35,build:4-8:.85,drop:8-16:1,break:16-20:.5,build2:20-24:.85,final_drop:24-32:1 energy=0:.2,4:.55,8:1,16:.4,24:1,32:.2
 sequence name=kick pattern=x...x...x...x... step=.125 high=.9 low=0
 scale name=hook path=/seq/lead/freq root=220 scale=minor degrees=0,2,3,5,3,2 step=.25
 chords name=pad root=220 scale=minor progression=0,5,3,4 voicing=0,2,4 paths=/chords/pad/root,/chords/pad/third,/chords/pad/fifth step=bar
@@ -43,6 +44,12 @@ mix name=pad points=0:.10,4:.22,8:.15,12:.30,16:.12
 The sugar lowers into visible `param` and `curve` owners. Bind those paths from
 voices with `gain=@/seq/kick`, `freq=@/seq/lead/freq`, or
 `gain=@/mix/pad/gain`.
+
+`song_form` owns section gates and whole-track energy. Use it when a patch needs
+intro/build/drop/break/final-drop structure instead of hand-written bar gates.
+Each section becomes a bindable path such as `/form/club/drop`, and the optional
+energy contour becomes `/form/club/energy`. It does not replace lane-specific
+mixing; it gives those lanes a real song-form spine to bind against.
 
 Reusable production abstractions:
 

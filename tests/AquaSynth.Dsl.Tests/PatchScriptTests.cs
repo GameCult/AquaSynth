@@ -194,6 +194,31 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void ParserSupportsSongFormSugar()
+    {
+        var patch = PatchScript.Parse("""
+            meter bpm=120 beats=4
+            song_form name=electro unit=bar sections=intro:0-2:.35,build:2-4:.8,drop:4-8:1,break:8-10:.5,final_drop:10-14:1 energy=0:.25,2:.55,4:1,8:.35,10:.75,14:.2
+            voice wave=saw freq=220 gain=@/form/electro/drop sustain=1 decay=.2
+            """);
+
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/form/electro/intro");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/form/electro/drop");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/form/electro/final_drop");
+        Assert.Contains(patch.Parameters, parameter => parameter.Path == "/form/electro/energy");
+        var drop = Assert.Single(patch.ControlCurves, curve => curve.Name == "electro_drop");
+        Assert.Equal(ControlCurveInterpolation.Hold, drop.Interpolation);
+        Assert.Equal(8f, drop.Points[1].TimeSeconds, 3);
+        Assert.Equal(16f, drop.Points[2].TimeSeconds, 3);
+        Assert.Equal(1f, drop.Points[1].Value, 3);
+        Assert.Equal(0f, drop.Points[2].Value, 3);
+        var energy = Assert.Single(patch.ControlCurves, curve => curve.Name == "electro_energy");
+        Assert.Equal(4f, energy.Points[1].TimeSeconds, 3);
+        Assert.Equal(8f, energy.Points[2].TimeSeconds, 3);
+        Assert.Equal(1f, energy.Points[2].Value, 3);
+    }
+
+    [Fact]
     public void ParserSupportsVoiceVowelFrames()
     {
         var patch = PatchScript.Parse("v w=saw f=90 fmix=.7 vowel_hz=.8 vowels=600:90:1,1200:160:.7|500:80:1,900:120:.8");

@@ -59,7 +59,9 @@ function Start-CodexAgentJob {
         [string]$LogPath,
         [string]$CodexCommand,
         [string]$CodexModel,
-        [string]$JobName
+        [string]$JobName,
+        [string]$SandboxMode = "workspace-write",
+        [string[]]$WritableDirs = @()
     )
 
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null
@@ -68,11 +70,14 @@ function Start-CodexAgentJob {
     $args = @(
         "exec",
         "--cd", $RepoRoot,
-        "--full-auto",
+        "--sandbox", $SandboxMode,
         "--output-last-message", $OutputPath,
         "--config", 'shell_environment_policy.inherit="all"',
         "--add-dir", (Join-Path (Split-Path -Parent $RepoRoot) "CultLib")
     )
+    foreach ($dir in $WritableDirs) {
+        $args += @("--add-dir", $dir)
+    }
     if ($CodexModel.Length -gt 0) {
         $args += @("--model", $CodexModel)
     }
@@ -150,6 +155,67 @@ function Assert-SongCandidates {
         if ($stem -cnotmatch '^[a-z0-9]+([-_][a-z0-9]+)*__[a-z0-9]+([-_][a-z0-9]+)*__[a-z0-9]+([-_][a-z0-9]+)*$') {
             throw "Candidate '$stem' must be <agent-id>__<family>__<hypothesis>.aqua with lowercase slug segments."
         }
+    }
+}
+
+function Assert-AgentSelfIterationEvidence {
+    param(
+        [string]$PassDirectory,
+        [int]$AgentsPerPass,
+        [int]$SongsPerAgent,
+        [int]$IterationsPerTarget
+    )
+
+    $failures = New-Object System.Collections.Generic.List[string]
+    foreach ($agent in 1..$AgentsPerPass) {
+        $agentId = "agent-{0:00}" -f $agent
+        $agentDir = Join-Path $PassDirectory $agentId
+        $iterationRoot = Join-Path $agentDir "iterations"
+        $spectrogramReview = Join-Path $agentDir "spectrogram-review.md"
+        if (!(Test-Path -LiteralPath $spectrogramReview)) {
+            $failures.Add("$agentId missing spectrogram-review.md")
+        }
+        else {
+            $reviewText = Get-Content -LiteralPath $spectrogramReview -Raw
+            foreach ($song in 1..$SongsPerAgent) {
+                $songId = "target-{0:00}" -f $song
+                foreach ($attempt in 1..$IterationsPerTarget) {
+                    $attemptId = "attempt-{0:00}" -f $attempt
+                    if ($reviewText -notmatch [regex]::Escape($songId) -or $reviewText -notmatch [regex]::Escape($attemptId)) {
+                        $failures.Add("$agentId spectrogram-review.md does not name $songId $attemptId")
+                    }
+                }
+            }
+
+            if ($reviewText -notmatch "Visible mismatch|mismatch" -or
+                $reviewText -notmatch "Responsible lane|owner lane|Responsible lanes" -or
+                $reviewText -notmatch "Still failed|Residual|failed") {
+                $failures.Add("$agentId spectrogram-review.md lacks mismatch/owner/failure review language")
+            }
+        }
+
+        foreach ($song in 1..$SongsPerAgent) {
+            $songId = "target-{0:00}" -f $song
+            foreach ($attempt in 1..$IterationsPerTarget) {
+                $attemptId = "attempt-{0:00}" -f $attempt
+                $attemptDir = Join-Path (Join-Path $iterationRoot $attemptId) $songId
+                $summary = Get-ChildItem -LiteralPath $attemptDir -Filter "summary.csv" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -eq $summary) {
+                    $failures.Add("$agentId $songId $attemptId missing summary.csv")
+                    continue
+                }
+
+                $renderFailure = Get-ChildItem -LiteralPath $attemptDir -Filter "render-failure.txt" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                $candidateLogMel = Get-ChildItem -LiteralPath $attemptDir -Filter "candidate-logmel-spectrogram.csv" -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($null -eq $renderFailure -and $null -eq $candidateLogMel) {
+                    $failures.Add("$agentId $songId $attemptId has summary.csv but no candidate log-mel spectrogram or render-failure.txt")
+                }
+            }
+        }
+    }
+
+    if ($failures.Count -gt 0) {
+        throw "Self-iteration evidence incomplete:`n$($failures -join "`n")"
     }
 }
 
@@ -369,6 +435,17 @@ Invoke-LoggedProcess `
         "300"
     ) `
     -LogPath (Join-Path $logRoot "music-knowledge-seed-index.log")
+Invoke-LoggedProcess `
+    -FilePath "dotnet" `
+    -ArgumentList @(
+        "build",
+        $workerProject,
+        "--no-restore",
+        "--disable-build-servers",
+        "-p:UseSharedCompilation=false",
+        "-p:BuildInParallel=false"
+    ) `
+    -LogPath (Join-Path $logRoot "worker-prebuild.log")
 $latestMusicKnowledgeStore = $musicKnowledgeStore
 for ($pass = 1; $pass -le $Passes; $pass++) {
     $passId = "pass-{0:000}" -f $pass
@@ -501,7 +578,7 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
         $prompt = @"
 You are an AquaSynth producer-apprenticeship worker.
 
-The dataset is on trial. Your patches, producer briefs, listening journals, failures, and evaluator scores become curriculum evidence in CultCache and the vector database. Write useful studio knowledge and reusable reasoning, not just a one-off trick that happens to flatter one metric.
+The dataset is on trial. Your patches, producer briefs, listening journals, spectrogram reviews, failures, and self-critiques become curriculum evidence in CultCache and the vector database. Write useful studio knowledge and reusable reasoning, not a one-off trick that flatters a scalar metric.
 
 Challenge:
 $challengeList
@@ -536,19 +613,20 @@ Generalization:
 
 Producer evidence:
 - Write $agentDir/producer-brief.md before patching. For each target, include the artistic reading, likely genre/tempo feel, emotional/energy contour, section map, instrument role map, mix priorities, and the exact challenge artifacts you are trusting.
-- Write $agentDir/listening-journal.md during self-iteration. For every attempt, record what you expected, what the evaluator/audio facts said, what sounded alive, what sounded fake or static, and the exact revision you made.
+- Write $agentDir/listening-journal.md during self-iteration. For every attempt, record what you expected, what the rendered audio and spectrogram evidence showed, what sounded alive, what sounded fake or static, and the exact revision you made.
+- Write $agentDir/spectrogram-review.md during self-iteration. For every target and every attempt, compare the target log-mel evidence against the candidate log-mel evidence directly. Name the visible mismatch in time and band/register terms, the Aqua owner lane responsible, the edit you made for the next attempt, and what still failed after reviewing the result.
 - Write $agentDir/aqua-gap-ledger.md. List missing primitives, syntax sugar, control surfaces, analysis views, or renderer features that made the production harder. Each gap needs current workaround, evidence path, and whether it blocks composition or only polish.
 - Write $agentDir/studio-lesson.md at the end. This is the compact lesson for the next musician: keep/cut verdicts, transferable production ideas, rejected tricks, and which AquaSynth abstractions should be mined next.
-- The evaluator records producer_musicianship_score, required_studio_docs_present, template_loop_risk, noise_percussion_risk, composition_section_score, and aqua_gap_count. Candidates with missing studio evidence, stock-loop risk, or noise-percussion risk are failure pressure, not curriculum exemplars.
+- The analysis worker records producer_musicianship_score, required_studio_docs_present, template_loop_risk, noise_percussion_risk, composition_section_score, and aqua_gap_count. These are warning lights only. Candidates with missing studio evidence, stock-loop risk, or noise-percussion risk are failure pressure, not curriculum exemplars.
 
 Self-iteration loop:
 - For each target, run exactly $IterationsPerTarget local attempts before publishing the final .aqua file.
-- Each attempt must write a candidate under the private iteration root at attempt-NN/<target-id>/patch, run the scoring worker against that one target, inspect the rendered candidate evidence, and revise the next attempt.
-- Scoring command pattern:
-  dotnet run --project "$workerProject" -- song-score --patch-root "<attempt-patch-dir>" --challenge "<challenge-json>" --artifact-root "<attempt-dir>" --batch-id "<agent-id>-<target-id>-attempt-NN" --store "<attempt-dir>/iteration-results.cc" --hypothesizer "$agentId-iteration"
-- After each score, read the attempt's evaluator-report.md and summary.csv. If the attempt rendered, also read audio/comparison.txt, audio/candidate-analysis.md, audio/candidate-logmel-band-stats.csv, audio/candidate-rms-envelope-autocorr.csv, and audio/candidate-whitened-spectral-autocorr.csv. If the attempt is render-failed, do not try to read missing candidate audio analysis files; treat the parse/lowering/render failure as negative syntax evidence and fix that before changing the composition.
-- Use those candidate-side facts the same way you use target facts: compare spectral bands, envelope autocorrelation, whitened spectral autocorrelation, centroid/RMS, instrument-role metrics, and chip-distress risk. Move timings, filters, gains, sources, roles, and patterns between attempts.
-- The evaluator records song-continuity metrics: candidate_motion_coverage, motion_coverage_ratio, candidate_first_second_energy_share, first_second_energy_excess, candidate_tail_energy_share, and mode_collapse_risk. A patch that plays a short phrase in the first second and then coasts on low-motion texture/noise is failed song evidence even if its RMS or log-mel score looks tolerable.
+- Each attempt must write a candidate under the private iteration root at attempt-NN/<target-id>/patch, run the analysis worker against that one target, inspect the rendered candidate evidence, write the spectrogram review entry, and revise the next attempt.
+- Analysis command pattern:
+  dotnet run --no-build --project "$workerProject" -- song-score --patch-root "<attempt-patch-dir>" --challenge "<challenge-json>" --artifact-root "<attempt-dir>" --batch-id "<agent-id>-<target-id>-attempt-NN" --store "<attempt-dir>/iteration-results.cc" --hypothesizer "$agentId-iteration"
+- After each analysis run, read the attempt's evaluator-report.md and summary.csv as machine telemetry, not judgment. If the attempt rendered, also read audio/comparison.txt, audio/candidate-analysis.md, audio/candidate-logmel-spectrogram.csv, audio/candidate-logmel-band-stats.csv, audio/candidate-rms-envelope-autocorr.csv, and audio/candidate-whitened-spectral-autocorr.csv. Compare these with the target analysis_report, log_mel_spectrogram_csv, log_mel_band_stats_csv, rms_envelope_csv, and autocorrelation artifacts named in challenge.md.
+- Use those candidate-side facts the same way you use target facts: directly compare log-mel energy by time window and band/register, then use envelope autocorrelation, whitened spectral autocorrelation, centroid/RMS, instrument-role metrics, and chip-distress risk as supporting clues. Move timings, filters, gains, sources, roles, and patterns between attempts.
+- The analysis worker records song-continuity metrics: candidate_motion_coverage, motion_coverage_ratio, candidate_first_second_energy_share, first_second_energy_excess, candidate_tail_energy_share, and mode_collapse_risk. A patch that plays a short phrase in the first second and then coasts on low-motion texture/noise is failed song evidence even if its RMS or log-mel score looks tolerable.
 - If an attempt has mode_collapse_risk >= .45, the next attempt must add later-section motifs or eventful motion across the target's full duration. Do not merely raise the noise bed or pad gain; that is hiding, not composing.
 - If an attempt has high template_loop_risk or noise_percussion_risk, rebuild the role ownership before touching level: drums need pitched body plus filtered skin and target-specific gates; texture needs band limits and musical motion.
 - Keep intermediate candidates inside the private iteration root; publish only one final .aqua per target to the official target patch output directory.
@@ -622,12 +700,13 @@ Instrument and DSL convention invention:
 - The `.aqua` candidate must use today's implemented syntax only: `pattern`, `scale`, `param`, `curve`, and ordinary patch/voice syntax are legal. Proposed future sugar is evidence for the next DSL cut, not magic accepted by the parser.
 - Today's implemented composition syntax also includes `meter`, `sequence`, `chords`, and `mix`. Prefer those over raw `param`/`curve` boilerplate when writing composition-scale structure.
 - Legal oscillator wave= values are sine, square, saw, triangle, and noise only. Use square plus filters/envelopes for pulse-like tone; pulse is not accepted syntax.
+- You do not own the AquaSynth source tree during this job. Do not edit `src/`, `tests/`, `docs/`, `patches/library.yaml`, or shared repo state. Write only under your assigned artifact/report/patch directories. Proposed DSL/source changes belong in `abstraction-ledger.md` and `aqua-gap-ledger.md`.
 
 Evidence contract:
 - Read every assigned challenge report, target music intelligence report, $preEvidence, and $preMusicEvidence.
 - Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on assigned targets, known risks.
-- Include a `Composition Map` section in $agentDir/hypotheses.md: meter/time signature, progression or tonal center, instrument lanes, section events after the opening, automation/mix moves, and which evaluator metrics should prove the arrangement did not collapse.
-- Also write $agentDir/producer-brief.md, $agentDir/listening-journal.md, $agentDir/aqua-gap-ledger.md, and $agentDir/studio-lesson.md. These reports are now curriculum admission evidence, not decorative paperwork.
+- Include a `Composition Map` section in $agentDir/hypotheses.md: meter/time signature, progression or tonal center, instrument lanes, section events after the opening, automation/mix moves, and which visible spectrogram regions should prove the arrangement did not collapse.
+- Also write $agentDir/producer-brief.md, $agentDir/listening-journal.md, $agentDir/spectrogram-review.md, $agentDir/aqua-gap-ledger.md, and $agentDir/studio-lesson.md. These reports are now curriculum admission evidence, not decorative paperwork.
 - Write exactly one `.aqua` file under each target patch output directory named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch: a primary voice/body, a rhythmic drum/transient/noise role, and a pad/bed/recording-color role. Prefer syrinx for the primary voice when it is voice-like, subtractive for the drum/transient, and additive/PAD or shaped texture for the bed.
 - The target must have full-form continuity: distinct musical events or motif mutations after the first second, with audible activity distributed across the beginning, middle, and ending. A one-second riff followed by gently textured pink noise is mode collapse and should not be submitted.
@@ -644,11 +723,18 @@ Return a short final summary naming the patch and report.
             -LogPath $logPath `
             -CodexCommand $CodexCommand `
             -CodexModel $CodexModel `
-            -JobName "$passId-$agentId"
+            -JobName "$passId-$agentId" `
+            -SandboxMode "read-only" `
+            -WritableDirs @($agentDir, $agentPatchDir)
     }
 
     Wait-CodexJobs -Jobs $jobs
     Assert-SongCandidates -PatchDirectory $patchRoot -ExpectedCount ($AgentsPerPass * $SongsPerAgent)
+    Assert-AgentSelfIterationEvidence `
+        -PassDirectory $passDir `
+        -AgentsPerPass $AgentsPerPass `
+        -SongsPerAgent $SongsPerAgent `
+        -IterationsPerTarget $IterationsPerTarget
 
     for ($agent = 1; $agent -le $AgentsPerPass; $agent++) {
         $agentId = "agent-{0:00}" -f $agent
@@ -694,8 +780,8 @@ Your only job is to distill musician model output from this phase into actionabl
 Read:
 - pass directory: $passDir
 - proposed patches: $patchRoot
-- evaluator reports and summary CSV files under each agent target directory
-- producer-brief.md, listening-journal.md, aqua-gap-ledger.md, studio-lesson.md, abstraction-ledger.md, instrument-conventions.md from musician agents
+- analysis telemetry reports and summary CSV files under each agent target directory
+- producer-brief.md, listening-journal.md, spectrogram-review.md, aqua-gap-ledger.md, studio-lesson.md, abstraction-ledger.md, instrument-conventions.md from musician agents
 - playlist report: $(Join-Path $passDir "top-scoring-candidates.md")
 - prior Qdrant music knowledge injection: $preMusicEvidence
 
@@ -713,6 +799,7 @@ Format knowledge-curation.md as compact entries. Each entry must include:
 
 Admission standard:
 - Keep only lessons with evidence and a clear next action.
+- Treat musician spectrogram-review.md files as the primary evidence for what they saw, tried, and failed to achieve. Metrics may corroborate a lesson, but they must not be the lesson.
 - Prefer composition, arrangement, sound design, mixing, and AquaSynth sugar lessons that transfer across targets.
 - Reject generic advice, duplicate role-name slogans, and anything that merely restates the prompt.
 - If the phase learned mostly negative evidence, write negative entries with precise failure signatures.
@@ -727,7 +814,9 @@ Return a short final note naming knowledge-curation.md.
         -LogPath (Join-Path $logRoot "$passId-knowledge-curator.log") `
         -CodexCommand $CodexCommand `
         -CodexModel $CodexModel `
-        -JobName "$passId-knowledge-curator"
+        -JobName "$passId-knowledge-curator" `
+        -SandboxMode "read-only" `
+        -WritableDirs @($curatorDir)
     Wait-CodexJobs -Jobs @($curatorJob)
     if (!(Test-Path -LiteralPath (Join-Path $curatorDir "knowledge-curation.md")) -or
         ((Get-Item -LiteralPath (Join-Path $curatorDir "knowledge-curation.md")).Length -lt 64)) {

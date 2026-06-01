@@ -1,0 +1,98 @@
+# electro-drop-demo
+# Family: advanced
+# Source: AquaSynth song-swarm synthesis demo
+# Notes: Electro/complextro demo using song-curriculum sugar, layered bass chops, build tension, and a drop.
+
+patch
+    gain=0.68
+    duration=64
+    soft_clip=true
+
+meter bpm=128 beats=4
+
+# Section authority: intro -> build -> drop -> break -> build2 -> final_drop.
+song_form name=electro unit=bar
+    sections=intro:0-4:.35,build:4-8:.85,drop:8-16:1,break:16-20:.55,build2:20-24:.85,final_drop:24-32:1
+    energy=0:.22,4:.55,7.5:.92,8:1,16:.42,20:.62,23.5:.95,24:1,32:.18
+
+sub_kick_grid name=main
+    kick=x...x...x...x...
+    snare=....x.......x...
+    hat=x.x.x.xx.x.x.xxx.
+    step=.117187
+    kick_freq=50
+    kick_decay=.11
+    kick_lpf=.52
+    kick_pitch_ramp=-4.2
+    kick_skin_freq=4200
+    kick_skin_decay=.018
+    kick_skin_hpf=.78
+    kick_skin_lpf=.22
+    snare_freq=205
+    snare_decay=.08
+    snare_skin_freq=6200
+    snare_skin_decay=.045
+    snare_skin_hpf=.80
+    snare_skin_lpf=.20
+    hat_gain=.08
+    hat_freq=11200
+    hat_decay=.018
+    hat_hpf=.92
+    hat_lpf=.13
+
+dust_hat pattern=x..x.x..x..x.x.. step=.117187 gain=.012 sustain=64
+
+bass_response name=sub
+    root=55
+    progression=0,5,3,4
+    pattern=x..x.x...x..xx..
+    step=.117187
+    scene=0:.04,8:.10,16:.18,24:.14,32:.03,40:.14,56:.20,64:.08
+    wave=triangle
+    lpf=.30
+    fm=1.9
+    fmi=.24
+
+chords name=drop_prog root=110 scale=minor progression=0,5,3,4 voicing=0,2,4 paths=/chords/drop/root,/chords/drop/third,/chords/drop/fifth step=bar
+scale name=hook path=/seq/hook/freq root=440 scale=minor degrees=0,2,3,5,7,5,3,2,0,-2,0,3 step=.234375
+
+sequence name=hook_gate pattern=x.x.xx..x..x.xx. step=.117187 high=.32 low=0
+sequence name=bass_a pattern=x...x..x....x.x. step=.117187 high=.36 low=0
+sequence name=bass_b pattern=..x...x.xx...x.. step=.117187 high=.28 low=0
+sequence name=bass_c pattern=...x.xx...x..x.. step=.117187 high=.22 low=0
+sequence name=stab_gate pattern=x...x...xx..x... step=.117187 high=.34 low=0
+sequence name=fill_gate pattern=............xxxx step=.117187 high=.24 low=0
+
+mix name=lead points=0:.02,8:.05,14:.16,16:.24,24:.16,32:.04,40:.15,48:.26,56:.32,64:.08
+mix name=pad points=0:.025,8:.06,15:.12,16:.025,28:.03,32:.10,40:.035,48:.07,64:.025
+mix name=air points=0:.006,8:.014,15:.04,16:.004,32:.025,40:.01,47:.05,48:.006,64:.004
+section_rise name=riser start=8 peak=15.5 end=16 low=0 high=.25
+section_rise name=second_riser start=40 peak=47.5 end=48 low=0 high=.31
+
+additive_wash name=wash root=@/chords/drop/root partials=1:.06,2:.025,3:.014,5:.008 scene=0:.02,8:.06,15:.10,16:.02,32:.08,40:.035,48:.08,64:.02 lpf=.54
+layer name=halo engine=pad gain=@/mix/pad/gain env=rl rates=.55,.85,1.25,1.8 levels=.9,.95,.78,0 gate=4
+spectrum layer=halo root=110 freq=220 spread=.009 pad_mode=bandwidth pad_bandwidth=560 pad_bwscale=2 partials=1:.07,1.5:.03,2:.022,3:.012
+
+texture name=air_wash role=air gain=@/mix/air/gain sustain=64
+texture name=codec_spray role=codec pattern=..x...x...x..x.. step=.117187 gain=.006 sustain=64
+
+# Explicit transient reinforcements. The sugar owns the kit; these make it read.
+voice name=kick_sub_punch wave=sine freq=46 gain=@/seq/main/kick env=ad attack=.001 decay=.075 sustain=64 pitch_ramp=-5.8 lpf=.28 drive=.05
+voice name=snare_crack wave=noise freq=7200 gain=@/seq/main/snare env=ad attack=.001 decay=.032 sustain=64 hpf=.88 lpf=.16 bpf=.72 bpf_q=3.5 drive=.09
+voice name=hat_needle wave=noise freq=12500 gain=@/seq/main/hat env=ad attack=.001 decay=.012 sustain=64 hpf=.94 lpf=.10 bpf=.80 bpf_q=4.5
+
+voice name=hook_front wave=saw freq=@/seq/hook/freq gain=@/mix/lead/gain sustain=64 decay=.22 lpf=.58 bpf=.42 bpf_q=2.1 fm=2.8 fmi=.22 drive=.12
+voice name=hook_edge wave=square freq=@/seq/hook/freq gain=@/seq/hook_gate sustain=64 decay=.09 hpf=.18 lpf=.68 duty=.38 fm=4.2 fmi=.18 fold=.05
+
+# Complextro cut-ups: separate timbres take turns instead of one polite bass patch.
+voice name=bass_chop_a wave=saw freq=@/chords/drop/root gain=@/seq/bass_a sustain=64 decay=.10 lpf=.24 fm=3.2 fmi=.65 drive=.22 fold=.08
+voice name=bass_chop_b wave=square freq=@/chords/drop/fifth gain=@/seq/bass_b sustain=64 decay=.08 lpf=.32 hpf=.05 fm=5.4 fmi=.46 duty=.31 drive=.18
+voice name=bass_chop_c wave=triangle freq=@/chords/drop/third gain=@/seq/bass_c sustain=64 decay=.12 bpf=.48 bpf_q=2.8 fm=1.6 fmi=.72 drive=.14
+voice name=stab wave=saw freq=@/chords/drop/fifth gain=@/seq/stab_gate attack=.001 sustain=.05 decay=.16 lpf=.62 hpf=.08 fm=2.2 fmi=.24 drive=.2
+voice name=turnaround_fill wave=square freq=@/seq/hook/freq gain=@/seq/fill_gate attack=.001 sustain=.035 decay=.09 hpf=.3 lpf=.72 duty=.42 fm=7.2 fmi=.38
+
+voice name=drop_weight wave=sine freq=55 gain=@/form/electro/drop attack=.001 sustain=.12 decay=.28 pitch_ramp=-.8 lpf=.34 drive=.08
+voice name=final_drop_weight wave=triangle freq=55 gain=@/form/electro/final_drop attack=.001 sustain=.16 decay=.34 lpf=.38 fm=1.1 fmi=.18 drive=.12
+voice name=build_riser wave=saw freq=220 gain=@/mix/riser/gain attack=.01 sustain=64 decay=.1 pitch_ramp=2.4 lpf=.72 hpf=.24 fm=1.2 fmi=.18
+voice name=second_build_riser wave=saw freq=165 gain=@/mix/second_riser/gain attack=.01 sustain=64 decay=.1 pitch_ramp=2.9 lpf=.78 hpf=.22 fm=1.6 fmi=.22
+voice name=break_pluck wave=triangle freq=@/chords/drop/third gain=@/form/electro/break attack=.004 sustain=.09 decay=.34 lpf=.44 hpf=.02 fm=.8 fmi=.12

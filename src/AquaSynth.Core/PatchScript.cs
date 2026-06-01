@@ -349,6 +349,10 @@ public static class PatchScript
                     FlushPendingOperatorGraph();
                     AddMixAutomation(fields, line);
                     break;
+                case "song_form":
+                    FlushPendingOperatorGraph();
+                    AddSongForm(fields, line);
+                    break;
                 case "drumkit":
                     FlushPendingOperatorGraph();
                     AddSubKickGrid(fields, line);
@@ -2748,6 +2752,67 @@ public static class PatchScript
                 ("mode", GetAny(fields, ["mode"], "blend"))), line);
         }
 
+        private void AddSongForm(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = SafeName(GetAny(fields, ["name", "n"], "song"));
+            var unit = GetAny(fields, ["unit", "time"], "seconds");
+            var unitScale = unit.Equals("bar", StringComparison.OrdinalIgnoreCase) ||
+                            unit.Equals("bars", StringComparison.OrdinalIgnoreCase) ||
+                            unit.Equals("measure", StringComparison.OrdinalIgnoreCase) ||
+                            unit.Equals("measures", StringComparison.OrdinalIgnoreCase)
+                ? BeatSeconds * BeatsPerBar
+                : 1f;
+            var sections = ParseSongSections(RequiredAny(fields, ["sections", "form", "arrangement"], line), unitScale, line);
+            if (sections.Count == 0)
+            {
+                throw new PatchScriptException(line, "song_form needs at least one section");
+            }
+
+            var lengthSeconds = GetFloat(fields, line, sections.Max(section => section.EndSeconds), "duration", "length", "end");
+            foreach (var section in sections)
+            {
+                if (section.EndSeconds <= section.StartSeconds)
+                {
+                    throw new PatchScriptException(line, $"song_form section `{section.Name}` must end after it starts");
+                }
+
+                var path = $"/form/{name}/{section.Name}";
+                EnsureParameter(path, section.StartSeconds <= 0 ? section.High : section.Low, 0, Math.Max(1, section.High), 0.001f, "", line);
+                var sectionPoints = new List<(float Time, float Value)>
+                {
+                    (0f, section.StartSeconds <= 0 ? section.High : section.Low)
+                };
+                AddUniquePoint(sectionPoints, Math.Max(0, section.StartSeconds), section.High);
+                AddUniquePoint(sectionPoints, section.EndSeconds, section.Low);
+                AddUniquePoint(sectionPoints, Math.Max(section.EndSeconds, lengthSeconds), section.Low);
+                var points = PointsText(sectionPoints);
+                AddControlCurve(SyntheticFields(
+                    ("name", $"{name}_{section.Name}"),
+                    ("path", path),
+                    ("points", points),
+                    ("interp", "hold"),
+                    ("loop", GetAny(fields, ["loop"], "false")),
+                    ("mode", GetAny(fields, ["mode"], "blend"))), line);
+            }
+
+            if (TryGetAny(fields, ["energy", "energy_points", "contour"], out var energyText))
+            {
+                var path = GetAny(fields, ["energy_path"], $"/form/{name}/energy");
+                var points = unitScale == 1f
+                    ? energyText
+                    : PointsText(ParseControlCurvePoints(energyText, line).Select(point => (point.TimeSeconds * unitScale, point.Value)));
+                var values = ParseControlCurvePoints(points, line).Select(point => point.Value).ToArray();
+                EnsureParameter(path, values.Length == 0 ? 0 : values[0], 0, Math.Max(1, values.DefaultIfEmpty(1).Max() * 1.25f), 0.001f, "", line);
+                AddControlCurve(SyntheticFields(
+                    ("name", $"{name}_energy"),
+                    ("path", path),
+                    ("points", points),
+                    ("interp", GetAny(fields, ["energy_interp", "interp"], "linear")),
+                    ("loop", GetAny(fields, ["loop"], "false")),
+                    ("mode", GetAny(fields, ["mode"], "blend"))), line);
+            }
+        }
+
         private void AddNoiseTexture(IReadOnlyDictionary<string, string> fields, int line)
         {
             var name = SafeName(GetAny(fields, ["name", "n"], $"texture_{Voices.Count}"));
@@ -3755,6 +3820,45 @@ public static class PatchScript
             return ParseFloat(value, line);
         }
 
+        private static IReadOnlyList<SongSectionSpec> ParseSongSections(string text, float unitScale, int line)
+        {
+            var sections = new List<SongSectionSpec>();
+            foreach (var rawToken in text.Split([',', '|'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var token = rawToken.Replace("..", "-", StringComparison.Ordinal);
+                var parts = token.Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (parts.Length < 2 || parts.Length > 4)
+                {
+                    throw new PatchScriptException(line, $"song_form section `{rawToken}` must be name:start-end[:high[:low]]");
+                }
+
+                var range = parts[1].Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (range.Length != 2)
+                {
+                    throw new PatchScriptException(line, $"song_form section `{rawToken}` must use a start-end range");
+                }
+
+                var start = ParseFloat(range[0], line) * unitScale;
+                var end = ParseFloat(range[1], line) * unitScale;
+                var high = parts.Length >= 3 ? ParseFloat(parts[2], line) : 1f;
+                var low = parts.Length >= 4 ? ParseFloat(parts[3], line) : 0f;
+                sections.Add(new SongSectionSpec(SafeName(parts[0]), start, end, high, low));
+            }
+
+            return sections;
+        }
+
+        private static void AddUniquePoint(List<(float Time, float Value)> points, float time, float value)
+        {
+            if (points.Count > 0 && Math.Abs(points[^1].Time - time) < 0.000001f)
+            {
+                points[^1] = (time, value);
+                return;
+            }
+
+            points.Add((time, value));
+        }
+
         private sealed record PendingOperatorGraph(
             int Line,
             string Path,
@@ -3772,6 +3876,7 @@ public static class PatchScript
         }
 
         private sealed record ParsedEnvelope(Envelope Envelope, float GateSeconds, RateLevelEnvelope? RateLevelEnvelope = null);
+        private sealed record SongSectionSpec(string Name, float StartSeconds, float EndSeconds, float High, float Low);
     }
 
     private static readonly (string[] Keys, ModTarget Target)[] ModTargets =
@@ -3890,6 +3995,7 @@ public static class PatchScript
         "sequence" or "voice_seq" or "lane" or "instrument_seq" or "instrument_sequence" => "sequence",
         "chord" or "chords" or "progression" or "chord_progression" => "chords",
         "mix" or "mixer" or "mix_bus" or "mixbus" => "mix",
+        "song_form" or "songform" or "arrangement" or "arrange" or "sections" or "section_map" or "section-map" => "song_form",
         "drumkit" or "drum_kit" or "sub_kick_grid" or "sub-kick-grid" => "drumkit",
         "dust_hat" or "dust-hat" or "spectral_dust_hat" or "spectral-dust-hat" => "dust_hat",
         "bass_response" or "bass-response" or "call_response_bass" or "call-response-bass" => "bass_response",
