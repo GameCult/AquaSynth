@@ -145,6 +145,7 @@ static async Task SongPrepareAsync(Dictionary<string, string> options)
     var envelopeAutocorrPath = Path.Combine(artifactRoot, "rms-envelope-autocorr.csv");
     var whitenedSpectralAutocorrPath = Path.Combine(artifactRoot, "whitened-spectral-autocorr.csv");
     var analysisReportPath = Path.Combine(artifactRoot, "analysis.md");
+    var intelligencePath = Path.Combine(artifactRoot, "intelligence.md");
     await File.WriteAllTextAsync(spectrogramPath, SpectrogramCsv(analysis.LogMelSpectrogram), Encoding.UTF8);
     await File.WriteAllTextAsync(bandStatsPath, SpectrogramBandStatsCsv(analysis.LogMelSpectrogram), Encoding.UTF8);
     await File.WriteAllTextAsync(envelopePath, EnvelopeCsv(analysis.RmsEnvelope, sampleRate, analyzer.Config.HopSize), Encoding.UTF8);
@@ -174,7 +175,8 @@ static async Task SongPrepareAsync(Dictionary<string, string> options)
         envelopePath,
         envelopeAutocorrPath,
         whitenedSpectralAutocorrPath,
-        analysisReportPath);
+        analysisReportPath,
+        intelligencePath);
     var challenge = new SongChallenge(
         challengeId,
         source,
@@ -187,6 +189,7 @@ static async Task SongPrepareAsync(Dictionary<string, string> options)
         features,
         artifacts);
     await File.WriteAllTextAsync(analysisReportPath, SongAnalysisReport(challenge, analysis), Encoding.UTF8);
+    await File.WriteAllTextAsync(intelligencePath, SongMusicIntelligenceReport(challenge, analysis), Encoding.UTF8);
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
     await File.WriteAllTextAsync(output, JsonSerializer.Serialize(challenge, JsonOptions()), Encoding.UTF8);
     await File.WriteAllTextAsync(Path.Combine(artifactRoot, "challenge.md"), SongChallengeReport(challenge), Encoding.UTF8);
@@ -3160,6 +3163,7 @@ static IReadOnlyList<SongChallengeEvidenceDocument> SongChallengeEvidenceDocumen
     AddSongChallengeEvidence(documents, challenge, "rms-envelope", "text/csv", challenge.Artifacts.RmsEnvelopeCsv);
     AddSongChallengeEvidence(documents, challenge, "rms-envelope-autocorr", "text/csv", challenge.Artifacts.RmsEnvelopeAutocorrCsv);
     AddSongChallengeEvidence(documents, challenge, "whitened-spectral-autocorr", "text/csv", challenge.Artifacts.WhitenedSpectralAutocorrCsv);
+    AddSongChallengeEvidence(documents, challenge, "music-intelligence", "text/markdown", challenge.Artifacts.MusicIntelligenceMarkdown);
     return documents;
 }
 
@@ -4470,6 +4474,121 @@ static string SongAnalysisReport(SongChallenge challenge, AudioAnalysis analysis
     return builder.ToString();
 }
 
+static string SongMusicIntelligenceReport(SongChallenge challenge, AudioAnalysis analysis)
+{
+    var hints = SourcePathMusicHints(challenge.SourcePath).ToArray();
+    var tempoClass = challenge.Features.TempoBpm switch
+    {
+        < 70 => "slow / half-time candidate",
+        < 95 => "downtempo or relaxed groove",
+        < 125 => "mid-tempo groove",
+        < 150 => "dance / dnb half-time compatible",
+        _ => "fast / high-energy grid"
+    };
+    var brightness = challenge.Features.SpectralCentroidHz switch
+    {
+        < 900 => "dark / low-centered",
+        < 2200 => "balanced",
+        < 3800 => "bright",
+        _ => "very bright / noisy upper-band"
+    };
+    var noisiness = challenge.Features.ZeroCrossingRate switch
+    {
+        < 500f => "tonal",
+        < 2000f => "mixed tonal/noisy",
+        _ => "noisy/transient-heavy"
+    };
+    var activity = challenge.Features.ActiveDuty switch
+    {
+        < .35f => "sparse",
+        < .70f => "moderately active",
+        _ => "dense / near-continuous"
+    };
+    var flux = challenge.Features.SpectralFlux switch
+    {
+        < .015f => "low spectral motion",
+        < .05f => "moderate spectral motion",
+        _ => "high spectral motion"
+    };
+
+    var builder = new StringBuilder();
+    builder.AppendLine("# Target Music Intelligence");
+    builder.AppendLine();
+    builder.AppendLine("provider: `aquasynth-local-intelligence-v1`");
+    builder.AppendLine($"source_path: `{challenge.SourcePath}`");
+    builder.AppendLine($"source_file: `{challenge.SourceFileName}`");
+    builder.AppendLine($"challenge_id: `{challenge.ChallengeId}`");
+    builder.AppendLine("policy: `local analysis and source-path vocabulary only; no Spotify/Echo Nest payloads`");
+    builder.AppendLine();
+    builder.AppendLine("## Local Feature Reading");
+    builder.AppendLine($"- tempo: `{challenge.Features.TempoBpm:0.###}` BPM, beat seconds `{challenge.Features.BeatSeconds:0.###}`, confidence `{challenge.Features.TempoConfidence:0.###}` -> {tempoClass}");
+    builder.AppendLine($"- root/register: `{challenge.Features.RootNote}`, scale `{challenge.Features.SuggestedScale}`, dominant `{challenge.Features.DominantHz:0.###}` Hz, range `{challenge.Features.RegisterLowHz:0.###}-{challenge.Features.RegisterHighHz:0.###}` Hz");
+    builder.AppendLine($"- brightness: centroid `{challenge.Features.SpectralCentroidHz:0.###}` Hz, rolloff `{challenge.Features.SpectralRolloffHz:0.###}` Hz -> {brightness}");
+    builder.AppendLine($"- noisiness: zero-crossing `{challenge.Features.ZeroCrossingRate:0.######}` -> {noisiness}");
+    builder.AppendLine($"- density: active duty `{challenge.Features.ActiveDuty:0.###}` -> {activity}");
+    builder.AppendLine($"- spectral motion: flux `{challenge.Features.SpectralFlux:0.######}` -> {flux}");
+    builder.AppendLine($"- duration: `{challenge.DurationSeconds:0.###}` seconds from `{challenge.StartSeconds:0.###}`");
+    builder.AppendLine($"- analysis cross-check: log-mel frames `{analysis.LogMelSpectrogram.Frames}`, bands `{analysis.LogMelSpectrogram.Bands}`");
+    builder.AppendLine();
+    builder.AppendLine("## Source Vocabulary Hints");
+    if (hints.Length == 0)
+    {
+        builder.AppendLine("- no reliable genre/style tokens from path; use local audio features first");
+    }
+    else
+    {
+        foreach (var hint in hints)
+        {
+            builder.AppendLine($"- {hint}");
+        }
+    }
+
+    builder.AppendLine();
+    builder.AppendLine("## Production Translation");
+    builder.AppendLine($"- grid: use `meter bpm={challenge.Features.TempoBpm:0.###}` and derive `sequence`/`pattern` steps from `{challenge.Features.BeatSeconds:0.###}` seconds.");
+    builder.AppendLine($"- pitch: keep lead/bass/pad material inside `{challenge.Features.RegisterLowHz:0.###}-{challenge.Features.RegisterHighHz:0.###}` Hz unless the producer brief argues for octave contrast.");
+    builder.AppendLine("- drums: if local features read noisy/transient-heavy, still split subtractive drums into pitched body plus filtered skin; do not let noise alone own the groove.");
+    builder.AppendLine("- harmony: if the source hints are weak, use the estimated root/scale as a provisional lane and revise after listening.");
+    builder.AppendLine("- mix: translate density/brightness into lane gain and filter motion; do not leave every lane always on.");
+    builder.AppendLine();
+    builder.AppendLine("## Rejected Assumptions");
+    builder.AppendLine("- Do not treat filename/folder genre tokens as truth.");
+    builder.AppendLine("- Do not use Spotify or Echo Nest features as training evidence.");
+    builder.AppendLine("- Do not promote this report unless it changes an AquaSynth decision.");
+    return builder.ToString();
+}
+
+static IEnumerable<string> SourcePathMusicHints(string path)
+{
+    var lower = path.ToLowerInvariant();
+    var hints = new List<string>();
+    void Hint(string token, string text)
+    {
+        if (lower.Contains(token, StringComparison.Ordinal) && !hints.Contains(text, StringComparer.OrdinalIgnoreCase))
+        {
+            hints.Add(text);
+        }
+    }
+
+    Hint("dnb", "dnb/drum-and-bass token: expect fast grid, strong bass, busy hats, and break/fill pressure");
+    Hint("drum and bass", "drum-and-bass token: expect fast grid, strong bass, busy hats, and break/fill pressure");
+    Hint("dubstep", "dubstep token: expect half-time weight, sub bass, growl/formant motion, and sparse snare gravity");
+    Hint("halftime", "halftime token: expect slower perceived backbeat over faster subdivision");
+    Hint("house", "house token: expect steady four-beat pulse, sidechain-like mix motion, and chord/pad stabs");
+    Hint("techno", "techno token: expect loop discipline, gradual filter/mix automation, and kick authority");
+    Hint("trance", "trance token: expect arpeggiated harmonic motion, long risers, and bright sustained leads");
+    Hint("ambient", "ambient token: expect slow harmonic/texture evolution with restrained transient density");
+    Hint("metal", "metal token: expect dense distorted midrange, strong attack, and aggressive section contrast");
+    Hint("remix", "remix token: expect borrowed hook material and club-oriented arrangement pressure");
+    Hint("mix", "mix token: may indicate remix/live mix context; verify with local section and density analysis");
+    Hint("vocal", "vocal token: check for syrinx/acoustic or formant lead roles before oscillator leads");
+    Hint("santogold", "artist token Santogold/Santigold: expect vocal hook, syncopated pop/electronic groove, and bright percussion vocabulary");
+    Hint("madeon", "artist token Madeon: expect bright electro-pop chords, clipped sidechain-like mix motion, and melodic hook density");
+    Hint("heyoka", "artist token Heyoka: expect psychedelic bass, glitch/codec texture, and elastic low-end motion");
+    Hint("datsik", "artist token Datsik: expect aggressive dubstep bass movement and half-time impact");
+    return hints;
+}
+
 static string SongRenderAnalysisReport(string label, AudioAnalysis analysis, float frameRate)
 {
     var bands = SpectrogramBandStats(analysis.LogMelSpectrogram);
@@ -4537,6 +4656,7 @@ static string SongChallengeReport(SongChallenge challenge) =>
     rms_envelope_csv: `{challenge.Artifacts?.RmsEnvelopeCsv ?? ""}`
     rms_envelope_autocorr_csv: `{challenge.Artifacts?.RmsEnvelopeAutocorrCsv ?? ""}`
     whitened_spectral_autocorr_csv: `{challenge.Artifacts?.WhitenedSpectralAutocorrCsv ?? ""}`
+    music_intelligence_report: `{challenge.Artifacts?.MusicIntelligenceMarkdown ?? ""}`
     """;
 
 static string SongComparisonReport(SongChallenge challenge, IpaTrialScriptCandidate candidate, AudioComparison comparison, string verdict, SongInstrumentProfile profile, SongContinuityProfile continuity) =>
@@ -4803,7 +4923,8 @@ sealed record SongChallengeAnalysisArtifacts(
     string RmsEnvelopeCsv,
     string RmsEnvelopeAutocorrCsv,
     string WhitenedSpectralAutocorrCsv,
-    string AnalysisReportMarkdown);
+    string AnalysisReportMarkdown,
+    string MusicIntelligenceMarkdown = "");
 
 sealed record SongRenderAnalysisArtifacts(string Kind, string Path);
 

@@ -421,6 +421,7 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
         }
         $challengeList = ($challengePaths | ForEach-Object { "- frozen challenge JSON: $_" }) -join "`n"
         $challengeReportList = ($challengeReports | ForEach-Object { "- human-readable challenge report: $_" }) -join "`n"
+        $intelligenceReportList = ($challengeReports | ForEach-Object { "- target music intelligence report: $(Join-Path (Split-Path -Parent $_) "intelligence.md")" }) -join "`n"
         $targetPatchList = ($targetPatchDirs | ForEach-Object { "- target patch output directory: $_" }) -join "`n"
         $agentSourceList = ($agentSources | ForEach-Object { "- assigned source: $_" }) -join "`n"
         $agentSeedList = ($agentSeeds | ForEach-Object { "- target seed: $_" }) -join "`n"
@@ -438,6 +439,7 @@ The dataset is on trial. Your patches, producer briefs, listening journals, fail
 Challenge:
 $challengeList
 $challengeReportList
+$intelligenceReportList
 - shared prior evidence: $preEvidence
 - shared Qdrant music-production knowledge: $preMusicEvidence
 - patch output directory: $agentPatchDir
@@ -452,11 +454,11 @@ $agentSeedList
 - required duration: $durationLabel
 
 Goal:
-Write exactly one parseable AquaSynth `.aqua` patch for each frozen $targetKind reference assigned to you. This is scene-audio parity and producer apprenticeship, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
+Write exactly one parseable AquaSynth .aqua patch for each frozen $targetKind reference assigned to you. This is scene-audio parity and producer apprenticeship, not IPA articulation. You may use ordinary voices, FM, AM/tremolo, filters, formants, noise layers, acoustic vocal/syrinx primitives, additive/PAD layers, curves, and helper voices.
 
 Composition objective:
 - The previous corpus learned useful sound-production roles but collapsed into short phrases plus texture. Your job is now composition parity: declare meter, tonal center or progression, instrument lanes, section events, automation, and mix motion before polishing timbre.
-- Every final patch must include a composition spine using today's implemented sugar: `meter`, `sequence`, `chords` or `scale`, and `mix` where appropriate. These lower to ordinary `param` and `curve` owners; they are not hidden magic.
+- Every final patch must include a composition spine using today's implemented sugar: meter, sequence, chords or scale, and mix where appropriate. These lower to ordinary param and curve owners; they are not hidden magic.
 - Treat the target as arranged music across time. There should be distinct musical events or motif mutations after the first second, distributed across the full assigned duration. For 10-second clips, seconds 2, 4, 6, and 8 are useful checkpoints; for 30-second or full-song targets, use section entrances, drops, fills, swells, or mix moves across the beginning, middle, and ending.
 - Do not submit the stock attractor: a voiced burst at the start, a copied four-lane kick/snare/hat loop, then textured noise. If the reference really demands that shape, cite target artifacts and listening evidence proving it.
 
@@ -470,50 +472,50 @@ Producer evidence:
 - Write $agentDir/listening-journal.md during self-iteration. For every attempt, record what you expected, what the evaluator/audio facts said, what sounded alive, what sounded fake or static, and the exact revision you made.
 - Write $agentDir/aqua-gap-ledger.md. List missing primitives, syntax sugar, control surfaces, analysis views, or renderer features that made the production harder. Each gap needs current workaround, evidence path, and whether it blocks composition or only polish.
 - Write $agentDir/studio-lesson.md at the end. This is the compact lesson for the next musician: keep/cut verdicts, transferable production ideas, rejected tricks, and which AquaSynth abstractions should be mined next.
-- The evaluator records `producer_musicianship_score`, `required_studio_docs_present`, `template_loop_risk`, `noise_percussion_risk`, `composition_section_score`, and `aqua_gap_count`. Candidates with missing studio evidence, stock-loop risk, or noise-percussion risk are failure pressure, not curriculum exemplars.
+- The evaluator records producer_musicianship_score, required_studio_docs_present, template_loop_risk, noise_percussion_risk, composition_section_score, and aqua_gap_count. Candidates with missing studio evidence, stock-loop risk, or noise-percussion risk are failure pressure, not curriculum exemplars.
 
 Self-iteration loop:
-- For each target, run exactly $IterationsPerTarget local attempts before publishing the final `.aqua` file.
-- Each attempt must write a candidate under `$iterationRoot/attempt-NN/<target-id>/patch`, run the scoring worker against that one target, inspect the rendered candidate evidence, and revise the next attempt.
+- For each target, run exactly $IterationsPerTarget local attempts before publishing the final .aqua file.
+- Each attempt must write a candidate under the private iteration root at attempt-NN/<target-id>/patch, run the scoring worker against that one target, inspect the rendered candidate evidence, and revise the next attempt.
 - Scoring command pattern:
-  `dotnet run --project "$workerProject" -- song-score --patch-root "<attempt-patch-dir>" --challenge "<challenge-json>" --artifact-root "<attempt-dir>" --batch-id "<agent-id>-<target-id>-attempt-NN" --store "<attempt-dir>/iteration-results.cc" --hypothesizer "$agentId-iteration"`
-- After each score, read the attempt's `evaluator-report.md` and `summary.csv`. If the attempt rendered, also read `audio/comparison.txt`, `audio/candidate-analysis.md`, `audio/candidate-logmel-band-stats.csv`, `audio/candidate-rms-envelope-autocorr.csv`, and `audio/candidate-whitened-spectral-autocorr.csv`. If the attempt is `render-failed`, do not try to read missing candidate audio analysis files; treat the parse/lowering/render failure as negative syntax evidence and fix that before changing the composition.
+  dotnet run --project "$workerProject" -- song-score --patch-root "<attempt-patch-dir>" --challenge "<challenge-json>" --artifact-root "<attempt-dir>" --batch-id "<agent-id>-<target-id>-attempt-NN" --store "<attempt-dir>/iteration-results.cc" --hypothesizer "$agentId-iteration"
+- After each score, read the attempt's evaluator-report.md and summary.csv. If the attempt rendered, also read audio/comparison.txt, audio/candidate-analysis.md, audio/candidate-logmel-band-stats.csv, audio/candidate-rms-envelope-autocorr.csv, and audio/candidate-whitened-spectral-autocorr.csv. If the attempt is render-failed, do not try to read missing candidate audio analysis files; treat the parse/lowering/render failure as negative syntax evidence and fix that before changing the composition.
 - Use those candidate-side facts the same way you use target facts: compare spectral bands, envelope autocorrelation, whitened spectral autocorrelation, centroid/RMS, instrument-role metrics, and chip-distress risk. Move timings, filters, gains, sources, roles, and patterns between attempts.
-- The evaluator records song-continuity metrics: `candidate_motion_coverage`, `motion_coverage_ratio`, `candidate_first_second_energy_share`, `first_second_energy_excess`, `candidate_tail_energy_share`, and `mode_collapse_risk`. A patch that plays a short phrase in the first second and then coasts on low-motion texture/noise is failed song evidence even if its RMS or log-mel score looks tolerable.
-- If an attempt has `mode_collapse_risk >= .45`, the next attempt must add later-section motifs or eventful motion across the target's full duration. Do not merely raise the noise bed or pad gain; that is hiding, not composing.
-- If an attempt has high `template_loop_risk` or `noise_percussion_risk`, rebuild the role ownership before touching level: drums need pitched body plus filtered skin and target-specific gates; texture needs band limits and musical motion.
-- Keep intermediate candidates inside `$iterationRoot`; publish only one final `.aqua` per target to the official target patch output directory.
+- The evaluator records song-continuity metrics: candidate_motion_coverage, motion_coverage_ratio, candidate_first_second_energy_share, first_second_energy_excess, candidate_tail_energy_share, and mode_collapse_risk. A patch that plays a short phrase in the first second and then coasts on low-motion texture/noise is failed song evidence even if its RMS or log-mel score looks tolerable.
+- If an attempt has mode_collapse_risk >= .45, the next attempt must add later-section motifs or eventful motion across the target's full duration. Do not merely raise the noise bed or pad gain; that is hiding, not composing.
+- If an attempt has high template_loop_risk or noise_percussion_risk, rebuild the role ownership before touching level: drums need pitched body plus filtered skin and target-specific gates; texture needs band limits and musical motion.
+- Keep intermediate candidates inside the private iteration root; publish only one final .aqua per target to the official target patch output directory.
 
 Reusable abstraction mining:
 - Your second job is to act like a musician designing the future patch language. Every attempt should name at least one reusable abstraction that made the patch easier to think about.
 - Write $agentDir/abstraction-ledger.md as the report of record for syntax-sugar mining. For each proposed abstraction include:
-  - `name`: a lowercase slug such as `syrinx-hook`, `sub-kick-grid`, `spectral-dust-hat`, `additive-wash`, `call-response-bass`;
-  - `role`: what musical job it owns;
-  - `owner sentence`: `X owns Y so Z remains true`;
-  - `controls`: the parameters a musician would expect to tweak;
-  - `current lowering`: exact AquaSynth syntax using today's `voice`, `texture`, `pattern`, `scale`, `layer`, `harmonics`, `spectrum`, `param`, and `curve` commands;
-  - `attempt evidence`: which attempt used it, score movement, candidate analysis facts, and what changed after listening to the rendered output;
-  - `sugar sketch`: the shortest future syntax you wish existed;
-  - `keep/cut verdict`: whether this abstraction should be mined into DSL sugar, kept as a stock patch idiom, or discarded.
+  - name: a lowercase slug such as syrinx-hook, sub-kick-grid, spectral-dust-hat, additive-wash, call-response-bass;
+  - role: what musical job it owns;
+  - owner sentence: X owns Y so Z remains true;
+  - controls: the parameters a musician would expect to tweak;
+  - current lowering: exact AquaSynth syntax using today's voice, texture, pattern, scale, layer, harmonics, spectrum, param, and curve commands;
+  - attempt evidence: which attempt used it, score movement, candidate analysis facts, and what changed after listening to the rendered output;
+  - sugar sketch: the shortest future syntax you wish existed;
+  - keep/cut verdict: whether this abstraction should be mined into DSL sugar, kept as a stock patch idiom, or discarded.
 - Prefer abstractions that transfer across multiple assigned songs. A one-off trick is allowed only if you label it as target-specific and say why it should not become syntax.
 - Do not propose sugar that hides ownership. The future shorthand must still lower into visible syrinx, subtractive, additive/PAD, texture, pattern, scale, or curve owners.
 - Composition abstractions are now first-class sugar candidates. Prefer reusable names like `metered_progression`, `hook_degrees`, `lane_sequence`, `section_rise`, `drop_fill`, `mix_scene`, or better target-grounded names. Each one must say which `meter`, `sequence`, `chords`, `scale`, `mix`, `param`, and `curve` lines it lowers into.
 
 Noise and texture:
-- Do not model background or recording color as a full-duration raw `voice wave=noise` bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
-- Use the shaped texture owner for noise roles, but make it target-specific: `texture name=dust_hat role=dust pattern=<target-derived-pattern> step=<beat_seconds/4> gain=.08 sustain=<duration_seconds>`, `texture name=air_wash role=air gain=.035 sustain=<duration_seconds>`, `texture name=codec_bed role=codec gain=.04 sustain=<duration_seconds>`.
-- `texture` lowers to a gated noise voice with role-specific bandpass/highpass/lowpass/tremolo defaults and a control curve or pattern gate. Raw `voice wave=noise` is only acceptable for short transients with explicit gates and narrow filters.
+- Do not model background or recording color as a full-duration raw voice wave=noise bed. That produces static white-noise wash and will be treated as broken subtractive synthesis, not scene modeling.
+- Use the shaped texture owner for noise roles, but make it target-specific: texture name=dust_hat role=dust pattern=<target-derived-pattern> step=<beat_seconds/4> gain=.08 sustain=<duration_seconds>, texture name=air_wash role=air gain=.035 sustain=<duration_seconds>, texture name=codec_bed role=codec gain=.04 sustain=<duration_seconds>.
+- texture lowers to a gated noise voice with role-specific bandpass/highpass/lowpass/tremolo defaults and a control curve or pattern gate. Raw voice wave=noise is only acceptable for short transients with explicit gates and narrow filters.
 
 Instrument ownership:
 - This harness is feeding the music-generator curriculum, so do not solve the target with three naked oscillators and a prayer. The scorer now records instrument-role metrics and chip-distress risk in CultCache.
-- If the patch has a singing, creature, or alien lead role, use the syrinx/acoustic owner: `source_port kind=syrinx`, pressure/opening curves, `acoustic_network`, and `acoustic_voice`, then shape it with filters/modulation.
+- If the patch has a singing, creature, or alien lead role, use the syrinx/acoustic owner: source_port kind=syrinx, pressure/opening curves, acoustic_network, and acoustic_voice, then shape it with filters/modulation.
 - If the patch has drums or rhythmic transients, use subtractive ownership: pitched sine/triangle body, filtered noise skin, short envelope, and pattern gate.
 - If the patch has a pad, bed, drone, or harmonic wash, use additive/PAD ownership: `layer engine=add` or `engine=pad`, `harmonics`, `spectrum`, and slow modulation.
 - Ordinary simple voices are still legal as helpers, but a candidate built mostly from square/sine/saw blips with no syrinx, subtractive drum, additive/PAD, or shaped texture role will be treated as chip-distress-risk evidence.
 
 Rhythm and tempo:
-- The challenge report includes `tempo_bpm`, `beat_seconds`, and `tempo_confidence`, estimated from spectral/RMS onset autocorrelation.
-- The challenge report also points to `analysis_report`, `log_mel_spectrogram_csv`, `log_mel_band_stats_csv`, `rms_envelope_csv`, and `rms_envelope_autocorr_csv`; read them before writing the patch.
+- The challenge report includes tempo_bpm, beat_seconds, and tempo_confidence, estimated from spectral/RMS onset autocorrelation.
+- The challenge report also points to analysis_report, log_mel_spectrogram_csv, log_mel_band_stats_csv, rms_envelope_csv, and rms_envelope_autocorr_csv; read them before writing the patch.
 - Use spectrogram band means, first derivatives, second derivatives, and envelope autocorrelation peaks as evidence for which voices should be steady, pulsed, noisy, bright, or accelerating.
 - Use those timing facts to build rhythmic controls.
 - Current sequencing syntax is Strudel-ish through ordinary AquaSynth parameter curves:
@@ -521,7 +523,7 @@ Rhythm and tempo:
   - step a pattern with hold interpolation: `curve name=kick_seq path=/seq/kick points=0:1,0.12:0,0.48:1,0.60:0 interp=hold loop=true`
   - new sugar now exists: `pattern name=kick_seq path=/seq/kick pattern=x..x step=<beat_seconds/4> high=1 low=0`
   - use beat-derived times from `beat_seconds`; eighth notes are `beat_seconds/2`, sixteenths are `beat_seconds/4`.
-  - bind parameters into voices or primitives, for example `gain=@/seq/kick`, `tremolo_hz=<tempo_bpm/60>`, `noise=@/seq/hiss`, `freq=@/seq/pitch`.
+  - bind parameters into voices or primitives, for example gain=@/seq/kick, tremolo_hz=<tempo_bpm/60>, noise=@/seq/hiss, freq=@/seq/pitch.
 - Do not invent unimplemented syntax like `s("bd sn")` inside the `.aqua` candidate. You may propose it in `instrument-conventions.md`.
 
 Composition sugar available today:
@@ -533,35 +535,35 @@ Composition sugar available today:
 - These are Strudel-ish authoring conveniences, but the lowered truth remains inspectable parameters and curves.
 
 Register and scale:
-- The challenge report includes `dominant_hz`, `register_low_hz`, `register_high_hz`, `root_note`, `suggested_scale`, and `scale_frequencies_hz`.
+- The challenge report includes dominant_hz, register_low_hz, register_high_hz, root_note, suggested_scale, and scale_frequencies_hz.
 - Songs tend to pick a register and stay there. Treat those bounds as the default melodic playground unless your hypothesis explicitly tests octave spread.
 - Current scale sugar is explicit frequency sequencing:
   - declare pitch: `param path=/seq/pitch default=<dominant_hz> min=<register_low_hz> max=<register_high_hz> step=.01 unit=Hz`
   - step the scale: `curve name=lead_scale path=/seq/pitch points=0:<scale0>,0.25:<scale1>,0.5:<scale2>,0.75:<scale3> interp=hold loop=true`
   - new sugar now exists: `scale name=lead_scale path=/seq/pitch freqs=<scale_frequencies_hz> degrees=0,1,3,2 step=<beat_seconds/4>`
-  - bind it: `freq=@/seq/pitch`
+  - bind it: freq=@/seq/pitch
 - Candidate patches may use implemented `pattern` and `scale` sugar or the explicit lowered `param`/`curve` form. Proposed future sugar goes in the report.
 
 Instrument and DSL convention invention:
-- Invent at least three reusable instrument or pattern roles across your assigned targets, such as `syrinx-hook`, `dust-hat-grid`, `codec-bed`, `rubber-bass`, `additive-wash`, `vowel-drone`, or another precise name.
-- Write $agentDir/instrument-conventions.md as a concise index that points into `abstraction-ledger.md` and summarizes:
+- Invent at least three reusable instrument or pattern roles across your assigned targets, such as syrinx-hook, dust-hat-grid, codec-bed, rubber-bass, additive-wash, vowel-drone, or another precise name.
+- Write $agentDir/instrument-conventions.md as a concise index that points into abstraction-ledger.md and summarizes:
   - the proposed instrument role names;
   - the control surfaces each role would want;
   - any Strudel-like sugar that would make the patch shorter;
-  - the exact lowering into today's AquaSynth syntax using explicit `voice`, `texture`, `pattern`, `scale`, `param`, and `curve` lines.
+  - the exact lowering into today's AquaSynth syntax using explicit voice, texture, pattern, scale, param, and curve lines.
 - The `.aqua` candidate must use today's implemented syntax only: `pattern`, `scale`, `param`, `curve`, and ordinary patch/voice syntax are legal. Proposed future sugar is evidence for the next DSL cut, not magic accepted by the parser.
 - Today's implemented composition syntax also includes `meter`, `sequence`, `chords`, and `mix`. Prefer those over raw `param`/`curve` boilerplate when writing composition-scale structure.
-- Legal oscillator `wave=` values are `sine`, `square`, `saw`, `triangle`, and `noise` only. Use `square` plus filters/envelopes for pulse-like tone; `pulse` is not accepted syntax.
+- Legal oscillator wave= values are sine, square, saw, triangle, and noise only. Use square plus filters/envelopes for pulse-like tone; pulse is not accepted syntax.
 
 Evidence contract:
-- Read every assigned challenge report, $preEvidence, and $preMusicEvidence.
+- Read every assigned challenge report, target music intelligence report, $preEvidence, and $preMusicEvidence.
 - Write $agentDir/hypotheses.md with: per-target reference features, shared cross-target invariants, cited analysis artifacts, tempo/rhythm plan, register/scale plan, scene voices, synthesis owners, invented instrument roles, expected metric movement on assigned targets, known risks.
 - Include a `Composition Map` section in $agentDir/hypotheses.md: meter/time signature, progression or tonal center, instrument lanes, section events after the opening, automation/mix moves, and which evaluator metrics should prove the arrangement did not collapse.
 - Also write $agentDir/producer-brief.md, $agentDir/listening-journal.md, $agentDir/aqua-gap-ledger.md, and $agentDir/studio-lesson.md. These reports are now curriculum admission evidence, not decorative paperwork.
 - Write exactly one `.aqua` file under each target patch output directory named `<agent-id>__<family>__<hypothesis>.aqua`.
 - Include at least three scene voices or layers in the patch: a primary voice/body, a rhythmic drum/transient/noise role, and a pad/bed/recording-color role. Prefer syrinx for the primary voice when it is voice-like, subtractive for the drum/transient, and additive/PAD or shaped texture for the bed.
 - The target must have full-form continuity: distinct musical events or motif mutations after the first second, with audible activity distributed across the beginning, middle, and ending. A one-second riff followed by gently textured pink noise is mode collapse and should not be submitted.
-- Background/recording-color layers must use `texture` or an equivalently gated and band-shaped explicit voice; a static full-duration white-noise bed is failed evidence.
+- Background/recording-color layers must use texture or an equivalently gated and band-shaped explicit voice; a static full-duration white-noise bed is failed evidence.
 - Make each patch duration/gates cover its matching target duration from the challenge report.
 
 Return a short final summary naming the patch and report.
