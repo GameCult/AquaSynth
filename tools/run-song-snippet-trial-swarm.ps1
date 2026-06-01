@@ -156,6 +156,7 @@ function New-AgentWorktree {
         -ArgumentList @(
             "worktree",
             "add",
+            "--quiet",
             "--detach",
             $WorktreeRoot,
             "HEAD"
