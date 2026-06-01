@@ -554,7 +554,6 @@ for ($pass = 1; $pass -le $Passes; $pass++) {
             -ArgumentList @(
                 "build",
                 $agentWorkerProject,
-                "--no-restore",
                 "--disable-build-servers",
                 "-p:UseSharedCompilation=false",
                 "-p:BuildInParallel=false"
