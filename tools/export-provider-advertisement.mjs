@@ -1,0 +1,191 @@
+#!/usr/bin/env node
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
+const document = {
+  schema: "gamecult.eve.provider_advertisement.v1",
+  providerId: "aquasynth.service",
+  title: "AquaSynth Service",
+  description:
+    "AquaSynth accepts .aqua DSL and Weksa utterance handoffs, compiles Faust-native instruments, returns live instrument handles, and publishes controllable synth state through CultMesh/Eve.",
+  mode: "fixture-read-only",
+  serviceVerse: {
+    id: "verse.aquasynth.service.v1",
+    cultMeshKey: "aquasynth.service/provider-advertisement",
+    authority: "AquaSynth daemon identity, schema catalog, provider publication, and synth runtime boundary",
+    owns: [
+      ".aqua patch parsing",
+      "patch graph semantics",
+      "Faust source emission",
+      "native Faust compilation",
+      "compiled instrument handles",
+      "live control sessions",
+      "sample/render receipts",
+      "learned utterance embeddings and synth-driver controls",
+    ],
+    doesNotOwn: ["Weksa conversational intent", "Persona canonical state", "Eve presentation runtime"],
+  },
+  nestedVerses: [
+    {
+      id: "aquasynth.patch",
+      kind: "patch",
+      cultMeshKey: "aquasynth.patch/current",
+      authority: "AquaSynth.Core .aqua parser and patch graph model",
+      schemas: ["aquasynth.patch_graph.v0"],
+    },
+    {
+      id: "aquasynth.compile",
+      kind: "compile",
+      cultMeshKey: "aquasynth.compile/jobs",
+      authority: "AquaSynth.Faust compiler boundary",
+      schemas: ["aquasynth.faust_source.v0", "aquasynth.compiled_instrument.v0"],
+    },
+    {
+      id: "aquasynth.instrument",
+      kind: "instrument",
+      cultMeshKey: "aquasynth.instrument/sessions",
+      authority: "AquaSynth native host and control-session owner",
+      schemas: ["aquasynth.instrument_handle.v0", "aquasynth.control_session.v0"],
+    },
+    {
+      id: "aquasynth.speech",
+      kind: "speech",
+      cultMeshKey: "aquasynth.speech/current",
+      authority: "AquaSynth utterance embedding and synth-driver runtime",
+      schemas: ["aquasynth.utterance_embedding.v0", "aquasynth.speech_render_receipt.v0"],
+    },
+    {
+      id: "aquasynth.operator",
+      kind: "operator",
+      cultMeshKey: "aquasynth.operator/status",
+      authority: "AquaSynth daemon runtime",
+      schemas: ["aquasynth.operator_state.v0", "gamecult.eve.surface.v1"],
+    },
+  ],
+  schemaWitnessFamilies: [
+    {
+      family: "patch",
+      namespace: "aquasynth.patch.*",
+      witnesses: ["aquasynth.patch_graph.v0"],
+      durableShape: ".aquasynth/patches/{patchId}.cc",
+    },
+    {
+      family: "compile",
+      namespace: "aquasynth.compile.*",
+      witnesses: ["aquasynth.faust_source.v0", "aquasynth.compiled_instrument.v0"],
+      durableShape: ".aquasynth/faust/{compileId}.cc",
+    },
+    {
+      family: "instrument",
+      namespace: "aquasynth.instrument.*",
+      witnesses: ["aquasynth.instrument_handle.v0", "aquasynth.control_session.v0"],
+      durableShape: ".aquasynth/sessions/{sessionId}.cc",
+    },
+    {
+      family: "render",
+      namespace: "aquasynth.render.*",
+      witnesses: ["aquasynth.render_sample.v0", "aquasynth.render_loss.v0"],
+      durableShape: ".aquasynth/renders/{renderId}.cc",
+    },
+    {
+      family: "speech",
+      namespace: "aquasynth.speech.*",
+      witnesses: ["aquasynth.utterance_embedding.v0", "aquasynth.speech_render_receipt.v0"],
+      durableShape: ".aquasynth/speech/{utteranceId}.cc",
+    },
+    {
+      family: "eve",
+      namespace: "aquasynth.eve.*",
+      witnesses: ["gamecult.eve.provider_advertisement.v1", "gamecult.eve.surface.v1"],
+      durableShape: ".aquasynth/eve-surfaces.cc",
+    },
+  ],
+  cultMeshSurfaceKeys: [
+    {
+      id: "aquasynth.eve.patch_graph.v0",
+      documentSchema: "gamecult.eve.surface.v1",
+      cultMeshKey: "aquasynth.eve.surface.patch-graph",
+      binds: ["aquasynth.patch.*", "aquasynth.compile.*"],
+      status: "expected-surface",
+    },
+    {
+      id: "aquasynth.eve.compile_queue.v0",
+      documentSchema: "gamecult.eve.surface.v1",
+      cultMeshKey: "aquasynth.eve.surface.compile-queue",
+      binds: ["aquasynth.compile.*", "aquasynth.operator.*"],
+      status: "expected-surface",
+    },
+    {
+      id: "aquasynth.eve.instrument_control.v0",
+      documentSchema: "gamecult.eve.surface.v1",
+      cultMeshKey: "aquasynth.eve.surface.instrument-control",
+      binds: ["aquasynth.instrument.*", "aquasynth.render.*"],
+      status: "expected-surface",
+    },
+    {
+      id: "aquasynth.eve.speech_training.v0",
+      documentSchema: "gamecult.eve.surface.v1",
+      cultMeshKey: "aquasynth.eve.surface.speech-training",
+      binds: ["weksa.utterance.*", "aquasynth.speech.*", "aquasynth.render.*"],
+      status: "expected-surface",
+    },
+  ],
+  commandBoundaries: [
+    {
+      id: "aquasynth.command.patch.compile",
+      owner: "AquaSynth",
+      acceptedByFixture: false,
+      allowedInputs: [".aqua DSL", "compile target", "host architecture"],
+      emits: ["aquasynth.patch_graph.v0", "aquasynth.faust_source.v0", "aquasynth.compiled_instrument.v0"],
+    },
+    {
+      id: "aquasynth.command.instrument.control",
+      owner: "AquaSynth",
+      acceptedByFixture: false,
+      allowedInputs: ["instrument handle", "semantic control values"],
+      emits: ["aquasynth.control_session.v0"],
+    },
+    {
+      id: "aquasynth.command.instrument.sample",
+      owner: "AquaSynth",
+      acceptedByFixture: false,
+      allowedInputs: ["instrument handle", "duration", "sample format"],
+      emits: ["aquasynth.render_sample.v0"],
+    },
+    {
+      id: "aquasynth.command.speech.realize",
+      owner: "AquaSynth",
+      acceptedByFixture: false,
+      allowedInputs: ["weksa.utterance_handoff.v0", "weksa.utterance_embedding_handoff.v0.1"],
+      emits: ["aquasynth.utterance_embedding.v0", "aquasynth.speech_render_receipt.v0"],
+      forbiddenTargets: ["Weksa conversational intent truth"],
+    },
+  ],
+  loweringRules: [
+    "AquaSynth owns learned embeddings, synth controls, Faust compilation, native binary lifetime, instrument handles, and sampled outputs.",
+    "Weksa owns writing-to-intent and intent-to-utterance lowering.",
+    "Faust source and native binaries are emitted artifacts with typed receipts, not the semantic patch owner.",
+    "Eve surfaces control and inspect sessions through CultMesh command documents; they do not own audio state.",
+  ],
+};
+
+async function main() {
+  const args = process.argv.slice(2);
+  const outIndex = args.indexOf("--out");
+  const outputPath = outIndex >= 0 ? args[outIndex + 1] : undefined;
+  const json = `${JSON.stringify(document, null, 2)}\n`;
+
+  if (outputPath) {
+    const resolved = path.resolve(process.cwd(), outputPath);
+    await mkdir(path.dirname(resolved), { recursive: true });
+    await writeFile(resolved, json, "utf8");
+    return;
+  }
+
+  process.stdout.write(json);
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});
