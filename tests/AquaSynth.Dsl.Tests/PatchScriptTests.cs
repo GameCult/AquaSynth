@@ -1704,7 +1704,7 @@ public sealed class PatchScriptTests
         Assert.Equal(.1f, voice.Envelope.AttackSeconds, 5);
         Assert.Equal(.5f, voice.Envelope.SustainLevel, 5);
         Assert.Equal(RateLevelCurve.Exponential, voice.RateLevelEnvelope.Curve2);
-        Assert.Contains("rl4_env(0.1, 1, 0, 0.2, 0.8, 1, 0.3, 0.5, 1, 0.4, 0, 0, patch_param_0)", export.Source);
+        Assert.Contains("rl4_env_at(voice_0_age, 0.1, 1, 0, 0.2, 0.8, 1, 0.3, 0.5, 1, 0.4, 0, 0, patch_param_0)", export.Source);
     }
 
     [Fact]
@@ -1945,7 +1945,7 @@ public sealed class PatchScriptTests
         Assert.Equal(0, envelope.Level4);
         Assert.Equal(.75f, op2.Note.GateSeconds, 5);
         Assert.Equal(RateLevelCurve.Linear, envelope.Curve1);
-        Assert.Contains("rl4_env(0.004, 1, 0, 0.12, 0.7, 0, 0.2, 0.25, 0, 0.4, 0, 0, 0.75)", export.Source);
+        Assert.Contains("rl4_env_at(age, 0.004, 1, 0, 0.12, 0.7, 0, 0.2, 0.25, 0, 0.4, 0, 0, 0.75)", export.Source);
     }
 
     [Fact]
@@ -1966,7 +1966,7 @@ public sealed class PatchScriptTests
         Assert.Equal(RateLevelCurve.Exponential, envelope.Curve2);
         Assert.Equal(RateLevelCurve.Exponential, envelope.Curve3);
         Assert.Equal(RateLevelCurve.Linear, envelope.Curve4);
-        Assert.Contains("rl4_env(0.004, 1.2, 0, 0.12, 0.7, 1, 0.2, 0.25, 1, 0.4, 0, 0, 0.75)", export.Source);
+        Assert.Contains("rl4_env_at(age, 0.004, 1.2, 0, 0.12, 0.7, 1, 0.2, 0.25, 1, 0.4, 0, 0, 0.75)", export.Source);
     }
 
     [Fact]
@@ -1989,7 +1989,7 @@ public sealed class PatchScriptTests
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/opgraphs/0/operators/2/env/decay" && binding.ParameterPath == "/macro/strike");
         Assert.Contains(patch.ParameterBindings, binding => binding.FieldPath == "/opgraphs/0/routes/2>1/index" && binding.ParameterPath == "/macro/brightness");
         Assert.Contains("opgraph_0_op_2 * patch_param_0", export.Source);
-        Assert.Contains("oneshot_adsr(0.01, patch_param_1, 0, 0", export.Source);
+        Assert.Contains("oneshot_adsr_at(age, 0.01, patch_param_1, 0, 0", export.Source);
         Assert.Contains("opgraph_0 = (opgraph_0_op_1) * patch_param_0;", export.Source);
         Assert.Empty(export.Warnings);
     }
@@ -2022,7 +2022,7 @@ public sealed class PatchScriptTests
         var export = FaustEmitter.EmitScript("param path=/macro/brightness default=.45 min=0 max=1 step=.001;v w=saw f=80 lpf=@/macro/brightness");
 
         Assert.Contains("patch_param_0 = hslider(\"/macro/brightness\", 0.45, 0, 1, 0.001) : si.smoo;", export.Source);
-        Assert.Contains("clip01(patch_param_0 * (1.0 + 0 * age * 1.8) + patch_mod_lpf + 0.0)", export.Source);
+        Assert.Contains("clip01(patch_param_0 * (1.0 + 0 * voice_0_age * 1.8) + patch_mod_lpf + 0.0)", export.Source);
         Assert.Empty(export.Warnings);
     }
 
@@ -2071,7 +2071,7 @@ public sealed class PatchScriptTests
         Assert.NotNull(envelope);
         Assert.Equal(.4f, envelope.StartLevel, 5);
         Assert.Equal(.3f, envelope.Level1, 5);
-        Assert.Contains("rl4_env_from(0.4", export.Source);
+        Assert.Contains("rl4_env_from_at(voice_0_age, 0.4", export.Source);
     }
 
     [Fact]

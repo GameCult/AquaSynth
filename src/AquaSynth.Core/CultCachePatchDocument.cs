@@ -142,6 +142,7 @@ public static class CultCachePatchDocumentCatalog
         new("patches/advanced/additive-pad.aqua", "advanced", "additive-pad", "BuiltInScripts.ReferenceScripts", "Additive body plus PAD spectral halo; slow controls own bloom and air."),
         new("patches/advanced/aurora-pad.aqua", "advanced", "aurora-pad", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
         new("patches/advanced/bird-syrinx.aqua", "advanced", "bird-syrinx", "Graph-native syrinx patch", "Paired labial source-port bird voice for differentiable training and audition."),
+        new("patches/advanced/electro-drop-demo.aqua", "advanced", "electro-drop-demo", "AquaSynth song-swarm synthesis demo", "Electro/complextro demo with intro/build/drop section gates, layered bass chops, additive wash, shaped texture, and mix automation."),
         new("patches/advanced/glass-creature.aqua", "advanced", "glass-creature", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
         new("patches/advanced/machine-breath.aqua", "advanced", "machine-breath", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
         new("patches/advanced/ritual-sequence.aqua", "advanced", "ritual-sequence", "BuiltInScripts.ReferenceScripts", "Stock reference patch exported from the in-code catalog."),
