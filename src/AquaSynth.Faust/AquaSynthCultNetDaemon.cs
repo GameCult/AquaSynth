@@ -437,6 +437,7 @@ public static class AquaSynthCultNetDocuments
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentBlockCommand>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentCloseCommand>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthCompiledInstrumentSession>())
+            .Register(CultNetDocumentBinding.ForDocument<AquaSynthLiveInstrumentSessionState>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthPatchCompileReceipt>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthRenderSampleReceipt>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthAutomationStreamReceipt>())

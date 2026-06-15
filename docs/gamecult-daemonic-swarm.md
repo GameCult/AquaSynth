@@ -116,8 +116,8 @@ client can send `instrument.sample`, `instrument.stream`, `instrument.open`,
 state through the local CultNet database. AquaSynth compiles or opens the
 instrument, keeps the native streaming patch instance, applies controls,
 releases live sessions, writes sample/block artifacts and receipts, and
-publishes the result. The client consumes the capability; it does not become
-the synth.
+publishes retained live-session state. The client consumes the capability; it
+does not become the synth.
 
 That lets one AquaSynth daemon sit on this machine or another machine in the
 Verse and serve multiple apps. The same engine can support Fensalir, Eve
@@ -296,8 +296,8 @@ should eventually move through a low-latency local transport such as
 shared-memory rings, platform audio graph nodes, memory-mapped packet buffers,
 or another fixed-block lane that does not drag filesystem writes or chatty
 command protocols into the audio callback. The command surface still owns
-intent, patch lifetime, controls, and receipts. The realtime lane just moves
-sound fast.
+intent, patch lifetime, controls, retained session state, and receipts. The
+realtime lane just moves sound fast.
 
 That distinction matters. Transport is not authority. A ring buffer should not
 decide what instrument exists. A renderer should not decide which command

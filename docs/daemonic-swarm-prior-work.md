@@ -16,8 +16,10 @@ architecture. It is a reference ledger for
   `instrument.open`, `instrument.control`, `instrument.block`, and
   `instrument.close` execution. It writes compile/session/render/stream/live/
   operator witnesses, keeps native streaming patch instances for live sessions,
-  releases live sessions without deleting compiled patch witnesses, and emits
-  CultMesh-compatible stream descriptors and packet receipts.
+  rewrites retained `aquasynth.live_instrument_session.v1` state on lifecycle
+  transitions, releases live sessions without deleting compiled patch
+  witnesses, and emits CultMesh-compatible stream descriptors and packet
+  receipts.
 - `src/AquaSynth.Faust/AquaSynthCultNetDaemon.cs`: local CultNet database host
   and command watcher. Typed command documents enter the database; typed
   receipts and provider state come back out.

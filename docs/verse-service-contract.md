@@ -43,6 +43,9 @@ binary lifetime, live instrument handles, control sessions, and sampled outputs.
   control catalog, architecture target, and lifecycle receipts.
 - `.aquasynth/sessions/{sessionId}.cc`: live instrument handle, lease, control
   values, transport state, and teardown receipt.
+- `.aquasynth/live-sessions/{sessionId}.cc`: retained live session state for
+  the service-owned streaming patch instance: open/closed status, current
+  control values, block size, next sequence, and last command/receipt ids.
 - `.aquasynth/renders/{renderId}.cc`: offline/live sample outputs, feature
   measurements, and scoring receipts.
 - `.aquasynth/speech/{utteranceId}.cc`: Weksa handoff consumption, packed
@@ -116,7 +119,9 @@ invent a separate truth for compiled products or control state.
   `instrument.control`, `instrument.block`, and `instrument.close` envelopes.
   These live commands keep and release service-owned native streaming patch
   instances; closing a live session does not delete the reusable compiled patch
-  witness.
+  witness. Each lifecycle transition also rewrites
+  `.aquasynth/live-sessions/{sessionId}.cc` so clients and operators can inspect
+  the current session truth without replaying receipts.
 - `cultnet-host`: starts a local CultNet host/database for AquaSynth command and
   receipt documents, publishes `aquasynth.cultnet_provider.v1`, and watches
   typed command records until the process is stopped.

@@ -21,6 +21,7 @@ public static class AquaSynthDaemonSchemas
     public const string InstrumentControlCommand = "aquasynth.command.instrument_control.v1";
     public const string InstrumentBlockCommand = "aquasynth.command.instrument_block.v1";
     public const string InstrumentCloseCommand = "aquasynth.command.instrument_close.v1";
+    public const string LiveInstrumentSession = "aquasynth.live_instrument_session.v1";
     public const string InstrumentOpenReceipt = "aquasynth.instrument_open_receipt.v1";
     public const string InstrumentControlReceipt = "aquasynth.instrument_control_receipt.v1";
     public const string InstrumentBlockReceipt = "aquasynth.instrument_block_receipt.v1";
@@ -128,6 +129,25 @@ public sealed record AquaSynthCompiledInstrumentSession(
     [property: Key(10)] string CreatedAtUtc,
     [property: Key(11)] string[] ControlPaths,
     [property: Key(12)] string[] ProbePaths);
+
+[CultDocument("aquasynth.live_instrument_session", AquaSynthDaemonSchemas.LiveInstrumentSession)]
+[MessagePackObject]
+public sealed record AquaSynthLiveInstrumentSessionState(
+    [property: Key(0), CultName] string SessionId,
+    [property: Key(1), CultIndex("patch")] string PatchId,
+    [property: Key(2)] string Status,
+    [property: Key(3)] string OpenedAtUtc,
+    [property: Key(4)] string UpdatedAtUtc,
+    [property: Key(5)] string ClosedAtUtc,
+    [property: Key(6)] int SampleRate,
+    [property: Key(7)] int InputCount,
+    [property: Key(8)] int OutputCount,
+    [property: Key(9)] int BlockSize,
+    [property: Key(10)] float Gain,
+    [property: Key(11)] ulong NextSequence,
+    [property: Key(12)] Dictionary<string, float> Controls,
+    [property: Key(13)] string LastCommandId,
+    [property: Key(14)] string LastReceiptId);
 
 [CultDocument("aquasynth.patch_compile_receipt", AquaSynthDaemonSchemas.PatchCompileReceipt)]
 [MessagePackObject]
@@ -430,7 +450,7 @@ public sealed class AquaSynthDaemonService : IDisposable
             oldLive.Dispose();
         }
 
-        liveSessions[compile.SessionId] = new LiveInstrumentSession(
+        var liveSession = new LiveInstrumentSession(
             compile.SessionId,
             command.PatchId,
             command.BlockSize,
@@ -438,6 +458,7 @@ public sealed class AquaSynthDaemonService : IDisposable
             patch,
             patch.CreateStreamingPatch(),
             controls);
+        liveSessions[compile.SessionId] = liveSession;
 
         var receipt = new AquaSynthInstrumentOpenReceipt(
             ReceiptId(command.CommandId, "open"),
@@ -453,6 +474,7 @@ public sealed class AquaSynthDaemonService : IDisposable
             [.. patch.ControlPaths],
             [.. patch.ProbePaths]);
         await WriteReceiptAsync("live", receipt.ReceiptId, receipt).ConfigureAwait(false);
+        await WriteLiveSessionStateAsync(liveSession, "open", command.CommandId, receipt.ReceiptId).ConfigureAwait(false);
         await WriteOperatorStateAsync(command.CommandId, receipt.Status).ConfigureAwait(false);
         return receipt;
     }
@@ -488,6 +510,7 @@ public sealed class AquaSynthDaemonService : IDisposable
             Now(),
             controls.Count);
         await WriteReceiptAsync("live", receipt.ReceiptId, receipt).ConfigureAwait(false);
+        await WriteLiveSessionStateAsync(session, "open", command.CommandId, receipt.ReceiptId).ConfigureAwait(false);
         await WriteOperatorStateAsync(command.CommandId, receipt.Status).ConfigureAwait(false);
         return receipt;
     }
@@ -538,13 +561,14 @@ public sealed class AquaSynthDaemonService : IDisposable
         var floatPath = Path.Combine(blockDir, $"{SafeFileName(blockId)}.f32");
         await WriteFloat32Async(floatPath, mono).ConfigureAwait(false);
 
+        var sequence = session.NextSequence();
         var receipt = new AquaSynthInstrumentBlockReceipt(
             blockId,
             command.CommandId,
             command.SessionId,
             "succeeded",
             Now(),
-            session.NextSequence(),
+            sequence,
             session.Patch.Manifest.SampleRate,
             mono.Length,
             Peak(mono),
@@ -552,6 +576,7 @@ public sealed class AquaSynthDaemonService : IDisposable
             ToArtifactUri(floatPath),
             await Sha256Async(floatPath).ConfigureAwait(false));
         await WriteReceiptAsync("live", receipt.BlockId, receipt).ConfigureAwait(false);
+        await WriteLiveSessionStateAsync(session, "open", command.CommandId, receipt.BlockId).ConfigureAwait(false);
         await WriteOperatorStateAsync(command.CommandId, receipt.Status).ConfigureAwait(false);
         return receipt;
     }
@@ -585,6 +610,7 @@ public sealed class AquaSynthDaemonService : IDisposable
             "succeeded",
             Now(),
             true);
+        await WriteLiveSessionStateAsync(session, "closed", command.CommandId, receipt.ReceiptId, receipt.ClosedAtUtc).ConfigureAwait(false);
         await WriteReceiptAsync("live", receipt.ReceiptId, receipt).ConfigureAwait(false);
         await WriteOperatorStateAsync(command.CommandId, receipt.Status).ConfigureAwait(false);
         return receipt;
@@ -841,6 +867,32 @@ public sealed class AquaSynthDaemonService : IDisposable
                 "aquasynth.operator/status"
             ]);
         await WriteReceiptAsync("operator", "operator-state", state, global: true).ConfigureAwait(false);
+    }
+
+    private Task WriteLiveSessionStateAsync(
+        LiveInstrumentSession session,
+        string status,
+        string commandId,
+        string receiptId,
+        string closedAtUtc = "")
+    {
+        var state = new AquaSynthLiveInstrumentSessionState(
+            session.SessionId,
+            session.PatchId,
+            status,
+            session.OpenedAtUtc,
+            Now(),
+            closedAtUtc,
+            session.Patch.Manifest.SampleRate,
+            session.Stream.InputCount,
+            session.Stream.OutputCount,
+            session.BlockSize,
+            session.Gain,
+            session.NextSequenceValue,
+            new Dictionary<string, float>(session.Controls, StringComparer.OrdinalIgnoreCase),
+            commandId,
+            receiptId);
+        return WriteReceiptAsync("live-sessions", session.SessionId, state);
     }
 
     private bool TryCompileScriptForDuration(
@@ -1109,6 +1161,7 @@ public sealed class AquaSynthDaemonService : IDisposable
             Patch = patch;
             Stream = stream;
             Controls = controls;
+            OpenedAtUtc = Now();
         }
 
         public string SessionId { get; }
@@ -1124,6 +1177,10 @@ public sealed class AquaSynthDaemonService : IDisposable
         public AquaSynthStreamingPatch Stream { get; }
 
         public Dictionary<string, float> Controls { get; }
+
+        public string OpenedAtUtc { get; }
+
+        public ulong NextSequenceValue => sequence;
 
         public void ApplyControls(IReadOnlyDictionary<string, float> controls)
         {

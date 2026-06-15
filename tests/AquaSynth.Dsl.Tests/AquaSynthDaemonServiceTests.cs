@@ -1,5 +1,6 @@
 using AquaSynth.Faust;
 using GameCult.Caching;
+using GameCult.Caching.MessagePack;
 
 namespace AquaSynth.Dsl.Tests;
 
@@ -154,6 +155,13 @@ public sealed class AquaSynthDaemonServiceTests
         Assert.True(File.Exists(UriToPath(loud.Float32Uri)));
         Assert.Equal(128 * sizeof(float), new FileInfo(UriToPath(loud.Float32Uri)).Length);
         Assert.True(File.Exists(Path.Combine(storeRoot, "live", $"{close.ReceiptId}.cc")));
+        var liveState = await ReadLiveSessionStateAsync(storeRoot, open.SessionId);
+        Assert.Equal(open.SessionId, liveState.SessionId);
+        Assert.Equal("closed", liveState.Status);
+        Assert.Equal((ulong)2, liveState.NextSequence);
+        Assert.Equal("live-close", liveState.LastCommandId);
+        Assert.Equal(close.ReceiptId, liveState.LastReceiptId);
+        Assert.Equal(.3f, liveState.Controls["macro/gain"]);
     }
 
     [Fact]
@@ -198,4 +206,12 @@ public sealed class AquaSynthDaemonServiceTests
     }
 
     private static string UriToPath(string uri) => new Uri(uri).LocalPath;
+
+    private static async Task<AquaSynthLiveInstrumentSessionState> ReadLiveSessionStateAsync(string storeRoot, string sessionId)
+    {
+        using var cache = await CultCacheMessagePack.OpenAsync(
+            Path.Combine(storeRoot, "live-sessions", $"{sessionId}.cc"),
+            new CultCacheOpenOptions { PullOnOpen = true }).ConfigureAwait(false);
+        return Assert.Single(cache.GetAll<AquaSynthLiveInstrumentSessionState>());
+    }
 }
