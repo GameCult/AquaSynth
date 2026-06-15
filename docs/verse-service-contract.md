@@ -20,9 +20,12 @@ Outputs:
 
 - `aquasynth.patch_graph.v0`
 - `aquasynth.faust_source.v0`
-- `aquasynth.compiled_instrument.v0`
-- `aquasynth.instrument_handle.v0`
-- `aquasynth.control_session.v0`
+- `aquasynth.compiled_instrument_session.v1`
+- `aquasynth.live_instrument_session.v1`
+- `aquasynth.instrument_open_receipt.v1`
+- `aquasynth.instrument_control_receipt.v1`
+- `aquasynth.instrument_block_receipt.v1`
+- `aquasynth.instrument_close_receipt.v1`
 - `aquasynth.render_sample.v0`
 - Eve/CultUI surfaces for patch graphs, compile products, live controls, and
   speech-training/render status
