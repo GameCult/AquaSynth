@@ -136,3 +136,14 @@ script or supervisor starts daemons
 
 The window is usually not the application. The window is the local Eve body. The
 application is the swarm behind it.
+
+## Composition Lesson
+
+The cinematic pipeline makes the scale law visible: daemon capabilities compose
+into greater daemons through typed command and receipt surfaces. A larger daemon
+may own workflow state, scheduling, review, aggregate receipts, and escalation,
+but it does not absorb the smaller daemons' truth. Brokkr coordination does not
+own Unity or Blender state. Ghostlight coordination does not own Weksa language
+truth, Vili motion synthesis, or AquaSynth audio rendering. The aggregate
+surface must preserve lower-daemon provenance, rejections, and failures instead
+of flattening them into one victorious-looking dashboard.

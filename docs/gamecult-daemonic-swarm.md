@@ -140,6 +140,52 @@ The same pattern applies elsewhere:
 
 Each daemon is a small sovereign machine. The swarm is the application.
 
+## Greater Daemons
+
+The useful trick is not that many daemons exist. The useful trick is that a
+daemon can become a capability for another daemon without surrendering its own
+authority.
+
+That is how the swarm scales.
+
+```text
+small daemon capability
+  -> typed command/receipt surface
+  -> composed provider workflow
+  -> greater daemon capability
+  -> new typed command/receipt surface
+```
+
+AquaSynth can be a sound daemon by itself. Weksa can call it as one possible
+speech body. Ghostlight can call Weksa as one possible actor-utterance organ.
+Brokkr can call Ghostlight/Vili/AquaSynth outputs as scene-editing pressure.
+An operator-facing cinematic tool can call Brokkr as a live editor body.
+
+None of those calls mean the caller owns the callee's truth.
+
+This is the difference between composition and mush. A greater daemon is not a
+blob that absorbs smaller daemons. It is an orchestrator with its own authority
+surface, built from other providers' command surfaces and receipts. It may own
+workflow state, scheduling, review, escalation, and aggregate receipts. It does
+not secretly own speech synthesis, animation generation, Unity editor state,
+Blender editor state, or language truth just because it coordinates a pipeline
+that uses them.
+
+The composition rule:
+
+- use another daemon through its published command documents;
+- record the receipt you received;
+- publish your own higher-level receipt for the workflow you own;
+- preserve the lower daemon's provenance and failure state;
+- do not rewrite another daemon's state as your own cache of truth;
+- do not hide a rejected command inside a successful aggregate receipt;
+- do not let the aggregate surface make authority look flatter than it is.
+
+This gives GameCult a ladder. A mouth daemon can feed an actor daemon. An actor
+daemon can feed a scene daemon. A scene daemon can feed a cinematic-production
+daemon. A cinematic-production daemon can feed a game-content daemon. Every rung
+is useful alone, and every rung can become the organ below a larger one.
+
 ## The Cinematic Content Swarm
 
 The strongest current example is not a dashboard. It is the rapid creative
