@@ -134,6 +134,27 @@ internal static class AquaSynthDaemonCli
                     var receipt = await service.StreamAutomationAsync(command).ConfigureAwait(false);
                     await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
                 }
+                else if (string.Equals(envelope.Command, "instrument.open", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentOpenCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.open payload was empty.");
+                    var receipt = await service.OpenInstrumentAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
+                else if (string.Equals(envelope.Command, "instrument.control", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentControlCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.control payload was empty.");
+                    var receipt = await service.ControlInstrumentAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
+                else if (string.Equals(envelope.Command, "instrument.block", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentBlockCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.block payload was empty.");
+                    var receipt = await service.ProcessInstrumentBlockAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
                 else
                 {
                     throw new InvalidOperationException($"Unknown command '{envelope.Command}'.");
@@ -254,6 +275,27 @@ internal static class AquaSynthDaemonCli
                     var receipt = await cultNet.SubmitStreamAsync(command).ConfigureAwait(false);
                     await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
                 }
+                else if (string.Equals(envelope.Command, "instrument.open", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentOpenCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.open payload was empty.");
+                    var receipt = await cultNet.SubmitOpenAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
+                else if (string.Equals(envelope.Command, "instrument.control", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentControlCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.control payload was empty.");
+                    var receipt = await cultNet.SubmitControlAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
+                else if (string.Equals(envelope.Command, "instrument.block", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentBlockCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.block payload was empty.");
+                    var receipt = await cultNet.SubmitBlockAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
                 else
                 {
                     throw new InvalidOperationException($"Unknown command '{envelope.Command}'.");
@@ -312,6 +354,9 @@ internal static class AquaSynthDaemonCli
             JSON-lines daemon commands:
             {"command":"instrument.sample","payload":{"commandId":"demo","patchId":"demo.patch","faustName":"demo","script":"voice wave=sine freq=440 gain=.2","durationSeconds":0.1}}
             {"command":"instrument.stream","payload":{"commandId":"demo-stream","patchId":"demo.patch","faustName":"demo","script":"param path=/macro/gain default=.2 min=0 max=1 step=.001; voice wave=sine freq=440 gain=@/macro/gain","blockSize":128,"blockCount":4,"controlFrames":[{"block":1,"controls":{"/macro/gain":0.05}}]}}
+            {"command":"instrument.open","payload":{"commandId":"demo-open","patchId":"demo.patch","faustName":"demo","script":"param path=/macro/gain default=.2 min=0 max=1 step=.001; voice wave=sine freq=440 gain=@/macro/gain","blockSize":128}}
+            {"command":"instrument.control","payload":{"commandId":"demo-control","sessionId":"SESSION_FROM_OPEN","controls":{"/macro/gain":0.1}}}
+            {"command":"instrument.block","payload":{"commandId":"demo-block","sessionId":"SESSION_FROM_OPEN","frameCount":128}}
             """).ConfigureAwait(false);
     }
 

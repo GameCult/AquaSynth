@@ -110,11 +110,13 @@ A good GameCult daemon publishes:
 
 AquaSynth is the current synth example. AquaSynth owns patch parsing, Faust
 emission, native compilation, compiled instrument sessions, sample rendering,
-bounded stream receipts, and synth-control state. A client can send
-`instrument.sample` or `instrument.stream` as typed command state through the
-local CultNet database. AquaSynth compiles or opens the instrument, writes
-sample artifacts and receipts, and publishes the result. The client consumes
-the capability; it does not become the synth.
+bounded stream receipts, live streaming sessions, and synth-control state. A
+client can send `instrument.sample`, `instrument.stream`, `instrument.open`,
+`instrument.control`, or `instrument.block` as typed command state through the
+local CultNet database. AquaSynth compiles or opens the instrument, keeps the
+native streaming patch instance, applies controls, writes sample/block artifacts
+and receipts, and publishes the result. The client consumes the capability; it
+does not become the synth.
 
 That lets one AquaSynth daemon sit on this machine or another machine in the
 Verse and serve multiple apps. The same engine can support Fensalir, Eve
@@ -287,12 +289,14 @@ The split is:
 - domain work inside the provider daemon.
 
 For AquaSynth, that means patch requests, compile receipts, session state, and
-stream descriptors are typed documents. Audio blocks should eventually move
-through a low-latency local transport such as shared-memory rings, platform
-audio graph nodes, memory-mapped packet buffers, or another fixed-block lane
-that does not drag filesystem writes or chatty command protocols into the audio
-callback. The command surface still owns intent and receipts. The realtime lane
-just moves sound fast.
+stream descriptors are typed documents. Live sessions already let a daemon open
+one native streaming patch and apply controls across fixed blocks; audio blocks
+should eventually move through a low-latency local transport such as
+shared-memory rings, platform audio graph nodes, memory-mapped packet buffers,
+or another fixed-block lane that does not drag filesystem writes or chatty
+command protocols into the audio callback. The command surface still owns
+intent, patch lifetime, controls, and receipts. The realtime lane just moves
+sound fast.
 
 That distinction matters. Transport is not authority. A ring buffer should not
 decide what instrument exists. A renderer should not decide which command

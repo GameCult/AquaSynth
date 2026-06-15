@@ -98,6 +98,52 @@ public sealed class AquaSynthDaemonServiceTests
     }
 
     [Fact]
+    public async Task DaemonLiveInstrumentSessionProcessesBlocksWithPersistentControlsWhenNativeFaustIsAvailable()
+    {
+        var storeRoot = NewStoreRoot();
+        using var service = new AquaSynthDaemonService(new AquaSynthDaemonOptions(storeRoot));
+
+        var open = await service.OpenInstrumentAsync(new AquaSynthInstrumentOpenCommand(
+            "live-open",
+            "test.live.sine",
+            "test_live_sine",
+            "param path=/macro/gain default=.05 min=0 max=1 step=.001; voice wave=sine freq=440 gain=@/macro/gain attack=.001 sustain=.1 decay=.05",
+            BlockSize: 128,
+            Gain: 1.0f));
+
+        if (!string.Equals(open.Status, "succeeded", StringComparison.Ordinal))
+        {
+            Assert.Contains("Faust", open.FailureMessage, StringComparison.OrdinalIgnoreCase);
+            return;
+        }
+
+        var quiet = await service.ProcessInstrumentBlockAsync(new AquaSynthInstrumentBlockCommand(
+            "live-block-quiet",
+            open.SessionId,
+            FrameCount: 128));
+        var control = await service.ControlInstrumentAsync(new AquaSynthInstrumentControlCommand(
+            "live-control",
+            open.SessionId,
+            new Dictionary<string, float> { ["/macro/gain"] = .3f }));
+        var loud = await service.ProcessInstrumentBlockAsync(new AquaSynthInstrumentBlockCommand(
+            "live-block-loud",
+            open.SessionId,
+            FrameCount: 128));
+
+        Assert.Equal("succeeded", control.Status);
+        Assert.Equal("succeeded", quiet.Status);
+        Assert.Equal("succeeded", loud.Status);
+        Assert.Equal(open.SessionId, quiet.SessionId);
+        Assert.Equal(open.SessionId, loud.SessionId);
+        Assert.Equal((ulong)0, quiet.Sequence);
+        Assert.Equal((ulong)1, loud.Sequence);
+        Assert.True(loud.Rms > quiet.Rms);
+        Assert.True(File.Exists(UriToPath(quiet.Float32Uri)));
+        Assert.True(File.Exists(UriToPath(loud.Float32Uri)));
+        Assert.Equal(128 * sizeof(float), new FileInfo(UriToPath(loud.Float32Uri)).Length);
+    }
+
+    [Fact]
     public async Task CultNetDaemonConsumesCommandDocumentsAndPublishesReceiptDocuments()
     {
         var storeRoot = NewStoreRoot();
@@ -123,6 +169,8 @@ public sealed class AquaSynthDaemonServiceTests
             new CultRecordKey("global:aquasynth.cultnet_provider"));
         Assert.NotNull(provider);
         Assert.Contains(AquaSynthDaemonSchemas.InstrumentSampleCommand, provider.CommandSchemas);
+        Assert.Contains(AquaSynthDaemonSchemas.InstrumentOpenCommand, provider.CommandSchemas);
+        Assert.Contains(AquaSynthDaemonSchemas.InstrumentBlockReceipt, provider.ReceiptSchemas);
         Assert.StartsWith(storeRoot, provider.CachePath, StringComparison.OrdinalIgnoreCase);
         Assert.True(Directory.Exists(Path.GetDirectoryName(provider.CachePath)));
     }
