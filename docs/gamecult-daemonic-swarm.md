@@ -126,12 +126,88 @@ The same pattern applies elsewhere:
 
 - Mimir owns observation and synchronization interpretation.
 - VoidBot owns its local swarm state and Persona/tool surfaces.
-- Weksa owns utterance intent and lowering.
+- Weksa owns language intent, pronunciation, utterance lowering, and delivery
+  trace.
+- Vili owns animation job intake, Kimodo worker lifecycle, and generated motion
+  artifact references.
+- Brokkr owns live creative-tool broker contracts between Unity, Blender, and
+  the Verse.
+- Ghostlight owns scene state coordination, next-beat selection, and playable
+  consequence records.
 - StreamPixels owns creator/render pipeline state.
 - Odin owns discovery and provider aggregation.
 - Idunn owns daemon continuity and restart witnesses.
 
 Each daemon is a small sovereign machine. The swarm is the application.
+
+## The Cinematic Content Swarm
+
+The strongest current example is not a dashboard. It is the rapid creative
+pipeline for cinematic game content.
+
+The target shape is this:
+
+```text
+Ghostlight scene state
+  -> Weksa utterance and delivery intent
+  -> AquaSynth or external speech provider voice output
+  -> Vili/Kimodo body-motion generation
+  -> Brokkr Unity/Blender live sync
+  -> native Eve/editor/game surfaces
+  -> reviewed scene update
+```
+
+Each daemon makes the next daemon more capable.
+
+Ghostlight is the stage coordinator. It owns world and scene state, visible
+participants, event history, unresolved hooks, pressures, branch affordances,
+and the next playable beat. It decides which actor, lever, or machinery call
+should happen next without pretending to be the actor, renderer, or editor.
+
+Weksa is the language and speech-intent engine. It can be used by any character
+or Persona as a mouth, throat, and stage-instruction organ: writing and agent
+state enter as intent pressure; Weksa lowers that into target-language
+utterances, pronunciation plans, prosody/emphasis hints, speech-provider
+requests, and AquaSynth handoff documents. Weksa does not own the audio bytes or
+the motion. It owns the inspected delivery intent and trace.
+
+AquaSynth is one speech and sound body for that intent. It can consume Weksa
+handoffs, compile the needed synth/voice machinery, and publish sample or stream
+receipts. External speech providers can be other mouths. The important thing is
+that Weksa-authored intent remains traceable instead of vanishing into a prompt.
+
+Vili wraps Kimodo as the animation daemon. Weksa, Personas, or Ghostlight can
+propose performance intent, gesture prompts, constraints, and durations. Vili
+owns animation job identity, request persistence, Kimodo runtime readiness, the
+resident worker lifecycle, and generated motion artifact references. Kimodo owns
+motion synthesis. Retargeting, playback, facial performance, camera, and lip
+sync belong to their renderer or future provider surfaces.
+
+Brokkr is the forge broker for live creative tools. Unity and Blender publish
+host snapshots, command intents, command receipts, object bindings, sync vars,
+and timeline bindings through CultMesh mirrors. Brokkr routes typed editor
+observations and admitted commands without stealing editor truth: Unity still
+owns Unity scenes, assets, selection, play mode, imports, and editor side
+effects; Blender still owns Blender scenes, objects, operators, add-ons, and
+render settings.
+
+That gives us a fast loop:
+
+1. Ghostlight chooses or updates a scene beat.
+2. Weksa gives an actor the line, pronunciation, delivery, and speech handoff.
+3. AquaSynth or another speech provider makes the voice.
+4. Vili generates body motion from the same performance intent.
+5. Brokkr pushes or synchronizes the resulting scene, object, camera, timeline,
+   and asset changes into Unity and Blender.
+6. Eve surfaces let humans inspect, steer, accept, reject, and replay the
+   receipts.
+
+The result is not one giant cinematic editor. It is a swarm where language,
+voice, motion, scene state, and DCC synchronization remain separate authorities
+that can compose. Each daemon is useful alone. Together they become a larger
+daemon: a cinematic game-content machine that can move from story pressure to
+spoken performance to animated scene state without every app embedding every
+capability.
 
 ## The Script Starts The Swarm
 
