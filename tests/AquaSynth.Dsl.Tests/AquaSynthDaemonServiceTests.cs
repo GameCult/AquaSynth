@@ -129,18 +129,31 @@ public sealed class AquaSynthDaemonServiceTests
             "live-block-loud",
             open.SessionId,
             FrameCount: 128));
+        var close = await service.CloseInstrumentAsync(new AquaSynthInstrumentCloseCommand(
+            "live-close",
+            open.SessionId));
+        var afterClose = await service.ProcessInstrumentBlockAsync(new AquaSynthInstrumentBlockCommand(
+            "live-block-after-close",
+            open.SessionId,
+            FrameCount: 128));
 
         Assert.Equal("succeeded", control.Status);
         Assert.Equal("succeeded", quiet.Status);
         Assert.Equal("succeeded", loud.Status);
+        Assert.Equal("succeeded", close.Status);
+        Assert.True(close.Released);
+        Assert.Equal("failed", afterClose.Status);
+        Assert.Equal("session_not_found", afterClose.FailureCode);
         Assert.Equal(open.SessionId, quiet.SessionId);
         Assert.Equal(open.SessionId, loud.SessionId);
+        Assert.Equal(open.SessionId, close.SessionId);
         Assert.Equal((ulong)0, quiet.Sequence);
         Assert.Equal((ulong)1, loud.Sequence);
         Assert.True(loud.Rms > quiet.Rms);
         Assert.True(File.Exists(UriToPath(quiet.Float32Uri)));
         Assert.True(File.Exists(UriToPath(loud.Float32Uri)));
         Assert.Equal(128 * sizeof(float), new FileInfo(UriToPath(loud.Float32Uri)).Length);
+        Assert.True(File.Exists(Path.Combine(storeRoot, "live", $"{close.ReceiptId}.cc")));
     }
 
     [Fact]
@@ -170,7 +183,9 @@ public sealed class AquaSynthDaemonServiceTests
         Assert.NotNull(provider);
         Assert.Contains(AquaSynthDaemonSchemas.InstrumentSampleCommand, provider.CommandSchemas);
         Assert.Contains(AquaSynthDaemonSchemas.InstrumentOpenCommand, provider.CommandSchemas);
+        Assert.Contains(AquaSynthDaemonSchemas.InstrumentCloseCommand, provider.CommandSchemas);
         Assert.Contains(AquaSynthDaemonSchemas.InstrumentBlockReceipt, provider.ReceiptSchemas);
+        Assert.Contains(AquaSynthDaemonSchemas.InstrumentCloseReceipt, provider.ReceiptSchemas);
         Assert.StartsWith(storeRoot, provider.CachePath, StringComparison.OrdinalIgnoreCase);
         Assert.True(Directory.Exists(Path.GetDirectoryName(provider.CachePath)));
     }

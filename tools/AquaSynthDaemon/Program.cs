@@ -155,6 +155,13 @@ internal static class AquaSynthDaemonCli
                     var receipt = await service.ProcessInstrumentBlockAsync(command).ConfigureAwait(false);
                     await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
                 }
+                else if (string.Equals(envelope.Command, "instrument.close", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentCloseCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.close payload was empty.");
+                    var receipt = await service.CloseInstrumentAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
                 else
                 {
                     throw new InvalidOperationException($"Unknown command '{envelope.Command}'.");
@@ -296,6 +303,13 @@ internal static class AquaSynthDaemonCli
                     var receipt = await cultNet.SubmitBlockAsync(command).ConfigureAwait(false);
                     await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
                 }
+                else if (string.Equals(envelope.Command, "instrument.close", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentCloseCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.close payload was empty.");
+                    var receipt = await cultNet.SubmitCloseAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
                 else
                 {
                     throw new InvalidOperationException($"Unknown command '{envelope.Command}'.");
@@ -357,6 +371,7 @@ internal static class AquaSynthDaemonCli
             {"command":"instrument.open","payload":{"commandId":"demo-open","patchId":"demo.patch","faustName":"demo","script":"param path=/macro/gain default=.2 min=0 max=1 step=.001; voice wave=sine freq=440 gain=@/macro/gain","blockSize":128}}
             {"command":"instrument.control","payload":{"commandId":"demo-control","sessionId":"SESSION_FROM_OPEN","controls":{"/macro/gain":0.1}}}
             {"command":"instrument.block","payload":{"commandId":"demo-block","sessionId":"SESSION_FROM_OPEN","frameCount":128}}
+            {"command":"instrument.close","payload":{"commandId":"demo-close","sessionId":"SESSION_FROM_OPEN"}}
             """).ConfigureAwait(false);
     }
 

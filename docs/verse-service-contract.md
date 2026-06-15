@@ -80,6 +80,10 @@ binary lifetime, live instrument handles, control sessions, and sampled outputs.
   return an instrument handle.
 - `instrument.open`: allocate or attach to a compiled instrument session.
 - `instrument.control`: set one or more stable semantic controls.
+- `instrument.block`: process one fixed block through an open live instrument
+  session and return the block receipt/artifact reference.
+- `instrument.close`: release an open live instrument session without deleting
+  the compiled instrument product.
 - `instrument.sample`: sample a live or offline instrument output.
 - `instrument.stream`: compile/open a streaming instrument session, apply
   block-indexed automation controls, publish CultMesh-compatible audio/control
@@ -108,6 +112,11 @@ invent a separate truth for compiled products or control state.
   per-block controls, publishes CultMesh `Audio` and `Tensor` descriptors inside
   the service, writes block `.f32` packet bodies, and commits one typed stream
   receipt.
+- `daemon` and `cultnet-daemon` also accept `instrument.open`,
+  `instrument.control`, `instrument.block`, and `instrument.close` envelopes.
+  These live commands keep and release service-owned native streaming patch
+  instances; closing a live session does not delete the reusable compiled patch
+  witness.
 - `cultnet-host`: starts a local CultNet host/database for AquaSynth command and
   receipt documents, publishes `aquasynth.cultnet_provider.v1`, and watches
   typed command records until the process is stopped.

@@ -20,9 +20,11 @@ public static class AquaSynthDaemonSchemas
     public const string InstrumentOpenCommand = "aquasynth.command.instrument_open.v1";
     public const string InstrumentControlCommand = "aquasynth.command.instrument_control.v1";
     public const string InstrumentBlockCommand = "aquasynth.command.instrument_block.v1";
+    public const string InstrumentCloseCommand = "aquasynth.command.instrument_close.v1";
     public const string InstrumentOpenReceipt = "aquasynth.instrument_open_receipt.v1";
     public const string InstrumentControlReceipt = "aquasynth.instrument_control_receipt.v1";
     public const string InstrumentBlockReceipt = "aquasynth.instrument_block_receipt.v1";
+    public const string InstrumentCloseReceipt = "aquasynth.instrument_close_receipt.v1";
     public const string OperatorState = "aquasynth.operator_state.v1";
 }
 
@@ -103,6 +105,12 @@ public sealed record AquaSynthInstrumentBlockCommand(
     [property: Key(2)] int FrameCount = 128,
     [property: Key(3)] float Gain = 1.0f,
     [property: Key(4)] Dictionary<string, float>? Controls = null);
+
+[CultDocument("aquasynth.command.instrument_close", AquaSynthDaemonSchemas.InstrumentCloseCommand)]
+[MessagePackObject]
+public sealed record AquaSynthInstrumentCloseCommand(
+    [property: Key(0), CultName] string CommandId,
+    [property: Key(1), CultIndex("session")] string SessionId);
 
 [CultDocument("aquasynth.compiled_instrument_session", AquaSynthDaemonSchemas.CompiledInstrumentSession)]
 [MessagePackObject]
@@ -224,6 +232,18 @@ public sealed record AquaSynthInstrumentBlockReceipt(
     [property: Key(11)] string ContentHash,
     [property: Key(12)] string FailureCode = "",
     [property: Key(13)] string FailureMessage = "");
+
+[CultDocument("aquasynth.instrument_close_receipt", AquaSynthDaemonSchemas.InstrumentCloseReceipt)]
+[MessagePackObject]
+public sealed record AquaSynthInstrumentCloseReceipt(
+    [property: Key(0), CultName] string ReceiptId,
+    [property: Key(1), CultIndex("command")] string CommandId,
+    [property: Key(2), CultIndex("session")] string SessionId,
+    [property: Key(3)] string Status,
+    [property: Key(4)] string ClosedAtUtc,
+    [property: Key(5)] bool Released,
+    [property: Key(6)] string FailureCode = "",
+    [property: Key(7)] string FailureMessage = "");
 
 [MessagePackObject]
 public sealed record AquaSynthCultMeshStreamDescriptor(
@@ -532,6 +552,40 @@ public sealed class AquaSynthDaemonService : IDisposable
             ToArtifactUri(floatPath),
             await Sha256Async(floatPath).ConfigureAwait(false));
         await WriteReceiptAsync("live", receipt.BlockId, receipt).ConfigureAwait(false);
+        await WriteOperatorStateAsync(command.CommandId, receipt.Status).ConfigureAwait(false);
+        return receipt;
+    }
+
+    public async Task<AquaSynthInstrumentCloseReceipt> CloseInstrumentAsync(AquaSynthInstrumentCloseCommand command)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        ValidateClose(command);
+
+        if (!liveSessions.Remove(command.SessionId, out var session))
+        {
+            var missing = new AquaSynthInstrumentCloseReceipt(
+                ReceiptId(command.CommandId, "close"),
+                command.CommandId,
+                command.SessionId,
+                "failed",
+                Now(),
+                false,
+                "session_not_found",
+                $"Live AquaSynth session '{command.SessionId}' is not open.");
+            await WriteReceiptAsync("live", missing.ReceiptId, missing).ConfigureAwait(false);
+            await WriteOperatorStateAsync(command.CommandId, missing.Status).ConfigureAwait(false);
+            return missing;
+        }
+
+        session.Dispose();
+        var receipt = new AquaSynthInstrumentCloseReceipt(
+            ReceiptId(command.CommandId, "close"),
+            command.CommandId,
+            command.SessionId,
+            "succeeded",
+            Now(),
+            true);
+        await WriteReceiptAsync("live", receipt.ReceiptId, receipt).ConfigureAwait(false);
         await WriteOperatorStateAsync(command.CommandId, receipt.Status).ConfigureAwait(false);
         return receipt;
     }
@@ -892,6 +946,12 @@ public sealed class AquaSynthDaemonService : IDisposable
         {
             throw new ArgumentOutOfRangeException(nameof(command.FrameCount), "Live instrument frame count must be positive.");
         }
+    }
+
+    private static void ValidateClose(AquaSynthInstrumentCloseCommand command)
+    {
+        Require(command.CommandId, nameof(command.CommandId));
+        Require(command.SessionId, nameof(command.SessionId));
     }
 
     private static void Require(string value, string name)

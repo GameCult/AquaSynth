@@ -144,6 +144,18 @@ public sealed class AquaSynthCultNetDaemon : IAsyncDisposable
             timeout);
     }
 
+    public Task<AquaSynthInstrumentCloseReceipt> SubmitCloseAsync(
+        AquaSynthInstrumentCloseCommand command,
+        TimeSpan? timeout = null)
+    {
+        var key = CloseReceiptKey(command.CommandId);
+        return SubmitAndWaitAsync<AquaSynthInstrumentCloseCommand, AquaSynthInstrumentCloseReceipt>(
+            command,
+            CommandKey(command.CommandId),
+            key,
+            timeout);
+    }
+
     public async ValueTask DisposeAsync()
     {
         foreach (var subscription in subscriptions)
@@ -238,6 +250,13 @@ public sealed class AquaSynthCultNetDaemon : IAsyncDisposable
             if (change.Document is { } command && ShouldHandle(nameof(AquaSynthInstrumentBlockCommand), command.CommandId))
             {
                 _ = Task.Run(() => HandleBlockAsync(command));
+            }
+        }));
+        subscriptions.Add(database.Watch<AquaSynthInstrumentCloseCommand>().Subscribe(change =>
+        {
+            if (change.Document is { } command && ShouldHandle(nameof(AquaSynthInstrumentCloseCommand), command.CommandId))
+            {
+                _ = Task.Run(() => HandleCloseAsync(command));
             }
         }));
     }
@@ -341,6 +360,21 @@ public sealed class AquaSynthCultNetDaemon : IAsyncDisposable
         }
     }
 
+    private async Task HandleCloseAsync(AquaSynthInstrumentCloseCommand command)
+    {
+        await commandGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var receipt = await service.CloseInstrumentAsync(command).ConfigureAwait(false);
+            await Database.PutAsync(CloseReceiptKey(command.CommandId), receipt).ConfigureAwait(false);
+            await PublishProviderStateAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            commandGate.Release();
+        }
+    }
+
     private Task PublishProviderStateAsync()
     {
         var state = new AquaSynthCultNetProviderState(
@@ -355,7 +389,8 @@ public sealed class AquaSynthCultNetDaemon : IAsyncDisposable
                 AquaSynthDaemonSchemas.AutomationStreamCommand,
                 AquaSynthDaemonSchemas.InstrumentOpenCommand,
                 AquaSynthDaemonSchemas.InstrumentControlCommand,
-                AquaSynthDaemonSchemas.InstrumentBlockCommand
+                AquaSynthDaemonSchemas.InstrumentBlockCommand,
+                AquaSynthDaemonSchemas.InstrumentCloseCommand
             ],
             [
                 AquaSynthDaemonSchemas.PatchCompileReceipt,
@@ -363,7 +398,8 @@ public sealed class AquaSynthCultNetDaemon : IAsyncDisposable
                 AquaSynthDaemonSchemas.AutomationStreamReceipt,
                 AquaSynthDaemonSchemas.InstrumentOpenReceipt,
                 AquaSynthDaemonSchemas.InstrumentControlReceipt,
-                AquaSynthDaemonSchemas.InstrumentBlockReceipt
+                AquaSynthDaemonSchemas.InstrumentBlockReceipt,
+                AquaSynthDaemonSchemas.InstrumentCloseReceipt
             ],
             [
                 "global:aquasynth.cultnet_provider",
@@ -385,6 +421,8 @@ public sealed class AquaSynthCultNetDaemon : IAsyncDisposable
     public static CultRecordKey ControlReceiptKey(string commandId) => new($"{commandId}-control");
 
     public static CultRecordKey BlockReceiptKey(string commandId) => new($"{commandId}-block");
+
+    public static CultRecordKey CloseReceiptKey(string commandId) => new($"{commandId}-close");
 }
 
 public static class AquaSynthCultNetDocuments
@@ -397,6 +435,7 @@ public static class AquaSynthCultNetDocuments
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentOpenCommand>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentControlCommand>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentBlockCommand>())
+            .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentCloseCommand>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthCompiledInstrumentSession>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthPatchCompileReceipt>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthRenderSampleReceipt>())
@@ -404,6 +443,7 @@ public static class AquaSynthCultNetDocuments
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentOpenReceipt>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentControlReceipt>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentBlockReceipt>())
+            .Register(CultNetDocumentBinding.ForDocument<AquaSynthInstrumentCloseReceipt>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthOperatorState>())
             .Register(CultNetDocumentBinding.ForDocument<AquaSynthCultNetProviderState>());
 }

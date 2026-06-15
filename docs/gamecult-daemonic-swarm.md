@@ -112,11 +112,12 @@ AquaSynth is the current synth example. AquaSynth owns patch parsing, Faust
 emission, native compilation, compiled instrument sessions, sample rendering,
 bounded stream receipts, live streaming sessions, and synth-control state. A
 client can send `instrument.sample`, `instrument.stream`, `instrument.open`,
-`instrument.control`, or `instrument.block` as typed command state through the
-local CultNet database. AquaSynth compiles or opens the instrument, keeps the
-native streaming patch instance, applies controls, writes sample/block artifacts
-and receipts, and publishes the result. The client consumes the capability; it
-does not become the synth.
+`instrument.control`, `instrument.block`, or `instrument.close` as typed command
+state through the local CultNet database. AquaSynth compiles or opens the
+instrument, keeps the native streaming patch instance, applies controls,
+releases live sessions, writes sample/block artifacts and receipts, and
+publishes the result. The client consumes the capability; it does not become
+the synth.
 
 That lets one AquaSynth daemon sit on this machine or another machine in the
 Verse and serve multiple apps. The same engine can support Fensalir, Eve
