@@ -18,6 +18,8 @@ surfaces:
   cultnet_daemon: src/AquaSynth.Faust/AquaSynthCultNetDaemon.cs
   daemon_tool: tools/AquaSynthDaemon/AquaSynthDaemon.csproj
   verse_service_contract: docs/verse-service-contract.md
+  daemonic_swarm_article: docs/gamecult-daemonic-swarm.md
+  daemonic_swarm_prior_work: docs/daemonic-swarm-prior-work.md
   patch_library: patches
   tests: tests/AquaSynth.Dsl.Tests
   reference_roadmap: docs/reference-synth-roadmap.md
