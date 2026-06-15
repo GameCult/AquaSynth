@@ -81,6 +81,9 @@ binary lifetime, live instrument handles, control sessions, and sampled outputs.
 - `instrument.open`: allocate or attach to a compiled instrument session.
 - `instrument.control`: set one or more stable semantic controls.
 - `instrument.sample`: sample a live or offline instrument output.
+- `instrument.stream`: compile/open a streaming instrument session, apply
+  block-indexed automation controls, publish CultMesh-compatible audio/control
+  stream descriptors, and write per-block sample packet receipts.
 - `speech.realize`: consume a Weksa utterance handoff and produce synth-driver
   controls plus render receipts.
 - `provider.advertise`: publish `gamecult.eve.provider_advertisement.v1`.
@@ -100,6 +103,11 @@ invent a separate truth for compiled products or control state.
   receipts to stdout. The JSON-lines stream is an edge transport for local
   smoke and xenos callers; command/session/render authority lives in
   `AquaSynthDaemonService` and its CultCache witnesses.
+- `stream`: runs a bounded automation stream locally. It compiles once, opens a
+  native Faust streaming patch, processes fixed-size blocks with optional
+  per-block controls, publishes CultMesh `Audio` and `Tensor` descriptors inside
+  the service, writes block `.f32` packet bodies, and commits one typed stream
+  receipt.
 
 Current witness roots:
 
@@ -108,6 +116,8 @@ Current witness roots:
 - `.aquasynth/renders/{renderId}.cc`
 - `.aquasynth/samples/{renderId}.f32`
 - `.aquasynth/samples/{renderId}.wav`
+- `.aquasynth/streams/{streamRunId}.cc`
+- `.aquasynth/streams/{streamRunId}/audio-{sequence}.f32`
 - `.aquasynth/operator/operator-state.cc`
 
 Example:
@@ -123,6 +133,12 @@ dotnet run --project tools\AquaSynthDaemon -- once `
 The service now makes `instrument.sample` duration authoritative for the render
 window. Patch-estimated envelope duration remains useful for direct compiler
 calls, but a daemon sample request owns the number of output frames.
+
+The bounded automation stream is the first realtime-shaped CultMesh path. It
+uses CultMesh stream descriptors and frame handles with `CultCachePage` packet
+bodies, but it does not yet host a long-lived network peer or shared-memory
+ring. Transport listeners must delegate to `AquaSynthDaemonService`; they must
+not become separate audio/session owners.
 
 ## Forbidden Writers
 

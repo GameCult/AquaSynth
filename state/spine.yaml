@@ -57,7 +57,7 @@ current_mechanism:
 
 live_invariants:
   - AquaSynth owns its patch graph; external synths are references, not runtime dependencies.
-  - AquaSynthDaemonService owns the local daemon command boundary for patch.compile and instrument.sample. It delegates DSP to AquaSynth.Faust, writes compile/session/render/operator .cc witnesses under the configured .aquasynth store, and writes .f32/.wav sample artifacts. The tools/AquaSynthDaemon JSON-lines stream is only edge transport; it must not become a second audio/session authority.
+  - AquaSynthDaemonService owns the local daemon command boundary for patch.compile, instrument.sample, and bounded instrument.stream automation. It delegates DSP to AquaSynth.Faust, writes compile/session/render/stream/operator .cc witnesses under the configured .aquasynth store, writes .f32/.wav sample artifacts, and emits CultMesh-compatible audio/control stream descriptors plus per-block packet receipts. The tools/AquaSynthDaemon JSON-lines stream is only edge transport; it must not become a second audio/session authority.
   - Patch scripts lower into explicit graph records before Faust emission.
   - Song-snippet parity is scene-audio pressure, not redistributed fixture data. The worker may derive local tempo/register/scale hints from private clips, but agents must express live rhythm and pitch motion through owned AquaSynth controls until native sequencing sugar has an explicit DSL/lowering owner.
   - Operator graphs own FM topology: operators, modulation edges, carriers, and feedback. Do not hide this authority inside Voice fields.

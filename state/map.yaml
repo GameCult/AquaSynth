@@ -120,7 +120,7 @@ boundaries:
     - Faust source generation in AquaSynth.Core
     - target-code generation, compile-product contracts, dynamic patch compilation policy, cache identity, generated artifact manifests, and Faust toolchain selection in AquaSynth.Faust
     - live patch compilation, native Faust factory lifetime, and offline sample-buffer render proof in AquaSynth.Faust
-    - AquaSynth daemon command ownership for patch.compile and instrument.sample: compile/session/render/operator typed receipts, requested-duration sample renders, .f32/.wav sample artifacts, and JSON-lines local transport through tools/AquaSynthDaemon
+    - AquaSynth daemon command ownership for patch.compile, instrument.sample, and bounded instrument.stream automation: compile/session/render/stream/operator typed receipts, requested-duration sample renders, CultMesh-compatible audio/control stream descriptors, per-block .f32 packet artifacts, and JSON-lines local transport through tools/AquaSynthDaemon
     - IPA-to-phonetic-feature planning, articulatory gesture planning, and human/alien vocal-tract roadmap design
     - phonetic intent, articulatory plan, morphology capability, and constraint-report contracts for vocal tract synthesis
     - packed-buffer native backprop/Adam as the shared AquaSynth gradient-descent primitive

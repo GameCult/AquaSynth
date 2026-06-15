@@ -53,6 +53,49 @@ public sealed class AquaSynthDaemonServiceTests
         Assert.True(File.Exists(Path.Combine(storeRoot, "sessions", $"{result.CompileReceipt.SessionId}.cc")));
     }
 
+    [Fact]
+    public async Task DaemonAutomationStreamPublishesCultMeshFrameReceiptsWhenNativeFaustIsAvailable()
+    {
+        var storeRoot = NewStoreRoot();
+        using var service = new AquaSynthDaemonService(new AquaSynthDaemonOptions(storeRoot));
+
+        var receipt = await service.StreamAutomationAsync(new AquaSynthAutomationStreamCommand(
+            "stream-sine",
+            "test.stream.sine",
+            "test_stream_sine",
+            "param path=/macro/gain default=.2 min=0 max=1 step=.001; voice wave=sine freq=440 gain=@/macro/gain attack=.001 sustain=.1 decay=.05",
+            BlockSize: 128,
+            BlockCount: 3,
+            ControlFrames:
+            [
+                new AquaSynthAutomationControlFrame(1, new Dictionary<string, float> { ["/macro/gain"] = .05f }),
+                new AquaSynthAutomationControlFrame(2, new Dictionary<string, float> { ["/macro/gain"] = .3f })
+            ]));
+
+        if (!string.Equals(receipt.Status, "succeeded", StringComparison.Ordinal))
+        {
+            Assert.Contains("Faust", receipt.FailureMessage, StringComparison.OrdinalIgnoreCase);
+            return;
+        }
+
+        Assert.Equal("aquasynth.instrument", receipt.VerseId);
+        Assert.Equal(2, receipt.Streams.Length);
+        Assert.Contains(receipt.Streams, stream => stream.StreamId == receipt.AudioStreamId && stream.Kind == "Audio");
+        Assert.Contains(receipt.Streams, stream => stream.StreamId == receipt.ControlStreamId && stream.Kind == "Tensor");
+        Assert.Equal(3, receipt.Packets.Length);
+        Assert.All(receipt.Packets, packet =>
+        {
+            Assert.Equal(128, packet.SampleCount);
+            Assert.True(File.Exists(UriToPath(packet.Float32Uri)));
+            Assert.Equal(128 * sizeof(float), new FileInfo(UriToPath(packet.Float32Uri)).Length);
+            Assert.StartsWith("file:///", packet.PageRef, StringComparison.Ordinal);
+        });
+        Assert.Equal(0, receipt.Packets[0].ControlCount);
+        Assert.Equal(1, receipt.Packets[1].ControlCount);
+        Assert.Equal(1, receipt.Packets[2].ControlCount);
+        Assert.True(File.Exists(Path.Combine(storeRoot, "streams", "stream-sine-stream.cc")));
+    }
+
     private static string NewStoreRoot()
     {
         var path = Path.Combine(Path.GetTempPath(), "aquasynth-daemon-tests", Guid.NewGuid().ToString("N"));
