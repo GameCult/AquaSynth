@@ -1,6 +1,6 @@
 project: AquaSynth
 spine_version: 1
-updated: 2026-05-31T01:31:00+01:00
+updated: 2026-06-15T01:02:24+01:00
 
 prime_directive: >
   Build coherent synth machinery. References exist to reveal missing structure,
@@ -20,6 +20,8 @@ current_mechanism:
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs
+  aquasynth_daemon_service: src/AquaSynth.Faust/AquaSynthDaemonService.cs
+  aquasynth_daemon_tool: tools/AquaSynthDaemon
   operator_graph_model: src/AquaSynth.Core/Model.cs
   analysis: src/AquaSynth.Core/AudioAnalysis.cs
   built_ins: src/AquaSynth.Core/BuiltInScripts.cs
@@ -55,6 +57,7 @@ current_mechanism:
 
 live_invariants:
   - AquaSynth owns its patch graph; external synths are references, not runtime dependencies.
+  - AquaSynthDaemonService owns the local daemon command boundary for patch.compile and instrument.sample. It delegates DSP to AquaSynth.Faust, writes compile/session/render/operator .cc witnesses under the configured .aquasynth store, and writes .f32/.wav sample artifacts. The tools/AquaSynthDaemon JSON-lines stream is only edge transport; it must not become a second audio/session authority.
   - Patch scripts lower into explicit graph records before Faust emission.
   - Song-snippet parity is scene-audio pressure, not redistributed fixture data. The worker may derive local tempo/register/scale hints from private clips, but agents must express live rhythm and pitch motion through owned AquaSynth controls until native sequencing sugar has an explicit DSL/lowering owner.
   - Operator graphs own FM topology: operators, modulation edges, carriers, and feedback. Do not hide this authority inside Voice fields.

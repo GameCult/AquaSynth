@@ -89,6 +89,41 @@ Every command must commit typed receipts through the same derivation path used
 by any CLI or worker. A dashboard, REPL, worker loop, or native host must not
 invent a separate truth for compiled products or control state.
 
+## Runnable Daemon Slice
+
+`tools/AquaSynthDaemon` is the current local daemon body. It exposes:
+
+- `once`: accepts inline `.aqua` or `--script-file`, compiles through the native
+  Faust boundary, renders samples, writes `.f32` and `.wav` artifacts, and
+  commits typed `.cc` witnesses under the configured store root.
+- `daemon`: reads JSON-lines command envelopes from stdin and writes JSON-lines
+  receipts to stdout. The JSON-lines stream is an edge transport for local
+  smoke and xenos callers; command/session/render authority lives in
+  `AquaSynthDaemonService` and its CultCache witnesses.
+
+Current witness roots:
+
+- `.aquasynth/compile/{receiptId}.cc`
+- `.aquasynth/sessions/{sessionId}.cc`
+- `.aquasynth/renders/{renderId}.cc`
+- `.aquasynth/samples/{renderId}.f32`
+- `.aquasynth/samples/{renderId}.wav`
+- `.aquasynth/operator/operator-state.cc`
+
+Example:
+
+```powershell
+dotnet run --project tools\AquaSynthDaemon -- once `
+  --script-file patches\808\kick.aqua `
+  --patch-id patches.808.kick `
+  --faust-name patch_808_kick `
+  --duration 0.25
+```
+
+The service now makes `instrument.sample` duration authoritative for the render
+window. Patch-estimated envelope duration remains useful for direct compiler
+calls, but a daemon sample request owns the number of output frames.
+
 ## Forbidden Writers
 
 - Weksa does not compile Faust or own instrument controls.

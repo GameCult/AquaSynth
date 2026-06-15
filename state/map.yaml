@@ -14,6 +14,9 @@ surfaces:
   solution: AquaSynth.sln
   core_library: src/AquaSynth.Core
   faust_library: src/AquaSynth.Faust
+  daemon_service: src/AquaSynth.Faust/AquaSynthDaemonService.cs
+  daemon_tool: tools/AquaSynthDaemon/AquaSynthDaemon.csproj
+  verse_service_contract: docs/verse-service-contract.md
   patch_library: patches
   tests: tests/AquaSynth.Dsl.Tests
   reference_roadmap: docs/reference-synth-roadmap.md
@@ -75,6 +78,8 @@ modules:
   faust_emitter: src/AquaSynth.Core/FaustExport.cs
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs
+  aquasynth_daemon_service: src/AquaSynth.Faust/AquaSynthDaemonService.cs
+  aquasynth_daemon_tool: tools/AquaSynthDaemon
   faust_rendered_speech_loss: src/AquaSynth.Faust/FaustRenderedSpeechLossSurface.cs
   cultcache_sound_claim_document: patches/aquasynth-patch-cultcache.cc
   cultcache_sound_claim_types: src/AquaSynth.Core/CultCachePatchDocument.cs
@@ -115,6 +120,7 @@ boundaries:
     - Faust source generation in AquaSynth.Core
     - target-code generation, compile-product contracts, dynamic patch compilation policy, cache identity, generated artifact manifests, and Faust toolchain selection in AquaSynth.Faust
     - live patch compilation, native Faust factory lifetime, and offline sample-buffer render proof in AquaSynth.Faust
+    - AquaSynth daemon command ownership for patch.compile and instrument.sample: compile/session/render/operator typed receipts, requested-duration sample renders, .f32/.wav sample artifacts, and JSON-lines local transport through tools/AquaSynthDaemon
     - IPA-to-phonetic-feature planning, articulatory gesture planning, and human/alien vocal-tract roadmap design
     - phonetic intent, articulatory plan, morphology capability, and constraint-report contracts for vocal tract synthesis
     - packed-buffer native backprop/Adam as the shared AquaSynth gradient-descent primitive
