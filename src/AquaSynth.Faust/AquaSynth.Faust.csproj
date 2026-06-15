@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AquaSynth.Core\AquaSynth.Core.csproj" />
+    <ProjectReference Include="..\..\..\CultLib\src\GameCult.Networking\GameCult.Networking.csproj" />
   </ItemGroup>
 
   <ItemGroup>

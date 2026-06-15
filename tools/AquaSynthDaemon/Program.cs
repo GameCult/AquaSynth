@@ -37,6 +37,10 @@ internal static class AquaSynthDaemonCli
             "once" => await RunOnceAsync(service, options, output).ConfigureAwait(false),
             "stream" => await RunStreamOnceAsync(service, options, output).ConfigureAwait(false),
             "daemon" => await RunDaemonAsync(service, input, output, error).ConfigureAwait(false),
+            "cultnet-once" => await RunCultNetOnceAsync(service, storeRoot, options, output).ConfigureAwait(false),
+            "cultnet-stream" => await RunCultNetStreamOnceAsync(service, storeRoot, options, output).ConfigureAwait(false),
+            "cultnet-daemon" => await RunCultNetDaemonAsync(service, storeRoot, input, output, error).ConfigureAwait(false),
+            "cultnet-host" => await RunCultNetHostAsync(service, storeRoot, output).ConfigureAwait(false),
             _ => await UnknownModeAsync(mode, error).ConfigureAwait(false)
         };
     }
@@ -150,6 +154,142 @@ internal static class AquaSynthDaemonCli
         return 0;
     }
 
+    private static async Task<int> RunCultNetOnceAsync(
+        AquaSynthDaemonService service,
+        string storeRoot,
+        IReadOnlyDictionary<string, string> options,
+        TextWriter output)
+    {
+        var script = options.TryGetValue("--script", out var inlineScript)
+            ? inlineScript
+            : await File.ReadAllTextAsync(Value(options, "--script-file", "")).ConfigureAwait(false);
+
+        await using var cultNet = await AquaSynthCultNetDaemon.StartAsync(
+            new AquaSynthCultNetDaemonOptions(storeRoot),
+            service).ConfigureAwait(false);
+        var receipt = await cultNet.SubmitSampleAsync(new AquaSynthInstrumentSampleCommand(
+            Value(options, "--command-id", $"cultnet-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}"),
+            Value(options, "--patch-id", "cultnet.patch"),
+            Value(options, "--faust-name", "aquasynth_cultnet_patch"),
+            script,
+            FloatValue(options, "--duration", 0.25f),
+            FloatValue(options, "--gain", 1.0f),
+            ParseControls(Value(options, "--control", "")),
+            IntValue(options, "--revision", 1))).ConfigureAwait(false);
+
+        await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+        return string.Equals(receipt.Status, "succeeded", StringComparison.Ordinal) ? 0 : 2;
+    }
+
+    private static async Task<int> RunCultNetStreamOnceAsync(
+        AquaSynthDaemonService service,
+        string storeRoot,
+        IReadOnlyDictionary<string, string> options,
+        TextWriter output)
+    {
+        var script = options.TryGetValue("--script", out var inlineScript)
+            ? inlineScript
+            : await File.ReadAllTextAsync(Value(options, "--script-file", "")).ConfigureAwait(false);
+
+        await using var cultNet = await AquaSynthCultNetDaemon.StartAsync(
+            new AquaSynthCultNetDaemonOptions(storeRoot),
+            service).ConfigureAwait(false);
+        var receipt = await cultNet.SubmitStreamAsync(new AquaSynthAutomationStreamCommand(
+            Value(options, "--command-id", $"cultnet-stream-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}"),
+            Value(options, "--patch-id", "cultnet.stream.patch"),
+            Value(options, "--faust-name", "aquasynth_cultnet_stream"),
+            script,
+            IntValue(options, "--block-size", 128),
+            IntValue(options, "--blocks", 8),
+            ParseControlFrames(Value(options, "--control-frame", "")),
+            FloatValue(options, "--gain", 1.0f),
+            IntValue(options, "--revision", 1))).ConfigureAwait(false);
+
+        await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+        return string.Equals(receipt.Status, "succeeded", StringComparison.Ordinal) ? 0 : 2;
+    }
+
+    private static async Task<int> RunCultNetDaemonAsync(
+        AquaSynthDaemonService service,
+        string storeRoot,
+        TextReader input,
+        TextWriter output,
+        TextWriter error)
+    {
+        await using var cultNet = await AquaSynthCultNetDaemon.StartAsync(
+            new AquaSynthCultNetDaemonOptions(storeRoot),
+            service).ConfigureAwait(false);
+
+        string? line;
+        while ((line = await input.ReadLineAsync().ConfigureAwait(false)) is not null)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            try
+            {
+                line = line.TrimStart('\uFEFF').Trim();
+                var envelope = JsonSerializer.Deserialize<DaemonCommandEnvelope>(line, JsonOptions)
+                    ?? throw new InvalidOperationException("Command line did not contain a JSON object.");
+                if (string.Equals(envelope.Command, "patch.compile", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthPatchCompileCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("patch.compile payload was empty.");
+                    var receipt = await cultNet.SubmitCompileAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
+                else if (string.Equals(envelope.Command, "instrument.sample", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthInstrumentSampleCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.sample payload was empty.");
+                    var receipt = await cultNet.SubmitSampleAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
+                else if (string.Equals(envelope.Command, "instrument.stream", StringComparison.OrdinalIgnoreCase))
+                {
+                    var command = envelope.Payload.Deserialize<AquaSynthAutomationStreamCommand>(JsonOptions)
+                        ?? throw new InvalidOperationException("instrument.stream payload was empty.");
+                    var receipt = await cultNet.SubmitStreamAsync(command).ConfigureAwait(false);
+                    await output.WriteLineAsync(JsonSerializer.Serialize(receipt, JsonOptions)).ConfigureAwait(false);
+                }
+                else
+                {
+                    throw new InvalidOperationException($"Unknown command '{envelope.Command}'.");
+                }
+            }
+            catch (Exception ex)
+            {
+                await error.WriteLineAsync(ex.Message).ConfigureAwait(false);
+                await output.WriteLineAsync(JsonSerializer.Serialize(new
+                {
+                    status = "failed",
+                    failureCode = "command_failed",
+                    failureMessage = ex.Message
+                }, JsonOptions)).ConfigureAwait(false);
+            }
+        }
+
+        return 0;
+    }
+
+    private static async Task<int> RunCultNetHostAsync(
+        AquaSynthDaemonService service,
+        string storeRoot,
+        TextWriter output)
+    {
+        await using var cultNet = await AquaSynthCultNetDaemon.StartAsync(
+            new AquaSynthCultNetDaemonOptions(storeRoot),
+            service).ConfigureAwait(false);
+        var provider = await cultNet.Database
+            .GetAsync<AquaSynthCultNetProviderState>(new GameCult.Caching.CultRecordKey("global:aquasynth.cultnet_provider"))
+            .ConfigureAwait(false);
+        await output.WriteLineAsync(JsonSerializer.Serialize(provider, JsonOptions)).ConfigureAwait(false);
+        await Task.Delay(Timeout.InfiniteTimeSpan).ConfigureAwait(false);
+        return 0;
+    }
+
     private static async Task<int> UnknownModeAsync(string mode, TextWriter error)
     {
         await error.WriteLineAsync($"Unknown AquaSynth daemon mode '{mode}'.").ConfigureAwait(false);
@@ -164,6 +304,10 @@ internal static class AquaSynthDaemonCli
             once --script-file patch.aqua [--store .aquasynth] [--duration 0.25] [--gain 1]
             stream --script-file patch.aqua [--store .aquasynth] [--block-size 128] [--blocks 8]
             daemon [--store .aquasynth]
+            cultnet-once --script-file patch.aqua [--store .aquasynth] [--duration 0.25] [--gain 1]
+            cultnet-stream --script-file patch.aqua [--store .aquasynth] [--block-size 128] [--blocks 8]
+            cultnet-daemon [--store .aquasynth]
+            cultnet-host [--store .aquasynth]
 
             JSON-lines daemon commands:
             {"command":"instrument.sample","payload":{"commandId":"demo","patchId":"demo.patch","faustName":"demo","script":"voice wave=sine freq=440 gain=.2","durationSeconds":0.1}}

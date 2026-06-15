@@ -108,6 +108,13 @@ invent a separate truth for compiled products or control state.
   per-block controls, publishes CultMesh `Audio` and `Tensor` descriptors inside
   the service, writes block `.f32` packet bodies, and commits one typed stream
   receipt.
+- `cultnet-host`: starts a local CultNet host/database for AquaSynth command and
+  receipt documents, publishes `aquasynth.cultnet_provider.v1`, and watches
+  typed command records until the process is stopped.
+- `cultnet-once`, `cultnet-stream`, and `cultnet-daemon`: submit the same sample,
+  stream, and JSON-lines command envelopes through the local CultNet database
+  path, then wait for typed receipt records. These modes are operator edges; the
+  database watcher is the command transport owner.
 
 Current witness roots:
 
@@ -119,6 +126,8 @@ Current witness roots:
 - `.aquasynth/streams/{streamRunId}.cc`
 - `.aquasynth/streams/{streamRunId}/audio-{sequence}.f32`
 - `.aquasynth/operator/operator-state.cc`
+- `.aquasynth/cultnet/aquasynth-daemon.ccmp`: local CultNet/CultCache database
+  for command documents, provider state, and receipt documents.
 
 Example:
 
@@ -136,9 +145,11 @@ calls, but a daemon sample request owns the number of output frames.
 
 The bounded automation stream is the first realtime-shaped CultMesh path. It
 uses CultMesh stream descriptors and frame handles with `CultCachePage` packet
-bodies, but it does not yet host a long-lived network peer or shared-memory
-ring. Transport listeners must delegate to `AquaSynthDaemonService`; they must
-not become separate audio/session owners.
+bodies. The local CultNet host now gives AquaSynth a long-lived typed command
+surface for `patch.compile`, `instrument.sample`, and `instrument.stream`;
+transport listeners delegate to `AquaSynthDaemonService` and must not become
+separate audio/session owners. Shared-memory rings and remote process
+supervision remain future transport work, not command authority.
 
 ## Forbidden Writers
 

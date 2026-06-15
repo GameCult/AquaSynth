@@ -15,6 +15,7 @@ surfaces:
   core_library: src/AquaSynth.Core
   faust_library: src/AquaSynth.Faust
   daemon_service: src/AquaSynth.Faust/AquaSynthDaemonService.cs
+  cultnet_daemon: src/AquaSynth.Faust/AquaSynthCultNetDaemon.cs
   daemon_tool: tools/AquaSynthDaemon/AquaSynthDaemon.csproj
   verse_service_contract: docs/verse-service-contract.md
   patch_library: patches
@@ -79,6 +80,7 @@ modules:
   faust_compiler: src/AquaSynth.Faust/FaustCompiler.cs
   native_faust_runtime: src/AquaSynth.Faust/NativeFaustRuntime.cs
   aquasynth_daemon_service: src/AquaSynth.Faust/AquaSynthDaemonService.cs
+  aquasynth_cultnet_daemon: src/AquaSynth.Faust/AquaSynthCultNetDaemon.cs
   aquasynth_daemon_tool: tools/AquaSynthDaemon
   faust_rendered_speech_loss: src/AquaSynth.Faust/FaustRenderedSpeechLossSurface.cs
   cultcache_sound_claim_document: patches/aquasynth-patch-cultcache.cc
@@ -120,7 +122,7 @@ boundaries:
     - Faust source generation in AquaSynth.Core
     - target-code generation, compile-product contracts, dynamic patch compilation policy, cache identity, generated artifact manifests, and Faust toolchain selection in AquaSynth.Faust
     - live patch compilation, native Faust factory lifetime, and offline sample-buffer render proof in AquaSynth.Faust
-    - AquaSynth daemon command ownership for patch.compile, instrument.sample, and bounded instrument.stream automation: compile/session/render/stream/operator typed receipts, requested-duration sample renders, CultMesh-compatible audio/control stream descriptors, per-block .f32 packet artifacts, and JSON-lines local transport through tools/AquaSynthDaemon
+    - AquaSynth daemon command ownership for patch.compile, instrument.sample, and bounded instrument.stream automation: compile/session/render/stream/operator typed receipts, requested-duration sample renders, CultMesh-compatible audio/control stream descriptors, per-block .f32 packet artifacts, JSON-lines local transport through tools/AquaSynthDaemon, and a local CultNet host/database that watches typed command documents and publishes typed receipt/provider documents without becoming a second render/session authority
     - IPA-to-phonetic-feature planning, articulatory gesture planning, and human/alien vocal-tract roadmap design
     - phonetic intent, articulatory plan, morphology capability, and constraint-report contracts for vocal tract synthesis
     - packed-buffer native backprop/Adam as the shared AquaSynth gradient-descent primitive

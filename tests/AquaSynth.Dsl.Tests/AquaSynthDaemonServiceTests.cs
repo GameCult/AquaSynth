@@ -1,4 +1,5 @@
 using AquaSynth.Faust;
+using GameCult.Caching;
 
 namespace AquaSynth.Dsl.Tests;
 
@@ -94,6 +95,36 @@ public sealed class AquaSynthDaemonServiceTests
         Assert.Equal(1, receipt.Packets[1].ControlCount);
         Assert.Equal(1, receipt.Packets[2].ControlCount);
         Assert.True(File.Exists(Path.Combine(storeRoot, "streams", "stream-sine-stream.cc")));
+    }
+
+    [Fact]
+    public async Task CultNetDaemonConsumesCommandDocumentsAndPublishesReceiptDocuments()
+    {
+        var storeRoot = NewStoreRoot();
+        await using var daemon = await AquaSynthCultNetDaemon.StartAsync(new AquaSynthCultNetDaemonOptions(storeRoot));
+
+        var receipt = await daemon.SubmitSampleAsync(new AquaSynthInstrumentSampleCommand(
+            "cultnet-invalid-sample",
+            "test.cultnet.invalid",
+            "test_cultnet_invalid",
+            "this is not aqua syntax",
+            DurationSeconds: 0.1f));
+
+        Assert.Equal("failed", receipt.Status);
+        Assert.Equal("cultnet-invalid-sample", receipt.CommandId);
+        Assert.NotNull(await daemon.Database.GetAsync<AquaSynthInstrumentSampleCommand>(
+            AquaSynthCultNetDaemon.CommandKey("cultnet-invalid-sample")));
+        Assert.NotNull(await daemon.Database.GetAsync<AquaSynthPatchCompileReceipt>(
+            AquaSynthCultNetDaemon.CompileReceiptKey("cultnet-invalid-sample")));
+        Assert.NotNull(await daemon.Database.GetAsync<AquaSynthRenderSampleReceipt>(
+            AquaSynthCultNetDaemon.RenderReceiptKey("cultnet-invalid-sample")));
+
+        var provider = await daemon.Database.GetAsync<AquaSynthCultNetProviderState>(
+            new CultRecordKey("global:aquasynth.cultnet_provider"));
+        Assert.NotNull(provider);
+        Assert.Contains(AquaSynthDaemonSchemas.InstrumentSampleCommand, provider.CommandSchemas);
+        Assert.StartsWith(storeRoot, provider.CachePath, StringComparison.OrdinalIgnoreCase);
+        Assert.True(Directory.Exists(Path.GetDirectoryName(provider.CachePath)));
     }
 
     private static string NewStoreRoot()
