@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\tools\AquaSynthDingsMcp\AquaSynthDingsMcp.csproj" />
     <Using Include="Xunit" />
     <Using Include="AquaSynth.Faust" />
   </ItemGroup>

@@ -17,6 +17,8 @@ surfaces:
   daemon_service: src/AquaSynth.Faust/AquaSynthDaemonService.cs
   cultnet_daemon: src/AquaSynth.Faust/AquaSynthCultNetDaemon.cs
   daemon_tool: tools/AquaSynthDaemon/AquaSynthDaemon.csproj
+  dings_mcp_service: tools/AquaSynthDingsMcp
+  auditory_notification_research: docs/research/auditory-notifications/README.md
   verse_service_contract: docs/verse-service-contract.md
   daemonic_swarm_article: docs/gamecult-daemonic-swarm.md
   daemonic_swarm_prior_work: docs/daemonic-swarm-prior-work.md

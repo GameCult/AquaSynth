@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IpaTrialWorker", "tools\Ipa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AquaSynthDaemon", "tools\AquaSynthDaemon\AquaSynthDaemon.csproj", "{A21990AB-5D3D-4A5B-98B7-F730A4091DA8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AquaSynthDingsMcp", "tools\AquaSynthDingsMcp\AquaSynthDingsMcp.csproj", "{C38832D2-06A7-463E-8D99-C048ED51E9E1}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -103,6 +105,10 @@ Global
 		{A21990AB-5D3D-4A5B-98B7-F730A4091DA8}.Release|x64.Build.0 = Release|Any CPU
 		{A21990AB-5D3D-4A5B-98B7-F730A4091DA8}.Release|x86.ActiveCfg = Release|Any CPU
 		{A21990AB-5D3D-4A5B-98B7-F730A4091DA8}.Release|x86.Build.0 = Release|Any CPU
+		{C38832D2-06A7-463E-8D99-C048ED51E9E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C38832D2-06A7-463E-8D99-C048ED51E9E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C38832D2-06A7-463E-8D99-C048ED51E9E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C38832D2-06A7-463E-8D99-C048ED51E9E1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -114,5 +120,6 @@ Global
 		{A1914F24-9CE5-47DA-943E-E26D3AC4DFD3} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{9596767B-8FDC-49E5-8F70-0A1CECE35C5E} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{A21990AB-5D3D-4A5B-98B7-F730A4091DA8} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{C38832D2-06A7-463E-8D99-C048ED51E9E1} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal
