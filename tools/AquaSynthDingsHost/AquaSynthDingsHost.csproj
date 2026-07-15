@@ -4,11 +4,11 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>AquaSynthDingsHost</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\AquaSynth.Dings\AquaSynth.Dings.csproj" />
-    <ProjectReference Include="..\AquaSynthDingsHost\AquaSynthDingsHost.csproj" ReferenceOutputAssembly="false" />
-    <PackageReference Include="ModelContextProtocol" Version="1.4.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <ProjectReference Include="..\AquaSynthDaemon\AquaSynthDaemon.csproj" ReferenceOutputAssembly="false" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 </Project>

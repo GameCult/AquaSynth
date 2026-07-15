@@ -1,16 +1,8 @@
-namespace AquaSynthDingsMcp;
+namespace AquaSynth.Dings;
 
 public sealed record DingNote(double Semitones, int DelayMilliseconds, float Gain = 1f);
 public sealed record DingEvent(string Id, string Meaning, IReadOnlyList<DingNote> Notes);
-public sealed record DingInstrument(
-    string Id,
-    string Description,
-    string TimbreFamily,
-    string Script,
-    float RootFrequency,
-    float Brightness,
-    float DecaySeconds,
-    bool UsesNoise);
+public sealed record DingInstrument(string Id, string Description, string TimbreFamily, string Script, float RootFrequency, float Brightness, float DecaySeconds, bool UsesNoise);
 
 public static class DingCatalog
 {
@@ -45,8 +37,7 @@ public static class DingCatalog
             if (instrument.DecaySeconds is < .25f or > 1.5f) failures.Add($"{instrument.Id}: decay leaves the notification window");
             if (instrument.UsesNoise) failures.Add($"{instrument.Id}: broadband noise is forbidden");
         }
-        var duplicateFamilies = Instruments.Values.GroupBy(x => x.TimbreFamily).Where(x => x.Count() > 1).Select(x => x.Key);
-        failures.AddRange(duplicateFamilies.Select(x => $"timbre family '{x}' is not distinct"));
+        failures.AddRange(Instruments.Values.GroupBy(x => x.TimbreFamily).Where(x => x.Count() > 1).Select(x => $"timbre family '{x.Key}' is not distinct"));
         foreach (var dingEvent in Events.Values)
         {
             var gaps = dingEvent.Notes.Zip(dingEvent.Notes.Skip(1), (left, right) => right.DelayMilliseconds - left.DelayMilliseconds);

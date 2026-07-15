@@ -1,4 +1,4 @@
-using AquaSynthDingsMcp;
+using AquaSynth.Dings;
 
 namespace AquaSynth.Dsl.Tests;
 
