@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using AquaSynthDingsMcp;
 using AquaSynth.Dings;
 
@@ -29,10 +31,33 @@ if (args is ["--mute", var muteText] && bool.TryParse(muteText, out var muted))
     return;
 }
 
+if (args is ["--http"] or ["--http", _])
+{
+    var listenUrl = args.Length == 2 ? args[1] : "http://127.0.0.1:17878";
+    using var singleton = new Mutex(initiallyOwned: true, "Local\\GameCult.AquaSynthDings.McpHttp.v1", out var ownsMutex);
+    if (!ownsMutex) return;
+
+    var webBuilder = WebApplication.CreateBuilder([]);
+    webBuilder.Logging.ClearProviders();
+    webBuilder.WebHost.UseUrls(listenUrl);
+    webBuilder.Services.AddSingleton<IDingsHostClient, DingsHostClient>();
+    webBuilder.Services.AddSingleton<DingService>();
+    webBuilder.Services.AddSingleton<AgentInstrumentRegistry>();
+    webBuilder.Services.AddMcpServer()
+        .WithHttpTransport(options => options.Stateless = false)
+        .WithTools<DingTools>();
+
+    var app = webBuilder.Build();
+    app.MapMcp("/mcp");
+    await app.RunAsync();
+    return;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
 builder.Services.AddSingleton<IDingsHostClient, DingsHostClient>();
 builder.Services.AddSingleton<DingService>();
+builder.Services.AddSingleton<AgentInstrumentRegistry>();
 builder.Services.AddMcpServer()
     .WithStdioServerTransport()
     .WithTools<DingTools>();

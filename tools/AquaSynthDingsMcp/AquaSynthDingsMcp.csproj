@@ -9,6 +9,7 @@
     <ProjectReference Include="..\..\src\AquaSynth.Dings\AquaSynth.Dings.csproj" />
     <ProjectReference Include="..\AquaSynthDingsHost\AquaSynthDingsHost.csproj" ReferenceOutputAssembly="false" />
     <PackageReference Include="ModelContextProtocol" Version="1.4.1" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.4.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
   </ItemGroup>
 </Project>

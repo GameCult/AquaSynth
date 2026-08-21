@@ -8,12 +8,27 @@ All MCP instances are command bridges. One persistent
 Aqua synthesis child, mixer, master volume, and mute state. Windows Volume
 Mixer and MCP volume tools address the same session.
 
-Do not register this STDIO bridge globally in an agent harness that creates a
+Do not register the STDIO bridge globally in an agent harness that creates a
 separate MCP client for every root agent, subagent, or critic. STDIO ownership
 means one resident .NET bridge per client even though audio authority is already
-shared by `AquaSynthDingsHost.exe`. Keep the bridge disabled in that topology,
-use the direct CLI for local smokes, or expose one supervised Streamable HTTP MCP
-server when notifications need to be available across many concurrent agents.
+shared by `AquaSynthDingsHost.exe`. Run one supervised Streamable HTTP MCP server
+instead and point every agent at its loopback endpoint:
+
+```powershell
+AquaSynthDingsMcp.exe --http http://127.0.0.1:17878
+```
+
+The HTTP server is machine-singleton and keeps only MCP session-to-instrument
+assignments. Each agent session is assigned a stable timbre automatically and
+may claim another with `claim_instrument`; `play_ding` then uses that assignment
+without an instrument argument. `AquaSynthDingsHost.exe` remains the sole
+audio-session and playback owner.
+
+Install the per-user singleton on Windows:
+
+```powershell
+.\scripts\install-dings-mcp-task.ps1
+```
 
 ```powershell
 dotnet run --project tools/AquaSynthDingsMcp
@@ -28,8 +43,9 @@ dotnet run --project tools/AquaSynthDingsMcp -- --set-volume 0.5
 dotnet run --project tools/AquaSynthDingsMcp -- --mute true
 ```
 
-MCP tools are `play_ding`, `list_ding_events`, `list_instruments`,
-`stop_dings`, `get_volume`, `set_volume`, and `mute_dings`.
+MCP tools are `play_ding`, `get_agent_instrument`, `claim_instrument`,
+`list_ding_events`, `list_instruments`, `stop_dings`, `get_volume`,
+`set_volume`, and `mute_dings`.
 
 Instrument availability is catalog-only. Additions must satisfy mechanical
 curation checks and then survive listening/identification tests; see
