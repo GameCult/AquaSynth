@@ -323,6 +323,11 @@ public static class FaustCompiler
         {
             ["DOTNET_CLI_HOME"] = home,
             ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1",
+            // The first-run experience still appends "<home>\.dotnet\tools" to the
+            // persisted user PATH; with a fresh home per render that left one dead
+            // entry per render until the PATH blew past cmd's environment limit.
+            ["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"] = "0",
+            ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1",
             ["DOTNET_NOLOGO"] = "1",
             ["NUGET_PACKAGES"] = packages,
             ["APPDATA"] = appData,

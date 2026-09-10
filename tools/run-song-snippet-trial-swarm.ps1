@@ -101,6 +101,7 @@ function Start-CodexAgentJob {
         $agentHome = Join-Path $JobRepoRoot ".dotnet_agent_home"
         New-Item -ItemType Directory -Force -Path $dotnetHome, $nugetHome, $appDataHome, $localAppDataHome, $agentHome | Out-Null
         $env:DOTNET_CLI_HOME = $dotnetHome
+        $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH = "0"
         $env:NUGET_PACKAGES = $nugetHome
         $env:APPDATA = $appDataHome
         $env:LOCALAPPDATA = $localAppDataHome
