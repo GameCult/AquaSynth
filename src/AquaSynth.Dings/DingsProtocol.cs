@@ -6,7 +6,6 @@ public static class DingsProtocol
 {
     public const int Version = 1;
     public const string PipeName = "GameCult.AquaSynthDings.Playback.v1";
-    public const string MutexName = "Local\\GameCult.AquaSynthDings.Playback.v1";
 }
 
 public enum DingsCommandKind { Ping, Play, StopAll, GetVolume, SetVolume, SetMuted }
