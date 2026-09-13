@@ -257,11 +257,8 @@ public static class SpeechDistributedTrainingCultCacheStore
         return cache.GetAll<T>().OrderBy(orderKey, StringComparer.Ordinal).ToArray();
     }
 
-    private static async Task<CultCache> OpenForMutationAsync(string filePath)
-    {
-        var options = new CultCacheOpenOptions { PullOnOpen = File.Exists(filePath) };
-        return await CultCacheMessagePack.OpenAsync(filePath, options).ConfigureAwait(false);
-    }
+    private static Task<CultCache> OpenForMutationAsync(string filePath) =>
+        CultCacheMessagePack.OpenAsync(filePath);
 }
 
 public static class SpeechDistributedTrainingCoordinator

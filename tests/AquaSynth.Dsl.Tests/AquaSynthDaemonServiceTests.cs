@@ -210,8 +210,7 @@ public sealed class AquaSynthDaemonServiceTests
     private static async Task<AquaSynthLiveInstrumentSessionState> ReadLiveSessionStateAsync(string storeRoot, string sessionId)
     {
         using var cache = await CultCacheMessagePack.OpenAsync(
-            Path.Combine(storeRoot, "live-sessions", $"{sessionId}.cc"),
-            new CultCacheOpenOptions { PullOnOpen = true }).ConfigureAwait(false);
+            Path.Combine(storeRoot, "live-sessions", $"{sessionId}.cc")).ConfigureAwait(false);
         return Assert.Single(cache.GetAll<AquaSynthLiveInstrumentSessionState>());
     }
 }

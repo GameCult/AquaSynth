@@ -87,10 +87,13 @@ public static class CultCachePatchDocumentStore
 {
     public static async Task WriteDefaultAsync(string filePath)
     {
-        using var cache = CultCacheMessagePack.Create(filePath, new CultCacheOpenOptions
+        // Opening hydrates; this file holds exactly the default document, so everything else goes before the write.
+        using var cache = CultCacheMessagePack.Create(filePath);
+        foreach (var stale in cache.AllStoredDocuments.Where(stored => stored.Key.Value != CultCachePatchDocumentCatalog.Key).ToArray())
         {
-            PullOnOpen = false
-        });
+            cache.Remove(stale.Key);
+        }
+
         await cache.UpsertAsync(
             CultCachePatchDocumentCatalog.CreateDefault(),
             new CultRecordHandle<CultCachePatchDocument>(new CultRecordKey(CultCachePatchDocumentCatalog.Key)))

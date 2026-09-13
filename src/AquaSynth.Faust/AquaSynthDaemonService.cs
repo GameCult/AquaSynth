@@ -920,8 +920,14 @@ public sealed class AquaSynthDaemonService : IDisposable
     {
         var filePath = Path.Combine(options.StoreRoot, family, $"{SafeFileName(id)}.cc");
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-        using var cache = CultCacheMessagePack.Create(filePath, new CultCacheOpenOptions { PullOnOpen = false });
+        // Opening hydrates; a receipt file holds exactly one document, so everything else goes before the write.
+        using var cache = CultCacheMessagePack.Create(filePath);
         var key = global ? new CultRecordKey("global") : new CultRecordKey(id);
+        foreach (var stale in cache.AllStoredDocuments.Where(stored => !stored.Key.Equals(key)).ToArray())
+        {
+            cache.Remove(stale.Key);
+        }
+
         await cache.UpsertAsync(document, new CultRecordHandle<T>(key)).ConfigureAwait(false);
         await cache.FlushAsync().ConfigureAwait(false);
     }

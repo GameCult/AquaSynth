@@ -115,7 +115,7 @@ public static class IpaTrialResultCultCacheStore
             return [];
         }
 
-        using var cache = await OpenTrialStoreAsync(filePath, pullOnOpen: true).ConfigureAwait(false);
+        using var cache = await OpenTrialStoreAsync(filePath).ConfigureAwait(false);
         return cache.GetAll<IpaTrialResult>()
             .OrderBy(result => result.TrialId, StringComparer.Ordinal)
             .ToArray();
@@ -128,7 +128,7 @@ public static class IpaTrialResultCultCacheStore
             return [];
         }
 
-        using var cache = await OpenTrialStoreAsync(filePath, pullOnOpen: true).ConfigureAwait(false);
+        using var cache = await OpenTrialStoreAsync(filePath).ConfigureAwait(false);
         return cache.GetAll<SongChallengeEvidenceDocument>()
             .OrderBy(document => document.EvidenceId, StringComparer.Ordinal)
             .ToArray();
@@ -141,7 +141,7 @@ public static class IpaTrialResultCultCacheStore
             return [];
         }
 
-        using var cache = await OpenTrialStoreAsync(filePath, pullOnOpen: true).ConfigureAwait(false);
+        using var cache = await OpenTrialStoreAsync(filePath).ConfigureAwait(false);
         return cache.GetAll<SongTrialDistillationDocument>()
             .OrderBy(document => document.DistillationId, StringComparer.Ordinal)
             .ToArray();
@@ -154,7 +154,7 @@ public static class IpaTrialResultCultCacheStore
             return [];
         }
 
-        using var cache = await OpenTrialStoreAsync(filePath, pullOnOpen: true).ConfigureAwait(false);
+        using var cache = await OpenTrialStoreAsync(filePath).ConfigureAwait(false);
         return cache.GetAll<MusicProductionKnowledgeDocument>()
             .OrderBy(document => document.KnowledgeId, StringComparer.Ordinal)
             .ToArray();
@@ -172,7 +172,7 @@ public static class IpaTrialResultCultCacheStore
             Directory.CreateDirectory(directory);
         }
 
-        using var cache = await OpenTrialStoreAsync(filePath, pullOnOpen: StoreExists(filePath)).ConfigureAwait(false);
+        using var cache = await OpenTrialStoreAsync(filePath).ConfigureAwait(false);
         foreach (var document in documents)
         {
             await cache.UpsertAsync(document, new CultRecordHandle<T>(new CultRecordKey(key(document)))).ConfigureAwait(false);
@@ -181,12 +181,11 @@ public static class IpaTrialResultCultCacheStore
         await cache.FlushAsync().ConfigureAwait(false);
     }
 
-    private static Task<CultCache> OpenTrialStoreAsync(string filePath, bool pullOnOpen) =>
+    private static Task<CultCache> OpenTrialStoreAsync(string filePath) =>
         CultCacheMessagePack.OpenAsync(
             filePath,
             new CultCacheOpenOptions
             {
-                PullOnOpen = pullOnOpen,
                 UseDirectoryStore = true
             });
 
