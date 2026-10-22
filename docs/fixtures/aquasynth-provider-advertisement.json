@@ -2,7 +2,7 @@
   "schema": "gamecult.eve.provider_advertisement.v1",
   "providerId": "aquasynth.service",
   "title": "AquaSynth Service",
-  "description": "AquaSynth accepts .aqua DSL and Weksa utterance handoffs, compiles Faust-native instruments, owns live streaming patch sessions, and publishes controllable synth state through CultMesh/Eve.",
+  "description": "AquaSynth accepts .aqua DSL and Weksa utterance handoffs, compiles Faust-native instruments, owns live streaming patch sessions, and publishes controllable synth state through CultMesh.",
   "mode": "fixture-read-only",
   "serviceVerse": {
     "id": "verse.aquasynth.service.v1",
@@ -80,8 +80,7 @@
       "cultMeshKey": "aquasynth.operator/status",
       "authority": "AquaSynth daemon runtime",
       "schemas": [
-        "aquasynth.operator_state.v0",
-        "gamecult.eve.surface.v1"
+        "aquasynth.operator_state.v0"
       ]
     }
   ],
@@ -133,58 +132,6 @@
         "aquasynth.speech_render_receipt.v0"
       ],
       "durableShape": ".aquasynth/speech/{utteranceId}.cc"
-    },
-    {
-      "family": "eve",
-      "namespace": "aquasynth.eve.*",
-      "witnesses": [
-        "gamecult.eve.provider_advertisement.v1",
-        "gamecult.eve.surface.v1"
-      ],
-      "durableShape": ".aquasynth/eve-surfaces.cc"
-    }
-  ],
-  "cultMeshSurfaceKeys": [
-    {
-      "id": "aquasynth.eve.patch_graph.v0",
-      "documentSchema": "gamecult.eve.surface.v1",
-      "cultMeshKey": "aquasynth.eve.surface.patch-graph",
-      "binds": [
-        "aquasynth.patch.*",
-        "aquasynth.compile.*"
-      ],
-      "status": "expected-surface"
-    },
-    {
-      "id": "aquasynth.eve.compile_queue.v0",
-      "documentSchema": "gamecult.eve.surface.v1",
-      "cultMeshKey": "aquasynth.eve.surface.compile-queue",
-      "binds": [
-        "aquasynth.compile.*",
-        "aquasynth.operator.*"
-      ],
-      "status": "expected-surface"
-    },
-    {
-      "id": "aquasynth.eve.instrument_control.v0",
-      "documentSchema": "gamecult.eve.surface.v1",
-      "cultMeshKey": "aquasynth.eve.surface.instrument-control",
-      "binds": [
-        "aquasynth.instrument.*",
-        "aquasynth.render.*"
-      ],
-      "status": "expected-surface"
-    },
-    {
-      "id": "aquasynth.eve.speech_training.v0",
-      "documentSchema": "gamecult.eve.surface.v1",
-      "cultMeshKey": "aquasynth.eve.surface.speech-training",
-      "binds": [
-        "weksa.utterance.*",
-        "aquasynth.speech.*",
-        "aquasynth.render.*"
-      ],
-      "status": "expected-surface"
     }
   ],
   "commandBoundaries": [
@@ -292,6 +239,6 @@
     "AquaSynth owns learned embeddings, synth controls, Faust compilation, native binary lifetime, compiled instrument sessions, live streaming patch sessions, and sampled outputs.",
     "Weksa owns writing-to-intent and intent-to-utterance lowering.",
     "Faust source and native binaries are emitted artifacts with typed receipts, not the semantic patch owner.",
-    "Eve surfaces control and inspect sessions through CultMesh command documents and retained live-session state; they do not own audio state."
+    "Dashboards and other renderers control and inspect sessions through CultMesh command documents and retained live-session state; they do not own audio state."
   ]
 }

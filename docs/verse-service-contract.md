@@ -2,7 +2,7 @@
 
 AquaSynth is the synth daemon. It accepts `.aqua` DSL and speech/utterance
 control documents, compiles Faust-native instruments, returns live instrument
-handles, and publishes controllable audio/render state through CultMesh and Eve.
+handles, and publishes controllable audio/render state through CultMesh.
 
 ## Authority
 
@@ -27,8 +27,6 @@ Outputs:
 - `aquasynth.instrument_block_receipt.v1`
 - `aquasynth.instrument_close_receipt.v1`
 - `aquasynth.render_sample.v0`
-- Eve/CultUI surfaces for patch graphs, compile products, live controls, and
-  speech-training/render status
 
 Weksa owns conversational intent and utterance lowering. AquaSynth owns the
 learned utterance embedding, synth-driver automation, Faust compilation, native
@@ -67,18 +65,9 @@ binary lifetime, live instrument handles, control sessions, and sampled outputs.
 - `aquasynth.operator`: daemon status, queue pressure, toolchain readiness,
   witness freshness, and degraded-mode visibility.
 
-## Eve Surfaces
+## Operator Dashboards
 
-- `aquasynth.eve.patch_graph.v0`: inspect parsed `.aqua` graphs and semantic
-  control catalogs.
-- `aquasynth.eve.compile_queue.v0`: inspect Faust compile jobs, diagnostics,
-  native binary handles, and failures.
-- `aquasynth.eve.instrument_control.v0`: control a live instrument handle like
-  an instrument, with stable parameters, ranges, and session leases.
-- `aquasynth.eve.speech_training.v0`: inspect Weksa handoffs, packed utterance
-  embeddings, synth-driver output, render loss, and sample receipts.
-- `aquasynth.eve.operator.v0`: compact daemon state, toolchain status, queues,
-  and witness freshness.
+Eve is deprecated, and Thing 2 is its successor (`thing2:ruling:eve-dashboards-quarantined`, 2026-10-22). AquaSynth advertises no operator-dashboard surface; it publishes typed CultMesh state meanwhile, and its operator view returns on Thing 2.
 
 ## Commands
 
@@ -171,7 +160,7 @@ supervision remain future transport work, not command authority.
 ## Forbidden Writers
 
 - Weksa does not compile Faust or own instrument controls.
-- Eve lowerings do not own compiled binary lifetime or control truth.
+- Dashboard renderers do not own compiled binary lifetime or control truth.
 - Faust source is an emitted artifact, not the semantic patch owner.
 - Native host handles cannot silently override CultMesh session state.
 - Render samples are evidence, not patch identity.

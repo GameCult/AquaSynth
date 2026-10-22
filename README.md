@@ -120,7 +120,7 @@ synth products.
 
 As a Verse service, AquaSynth accepts `.aqua` DSL and Weksa utterance handoff
 documents, compiles Faust-native instruments, returns live instrument handles,
-and exposes control/sample state through CultMesh/Eve. See
+and exposes control/sample state through CultMesh. See
 [`docs/verse-service-contract.md`](docs/verse-service-contract.md).
 
 See [`docs/faust-toolchain-boundary.md`](docs/faust-toolchain-boundary.md).
