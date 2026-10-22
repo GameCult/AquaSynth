@@ -153,3 +153,14 @@ tract curriculum is tracked in
 prior-work notes in
 [`docs/utterance-parity-research.md`](docs/utterance-parity-research.md). Agent
 handoff state lives in [`state/spine.yaml`](state/spine.yaml).
+
+## Building against CultLib
+
+Builds are pinned to CultLib 2.0.0 (tag `cultlib-unity-v2.0.0`, revision `42dce3611a81adc5c5fac54cadbaa5637d6022d3`); the build fails if the CultLib checkout differs or is dirty. Create a pinned worktree and point the build at it:
+
+```powershell
+git -C <CultLib> worktree add --detach <path> cultlib-unity-v2.0.0
+dotnet build -p:CultLibRoot=<path>   # or set CULTLIB_ROOT=<path>
+```
+
+Without an override the sibling `..\CultLib` checkout is used and must itself be at that tag.
