@@ -25,4 +25,5 @@ rattle = (mode(173, 20) * (0.3 + 0.7 * load) + 0.8 * mode(311, 18) + 0.6 * mode(
 
 mix = rumble * (0.5 + 0.5 * load) + rasp * (0.3 + 1.5 * load) + rattle;
 // drive falls only gently with load so tanh stays out of saturation while high rpm still ends up louder than low rpm
-process = mix * (0.4 + 0.6 * load) * max(0.35, 0.9 - 1.0 * load) : ma.tanh : *(0.5);
+// final 0.425 trim keeps peak under 0.4 at rpm 4800
+process = mix * (0.4 + 0.6 * load) * (0.9 - 0.5 * load) : ma.tanh : *(0.425);
