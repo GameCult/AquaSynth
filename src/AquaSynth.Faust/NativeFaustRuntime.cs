@@ -840,16 +840,32 @@ internal sealed class FaustNativeToolchain : IDisposable
 
     public void SetControls(IntPtr dsp, IReadOnlyDictionary<string, float> controls, IReadOnlyDictionary<string, IntPtr> map)
     {
-        foreach (var (path, value) in controls)
+        // Dictionary's struct enumerator avoids boxing one through the interface on every audio block.
+        if (controls is Dictionary<string, float> dictionary)
         {
-            if (!map.TryGetValue(path, out var zone) &&
-                !map.TryGetValue(path.TrimStart('/'), out zone))
+            foreach (var (path, value) in dictionary)
             {
-                throw new ArgumentException($"Faust control `{path}` was not exported by the compiled patch.", nameof(controls));
+                WriteControl(map, path, value);
             }
 
-            Marshal.Copy([value], 0, zone, 1);
+            return;
         }
+
+        foreach (var (path, value) in controls)
+        {
+            WriteControl(map, path, value);
+        }
+    }
+
+    private static void WriteControl(IReadOnlyDictionary<string, IntPtr> map, string path, float value)
+    {
+        if (!map.TryGetValue(path, out var zone) &&
+            !map.TryGetValue(path.TrimStart('/'), out zone))
+        {
+            throw new ArgumentException($"Faust control `{path}` was not exported by the compiled patch.", "controls");
+        }
+
+        Marshal.WriteInt32(zone, BitConverter.SingleToInt32Bits(value));
     }
 
     public void Dispose()
