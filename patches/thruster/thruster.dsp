@@ -23,5 +23,6 @@ rasp = no.noise : fi.resonbp(700 + rpm * 0.6, 1.5, 1) : *(chop);
 mode(f, q) = no.noise : fi.resonbp(f, q, 1);
 rattle = (mode(173, 40) * (0.3 + 0.7 * load) + 0.8 * mode(311, 35) + 0.6 * mode(467, 30) + 0.4 * mode(1130, 25)) * (0.1 + 0.9 * load ^ 2) * 3;
 
-mix = rumble * (0.5 + 0.5 * load) + rasp * (0.3 + 0.6 * load) + rattle;
-process = mix * (0.4 + 0.6 * load) : *(2.2) : ma.tanh : *(0.5);
+mix = rumble * (0.5 + 0.5 * load) + rasp * (0.3 + 1.5 * load) + rattle;
+// drive falls with load so the tanh stage stays out of saturation at high rpm; rasp and hull modes carry the strain
+process = mix * (0.4 + 0.6 * load) * max(0.1, 0.9 - 1.0 * load) : ma.tanh : *(0.5);
