@@ -83,6 +83,14 @@ returns `AquaSynthCompiledPatch` products with `AquaSynthNativeManifest`.
 `AquaSynthRenderSession` is only a render-proof convenience wrapper for tests
 and offline one-shot buffers.
 
+Library lookup is platform-aware: `libfaust.so` on Linux, `libfaust.dylib` on
+macOS, `libfaust.dll` (then `faust.dll`) on Windows, always at `<home>/lib` with
+`<home>/share/faust` beside it. `AquaSynthNativeOptions.FaustLibraryPath` or
+`AQUASYNTH_FAUST_LIBRARY` names the library file directly and overrides the home
+search; `FaustHome` then supplies `share/faust` if the prefix is not the file's
+grandparent. The loader prepends `lib` and `bin` to `PATH` using the platform
+path separator.
+
 ## Invariants
 
 - AquaSynth remains the authority for what a patch means.

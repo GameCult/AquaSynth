@@ -11,7 +11,8 @@ public sealed record AquaSynthNativeOptions(
     string? FaustHome = null,
     string? DspSourceDirectory = null,
     float MinRenderSeconds = 0.05f,
-    float MaxRenderSeconds = 3.0f);
+    float MaxRenderSeconds = 3.0f,
+    string? FaustLibraryPath = null);
 
 public sealed record AquaSynthCompileIdentity(
     string Id,
@@ -484,7 +485,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
     {
         options ??= new AquaSynthNativeOptions();
         compiler = null;
-        if (!FaustNativeToolchain.TryLoad(options.FaustHome, out var toolchain, out error))
+        if (!FaustNativeToolchain.TryLoad(options.FaustHome, options.FaustLibraryPath, out var toolchain, out error))
         {
             return false;
         }
@@ -648,6 +649,13 @@ public sealed class AquaSynthNativeCompiler : IDisposable
 
 public static class AquaSynthFaustToolchain
 {
+    public const string LibraryOverrideVariable = "AQUASYNTH_FAUST_LIBRARY";
+
+    public static string[] LibraryFileNames =>
+        OperatingSystem.IsWindows() ? ["libfaust.dll", "faust.dll"]
+        : OperatingSystem.IsMacOS() ? ["libfaust.dylib"]
+        : ["libfaust.so"];
+
     public static string? Find(string? preferredHome = null)
     {
         var candidates = new[]
@@ -656,7 +664,8 @@ public static class AquaSynthFaustToolchain
             Environment.GetEnvironmentVariable("AQUASYNTH_FAUST_HOME"),
             Environment.GetEnvironmentVariable("AQUARIUM_FAUST_HOME"),
             Path.Combine(AppContext.BaseDirectory, "Tools", "Faust"),
-            @"C:\Program Files\Faust"
+            OperatingSystem.IsWindows() ? @"C:\Program Files\Faust" : "/usr/local",
+            OperatingSystem.IsWindows() ? null : "/usr"
         };
 
         foreach (var candidate in candidates)
@@ -667,7 +676,7 @@ public static class AquaSynthFaustToolchain
             }
 
             var root = Path.GetFullPath(candidate);
-            if (File.Exists(Path.Combine(root, "lib", "faust.dll")) &&
+            if (FindLibrary(root) is not null &&
                 Directory.Exists(Path.Combine(root, "share", "faust")))
             {
                 return root;
@@ -675,6 +684,20 @@ public static class AquaSynthFaustToolchain
         }
 
         return null;
+    }
+
+    public static string? FindLibrary(string home) =>
+        LibraryFileNames
+            .Select(name => Path.Combine(home, "lib", name))
+            .FirstOrDefault(File.Exists);
+
+    /// <summary>Explicit library file: the argument wins over AQUASYNTH_FAUST_LIBRARY. Null when neither is set.</summary>
+    public static string? LibraryOverride(string? explicitPath)
+    {
+        var path = !string.IsNullOrWhiteSpace(explicitPath)
+            ? explicitPath
+            : Environment.GetEnvironmentVariable(LibraryOverrideVariable);
+        return string.IsNullOrWhiteSpace(path) ? null : Path.GetFullPath(path);
     }
 }
 
@@ -723,28 +746,47 @@ internal sealed class FaustNativeToolchain : IDisposable
 
     public CreateFactoryFromStringFn CreateFactoryFromString { get; }
 
-    public static bool TryLoad(string? preferredHome, out FaustNativeToolchain? toolchain, out string? error)
+    public static bool TryLoad(string? preferredHome, string? libraryPath, out FaustNativeToolchain? toolchain, out string? error)
     {
         toolchain = null;
         error = null;
-        var home = AquaSynthFaustToolchain.Find(preferredHome);
-        if (home is null)
+        var dllPath = AquaSynthFaustToolchain.LibraryOverride(libraryPath);
+        string home;
+        if (dllPath is not null)
         {
-            error = "Faust toolchain not found. Expected Tools\\Faust beside the app, AQUASYNTH_FAUST_HOME, AQUARIUM_FAUST_HOME, or C:\\Program Files\\Faust.";
-            return false;
-        }
+            if (!File.Exists(dllPath))
+            {
+                error = $"Faust library override not found at {dllPath}.";
+                return false;
+            }
 
-        var dllPath = Path.Combine(home, "lib", "faust.dll");
-        if (!File.Exists(dllPath))
+            // lib/<file> under a prefix; an explicit home still wins for share/faust.
+            home = !string.IsNullOrWhiteSpace(preferredHome)
+                ? Path.GetFullPath(preferredHome)
+                : Path.GetFullPath(Path.Combine(Path.GetDirectoryName(dllPath)!, ".."));
+            if (!Directory.Exists(Path.Combine(home, "share", "faust")))
+            {
+                error = $"Faust share directory not found at {Path.Combine(home, "share", "faust")}; set FaustHome to the prefix that holds share/faust.";
+                return false;
+            }
+        }
+        else
         {
-            error = $"Faust DLL not found at {dllPath}.";
-            return false;
+            var found = AquaSynthFaustToolchain.Find(preferredHome);
+            if (found is null)
+            {
+                error = $"Faust toolchain not found. Expected {string.Join(" or ", AquaSynthFaustToolchain.LibraryFileNames)} under <home>/lib with <home>/share/faust, where home is Tools{Path.DirectorySeparatorChar}Faust beside the app, AQUASYNTH_FAUST_HOME, AQUARIUM_FAUST_HOME, or the platform default; or set {AquaSynthFaustToolchain.LibraryOverrideVariable}.";
+                return false;
+            }
+
+            home = found;
+            dllPath = AquaSynthFaustToolchain.FindLibrary(home)!;
         }
 
         var binPath = Path.Combine(home, "bin");
-        var libPath = Path.Combine(home, "lib");
+        var libPath = Path.GetDirectoryName(dllPath)!;
         var path = Environment.GetEnvironmentVariable("PATH") ?? "";
-        Environment.SetEnvironmentVariable("PATH", $"{libPath};{binPath};{path}");
+        Environment.SetEnvironmentVariable("PATH", string.Join(Path.PathSeparator, [libPath, binPath, path]));
 
         try
         {
