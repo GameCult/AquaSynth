@@ -28,13 +28,13 @@ the host a singleton (`Host/Program.cs:3-4`).
 3. Respond `playing` with a fresh `ding-<guid>` id (`:69,76`). The response returns after
    every note is *rendered and queued*, not after it has sounded.
 
-**Render call** (`Host/AquaDaemonClient.cs:14-32`). A child `dotnet AquaSynthDaemon.dll
-daemon --store <repo>/.aquasynth/dings-host` is spawned lazily (`:36-44`) and spoken to
-over JSON lines on stdin/stdout. A `SemaphoreSlim(1,1)` serializes all renders (`:11,16`).
+**Render call** (`Host/AquaDaemonClient.cs:13-31`). A child `dotnet AquaSynthDaemon.dll
+daemon --store <repo>/.aquasynth/dings-host` is spawned lazily (`:33-44`) and spoken to
+over JSON lines on stdin/stdout. A `SemaphoreSlim(1,1)` serializes all renders (`:9,15`).
 Each note sends `instrument.sample` with: `patchId=dings.<instrument>`, the instrument's
-Faust-DSL `script`, `durationSeconds = 1.5f` (fixed, `:23`, independent of the
+Faust-DSL `script`, `durationSeconds = 1.5f` (fixed, `:20`, independent of the
 instrument's `DecaySeconds`), `gain`, `controls {"/ding/frequency": f}`, `revision = 1`.
-Failure surfaces through `renderReceipt.status != "succeeded"` (`:27-28`). The WAV path is
+Failure surfaces through `renderReceipt.status != "succeeded"` (`:25-27`). The WAV path is
 taken from `renderReceipt.wavUri` (`:29`).
 
 **What the daemon does with it** (`src/AquaSynth.Faust/AquaSynthDaemonService.cs:619-686`):
@@ -51,12 +51,12 @@ instrument script is a single `voice` line parameterised by `/ding/frequency`
 enforced by `ValidateCuration` (`:41-45`).
 
 **Mixing and output: `DingAudioPlayer`** (`Host/DingAudioPlayer.cs`). A 44.1 kHz stereo
-float `MixingSampleProvider` (`:19`) feeds a shared-mode WASAPI output on the default
-render endpoint (`:25-27,29`). `Play(wavPath, delayMs)` reads the WAV (`:43`), upmixes to
-stereo, wraps it in an `OffsetSampleProvider` with `DelayBy = delay` (`:44`) and adds it
-to the mixer (`:45`), then removes it after `TotalTime + delay + 150 ms` (`:46-49`).
+float `MixingSampleProvider` (`:11`) feeds a shared-mode WASAPI output on the default
+render endpoint (`:20-21`). `Play(wavPath, delayMs)` reads the WAV (`:37`), upmixes to
+stereo, wraps it in an `OffsetSampleProvider` with `DelayBy = delay` (`:38`) and adds it
+to the mixer (`:39`), then removes it after `TotalTime + delay + 150 ms` (`:40-43`).
 Overlap is plain summation; there is no limiter or normalization. Volume and mute are
-the WASAPI session's, not the signal's (`:38-39,59-71`). This class is Windows audio
+the WASAPI session's, not the signal's (`:32-33`). This class is Windows audio
 hardware plumbing (NAudio WASAPI, `MMDevice`) and has nothing a file export can reuse
 except the *idea* of delay-offset summation.
 
@@ -79,9 +79,9 @@ writes WAVs). A small offline exporter, a new `tools/` project beside the host, 
 1. For `(instrument, event)`, issue the same per-note `instrument.sample` calls as
    `DingsPlaybackHost.cs:70-75` (same frequency formula and gain), via the same
    `AquaDaemonClient` logic. Share it by moving `AquaDaemonClient` into a library rather
-   than copying it; it already has no host dependency except `FindRepositoryRoot` (`:35-40`).
+   than copying it; it already has no host dependency except `FindRepositoryRoot` (`:45-50`).
 2. Mix offline: sample-accurate sum of each note's mono WAV at `delay * sampleRate`,
-   length `max(delay) + 1.5 s` (the fixed render length, `AquaDaemonClient.cs:23`), peak-
+   length `max(delay) + 1.5 s` (the fixed render length, `AquaDaemonClient.cs:20`), peak-
    normalize or limit to a fixed headroom (the live path has none, so the export decides).
 3. Encode to Ogg (Vorbis or Opus). No encoder exists in this repo (the only `.ogg`
    mentions are bird-recording citations in `research/bird-syrinx-golf/README.md`). Options:
