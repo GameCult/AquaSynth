@@ -56,8 +56,8 @@ cannot read it plays nothing and draws nothing.
 |---|---|---|---|
 | `mind` | id | participant identity | stable identity, not a run/session label; for a human, the member's stable id |
 | `estate` | enum, 3 | `human`, `mind`, `persona` | selects the vocabulary this participant may use; see below |
-| `kind` | enum, 7 (humans: reduced) | `Idle`, `Reading`, `Thinking`, `Working`, `Speaking`, `Waiting`, `Alert` | coarse; see below |
-| `energy` | enum, 4 (humans: 3) | `Low`, `Mid`, `High`, `Peak` | coarse bucket of rate/intensity, never a float; see below |
+| `kind` | enum, 7 (humans: 3) | `Idle`, `Reading`, `Thinking`, `Working`, `Speaking`, `Waiting`, `Alert` | coarse; absent when `neutral`; see below |
+| `energy` | enum, 4 (humans: 3) | `Low`, `Mid`, `High`, `Peak` | coarse bucket of rate/intensity, never a float; absent when `neutral`; see below |
 | `size` | enum, 3 | `Small`, `Medium`, `Large` | coarse size bucket for the creature; scale per bucket is not fixed here |
 | `neutral` | bool | | separate flag; overrides any `size` bucket, see O1 |
 | `seq` | u32 | monotonic per `mind` | ordering and staleness; consumers drop `seq <= last` |
@@ -76,10 +76,14 @@ the other fields may carry (per
 `heimdall-body:follow_up:ratatoskr-creature-projection-v2`):
 
 - **`human`: coarse only.** `energy` is capped at 3 buckets (`Low`, `Mid`,
-  `High`; no `Peak`) and `kind` is a reduced list, a subset of the seven (which
-  subset is a reconcile item against the projection-v2 field list; this
-  document does not guess it). A producer must not emit a finer value for a
-  human; a consumer that receives one clamps it to the coarse set.
+  `High`; no `Peak`) and `kind` is the **human subset** `Idle`, `Working`,
+  `Speaking` (*proposed*). The subset is strictly smaller than the Mind/Persona
+  set and chosen to reveal less, never more: it omits `Reading`, `Thinking`,
+  `Waiting` and `Alert`, which describe what a participant is attending to or
+  how it is faring. A producer must not emit a `kind` or `energy` outside the
+  human set for a human. A consumer that receives one clamps it: an omitted
+  `kind` maps to `Idle`, `Peak` maps to `High`. Clamping only ever reveals
+  less. Reconcile the subset against the projection-v2 field list.
 - **`mind` and `persona`: the finer 7 x 4 set** (all seven `kind`, all four
   `energy` buckets).
 
@@ -99,8 +103,10 @@ Rules:
 - **A2. Coarse by construction.** There is no continuous field in the frame. A
   renderer that wants smooth motion interpolates between buckets locally; it
   does not request finer data.
-- **A3. Member-safe.** The frame carries kind, Mind, time and energy bucket.
-  Never brief text, document ids, claims, or mind contents.
+- **A3. Member-safe.** The frame carries `mind`, `estate`, `kind`, `energy`,
+  `size`, `neutral`, `seq`, `at` and `override`, and nothing else; when
+  `neutral` is set, `kind` and `energy` are stripped (O1). Never brief text,
+  document ids, claims, or mind contents.
 - **A4. Missing is Idle.** No frame within the staleness window (section 5, S2)
   means `Idle`/`Low`: no voice, and the orbit at rest. Silence is the default
   state, not a failure state. Missing is not `neutral`: an absent frame is an
@@ -109,10 +115,13 @@ Rules:
 ### Overrides
 
 - **O1. `neutral`** (the flag, set by the session or by the member's own
-  setting): a Neutral participant gets **no orbit and no voice**. It draws
-  nothing and sounds nothing; there is no "neutral pose" to render. The flag
-  overrides every `size` bucket, `kind` and `energy`. Neutral is not an error;
-  it hides activity, it does not pretend there is none to other consumers.
+  setting): a Neutral participant gets **no orbit and no voice**, and the
+  frame **strips `kind` and `energy` as well**: the producer omits both, and a
+  consumer ignores them if present. An opted-out human reveals nothing, not
+  even coarse activity. It draws nothing and sounds nothing; there is no
+  "neutral pose" to render. The flag overrides every `size` bucket. Neutral is
+  not an error and not Idle: the frame says only that this participant is not
+  shown.
 - **O2. `Muted`**: no voice, orbit unchanged. Lets a listener silence one Mind
   without hiding its motion.
 - **O3.** `neutral` and `override` are data in the frame, set upstream. A consumer never
@@ -123,7 +132,7 @@ Rules:
 ## 3. Mapping tables (shape only)
 
 The grammar defines the mapping *axes*, not the values. Each consumer owns one
-table keyed by the 28 Mind/Persona states (humans use its coarse subset); the tables are checked in beside this document
+table keyed by the 28 Mind/Persona states (humans use the 3 x 3 subset); the tables are checked in beside this document
 when values exist.
 
 | axis | owner | driven by | notes |
@@ -235,7 +244,8 @@ allocation, or a lock.
 None run. To be done before the grammar leaves draft:
 
 1. Reconcile section 2 with `heimdall-body:follow_up:ratatoskr-creature-projection-v2`
-   (field list, the reduced human `kind` subset, the size and neutral fields).
+   (field list, the human `kind` subset in section 2, the size and neutral fields,
+   the stripping of `kind` and `energy` under `neutral`).
 2. Reconcile section 4 with the Mimir harvest.
 3. Round-trip the frame as a CultCache document and check the size claim (one
    byte per state, 28 states).
