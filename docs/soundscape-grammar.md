@@ -58,8 +58,8 @@ cannot read it plays nothing and draws nothing.
 | `estate` | enum, 3 | `human`, `mind`, `persona` | selects the vocabulary this participant may use; see below |
 | `kind` | enum, 7 (humans: 3) | `Idle`, `Reading`, `Thinking`, `Working`, `Speaking`, `Waiting`, `Alert` | coarse; absent when `neutral`; see below |
 | `energy` | enum, 4 (humans: 3) | `Low`, `Mid`, `High`, `Peak` | coarse bucket of rate/intensity, never a float; absent when `neutral`; see below |
-| `size` | enum, 3 | `Small`, `Medium`, `Large` | coarse size bucket for the creature; scale per bucket is not fixed here |
-| `neutral` | bool | | separate flag; overrides any `size` bucket, see O1 |
+| `size` | enum, 3 | `Small`, `Medium`, `Large` | coarse size bucket for the creature; scale per bucket is not fixed here; absent when `neutral` (O1) |
+| `neutral` | bool | | separate flag; when set, `kind`, `energy` and `size` are all omitted, see O1 |
 | `seq` | u32 | monotonic per `mind` | ordering and staleness; consumers drop `seq <= last` |
 | `at` | time bucket | 1 s resolution | producer's observation time, for the staleness rule |
 | `override` | enum, 2 | `None`, `Muted` | see rules O2, O3; Neutral is the `neutral` flag, not an override value |
@@ -83,11 +83,15 @@ the other fields may carry (per
   how it is faring. A producer must not emit a `kind` or `energy` outside the
   human set for a human. A consumer that receives one clamps it: an omitted
   `kind` maps to `Idle`, `Peak` maps to `High`. Clamping only ever reveals
-  less. Reconcile the subset against the projection-v2 field list.
+  less. A human's `kind` that is present but not an enum value at all clamps
+  to `Idle` (reveal-less) for a non-neutral human; for `mind` and `persona` an
+  unknown `kind` is malformed and the frame is dropped (A4).
+  Reconcile the subset against the projection-v2 field list.
 - **`mind` and `persona`: the finer 7 x 4 set** (all seven `kind`, all four
   `energy` buckets).
 
-`size` is three coarse buckets (`Small`, `Medium`, `Large`) for every estate.
+`size` is three coarse buckets (`Small`, `Medium`, `Large`) for every estate
+except a `neutral` participant, whose frame omits it (O1).
 The scale each bucket draws at is **not fixed by this grammar**: the values
 0.7 / 1 / 1.4 are Ratatoskr placeholders, owned by the orbit renderer, and may
 change without touching the frame.
@@ -105,7 +109,7 @@ Rules:
   does not request finer data.
 - **A3. Member-safe.** The frame carries `mind`, `estate`, `kind`, `energy`,
   `size`, `neutral`, `seq`, `at` and `override`, and nothing else; when
-  `neutral` is set, `kind` and `energy` are stripped (O1). Never brief text,
+  `neutral` is set, `kind`, `energy` and `size` are stripped (O1). Never brief text,
   document ids, claims, or mind contents.
 - **A4. Missing is Idle.** No frame within the staleness window (section 5, S2)
   means `Idle`/`Low`: no voice, and the orbit at rest. Silence is the default
@@ -116,10 +120,10 @@ Rules:
 
 - **O1. `neutral`** (the flag, set by the session or by the member's own
   setting): a Neutral participant gets **no orbit and no voice**, and the
-  frame **strips `kind` and `energy` as well**: the producer omits both, and a
-  consumer ignores them if present. An opted-out human reveals nothing, not
-  even coarse activity. It draws nothing and sounds nothing; there is no
-  "neutral pose" to render. The flag overrides every `size` bucket. Neutral is
+  frame **strips `kind`, `energy` and `size` as well**: the producer omits all
+  three, and a consumer ignores them if present. An opted-out participant
+  reveals nothing, not even coarse activity or a coarse size bucket. It draws nothing and sounds nothing; there is no
+  "neutral pose" to render. Neutral overrides every `size` bucket: none is drawn or carried. Neutral is
   not an error and not Idle: the frame says only that this participant is not
   shown.
 - **O2. `Muted`**: no voice, orbit unchanged. Lets a listener silence one Mind
@@ -245,7 +249,7 @@ None run. To be done before the grammar leaves draft:
 
 1. Reconcile section 2 with `heimdall-body:follow_up:ratatoskr-creature-projection-v2`
    (field list, the human `kind` subset in section 2, the size and neutral fields,
-   the stripping of `kind` and `energy` under `neutral`).
+   the stripping of `kind`, `energy` and `size` under `neutral`).
 2. Reconcile section 4 with the Mimir harvest.
 3. Round-trip the frame as a CultCache document and check the size claim (one
    byte per state, 28 states).
