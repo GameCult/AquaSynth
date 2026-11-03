@@ -106,7 +106,9 @@ home whose `lib/` has `libfaust.so` and whose `share/faust` has both.
 `tools/FaustRender` renders one `.dsp` with an `rpm` control to WAVs plus
 `manifest.json` (hashes, peak, rms, non-finite flag). It measures; it does not
 listen. `docs/renders/thruster-v5-manifest.json` is its output for
-`patches/thruster/thruster.dsp` at PR #3 head `c6561da`.
+`patches/thruster/thruster.dsp` at PR #3 head `c6561da`, 4 s per case. The render is
+deterministic (two reruns byte-identical); the 2026-10-31 sweep file is a 6 s
+render, which is why its hash differs from a 4 s sweep.
 
 ## Invariants
 
