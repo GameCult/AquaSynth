@@ -1,0 +1,65 @@
+import("stdfaust.lib");
+declare name "bfxr-shield-pop";
+declare options "[nvoices:1]";
+
+time = ba.time / ma.SR;
+age = time;
+clip01(x) = min(1.0, max(0.0, x));
+wrap01(x) = x - floor(x);
+slew(rate,x) = x : *(1.0 - exp((0.0 - max(0.0001, rate)) / ma.SR)) : + ~ *(exp((0.0 - max(0.0001, rate)) / ma.SR));
+softclip(x) = ma.tanh(x * 1.35);
+fold(x) = 2.0 * abs(2.0 * (x / 4.0 - floor(x / 4.0)) - 1.0) - 1.0;
+release_start(a,d,g) = max(g, a + d);
+oneshot_adsr_at(t,a,d,s,r,g) = select2(t < a, select2(t < a + d, select2(t < release_start(a,d,g), select2(t < release_start(a,d,g) + r, 0.0, s * (1.0 - (t - release_start(a,d,g)) / max(0.0001, r))), s), 1.0 - (1.0 - s) * ((t - a) / max(0.0001, d))), t / max(0.0001, a));
+oneshot_adsr(a,d,s,r,g) = oneshot_adsr_at(age,a,d,s,r,g);
+seg(t,t0,d,a,b) = a + (b - a) * clip01((t - t0) / max(0.0001, d));
+bez(t,a,b,c,d) = (1.0 - t) * (1.0 - t) * (1.0 - t) * a + 3.0 * (1.0 - t) * (1.0 - t) * t * b + 3.0 * (1.0 - t) * t * t * c + t * t * t * d;
+seg_bez(t,t0,d,a,b,c,e) = bez(clip01((t - t0) / max(0.0001, d)), a, b, c, e);
+smooth01(x) = clip01(x) * clip01(x) * (3.0 - 2.0 * clip01(x));
+seg_smooth(t,t0,d,a,b) = a + (b - a) * smooth01((t - t0) / max(0.0001, d));
+seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));
+seg_curve(c,t,t0,d,a,b) = select2(c < 0.5, seg_exp(t,t0,d,a,b), seg(t,t0,d,a,b));
+rl_release_start(r1,r2,r3,g) = max(g, r1 + r2 + r3);
+rl4_env_from_at(t,s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = select2(t < r1, select2(t < r1 + r2, select2(t < r1 + r2 + r3, select2(t < rl_release_start(r1,r2,r3,g), select2(t < rl_release_start(r1,r2,r3,g) + r4, l4, seg_curve(c4, t, rl_release_start(r1,r2,r3,g), r4, l3, l4)), l3), seg_curve(c3, t, r1 + r2, r3, l2, l3)), seg_curve(c2, t, r1, r2, l1, l2)), seg_curve(c1, t, 0, r1, s0, l1));
+rl4_env_at(t,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_from_at(t,0.0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);
+rl4_env_from(s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_from_at(age,s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);
+rl4_env(r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_at(age,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);
+lfo_sin(hz, phase) = sin(2.0 * ma.PI * (age * hz + phase));
+lfo_tri(hz, phase) = 1.0 - 4.0 * abs((age * hz + phase - floor(age * hz + phase)) - 0.5);
+lfo_sq(hz, phase) = select2((age * hz + phase - floor(age * hz + phase)) < 0.5, -1.0, 1.0);
+lfo_hold(hz, phase) = no.noise : ba.latch(os.oscrs(hz));
+
+patch_mod_gain = 0.0;
+patch_mod_pitch = 0.0;
+patch_mod_duty = 0.0;
+patch_mod_lpf = 0.0;
+patch_mod_hpf = 0.0;
+patch_mod_noise = 0.0;
+patch_mod_drive = 0.0;
+patch_mod_fold = 0.0;
+patch_mod_formant_mix = 0.0;
+patch_mod_fm_index = 0.0;
+
+voice_0_age = age;
+voice_0_freq = ((max(20, 260 * pow(2.0, -0.75 * voice_0_age + 0.5 * 0 * voice_0_age * voice_0_age))) * (1.0 + select2(voice_0_age < 0, 0.0, sin(2.0 * ma.PI * (voice_0_age - 0) * 7.2) * 0.04))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0);
+voice_0_osc = 1.0 - 4.0 * abs(wrap01(os.phasor(1.0, ((max(20, 260 * pow(2.0, -0.75 * voice_0_age + 0.5 * 0 * voice_0_age * voice_0_age))) * (1.0 + select2(voice_0_age < 0, 0.0, sin(2.0 * ma.PI * (voice_0_age - 0) * 7.2) * 0.04))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0)) + 0) - 0.5);
+voice_0_colored = (voice_0_osc * (1.0 - clip01(0 + patch_mod_noise + 0.0)) + no.noise * clip01(0 + patch_mod_noise + 0.0));
+voice_0_driven = ma.tanh(voice_0_colored * (1.0 + clip01(0.12 + patch_mod_drive + 0.0) * 12.0)) / ma.tanh(1.0 + clip01(0.12 + patch_mod_drive + 0.0) * 12.0);
+voice_0_folded = voice_0_driven * (1.0 - clip01(0 + patch_mod_fold + 0.0)) + fold(voice_0_driven * (1.0 + clip01(0 + patch_mod_fold + 0.0) * 3.5)) * clip01(0 + patch_mod_fold + 0.0);
+voice_0_filtered = voice_0_folded : fi.lowpass(1, max(20.0, clip01(0.68 * (1.0 + 0 * voice_0_age * 1.8) + patch_mod_lpf + 0.0) * 18000.0)) : fi.highpass(1, max(5.0, (clip01(0.03 * (1.0 + 0 * voice_0_age * 2.0) + patch_mod_hpf + 0.0)) * (clip01(0.03 * (1.0 + 0 * voice_0_age * 2.0) + patch_mod_hpf + 0.0)) * 7000.0));
+voice_0_phased = voice_0_filtered;
+voice_0_formants = voice_0_phased;
+voice_0 = ((voice_0_phased * (1.0 - clip01(0 + patch_mod_formant_mix + 0.0)) + voice_0_formants * clip01(0 + patch_mod_formant_mix + 0.0)) * oneshot_adsr_at(voice_0_age, 0, 0, 0.7575758, 0.36, 0.04) * max(0.0, 1.0 + patch_mod_gain + 0.0) * 0.264);
+
+voice_1_age = age;
+voice_1_freq = ((max(20, 900 * pow(2.0, 0 * voice_1_age + 0.5 * 0 * voice_1_age * voice_1_age)))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0);
+voice_1_osc = no.noise;
+voice_1_colored = (voice_1_osc * (1.0 - clip01(0.7 + patch_mod_noise + 0.0)) + no.noise * clip01(0.7 + patch_mod_noise + 0.0));
+voice_1_driven = ma.tanh(voice_1_colored * (1.0 + clip01(0.12 + patch_mod_drive + 0.0) * 12.0)) / ma.tanh(1.0 + clip01(0.12 + patch_mod_drive + 0.0) * 12.0);
+voice_1_folded = voice_1_driven * (1.0 - clip01(0 + patch_mod_fold + 0.0)) + fold(voice_1_driven * (1.0 + clip01(0 + patch_mod_fold + 0.0) * 3.5)) * clip01(0 + patch_mod_fold + 0.0);
+voice_1_filtered = voice_1_folded : fi.lowpass(1, max(20.0, clip01(0.68 * (1.0 + 0 * voice_1_age * 1.8) + patch_mod_lpf + 0.0) * 18000.0)) : fi.highpass(1, max(5.0, (clip01(0.4 * (1.0 + 0 * voice_1_age * 2.0) + patch_mod_hpf + 0.0)) * (clip01(0.4 * (1.0 + 0 * voice_1_age * 2.0) + patch_mod_hpf + 0.0)) * 7000.0));
+voice_1_phased = voice_1_filtered;
+voice_1_formants = voice_1_phased;
+voice_1 = ((voice_1_phased * (1.0 - clip01(0 + patch_mod_formant_mix + 0.0)) + voice_1_formants * clip01(0 + patch_mod_formant_mix + 0.0)) * oneshot_adsr_at(voice_1_age, 0, 0, 0.7575758, 0.16, 0.018) * max(0.0, 1.0 + patch_mod_gain + 0.0) * 0.05);
+
+process = softclip((voice_0 + voice_1) * 1);

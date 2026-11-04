@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AquaSynth Playground</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">AquaSynth lab</p>
+      <h1>Patch Playground</h1>
+      <p class="lede">An AquaSynth <code>.aqua</code> patch is lowered to Faust, compiled to WebAssembly in this page, and played through an AudioWorklet. Nothing here is rendered on a server.</p>
+    </header>
+    <section class="bar">
+      <label>Patch <select id="patch"></select></label>
+      <button id="play" type="button">Play</button>
+      <button id="stop" type="button">Stop</button>
+      <label>Volume <input id="volume" type="range" min="0" max="1" step="0.01" value="0.5"></label>
+      <meter id="level" min="0" max="1" value="0" title="output peak"></meter>
+      <span id="status" role="status">Loading the Faust compiler…</span>
+    </section>
+    <section class="cols">
+      <div>
+        <h2>Controls <small>(from the DSP's own UI)</small></h2>
+        <div id="controls" class="controls"></div>
+      </div>
+      <div>
+        <h2>Lowered Faust source <small id="origin"></small></h2>
+        <textarea id="source" spellcheck="false"></textarea>
+        <button id="recompile" type="button">Recompile edited source</button>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

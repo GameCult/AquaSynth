@@ -1,0 +1,300 @@
+[
+  {
+    "name": "thruster",
+    "origin": "thruster/thruster.dsp",
+    "kind": "faust",
+    "dsp": "thruster.dsp",
+    "warnings": []
+  },
+  {
+    "name": "808-clap",
+    "origin": "808/clap.aqua",
+    "kind": "aqua",
+    "dsp": "808-clap.dsp",
+    "warnings": []
+  },
+  {
+    "name": "808-cowbell",
+    "origin": "808/cowbell.aqua",
+    "kind": "aqua",
+    "dsp": "808-cowbell.dsp",
+    "warnings": []
+  },
+  {
+    "name": "808-hat",
+    "origin": "808/hat.aqua",
+    "kind": "aqua",
+    "dsp": "808-hat.dsp",
+    "warnings": []
+  },
+  {
+    "name": "808-kick",
+    "origin": "808/kick.aqua",
+    "kind": "aqua",
+    "dsp": "808-kick.dsp",
+    "warnings": []
+  },
+  {
+    "name": "808-snare",
+    "origin": "808/snare.aqua",
+    "kind": "aqua",
+    "dsp": "808-snare.dsp",
+    "warnings": []
+  },
+  {
+    "name": "808-tom",
+    "origin": "808/tom.aqua",
+    "kind": "aqua",
+    "dsp": "808-tom.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-alien-multivalve-graph",
+    "origin": "advanced/alien-multivalve-graph.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-alien-multivalve-graph.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-aurora-pad",
+    "origin": "advanced/aurora-pad.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-aurora-pad.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-bird-syrinx",
+    "origin": "advanced/bird-syrinx.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-bird-syrinx.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-bird-syrinx-graph",
+    "origin": "advanced/bird-syrinx-graph.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-bird-syrinx-graph.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-glass-creature",
+    "origin": "advanced/glass-creature.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-glass-creature.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-human-larynx-graph",
+    "origin": "advanced/human-larynx-graph.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-human-larynx-graph.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-machine-breath",
+    "origin": "advanced/machine-breath.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-machine-breath.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-ritual-sequence",
+    "origin": "advanced/ritual-sequence.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-ritual-sequence.dsp",
+    "warnings": []
+  },
+  {
+    "name": "advanced-subtractive-drums",
+    "origin": "advanced/subtractive-drums.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-subtractive-drums.dsp",
+    "warnings": [
+      "voice_0: low-pass resonance is approximated with Faust resonlp"
+    ]
+  },
+  {
+    "name": "advanced-syrinx-voice",
+    "origin": "advanced/syrinx-voice.aqua",
+    "kind": "aqua",
+    "dsp": "advanced-syrinx-voice.dsp",
+    "warnings": []
+  },
+  {
+    "name": "bfxr-coin-spark",
+    "origin": "bfxr/coin-spark.aqua",
+    "kind": "aqua",
+    "dsp": "bfxr-coin-spark.dsp",
+    "warnings": []
+  },
+  {
+    "name": "bfxr-portal-chirp",
+    "origin": "bfxr/portal-chirp.aqua",
+    "kind": "aqua",
+    "dsp": "bfxr-portal-chirp.dsp",
+    "warnings": []
+  },
+  {
+    "name": "bfxr-shield-pop",
+    "origin": "bfxr/shield-pop.aqua",
+    "kind": "aqua",
+    "dsp": "bfxr-shield-pop.dsp",
+    "warnings": []
+  },
+  {
+    "name": "bfxr-ui-bloom",
+    "origin": "bfxr/ui-bloom.aqua",
+    "kind": "aqua",
+    "dsp": "bfxr-ui-bloom.dsp",
+    "warnings": []
+  },
+  {
+    "name": "dx7-algorithm-32-additive-organ",
+    "origin": "dx7/algorithm-32-additive-organ.aqua",
+    "kind": "aqua",
+    "dsp": "dx7-algorithm-32-additive-organ.dsp",
+    "warnings": []
+  },
+  {
+    "name": "dx7-algorithm-8-bright-pair",
+    "origin": "dx7/algorithm-8-bright-pair.aqua",
+    "kind": "aqua",
+    "dsp": "dx7-algorithm-8-bright-pair.dsp",
+    "warnings": []
+  },
+  {
+    "name": "dx7-public-domain-mc-mm-5-3",
+    "origin": "dx7/public-domain-mc-mm-5-3.aqua",
+    "kind": "aqua",
+    "dsp": "dx7-public-domain-mc-mm-5-3.dsp",
+    "warnings": []
+  },
+  {
+    "name": "dx7-public-domain-prc-synth1-calibrated",
+    "origin": "dx7/public-domain/prc-synth1-calibrated.aqua",
+    "kind": "aqua",
+    "dsp": "dx7-public-domain-prc-synth1-calibrated.dsp",
+    "warnings": []
+  },
+  {
+    "name": "examples-language-tour",
+    "origin": "examples/language-tour.aqua",
+    "kind": "aqua",
+    "dsp": "examples-language-tour.dsp",
+    "warnings": [
+      "voice_2: low-pass resonance is approximated with Faust resonlp"
+    ]
+  },
+  {
+    "name": "fm-bell-bell",
+    "origin": "fm-bell/bell.aqua",
+    "kind": "aqua",
+    "dsp": "fm-bell-bell.dsp",
+    "warnings": []
+  },
+  {
+    "name": "fm-bell-chime",
+    "origin": "fm-bell/chime.aqua",
+    "kind": "aqua",
+    "dsp": "fm-bell-chime.dsp",
+    "warnings": []
+  },
+  {
+    "name": "fm-bell-coin",
+    "origin": "fm-bell/coin.aqua",
+    "kind": "aqua",
+    "dsp": "fm-bell-coin.dsp",
+    "warnings": []
+  },
+  {
+    "name": "fm-bell-gong",
+    "origin": "fm-bell/gong.aqua",
+    "kind": "aqua",
+    "dsp": "fm-bell-gong.dsp",
+    "warnings": []
+  },
+  {
+    "name": "sfxr-blip",
+    "origin": "sfxr/blip.aqua",
+    "kind": "aqua",
+    "dsp": "sfxr-blip.dsp",
+    "warnings": []
+  },
+  {
+    "name": "sfxr-classic-classic-sfxr-abstract-golf",
+    "origin": "sfxr/classic/classic-sfxr-abstract-golf.aqua",
+    "kind": "aqua",
+    "dsp": "sfxr-classic-classic-sfxr-abstract-golf.dsp",
+    "warnings": []
+  },
+  {
+    "name": "sfxr-explosion",
+    "origin": "sfxr/explosion.aqua",
+    "kind": "aqua",
+    "dsp": "sfxr-explosion.dsp",
+    "warnings": []
+  },
+  {
+    "name": "sfxr-hit",
+    "origin": "sfxr/hit.aqua",
+    "kind": "aqua",
+    "dsp": "sfxr-hit.dsp",
+    "warnings": []
+  },
+  {
+    "name": "sfxr-jump",
+    "origin": "sfxr/jump.aqua",
+    "kind": "aqua",
+    "dsp": "sfxr-jump.dsp",
+    "warnings": []
+  },
+  {
+    "name": "sfxr-laser",
+    "origin": "sfxr/laser.aqua",
+    "kind": "aqua",
+    "dsp": "sfxr-laser.dsp",
+    "warnings": []
+  },
+  {
+    "name": "sfxr-pickup",
+    "origin": "sfxr/pickup.aqua",
+    "kind": "aqua",
+    "dsp": "sfxr-pickup.dsp",
+    "warnings": []
+  },
+  {
+    "name": "sfxr-powerup",
+    "origin": "sfxr/powerup.aqua",
+    "kind": "aqua",
+    "dsp": "sfxr-powerup.dsp",
+    "warnings": []
+  },
+  {
+    "name": "wobble-bass-growl",
+    "origin": "wobble-bass/growl.aqua",
+    "kind": "aqua",
+    "dsp": "wobble-bass-growl.dsp",
+    "warnings": []
+  },
+  {
+    "name": "wobble-bass-neuro",
+    "origin": "wobble-bass/neuro.aqua",
+    "kind": "aqua",
+    "dsp": "wobble-bass-neuro.dsp",
+    "warnings": []
+  },
+  {
+    "name": "wobble-bass-talker",
+    "origin": "wobble-bass/talker.aqua",
+    "kind": "aqua",
+    "dsp": "wobble-bass-talker.dsp",
+    "warnings": []
+  },
+  {
+    "name": "wobble-bass-yoy",
+    "origin": "wobble-bass/yoy.aqua",
+    "kind": "aqua",
+    "dsp": "wobble-bass-yoy.dsp",
+    "warnings": []
+  }
+]
