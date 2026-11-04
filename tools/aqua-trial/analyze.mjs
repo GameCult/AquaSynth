@@ -4,7 +4,7 @@
 // Pure functions are exported for test.mjs; the CLI runs only when this file is the entry point.
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { rng, shuffle, SCHEMA } from "./logic.mjs";
+import { rng, shuffle, SCHEMA } from "./logic.js";
 
 export const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 export const sd = (xs) => (xs.length < 2 ? NaN : Math.sqrt(xs.reduce((a, x) => a + (x - mean(xs)) ** 2, 0) / (xs.length - 1)));

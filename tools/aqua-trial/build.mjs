@@ -1,4 +1,4 @@
-// Assembles dist/ (the static trial site): web/, logic.mjs, the trial patch, and the faustwasm runtime copied from
+// Assembles dist/ (the static trial site): web/, logic.js, the trial patch, and the faustwasm runtime copied from
 // the sibling aqua-playground's node_modules (run `npm install` there first). Prints a content hash for the
 // publish path: minds.gamecult.org/aqua/trial-<hash>/. Usage: node build.mjs [outDir]
 import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
@@ -13,7 +13,7 @@ const fw = join(play, "node_modules/@grame/faustwasm");
 rmSync(out, { recursive: true, force: true });
 mkdirSync(join(out, "vendor/faustwasm"), { recursive: true });
 cpSync(join(here, "web"), out, { recursive: true });
-cpSync(join(here, "logic.mjs"), join(out, "logic.mjs"));
+cpSync(join(here, "logic.js"), join(out, "logic.js"));
 cpSync(join(here, "thruster-trial.dsp"), join(out, "thruster-trial.dsp"));
 cpSync(join(play, "web/ui.js"), join(out, "ui.js"));
 cpSync(join(fw, "dist/esm/index.js"), join(out, "vendor/faustwasm/index.js"));

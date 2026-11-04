@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { makeDesign, variants, stats, cleanWord, validRating, buildExport, renderVariant, rng, shuffle, SCHEMA, PATCH } from "./logic.mjs";
+import { makeDesign, variants, stats, cleanWord, validRating, buildExport, renderVariant, rng, shuffle, SCHEMA, PATCH } from "./logic.js";
 import { analyze, format, mean, sd, spearman, ranks, pearson } from "./analyze.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));

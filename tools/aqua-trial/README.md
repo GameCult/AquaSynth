@@ -16,7 +16,7 @@ the patch through the same faustwasm runtime the page loads (`node test.mjs`, 15
   rattle layers only; the rumble (tone) is untouched, so lowering it moves the mix tone-forward. That reading of
   "tone-forward mix" is this author's; at 100 the signal equals the thruster (asserted sample for sample).
   Variants: rpm 600, noise 100 / 50 / 20 / 0. Not loudness-matched, so level and noise are confounded by design.
-- `logic.mjs`: design, statistics, validation and export shape (shared by page and tests).
+- `logic.js`: design, statistics, validation and export shape (shared by page and tests).
 - `analyze.mjs`: dependency-free. `node analyze.mjs export1.json [export2.json ...]` prints per-variant n, mean,
   sd, min/max, peak, rms, words, and whether peak / rms predicted the ratings (Spearman rho, permutation p;
   "predicts" means |rho| >= 0.5 and p < 0.05, fixed before any data).

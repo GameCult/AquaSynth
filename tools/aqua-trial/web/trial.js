@@ -1,9 +1,9 @@
 // Browser glue for the listening trial. The decisions (design, statistics, validation, export shape) live in
-// ../logic.mjs and are tested in node; this file only touches the DOM, the AudioContext and the download.
+// ../logic.js and are tested in node; this file only touches the DOM, the AudioContext and the download.
 // Nothing here makes a network request after the page assets load, and nothing is written to storage.
 import { instantiateFaustModuleFromFile, LibFaust, FaustCompiler, FaustMonoDspGenerator } from "./vendor/faustwasm/index.js";
 import { controlsOf } from "./ui.js";
-import { variants, makeDesign, renderVariant, cleanWord, validRating, buildExport, PATCH } from "./logic.mjs";
+import { variants, makeDesign, renderVariant, cleanWord, validRating, buildExport, PATCH } from "./logic.js";
 
 const $ = (s, root = document) => root.querySelector(s);
 const status = (t) => { $("#status").textContent = t; };
