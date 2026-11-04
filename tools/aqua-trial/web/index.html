@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AquaSynth listening trial</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main>
+    <p class="eyebrow">AquaSynth lab</p>
+    <h1>Does it land?</h1>
+    <p class="lede">Six short comparisons of a synthesized spacecraft thruster. You hear two renders, A and B, in random order, and say how well each one lands: 1 means it does not, 5 means it does. Then give each a single word. Use headphones or speakers at a comfortable level, and a quiet room if you can.</p>
+
+    <section id="consent">
+      <label class="consent"><input id="agree" type="checkbox">
+        I agree to take part. My ratings, one-word answers, timestamps, browser user-agent string and audio sample rate are kept in this browser tab only. Nothing is sent anywhere, and nothing is stored on this device, unless I press <b>Export</b> at the end, which saves a file that I then choose whether to send.</label>
+      <button id="start" type="button" disabled>Start</button>
+      <span id="status" role="status"></span>
+    </section>
+
+    <section id="trial" hidden>
+      <h2 id="progress"></h2>
+      <div class="pair">
+        <fieldset data-pos="A"><legend>Sound A</legend>
+          <button type="button" class="play">Play A</button>
+          <div class="stars" role="radiogroup" aria-label="Rating for A"></div>
+          <input class="word" type="text" maxlength="32" placeholder="one word" autocomplete="off" aria-label="One word for A">
+        </fieldset>
+        <fieldset data-pos="B"><legend>Sound B</legend>
+          <button type="button" class="play">Play B</button>
+          <div class="stars" role="radiogroup" aria-label="Rating for B"></div>
+          <input class="word" type="text" maxlength="32" placeholder="one word" autocomplete="off" aria-label="One word for B">
+        </fieldset>
+      </div>
+      <button id="stop" type="button">Stop</button>
+      <button id="next" type="button" disabled>Next</button>
+      <p class="hint">Rate both sounds and give each exactly one word (no spaces) to continue. You can replay as often as you like.</p>
+    </section>
+
+    <section id="done" hidden>
+      <h2>Finished</h2>
+      <p>Nothing has left this page. <b>Export</b> saves a JSON file of your answers; send it to whoever asked you to take part, or do not.</p>
+      <button id="export" type="button">Export</button>
+    </section>
+  </main>
+  <script type="module" src="./trial.js"></script>
+</body>
+</html>
