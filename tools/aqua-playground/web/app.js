@@ -1,5 +1,5 @@
 import { instantiateFaustModuleFromFile, LibFaust, FaustCompiler, FaustMonoDspGenerator } from "./vendor/faustwasm/index.js";
-import { controlsOf } from "./ui.mjs";
+import { controlsOf } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 const status = (t) => { $("status").textContent = t; };

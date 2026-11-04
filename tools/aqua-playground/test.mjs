@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const dist = resolve(process.argv[2] ?? join(dirname(fileURLToPath(import.meta.url)), "dist"));
 const { instantiateFaustModuleFromFile, LibFaust, FaustCompiler, FaustMonoDspGenerator } =
   await import(pathToFileURL(join(dist, "vendor/faustwasm/index.js")).href);
-const { controlsOf } = await import(pathToFileURL(join(dist, "ui.mjs")).href);
+const { controlsOf } = await import(pathToFileURL(join(dist, "ui.js")).href);
 
 const libfaust = new LibFaust(await instantiateFaustModuleFromFile(join(dist, "vendor/libfaust-wasm/libfaust-wasm.js")));
 const compiler = new FaustCompiler(libfaust);

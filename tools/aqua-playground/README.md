@@ -21,7 +21,7 @@ controls, so their slider panel is empty.
 - `node test.mjs [dist]`: headless check of `dist/`: each patch compiles to wasm, renders 2 s
   offline, is non-silent and finite; the thruster is also run at rpm 600 and 4800.
   It cannot hear and does not run an AudioWorklet or a browser.
-- `web/`: the page (`index.html`, `app.js`, `ui.mjs`, `styles.css`).
+- `web/`: the page (`index.html`, `app.js`, `ui.js`, `styles.css`).
 
 Serve `dist/` from any static host (`python3 -m http.server`); AudioWorklet needs `localhost` or https.
 The older `tools/vocal-tract-playground` renders server-side through the .NET renderer; this one
