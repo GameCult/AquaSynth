@@ -6,7 +6,7 @@ move the sliders the DSP itself declares, press Play.
 **Status: unheard, and never run in a browser.** `node test.mjs` is the only check that has run: it
 compiles each patch to wasm in Node and renders it offline (non-silent, finite). No patch has been listened to;
 the page itself, its AudioWorklet path, sliders and layout have not been opened in any browser. One patch
-is known to clip: `dx7-public-domain-prc-synth1-calibrated` peaks at 2.10. Browser verification is open as
+clipped until 2026-11-05: `dx7-public-domain-prc-synth1-calibrated` peaked at 2.10 (patch gain trimmed 1.4 → 0.45, now 0.67; `tools/aqua-feel` measures it). Browser verification is open as
 `aqua-body:follow_up:playground-browser-verify`.
 
 **What is live:** 42 patches (`catalog.json`): the hand-written Faust `thruster` (with its `rpm`

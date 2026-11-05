@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AquaSynth.Core\AquaSynth.Core.csproj" />
+    <ProjectReference Include="..\..\src\AquaSynth.Dings\AquaSynth.Dings.csproj" />
   </ItemGroup>
 
 </Project>

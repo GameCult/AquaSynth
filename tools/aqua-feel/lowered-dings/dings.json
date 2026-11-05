@@ -1,0 +1,184 @@
+{
+  "instruments": [
+    {
+      "id": "glass-chime",
+      "rootFrequency": 261.6256,
+      "dsp": "glass-chime.dsp",
+      "controlPath": "/ding/frequency",
+      "warnings": []
+    },
+    {
+      "id": "muted-pluck",
+      "rootFrequency": 261.6256,
+      "dsp": "muted-pluck.dsp",
+      "controlPath": "/ding/frequency",
+      "warnings": []
+    },
+    {
+      "id": "soft-triangle",
+      "rootFrequency": 261.6256,
+      "dsp": "soft-triangle.dsp",
+      "controlPath": "/ding/frequency",
+      "warnings": []
+    },
+    {
+      "id": "warm-bell",
+      "rootFrequency": 261.6256,
+      "dsp": "warm-bell.dsp",
+      "controlPath": "/ding/frequency",
+      "warnings": []
+    }
+  ],
+  "events": [
+    {
+      "id": "input.required",
+      "meaning": "Input requested",
+      "notes": [
+        {
+          "semitones": 12,
+          "delayMilliseconds": 0,
+          "gain": 1
+        },
+        {
+          "semitones": 5,
+          "delayMilliseconds": 260,
+          "gain": 1
+        }
+      ]
+    },
+    {
+      "id": "resource.limit",
+      "meaning": "Resource is holding",
+      "notes": [
+        {
+          "semitones": 0,
+          "delayMilliseconds": 0,
+          "gain": 1
+        },
+        {
+          "semitones": 0,
+          "delayMilliseconds": 280,
+          "gain": 1
+        },
+        {
+          "semitones": 0,
+          "delayMilliseconds": 560,
+          "gain": 1
+        }
+      ]
+    },
+    {
+      "id": "session.end",
+      "meaning": "Session closure",
+      "notes": [
+        {
+          "semitones": 7,
+          "delayMilliseconds": 0,
+          "gain": 1
+        },
+        {
+          "semitones": 0,
+          "delayMilliseconds": 240,
+          "gain": 1
+        }
+      ]
+    },
+    {
+      "id": "session.start",
+      "meaning": "Opening welcome",
+      "notes": [
+        {
+          "semitones": 0,
+          "delayMilliseconds": 0,
+          "gain": 1
+        },
+        {
+          "semitones": 7,
+          "delayMilliseconds": 220,
+          "gain": 1
+        }
+      ]
+    },
+    {
+      "id": "task.acknowledge",
+      "meaning": "Quiet ongoing acknowledgement",
+      "notes": [
+        {
+          "semitones": 7,
+          "delayMilliseconds": 0,
+          "gain": 1
+        }
+      ]
+    },
+    {
+      "id": "task.complete",
+      "meaning": "Satisfying closure",
+      "notes": [
+        {
+          "semitones": 7,
+          "delayMilliseconds": 0,
+          "gain": 1
+        },
+        {
+          "semitones": 12,
+          "delayMilliseconds": 220,
+          "gain": 1
+        }
+      ]
+    },
+    {
+      "id": "task.error",
+      "meaning": "Gentle failure notice",
+      "notes": [
+        {
+          "semitones": 7,
+          "delayMilliseconds": 0,
+          "gain": 1
+        },
+        {
+          "semitones": 4,
+          "delayMilliseconds": 240,
+          "gain": 1
+        },
+        {
+          "semitones": 0,
+          "delayMilliseconds": 480,
+          "gain": 1
+        }
+      ]
+    },
+    {
+      "id": "task.progress",
+      "meaning": "Faint ignorable progress",
+      "notes": [
+        {
+          "semitones": -5,
+          "delayMilliseconds": 0,
+          "gain": 0.45
+        }
+      ]
+    },
+    {
+      "id": "user.spam",
+      "meaning": "Curt rate warning",
+      "notes": [
+        {
+          "semitones": 9,
+          "delayMilliseconds": 0,
+          "gain": 1
+        },
+        {
+          "semitones": 9,
+          "delayMilliseconds": 190,
+          "gain": 1
+        },
+        {
+          "semitones": 9,
+          "delayMilliseconds": 380,
+          "gain": 1
+        }
+      ]
+    }
+  ],
+  "noteSeconds": 1.5
+}

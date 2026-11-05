@@ -1,0 +1,7 @@
+{
+  "name": "aqua-feel",
+  "private": true,
+  "type": "module",
+  "description": "Headless feel meter for AquaSynth: renders every shipped patch and Ding offline and measures them. Measures; does not listen.",
+  "scripts": { "test": "node test.mjs", "feel": "node feel.mjs" }
+}

@@ -18,3 +18,4 @@ NuGet.Local.Config
 _tmp_*.txt
 *.user
 *.suo
+tools/aqua-feel/out/

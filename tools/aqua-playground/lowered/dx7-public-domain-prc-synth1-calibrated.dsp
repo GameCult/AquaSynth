@@ -49,4 +49,4 @@ opgraph_0_op_1 = sin(2.0 * ma.PI * (os.phasor(1.0, opgraph_0_freq * max(0.0, 0.5
 opgraph_0_op_3 = sin(2.0 * ma.PI * (os.phasor(1.0, opgraph_0_freq * max(0.0, 0.499655)) + (opgraph_0_op_4 * 6 + opgraph_0_op_5 * 6) / ma.PI)) * rl4_env_at(age, 0.001451, 0.984375, 0, 0.296962, 1, 1, 0.424308, 1, 1, 0.549977, 0, 1, 0.85) * 3;
 opgraph_0 = (opgraph_0_op_1 + opgraph_0_op_3) * 0.25;
 
-process = (opgraph_0) * 1.4;
+process = (opgraph_0) * 0.45;

@@ -2,9 +2,11 @@
 # Family: dx7/public-domain
 # Source: analog1.syx voice 17 parity probe, generated from calibrated DX7 lowering
 # Notes: Hard DX7 parity target that forced applied EG, summed route, feedback, detune, and COM calibration.
+# Headroom: patch gain is 0.45, not the 1.4 the parity probe in Dx7ReferenceParityTests uses. At 1.4 this graph peaked at 2.10
+# (18,633 samples past full scale in a 3 s render, found by tools/aqua-feel); 0.45 keeps the same signal at 0.675, about -3.4 dBFS.
 
 patch
-    gain=1.4
+    gain=0.45
     soft_clip=false
 
 opgraph
