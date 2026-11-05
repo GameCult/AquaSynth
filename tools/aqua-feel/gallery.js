@@ -13,7 +13,7 @@ function plot(points, { w = 260, h = 56, ymin, ymax, log = false, color }) {
 }
 
 const ROWS = [
-  ["onset ms", "onsetMs", 2], ["attack ms (10→90%, first peak)", "attackMs", 2], ["attack slope dB/ms", "attackSlopeDbPerMs", 1],
+  ["onset ms", "onsetMs", 2], ["attack ms (10→90% in first 150 ms)", "attackMs", 2], ["attack window-limited", "attackWindowLimited", 0], ["attack slope dB/ms", "attackSlopeDbPerMs", 1],
   ["sample peak", "samplePeak", 3], ["true peak dBTP", "truePeakDb", 1], ["over-1.0 samples", "overSamples", 0], ["flat-top runs", "flatTopRuns", 0],
   ["loudness LUFS", "loudnessLufs", 1], ["crest dB", "crestDb", 1], ["centroid median Hz", "centroidMedianHz", 0], ["flux mean", "fluxMean", 3],
   ["noise-to-tone dB (flat)", "noiseToToneDb", 1], ["noise-to-tone dB (A-weighted)", "noiseToToneADb", 1], ["level range dB", "envRangeDb", 1], ["centroid spread (oct)", "centroidSpreadOct", 2],

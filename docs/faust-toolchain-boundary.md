@@ -108,7 +108,9 @@ home whose `lib/` has `libfaust.so` and whose `share/faust` has both.
 listen. `docs/renders/thruster-v5-manifest.json` is its output for
 `patches/thruster/thruster.dsp` at PR #3 head `c6561da`, 4 s per case. The render is
 deterministic (two reruns byte-identical); the 2026-10-31 sweep file is a 6 s
-render, which is why its hash differs from a 4 s sweep.
+render, which is why its hash differs from a 4 s sweep. That manifest describes the mix at `c6561da`;
+`patches/thruster/thruster.dsp` changed on 2026-11-05 (lower idle noise floors, rumble low-pass opens at low load; see
+`docs/renders/aqua-feel-2026-11-05.md`), so its `dspSha256` and WAV hashes no longer match the repo's patch.
 
 ## Invariants
 

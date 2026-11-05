@@ -3,7 +3,7 @@
 // report.json plus a static gallery, and gates the numbers against thresholds.json.
 // NOTHING HERE HEARS ANYTHING. These are measurements of rendered buffers; a number is evidence, never a verdict.
 // Usage: node feel.mjs run [--out DIR] [--only SUBSTR] [--no-gate]   render, measure, write report + gallery, gate
-//        node feel.mjs gate REPORT.json [THRESHOLDS.json]            re-gate an existing report
+//        node feel.mjs gate REPORT.json [THRESHOLDS.json] [--partial] re-gate a report (--partial: a subset; skips id-rule and waiver bookkeeping)
 //        node feel.mjs compare BEFORE.json AFTER.json [--only SUBSTR]  before/after table
 //        node feel.mjs correlate TRIAL_EXPORT.json ...              feel metrics vs listening-trial ratings
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -45,7 +45,7 @@ async function run() {
   }
   const thresholds = readJson(join(here, "thresholds.json"));
   const report = { schema: "aqua-feel.report.v1", caveat: CAVEAT, libfaust: rt.version, sampleRate: SR, items: records };
-  report.gate = gate(report, thresholds);
+  report.gate = gate(report, thresholds, { partial: Boolean(only) });
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 1));
   writeFileSync(join(out, "index.html"), gallery(report));
@@ -56,7 +56,7 @@ async function run() {
 const cmds = {
   run,
   gate() {
-    const report = readJson(args[0]), g = gate(report, readJson(args[1] ?? join(here, "thresholds.json")));
+    const partial = bool("--partial"), report = readJson(args[0]), g = gate(report, readJson(args[1] ?? join(here, "thresholds.json")), { partial });
     console.log(formatGate(g)); process.exit(g.pass ? 0 : 1);
   },
   compare() { const only = flag("--only"); console.log(compareTable(readJson(args[0]), readJson(args[1]), only)); },

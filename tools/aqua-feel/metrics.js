@@ -1,6 +1,7 @@
 // Pure signal metrics for aqua-feel. Dependency-free; every function takes mono Float32Array/number[] at SR.
 // These are measurements of a rendered buffer. Nothing here hears anything, and no number is a verdict.
 export const SR = 48000;
+export const SILENT_PEAK = 10 ** (-70 / 20); // a buffer whose peak is below -70 dBFS counts as silent
 const db = (x) => (x > 0 ? 20 * Math.log10(x) : -Infinity);
 const pdb = (x) => (x > 0 ? 10 * Math.log10(x) : -Infinity);
 const median = (xs) => { const s = Float64Array.from(xs).sort(); return s.length ? (s.length % 2 ? s[s.length >> 1] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : NaN; };
@@ -68,33 +69,41 @@ export function integratedLoudness(x) {
 
 // ---- time structure ----------------------------------------------------------------------------------------------
 const HOP = 8; // envelope hop in samples (0.167 ms)
+// Peak-hold envelope: max |x| per hop, held with a 30 ms exponential release so the zero crossings of a low tone do not
+// read as dips (a plain per-hop max does: a 261 Hz sine "falls" 100% twice per cycle). The attack stays instantaneous.
+const RELEASE_S = 0.03;
 export function envelope(x) {
-  const env = new Float64Array(Math.ceil(x.length / HOP));
+  const env = new Float64Array(Math.ceil(x.length / HOP)), hold = Math.exp(-HOP / SR / RELEASE_S);
   for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > env[(i / HOP) | 0]) env[(i / HOP) | 0] = a; }
+  for (let i = 1; i < env.length; i++) env[i] = Math.max(env[i], env[i - 1] * hold);
   return env;
 }
+const maxIndex = (a) => { let k = 0; for (let i = 1; i < a.length; i++) if (a[i] > a[k]) k = i; return k; };
 const hopMs = (HOP / SR) * 1000;
 
-// Onset: first sample at or above max(-40 dB re peak, -70 dBFS). Attack is measured on the FIRST peak: the running
-// envelope maximum from the onset until the envelope falls 3 dB below it (so a two-note Ding reports its first note's
-// attack, not a ramp to the second note's peak). 10% -> 90% of that first peak. The envelope hop is 0.167 ms, so an
-// attack faster than that is reported as one hop (resolutionLimited). activeEnd = last envelope hop within 50 dB of the peak.
+// Silent = peak under -70 dBFS. Onset: first sample at or above max(-40 dB re peak, -70 dBFS). Attack is measured inside
+// the first 150 ms after the onset (shorter than the 180 ms minimum gap between Ding notes, so a later, louder note cannot
+// stretch it): 10% -> 90% of the envelope's maximum within that window. If that maximum falls in the last tenth of the
+// window the sound is still swelling and attackMs is only a lower bound (attackWindowLimited). The envelope hop is
+// 0.167 ms, so an attack faster than that is reported as one hop (resolutionLimited). activeEnd = last envelope hop
+// within 50 dB of the peak.
+const ATTACK_WINDOW_S = 0.15;
 export function timing(x) {
   const peak = samplePeak(x);
-  if (!(peak > 0)) return { silent: true };
-  const thr = Math.max(peak * 0.01, 10 ** (-70 / 20));
+  if (!(peak >= SILENT_PEAK)) return { silent: true };
+  const thr = Math.max(peak * 0.01, SILENT_PEAK);
   let onsetSample = 0; while (onsetSample < x.length && Math.abs(x[onsetSample]) < thr) onsetSample++;
-  const env = envelope(x), start = Math.floor(onsetSample / HOP);
-  let top = start, end = start;
-  for (let i = start; i < env.length; i++) { if (env[i] > env[top]) top = i; if (env[i] < env[top] * 0.708) break; end = i; }
-  const first = env[top], at = (f) => { let i = start; while (i < end && env[i] < first * f) i++; return i; };
+  const env = envelope(x), start = Math.floor(onsetSample / HOP), end = Math.min(env.length - 1, start + Math.round(ATTACK_WINDOW_S * SR / HOP));
+  let top = start; for (let i = start; i <= end; i++) if (env[i] > env[top]) top = i;
+  const first = env[top], at = (f) => { let i = start; while (i < top && env[i] < first * f) i++; return i; };
   const i10 = at(0.1), i90 = at(0.9);
   const dt = Math.max(hopMs, (i90 - i10) * hopMs), floor = peak * 10 ** (-50 / 20);
   let last = env.length - 1; while (last > 0 && env[last] < floor) last--;
   return {
     silent: false, onsetMs: (onsetSample / SR) * 1000, attackMs: dt, attackSlopeDbPerMs: db(0.9 / 0.1) / dt,
-    resolutionLimited: i90 - i10 <= 1, activeStartSample: onsetSample, activeEndSample: Math.min(x.length, (last + 1) * HOP),
-    peakAtMs: (env.indexOf(Math.max(...env)) * HOP / SR) * 1000, firstPeak: first, firstPeakAtMs: top * hopMs,
+    resolutionLimited: i90 - i10 <= 1, attackWindowLimited: top - start > 0.9 * (end - start) && end - start > 10,
+    activeStartSample: onsetSample, activeEndSample: Math.min(x.length, (last + 1) * HOP),
+    peakAtMs: (maxIndex(env) * HOP / SR) * 1000, firstPeak: first, firstPeakAtMs: top * hopMs,
   };
 }
 
@@ -188,7 +197,7 @@ function toneNoiseSpan(frames) {
 // (23 Hz bins). Compare it between renders of the same sound, not across sounds of different lengths. Clamped to +/-60 dB.
 export function noiseToTone(x, t) {
   const spanS = (t.activeEndSample - t.activeStartSample) / SR, n = spanS >= 1 ? 8192 : 2048;
-  const frames = stft(x.slice(t.activeStartSample, t.activeEndSample), n, n / 4), maxE = Math.max(...frames.map((f) => f.energy));
+  const frames = stft(x.slice(t.activeStartSample, t.activeEndSample), n, n / 4), maxE = frames.reduce((m, f) => Math.max(m, f.energy), 0);
   const live = frames.filter((f) => f.energy >= maxE * 1e-5), r = toneNoiseSpan(live);
   const ratio = (nz, tn) => Math.max(-60, Math.min(60, pdb(nz) - pdb(tn || 1e-30)));
   return { db: ratio(r.noise, r.tone), dbA: ratio(r.noiseA, r.toneA), window: n };
@@ -206,7 +215,7 @@ const downsample = (pts, n) => {
 // frame and inside the active span. Flux is the half-wave-rectified L2 change between consecutive unit-norm magnitude
 // spectra, so it tracks timbre change and not loudness change.
 export function spectral(x, t, curvePoints = 48) {
-  const all = stft(x), maxE = Math.max(...all.map((f) => f.energy)), t0 = t.activeStartSample / SR, t1 = t.activeEndSample / SR;
+  const all = stft(x), maxE = all.reduce((m, f) => Math.max(m, f.energy), 0), t0 = t.activeStartSample / SR, t1 = t.activeEndSample / SR;
   const idx = all.map((f, i) => (f.energy >= maxE * 1e-5 && f.t >= t0 - N / 2 / SR && f.t <= t1 + N / 2 / SR ? i : -1)).filter((i) => i >= 0);
   if (idx.length < 2) return { frames: idx.length, centroidMedianHz: NaN, centroidCurve: [], fluxCurve: [], fluxMean: 0, fluxP95: 0, centroidSpreadOct: 0, envRangeDb: 0, motion: 0, lowMotion: false, lowMotionReason: "fewer than 2 active frames" };
   const cent = [], flux = [], hz = (k) => (k * SR) / N;
@@ -220,7 +229,7 @@ export function spectral(x, t, curvePoints = 48) {
     prev = Float64Array.from(f.mag, (m) => m / norm);
   }
   const cs = cent.map((c) => Math.log2(Math.max(c.v, 20))), fl = flux.slice(3).map((f) => f.v), fe = idx.map((i) => pdb(all[i].energy));
-  const centroidSpreadOct = sd(cs), envRangeDb = Math.max(...fe) - Math.min(...fe), fluxMean = mean(fl.length ? fl : [0]);
+  const centroidSpreadOct = sd(cs), envRangeDb = fe.reduce((a, b) => Math.max(a, b), -Infinity) - fe.reduce((a, b) => Math.min(a, b), Infinity), fluxMean = mean(fl.length ? fl : [0]);
   // Low motion = the sound stays put: timbre barely moves AND level barely moves, over a span long enough to matter.
   // A decaying bell has a large level range, so it is not flagged; a held drone or a pink wash is. Flux is reported
   // but not used: stationary noise has high flux (periodogram scatter) while going nowhere.
@@ -245,12 +254,12 @@ export function measure(x, { curvePoints = 48 } = {}) {
   const peak = samplePeak(x), nonFinite = x.reduce((n, v) => n + (Number.isFinite(v) ? 0 : 1), 0);
   if (nonFinite) return { nonFinite, silent: false, broken: true };
   const t = timing(x);
-  if (t.silent) return { silent: true, nonFinite: 0, samplePeak: 0 };
+  if (t.silent) return { silent: true, nonFinite: 0, samplePeak: peak };
   const tp = truePeak(x), c = crest(x, t), sp = spectral(x, t, curvePoints), clip = clipping(x), nt = noiseToTone(x, t);
   return {
     silent: false, nonFinite: 0, samplePeak: peak, samplePeakDb: db(peak), truePeak: tp, truePeakDb: db(tp), ...clip,
     loudnessLufs: integratedLoudness(x), rms: c.rms, rmsDb: c.rmsDb, crestDb: c.crestDb,
-    onsetMs: t.onsetMs, attackMs: t.attackMs, attackSlopeDbPerMs: t.attackSlopeDbPerMs, attackResolutionLimited: t.resolutionLimited, peakAtMs: t.peakAtMs,
+    onsetMs: t.onsetMs, attackMs: t.attackMs, attackSlopeDbPerMs: t.attackSlopeDbPerMs, attackResolutionLimited: t.resolutionLimited, attackWindowLimited: t.attackWindowLimited, peakAtMs: t.peakAtMs,
     activeMs: ((t.activeEndSample - t.activeStartSample) / SR) * 1000, noiseToToneDb: nt.db, noiseToToneADb: nt.dbA, noiseToToneWindow: nt.window, envelopeCurve: envelopeCurve(x), ...sp,
   };
 }

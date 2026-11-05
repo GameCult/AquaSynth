@@ -57,10 +57,25 @@ t("timing: onset latency is where the sound starts, attack is the first-note ris
   const tm = timing(x); near(tm.onsetMs, 20 + 1, 1.5, "onset"); near(tm.attackMs, 8, 1.5, "10-90% of a 10 ms ramp is 8 ms");
 });
 
-t("timing: a two-note event reports the first note's attack, not the ramp to the louder second note", () => {
+t("timing: a two-note event reports the first note's attack, even when a louder note follows 200 ms later before the first has decayed", () => {
   const x = new Float32Array(SR * 2);
-  x.set(decay(sine(500, 0.3, 0.3), 0.05)); const b = decay(sine(800, 0.9, 0.5), 0.1); for (let i = 0; i < b.length; i++) x[Math.round(0.4 * SR) + i] += b[i];
+  x.set(decay(sine(500, 0.3, 0.6), 0.5)); const b = decay(sine(800, 0.9, 0.5), 0.1); for (let i = 0; i < b.length; i++) x[Math.round(0.2 * SR) + i] += b[i];
   assert.ok(timing(x).attackMs < 3, `${timing(x).attackMs}`);
+});
+
+t("timing: a swell longer than the 150 ms attack window is flagged window-limited", () => {
+  assert.equal(timing(sine(220, 0.5, 2).map((v, i) => v * i / (2 * SR))).attackWindowLimited, true);
+  assert.equal(timing(decay(sine(220, 0.5, 1), 0.2)).attackWindowLimited, false);
+});
+
+t("attack: a low tone's ramp is not mistaken for its zero crossings (261 Hz, 30 ms ramp; 220 Hz, 2 s swell)", () => {
+  const ramp = (hz, ms) => { const x = sine(hz, 0.5, 1); return x.map((v, i) => v * Math.min(1, i / (ms / 1000 * SR))); };
+  for (const hz of [130, 261.6, 523, 1000]) near(timing(ramp(hz, 30)).attackMs, 24, 3, `${hz} Hz, 30 ms ramp`);
+  assert.ok(timing(sine(220, 0.5, 2).map((v, i) => v * i / (2 * SR))).attackMs > 100, "a 2 s swell is not a click");
+});
+
+t("silent: a -80 dBFS tone is silent, a -60 dBFS tone is not", () => {
+  assert.equal(measure(sine(1000, 1e-4, 1)).silent, true); assert.equal(measure(sine(1000, 1e-3, 1)).silent, false);
 });
 
 t("noise-to-tone: a sine reads far tonal, white noise far noisy, and the A-weighted ratio sees a quiet 1 kHz hiss under a loud 40 Hz tone", () => {
@@ -112,6 +127,31 @@ t("gate: a waiver downgrades a failure, a stale waiver fails, partial runs skip 
   assert.equal(gate(rep, { rules, waivers: [{ id: "c", metric: "overSamples", reason: "r" }] }, { partial: true }).pass, false); // a still fails
 });
 
+t("gate: a waiver covers only up to its stated bound; a numeric waiver without a bound covers nothing", () => {
+  const r = [{ group: "all", metric: "truePeakDb", max: 0, why: "tp" }];
+  const mk = (tp) => ({ items: [item("g", "patch", { truePeakDb: tp })] });
+  const w = [{ id: "g", metric: "truePeakDb", max: 1, reason: "r" }];
+  assert.equal(gate(mk(0.9), { rules: r, waivers: w }).pass, true);
+  assert.equal(gate(mk(6), { rules: r, waivers: w }).pass, false);
+  assert.equal(gate(mk(0.9), { rules: r, waivers: [{ id: "g", metric: "truePeakDb", reason: "r" }] }).pass, false);
+  assert.equal(gate(mk(null), { rules: r, waivers: w }).pass, false);
+});
+
+t("gate: a rule whose id matches no item fails a full run (disarmed guard) and is skipped on a partial run; a missing metric fails", () => {
+  const th = { rules: [{ group: "patch", id: "thruster@rpm600", metric: "truePeakDb", max: 0, why: "w" }] };
+  const rep = { items: [item("thr@rpm600", "patch", {})] };
+  assert.equal(gate(rep, th).pass, false); assert.match(gate(rep, th).failures[0].detail, /matches no item/);
+  assert.equal(gate(rep, th, { partial: true }).pass, true);
+  assert.equal(gate({ items: [item("a", "patch", {})] }, { rules: [{ group: "all", metric: "lowMotion", equals: false, why: "w" }] }).pass, true);
+  const gone = item("a", "patch", {}); delete gone.metrics.lowMotion;
+  assert.equal(gate({ items: [gone] }, { rules: [{ group: "all", metric: "lowMotion", equals: false, why: "w" }] }).pass, false);
+});
+
+t("gate: a silent item fails once and does not also trip every other rule", () => {
+  const g = gate({ items: [{ id: "s", group: "patch", metrics: { silent: true, nonFinite: 0, samplePeak: 0 } }] }, { rules: [{ group: "patch", metric: "onsetMs", max: 5, why: "w" }] });
+  assert.equal(g.failures.length, 1); assert.equal(g.failures[0].metric, "silent");
+});
+
 t("gate: a render error, NaN output, or glob rule id is handled", () => {
   const g = gate({ items: [{ id: "x", group: "patch", error: "boom" }, { id: "y", group: "patch", metrics: { broken: true, nonFinite: 2 } }] }, { rules });
   assert.equal(g.failures.length, 2);
@@ -123,6 +163,10 @@ t("thresholds.json: every rule names a metric and a why; every waiver names a re
   const th = JSON.parse(readFileSync(join(here, "thresholds.json"), "utf8"));
   for (const r of th.rules) { assert.ok(r.metric && r.why && ["all", "patch", "ding"].includes(r.group), JSON.stringify(r)); assert.ok(["min", "max", "equals"].some((k) => k in r)); }
   for (const w of th.waivers) assert.ok(w.id && w.metric && w.reason && /^aqua-body:follow_up:/.test(w.followUp), JSON.stringify(w));
+  for (const w of th.waivers) {
+    const rules = th.rules.filter((r) => r.metric === w.metric && (r.group === "all" || r.group === "patch"));
+    assert.ok(rules.every((r) => r.equals !== undefined || "max" in w || "min" in w), `numeric waiver without a bound: ${JSON.stringify(w)}`);
+  }
 });
 
 t("wav: 32-bit float mono header, length, and samples above 1.0 survive", () => {

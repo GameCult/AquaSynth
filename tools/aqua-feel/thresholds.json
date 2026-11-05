@@ -55,7 +55,7 @@
       "group": "patch",
       "metric": "onsetMs",
       "max": 25,
-      "why": "first audible sample later than 25 ms after note-on"
+      "why": "first sample within 40 dB of the peak (and above -70 dBFS) later than 25 ms after note-on"
     },
     {
       "group": "ding",
@@ -74,7 +74,7 @@
       "group": "ding",
       "metric": "onsetMs",
       "max": 5,
-      "why": "a notification that starts audibly late"
+      "why": "a notification whose first sample within 40 dB of the peak comes later than 5 ms after note-on"
     },
     {
       "group": "ding",
@@ -99,21 +99,21 @@
       "id": "thruster@rpm300",
       "metric": "noiseToToneADb",
       "max": 16,
-      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 20.7 dB; the cap sits 3 dB over the 13.1 dB measured after it, so the hiss cannot creep back unnoticed"
+      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 20.7 dB; the cap sits 2-3 dB over the 13.1 dB measured after it, so the hiss cannot creep back unnoticed"
     },
     {
       "group": "patch",
       "id": "thruster@rpm600",
       "metric": "noiseToToneADb",
       "max": 8,
-      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 23.0 dB; the cap sits 3 dB over the 5.0 dB measured after it, so the hiss cannot creep back unnoticed"
+      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 23.0 dB; the cap sits 2-3 dB over the 5.0 dB measured after it, so the hiss cannot creep back unnoticed"
     },
     {
       "group": "patch",
       "id": "thruster@rpm1200",
       "metric": "noiseToToneADb",
       "max": 15,
-      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 20.1 dB; the cap sits 3 dB over the 12.7 dB measured after it, so the hiss cannot creep back unnoticed"
+      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 20.1 dB; the cap sits 2-3 dB over the 12.7 dB measured after it, so the hiss cannot creep back unnoticed"
     },
     {
       "group": "patch",
@@ -128,13 +128,15 @@
       "id": "sfxr-classic-classic-sfxr-abstract-golf",
       "metric": "truePeakDb",
       "reason": "renders 0.99 sample peak and +0.9 dBTP inter-sample",
-      "followUp": "aqua-body:follow_up:sfxr-golf-hot"
+      "followUp": "aqua-body:follow_up:sfxr-golf-hot",
+      "max": 1.0
     },
     {
       "id": "sfxr-classic-classic-sfxr-abstract-golf",
       "metric": "loudnessLufs",
       "reason": "-5.3 LUFS integrated over the 3 s render",
-      "followUp": "aqua-body:follow_up:sfxr-golf-hot"
+      "followUp": "aqua-body:follow_up:sfxr-golf-hot",
+      "max": -5.0
     },
     {
       "id": "sfxr-classic-classic-sfxr-abstract-golf",
