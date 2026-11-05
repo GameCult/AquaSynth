@@ -1,0 +1,13 @@
+{
+  "name": "aqua-playground",
+  "private": true,
+  "type": "module",
+  "description": "Static in-browser playground for AquaSynth patches: .aqua -> Faust (AquaLower) -> wasm (faustwasm) -> AudioWorklet.",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node test.mjs"
+  },
+  "devDependencies": {
+    "@grame/faustwasm": "0.20.0"
+  }
+}

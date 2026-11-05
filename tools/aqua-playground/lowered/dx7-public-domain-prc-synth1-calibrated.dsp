@@ -1,0 +1,52 @@
+import("stdfaust.lib");
+declare name "dx7-public-domain-prc-synth1-calibrated";
+declare options "[nvoices:1]";
+
+time = ba.time / ma.SR;
+age = time;
+clip01(x) = min(1.0, max(0.0, x));
+wrap01(x) = x - floor(x);
+slew(rate,x) = x : *(1.0 - exp((0.0 - max(0.0001, rate)) / ma.SR)) : + ~ *(exp((0.0 - max(0.0001, rate)) / ma.SR));
+softclip(x) = ma.tanh(x * 1.35);
+fold(x) = 2.0 * abs(2.0 * (x / 4.0 - floor(x / 4.0)) - 1.0) - 1.0;
+release_start(a,d,g) = max(g, a + d);
+oneshot_adsr_at(t,a,d,s,r,g) = select2(t < a, select2(t < a + d, select2(t < release_start(a,d,g), select2(t < release_start(a,d,g) + r, 0.0, s * (1.0 - (t - release_start(a,d,g)) / max(0.0001, r))), s), 1.0 - (1.0 - s) * ((t - a) / max(0.0001, d))), t / max(0.0001, a));
+oneshot_adsr(a,d,s,r,g) = oneshot_adsr_at(age,a,d,s,r,g);
+seg(t,t0,d,a,b) = a + (b - a) * clip01((t - t0) / max(0.0001, d));
+bez(t,a,b,c,d) = (1.0 - t) * (1.0 - t) * (1.0 - t) * a + 3.0 * (1.0 - t) * (1.0 - t) * t * b + 3.0 * (1.0 - t) * t * t * c + t * t * t * d;
+seg_bez(t,t0,d,a,b,c,e) = bez(clip01((t - t0) / max(0.0001, d)), a, b, c, e);
+smooth01(x) = clip01(x) * clip01(x) * (3.0 - 2.0 * clip01(x));
+seg_smooth(t,t0,d,a,b) = a + (b - a) * smooth01((t - t0) / max(0.0001, d));
+seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));
+seg_curve(c,t,t0,d,a,b) = select2(c < 0.5, seg_exp(t,t0,d,a,b), seg(t,t0,d,a,b));
+rl_release_start(r1,r2,r3,g) = max(g, r1 + r2 + r3);
+rl4_env_from_at(t,s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = select2(t < r1, select2(t < r1 + r2, select2(t < r1 + r2 + r3, select2(t < rl_release_start(r1,r2,r3,g), select2(t < rl_release_start(r1,r2,r3,g) + r4, l4, seg_curve(c4, t, rl_release_start(r1,r2,r3,g), r4, l3, l4)), l3), seg_curve(c3, t, r1 + r2, r3, l2, l3)), seg_curve(c2, t, r1, r2, l1, l2)), seg_curve(c1, t, 0, r1, s0, l1));
+rl4_env_at(t,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_from_at(t,0.0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);
+rl4_env_from(s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_from_at(age,s0,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);
+rl4_env(r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g) = rl4_env_at(age,r1,l1,c1,r2,l2,c2,r3,l3,c3,r4,l4,c4,g);
+lfo_sin(hz, phase) = sin(2.0 * ma.PI * (age * hz + phase));
+lfo_tri(hz, phase) = 1.0 - 4.0 * abs((age * hz + phase - floor(age * hz + phase)) - 0.5);
+lfo_sq(hz, phase) = select2((age * hz + phase - floor(age * hz + phase)) < 0.5, -1.0, 1.0);
+lfo_hold(hz, phase) = no.noise : ba.latch(os.oscrs(hz));
+
+patch_mod_gain = 0.0;
+patch_mod_pitch = 0.0;
+patch_mod_duty = 0.0;
+patch_mod_lpf = 0.0;
+patch_mod_hpf = 0.0;
+patch_mod_noise = 0.0;
+patch_mod_drive = 0.0;
+patch_mod_fold = 0.0;
+patch_mod_formant_mix = 0.0;
+patch_mod_fm_index = 0.0;
+
+opgraph_0_freq = 261.6256;
+opgraph_0_op_6 = sin(2.0 * ma.PI * (os.phasor(1.0, opgraph_0_freq * max(0.0, 7.983435)) + (0.0) / ma.PI)) * rl4_env_at(age, 0.001451, 0.413879, 0, 0.296962, 0.399165, 1, 0.424308, 0.370614, 1, 0.549977, 0, 1, 0.85) * 0.125;
+opgraph_0_op_4 = ((_ * 0.19 + (0.0)) : \(pm).(sin(2.0 * ma.PI * (os.phasor(1.0, opgraph_0_freq * max(0.0, 0.501384)) + pm / ma.PI)) * rl4_env_at(age, 0.001451, 0.413879, 0, 0.296962, 0.353601, 1, 0.424308, 0.276106, 1, 0.549977, 0, 1, 0.85) * 0.917004)) ~ _;
+opgraph_0_op_2 = sin(2.0 * ma.PI * (os.phasor(1.0, opgraph_0_freq * max(0.0, 0.501384)) + (0.0) / ma.PI)) * rl4_env_at(age, 0.011383, 0.981531, 0, 0.293515, 0.842813, 1, 0.41932, 0.660018, 1, 0.549977, 0, 1, 0.85) * 0.545254;
+opgraph_0_op_5 = sin(2.0 * ma.PI * (os.phasor(1.0, opgraph_0_freq * max(0.0, 1)) + (opgraph_0_op_6 * 6) / ma.PI)) * rl4_env_at(age, 0.001451, 0.413879, 0, 0.296962, 0.241589, 1, 0.424308, 0.109464, 1, 0.549977, 0, 1, 0.85) * 0.32421;
+opgraph_0_op_1 = sin(2.0 * ma.PI * (os.phasor(1.0, opgraph_0_freq * max(0.0, 0.500346)) + (opgraph_0_op_2 * 6.275) / ma.PI)) * rl4_env_at(age, 0.001451, 0.984375, 0, 0.296962, 1, 1, 0.424308, 1, 1, 0.549977, 0, 1, 0.85) * 3;
+opgraph_0_op_3 = sin(2.0 * ma.PI * (os.phasor(1.0, opgraph_0_freq * max(0.0, 0.499655)) + (opgraph_0_op_4 * 6 + opgraph_0_op_5 * 6) / ma.PI)) * rl4_env_at(age, 0.001451, 0.984375, 0, 0.296962, 1, 1, 0.424308, 1, 1, 0.549977, 0, 1, 0.85) * 3;
+opgraph_0 = (opgraph_0_op_1 + opgraph_0_op_3) * 0.25;
+
+process = (opgraph_0) * 1.4;
