@@ -1,0 +1,7 @@
+{
+  "name": "aqua-trial",
+  "private": true,
+  "type": "module",
+  "description": "Blinded A/B listening trial for AquaSynth patches (thruster noise-amount sweep). Static page; analysis script is dependency-free.",
+  "scripts": { "build": "node build.mjs", "test": "node test.mjs" }
+}
