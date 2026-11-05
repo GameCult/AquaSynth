@@ -13,18 +13,23 @@ grammar is drafted without them. Each is a place to reconcile before the doc is
 treated as in force.
 
 - `heimdall-body:follow_up:ratatoskr-creature-projection-v2`: `huginn view`
-  from instance `aqua` answers `absent`, and a search of the Heimdall checkout
+  from instance `aqua` answers `absent` (and `absent` from Eureka's mind on
+  2026-11-05), and a search of the Heimdall checkout
   (`GameCult/Heimdall`, forge, 2026-11-02) found no file mentioning it. The
   constraints taken from the brief are used as stated there: coarse buckets,
   neutral overrides, activity comes from the Heimdall session. Section 2 is the
   place that must be reconciled against that follow-up's actual field list.
 - `ratatoskr:follow_up:symphony-grammar-harvest-mimir` (Mimir birdsong
-  research): also `absent` from aqua's mind, and `GameCult/Mimir` holds no
-  symphony or voice-separation note (grep of `notes/`, `research/`, `docs/`).
+  research): absent from aqua's mind, but it is in force in Eureka's mind
+  (read 2026-11-05, after this draft was written). It points at Mimir's
+  `docs/bioacoustic-timeline-watermark.md`, `research/bioacoustic-contestants-2026-05-24.md`
+  and `calibration/bioacoustic/` (at `c6f4541`), which this draft does not cite
+  and nobody has read for it. The earlier grep of `GameCult/Mimir` for a
+  symphony or voice-separation note found none; it did not look for bioacoustic research.
   Section 4 is therefore built from this repo's own `research/syrinx-modeling`
   plus the general auditory-scene-analysis and acoustic-niche literature named
-  there, *recalled, not re-read for this draft*. The harvest, when it exists,
-  replaces or confirms section 4; it is the likeliest thing to change.
+  there, *recalled, not re-read for this draft*. The harvest is still owed and
+  is the likeliest thing to change section 4.
 
 Context actually read: `docs/gamecult/ratatoskr-target.md` in `GameCult/Ratatoskr`
 at `b33d8de` (the agreement that one activity vocabulary drives both sound and
