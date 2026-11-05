@@ -1,0 +1,154 @@
+{
+  "schema": "aqua-feel.thresholds.v1",
+  "note": "Regression tripwires, not taste. A threshold here says 'a render this far out is worth a listener's ear before it ships'; none says a sound is good. Every number was chosen after looking at the shipped renders (see README), and every waiver names the reason and a follow-up.",
+  "rules": [
+    {
+      "group": "all",
+      "metric": "nonFinite",
+      "equals": 0,
+      "why": "NaN or Inf in a render"
+    },
+    {
+      "group": "all",
+      "metric": "silent",
+      "equals": false,
+      "why": "an item that renders nothing"
+    },
+    {
+      "group": "all",
+      "metric": "overSamples",
+      "equals": 0,
+      "why": "samples beyond +/-1.0 clip at a converter"
+    },
+    {
+      "group": "all",
+      "metric": "truePeakDb",
+      "max": 0,
+      "why": "inter-sample peak above 0 dBTP"
+    },
+    {
+      "group": "all",
+      "metric": "truePeakDb",
+      "max": -1,
+      "level": "warn",
+      "why": "under 1 dB of true-peak headroom"
+    },
+    {
+      "group": "all",
+      "metric": "lowMotion",
+      "equals": false,
+      "why": "a span of 1 s or more that goes nowhere in level or timbre (the song-swarm collapse shape)"
+    },
+    {
+      "group": "patch",
+      "metric": "loudnessLufs",
+      "max": -6,
+      "why": "integrated loudness within 6 LU of full scale"
+    },
+    {
+      "group": "patch",
+      "metric": "loudnessLufs",
+      "min": -55,
+      "why": "nearly inaudible next to the rest of the set"
+    },
+    {
+      "group": "patch",
+      "metric": "onsetMs",
+      "max": 25,
+      "why": "first sample within 40 dB of the peak (and above -70 dBFS) later than 25 ms after note-on"
+    },
+    {
+      "group": "ding",
+      "metric": "loudnessLufs",
+      "max": -12,
+      "min": -40,
+      "why": "a notification louder than -12 or quieter than -40 LUFS"
+    },
+    {
+      "group": "ding",
+      "metric": "truePeakDb",
+      "max": -6,
+      "why": "a notification within 6 dB of full scale"
+    },
+    {
+      "group": "ding",
+      "metric": "onsetMs",
+      "max": 5,
+      "why": "a notification whose first sample within 40 dB of the peak comes later than 5 ms after note-on"
+    },
+    {
+      "group": "ding",
+      "metric": "attackMs",
+      "max": 12,
+      "why": "first-note attack slower than 12 ms (DingCatalog notes attack in 1-6 ms)"
+    },
+    {
+      "group": "ding",
+      "metric": "crestDb",
+      "max": 15,
+      "why": "spiky next to its own body"
+    },
+    {
+      "group": "ding",
+      "metric": "noiseToToneADb",
+      "max": 10,
+      "why": "DingCatalog forbids broadband noise; A-weighted noise should clearly not dominate tone (heuristic split: gliding partials read as noise, so 10 not 0)"
+    },
+    {
+      "group": "patch",
+      "id": "thruster@rpm300",
+      "metric": "noiseToToneADb",
+      "max": 16,
+      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 20.7 dB; the cap sits 2-3 dB over the 13.1 dB measured after it, so the hiss cannot creep back unnoticed"
+    },
+    {
+      "group": "patch",
+      "id": "thruster@rpm600",
+      "metric": "noiseToToneADb",
+      "max": 8,
+      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 23.0 dB; the cap sits 2-3 dB over the 5.0 dB measured after it, so the hiss cannot creep back unnoticed"
+    },
+    {
+      "group": "patch",
+      "id": "thruster@rpm1200",
+      "metric": "noiseToToneADb",
+      "max": 15,
+      "why": "thruster low-rpm hiss: before the 2026-11-05 mix change this was 20.1 dB; the cap sits 2-3 dB over the 12.7 dB measured after it, so the hiss cannot creep back unnoticed"
+    },
+    {
+      "group": "patch",
+      "id": "dx7-public-domain-prc-synth1-calibrated",
+      "metric": "samplePeak",
+      "max": 0.9,
+      "why": "PRC SYNTH1 peaked at 2.10 before the 2026-11-05 gain trim to 0.67; this holds it under 0.9"
+    }
+  ],
+  "waivers": [
+    {
+      "id": "sfxr-classic-classic-sfxr-abstract-golf",
+      "metric": "truePeakDb",
+      "reason": "renders 0.99 sample peak and +0.9 dBTP inter-sample",
+      "followUp": "aqua-body:follow_up:sfxr-golf-hot",
+      "max": 1.0
+    },
+    {
+      "id": "sfxr-classic-classic-sfxr-abstract-golf",
+      "metric": "loudnessLufs",
+      "reason": "-5.3 LUFS integrated over the 3 s render",
+      "followUp": "aqua-body:follow_up:sfxr-golf-hot",
+      "max": -5.0
+    },
+    {
+      "id": "sfxr-classic-classic-sfxr-abstract-golf",
+      "metric": "lowMotion",
+      "reason": "3 s of steady bright noise, 4 dB level range; may be longer than the render window",
+      "followUp": "aqua-body:follow_up:sfxr-golf-hot"
+    },
+    {
+      "id": "sfxr-explosion",
+      "metric": "lowMotion",
+      "reason": "3 s of steady noise, 1 dB level range, no decay inside the render window; an explosion that does not decay is worth a listener's check",
+      "followUp": "aqua-body:follow_up:sfxr-explosion-static"
+    }
+  ]
+}
