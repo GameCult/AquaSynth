@@ -69,13 +69,13 @@ export function integratedLoudness(x) {
 
 // ---- time structure ----------------------------------------------------------------------------------------------
 const HOP = 8; // envelope hop in samples (0.167 ms)
-// Peak-hold envelope: max |x| per hop, held with a 30 ms exponential release so the zero crossings of a low tone do not
-// read as dips (a plain per-hop max does: a 261 Hz sine "falls" 100% twice per cycle). The attack stays instantaneous.
+// Envelope: max |x| per hop. With held=true it also decays with a 30 ms release so the zero crossings of a low tone do not
+// read as dips; only the attack uses that (the hold smears decays, so activeEnd, crest and the gallery plot use the raw one).
 const RELEASE_S = 0.03;
-export function envelope(x) {
+export function envelope(x, held = false) {
   const env = new Float64Array(Math.ceil(x.length / HOP)), hold = Math.exp(-HOP / SR / RELEASE_S);
   for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > env[(i / HOP) | 0]) env[(i / HOP) | 0] = a; }
-  for (let i = 1; i < env.length; i++) env[i] = Math.max(env[i], env[i - 1] * hold);
+  if (held) for (let i = 1; i < env.length; i++) env[i] = Math.max(env[i], env[i - 1] * hold);
   return env;
 }
 const maxIndex = (a) => { let k = 0; for (let i = 1; i < a.length; i++) if (a[i] > a[k]) k = i; return k; };
@@ -93,17 +93,17 @@ export function timing(x) {
   if (!(peak >= SILENT_PEAK)) return { silent: true };
   const thr = Math.max(peak * 0.01, SILENT_PEAK);
   let onsetSample = 0; while (onsetSample < x.length && Math.abs(x[onsetSample]) < thr) onsetSample++;
-  const env = envelope(x), start = Math.floor(onsetSample / HOP), end = Math.min(env.length - 1, start + Math.round(ATTACK_WINDOW_S * SR / HOP));
+  const env = envelope(x, true), raw = envelope(x), start = Math.floor(onsetSample / HOP), end = Math.min(env.length - 1, start + Math.round(ATTACK_WINDOW_S * SR / HOP));
   let top = start; for (let i = start; i <= end; i++) if (env[i] > env[top]) top = i;
   const first = env[top], at = (f) => { let i = start; while (i < top && env[i] < first * f) i++; return i; };
   const i10 = at(0.1), i90 = at(0.9);
   const dt = Math.max(hopMs, (i90 - i10) * hopMs), floor = peak * 10 ** (-50 / 20);
-  let last = env.length - 1; while (last > 0 && env[last] < floor) last--;
+  let last = raw.length - 1; while (last > 0 && raw[last] < floor) last--;
   return {
     silent: false, onsetMs: (onsetSample / SR) * 1000, attackMs: dt, attackSlopeDbPerMs: db(0.9 / 0.1) / dt,
     resolutionLimited: i90 - i10 <= 1, attackWindowLimited: top - start > 0.9 * (end - start) && end - start > 10,
     activeStartSample: onsetSample, activeEndSample: Math.min(x.length, (last + 1) * HOP),
-    peakAtMs: (maxIndex(env) * HOP / SR) * 1000, firstPeak: first, firstPeakAtMs: top * hopMs,
+    peakAtMs: (maxIndex(raw) * HOP / SR) * 1000, firstPeak: first, firstPeakAtMs: top * hopMs,
   };
 }
 
