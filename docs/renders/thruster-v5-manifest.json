@@ -1,0 +1,46 @@
+{
+  "patch": "thruster",
+  "dspSha256": "8afc045eab94f396e21d96a262c5d71910103acd51da5913d3eb3036b48a5809",
+  "sampleRate": 48000,
+  "blockFrames": 512,
+  "seconds": 4,
+  "rpmControl": "rpm",
+  "os": "Debian GNU/Linux 13 (trixie)",
+  "faustHome": "/var/lib/mind-aqua-self/faust-home-overlay-20261031",
+  "faustLibrary": "/var/lib/mind-aqua-self/faust-home-overlay-20261031/lib/libfaust.so",
+  "cases": [
+    {
+      "label": "low-rpm600",
+      "file": "thruster-low-rpm600.wav",
+      "rpmStart": 600,
+      "rpmEnd": 600,
+      "frames": 192000,
+      "peak": 0.18832043,
+      "rms": 0.07348131804614891,
+      "nonFinite": false,
+      "sha256": "4aeaa1f4d9aa5d63025dd8b3d45b25fc6b030a366ba05237c0021b508308e0ba"
+    },
+    {
+      "label": "high-rpm4800",
+      "file": "thruster-high-rpm4800.wav",
+      "rpmStart": 4800,
+      "rpmEnd": 4800,
+      "frames": 192000,
+      "peak": 0.3635283,
+      "rms": 0.14323418081979195,
+      "nonFinite": false,
+      "sha256": "390874aa1d5c4d50f251fa0735b82f859bba43ffee4236fd24d5b06a4733ef7d"
+    },
+    {
+      "label": "sweep-600-4800",
+      "file": "thruster-sweep-600-4800.wav",
+      "rpmStart": 600,
+      "rpmEnd": 4800,
+      "frames": 192000,
+      "peak": 0.34473976,
+      "rms": 0.11363349353245127,
+      "nonFinite": false,
+      "sha256": "ad8d1508aa2b37b5038a6acfcfb21fc46ae04f0180adcd6ea60edc7e918e4068"
+    }
+  ]
+}

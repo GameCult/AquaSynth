@@ -91,6 +91,25 @@ search; `FaustHome` then supplies `share/faust` if the prefix is not the file's
 grandparent. The loader prepends `lib` and `bin` to `PATH` using the platform
 path separator.
 
+## Linux Native Toolchain
+
+Built and run on Debian 13 (2026-11-03). Faust `aa30fd7` (2.90.20), LLVM 19
+(`LLVM_CONFIG=/usr/lib/llvm-19/bin/llvm-config`, `INCLUDE_DYNAMIC=ON`,
+`backends/most.cmake`), installed to a prefix; `make -j4`. The first link
+failed with `cannot find -lPolly -lPollyISL -lzstd`; the install prefix that
+resulted has `lib/libfaust.so` but `share/faust` holds only the architecture
+files, not `stdfaust.lib` and the other `.lib` files (they live in the separate
+faustlibraries repo). Compiling any patch that imports `stdfaust.lib` then
+fails with `unable to open file stdfaust.lib`. Point `AQUASYNTH_FAUST_HOME` at a
+home whose `lib/` has `libfaust.so` and whose `share/faust` has both.
+
+`tools/FaustRender` renders one `.dsp` with an `rpm` control to WAVs plus
+`manifest.json` (hashes, peak, rms, non-finite flag). It measures; it does not
+listen. `docs/renders/thruster-v5-manifest.json` is its output for
+`patches/thruster/thruster.dsp` at PR #3 head `c6561da`, 4 s per case. The render is
+deterministic (two reruns byte-identical); the 2026-10-31 sweep file is a 6 s
+render, which is why its hash differs from a 4 s sweep.
+
 ## Invariants
 
 - AquaSynth remains the authority for what a patch means.
