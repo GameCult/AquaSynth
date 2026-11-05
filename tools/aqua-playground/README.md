@@ -3,6 +3,12 @@
 Static, serverless audition page for AquaSynth patches. Pick a patch, read the Faust it lowers to,
 move the sliders the DSP itself declares, press Play.
 
+**Status: unheard, and never run in a browser.** `node test.mjs` is the only check that has run: it
+compiles each patch to wasm in Node and renders it offline (non-silent, finite). No patch has been listened to;
+the page itself, its AudioWorklet path, sliders and layout have not been opened in any browser. One patch
+is known to clip: `dx7-public-domain-prc-synth1-calibrated` peaks at 2.10. Browser verification is open as
+`aqua-body:follow_up:playground-browser-verify`.
+
 **What is live:** 42 patches (`catalog.json`): the hand-written Faust `thruster` (with its `rpm`
 control) and 41 of the 43 `.aqua` files, lowered by `tools/AquaLower` through `FaustEmitter.EmitScript`
 (the lowering the daemon uses). Faust is compiled to WebAssembly in the page
