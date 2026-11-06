@@ -556,9 +556,9 @@ public sealed class AquaSynthDaemonService : IDisposable
         session.Stream.ProcessBlock([], outputs, command.FrameCount, session.Controls);
         var mono = MixMono(outputs, command.FrameCount, command.Gain * session.Gain);
         var blockId = BlockId(command.CommandId);
-        var blockDir = Path.Combine(options.StoreRoot, "live", SafeFileName(command.SessionId));
+        var blockDir = Path.Combine(options.StoreRoot, "live", StoreFileName.From(command.SessionId));
         Directory.CreateDirectory(blockDir);
-        var floatPath = Path.Combine(blockDir, $"{SafeFileName(blockId)}.f32");
+        var floatPath = Path.Combine(blockDir, $"{StoreFileName.From(blockId)}.f32");
         await WriteFloat32Async(floatPath, mono).ConfigureAwait(false);
 
         var sequence = session.NextSequence();
@@ -703,8 +703,8 @@ public sealed class AquaSynthDaemonService : IDisposable
 
         var runId = $"{command.CommandId}-stream";
         var verseId = "aquasynth.instrument";
-        var audioStreamId = $"aquasynth.audio.{SafeFileName(command.CommandId)}";
-        var controlStreamId = $"aquasynth.controls.{SafeFileName(command.CommandId)}";
+        var audioStreamId = $"aquasynth.audio.{StoreFileName.From(command.CommandId)}";
+        var controlStreamId = $"aquasynth.controls.{StoreFileName.From(command.CommandId)}";
 
         if (!string.Equals(compile.Status, "succeeded", StringComparison.Ordinal))
         {
@@ -741,7 +741,7 @@ public sealed class AquaSynthDaemonService : IDisposable
             .GroupBy(frame => frame.Block)
             .ToDictionary(group => group.Key, group => NormalizeControls(group.Last().Controls), EqualityComparer<int>.Default);
 
-        var streamDir = Path.Combine(options.StoreRoot, "streams", SafeFileName(runId));
+        var streamDir = Path.Combine(options.StoreRoot, "streams", StoreFileName.From(runId));
         Directory.CreateDirectory(streamDir);
         var packets = new List<AquaSynthAutomationPacketReceipt>();
         using (var stream = patch.CreateStreamingPatch())
@@ -918,7 +918,7 @@ public sealed class AquaSynthDaemonService : IDisposable
     private async Task WriteReceiptAsync<T>(string family, string id, T document, bool global = false)
         where T : class
     {
-        var filePath = Path.Combine(options.StoreRoot, family, $"{SafeFileName(id)}.cc");
+        var filePath = Path.Combine(options.StoreRoot, family, $"{StoreFileName.From(id)}.cc");
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
         // Opening hydrates; a receipt file holds exactly one document, so everything else goes before the write.
         using var cache = CultCacheMessagePack.Create(filePath);
@@ -1129,18 +1129,7 @@ public sealed class AquaSynthDaemonService : IDisposable
 
     private static string BlockId(string commandId) => $"{commandId}-block";
 
-    private static string SessionId(string patchId, string compileKey) => $"{SafeFileName(patchId)}-{compileKey[..Math.Min(12, compileKey.Length)]}";
-
-    private static string SafeFileName(string value)
-    {
-        var builder = new StringBuilder(value.Length);
-        foreach (var c in value)
-        {
-            builder.Append(char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '-');
-        }
-
-        return builder.ToString().Trim('-');
-    }
+    private static string SessionId(string patchId, string compileKey) => $"{StoreFileName.From(patchId)}-{compileKey[..Math.Min(12, compileKey.Length)]}";
 
     private static string ToArtifactUri(string path) => $"file:///{Path.GetFullPath(path).Replace('\\', '/')}";
 

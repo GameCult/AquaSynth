@@ -633,17 +633,9 @@ public sealed class AquaSynthNativeCompiler : IDisposable
         }
 
         Directory.CreateDirectory(outputRoot);
-        var path = Path.Combine(outputRoot, $"{SafeFileName(patchId)}.dsp");
+        var path = Path.Combine(outputRoot, $"{StoreFileName.From(patchId)}.dsp");
         File.WriteAllText(path, source);
         return path;
-    }
-
-    private static string SafeFileName(string value)
-    {
-        var invalid = Path.GetInvalidFileNameChars().ToHashSet();
-        var chars = value.Select(ch => invalid.Contains(ch) ? '_' : ch).ToArray();
-        var name = new string(chars).Trim();
-        return string.IsNullOrWhiteSpace(name) ? "aquasynth_patch" : name;
     }
 }
 
