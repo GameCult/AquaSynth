@@ -6,6 +6,8 @@ Question: how does Faust DSP (the thruster, `patches/thruster/thruster.dsp`, v5)
 built Unity player on Windows and Linux? (a) ahead-of-time (AOT) Faust to C++ per patch
 inside a native plugin, or (b) runtime `libfaust`/LLVM inside the player.
 
+**Limitation:** AOT Faust-to-C++ fixes the patch set at build time. Player-authored or modded patches cannot run in a built player; live-edited patches run only in the editor or browser lane.
+
 Marks: **[V]** verified here by reading source or running a tool on 2026-11-06.
 **[U]** unverified: from memory, or needs a Unity editor/player or a Windows host this run
 did not have. Nothing here has been run inside Unity.
