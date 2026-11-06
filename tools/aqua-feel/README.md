@@ -61,6 +61,10 @@ at the shipped renders. They are tripwires, not taste.
 Current waivers: `sfxr-classic-classic-sfxr-abstract-golf` (+0.9 dBTP, -5.3 LUFS, held noise) and `sfxr-explosion` (3 s of
 steady noise without decay). Nobody has listened to either to see if the number is the sound.
 
+## Effects shelf
+
+`SHELF.md` and `shelf.json` list every renderable effect (thruster, Dings, earcon families, playground patches) with params, trigger, render command and duration; `node shelf.mjs check` runs every render command and checks the WAVs are finite and not silent. Nothing on it is heard (`listening: unheard`).
+
 ## Reuse
 
 `report.js` imports `mean`, `spearman` and `permutationP` from `../aqua-trial/analyze.mjs` and the variants from
