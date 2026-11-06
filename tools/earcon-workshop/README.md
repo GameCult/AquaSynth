@@ -32,7 +32,7 @@ Never opened on a real display by a person. A headless Chromium smoke (load, aud
 
 ## What the check covers (`test.mjs`)
 
-For each identity x event at the default setting and at two slider extremes (881 checks at the time of writing):
+For each identity x event at the default setting and at two slider extremes (882 checks at the time of writing):
 
 - finite, non-silent, onset (first sample at or above -40 dBFS) under 20 ms, sample peak < 1.0 and <= 0.9, true peak < 1.0 (cross-checked
   with `tools/aqua-feel/metrics.js`), no over-full-scale samples or flat tops, ends without a step, under 2.6 s, WAV round trip.

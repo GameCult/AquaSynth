@@ -46,7 +46,7 @@ export function clampParams(p = {}) {
 const TAU = Math.PI * 2;
 
 // One note into `out` at sample `start`. Linear attack (<= 6 ms), exponential decay reaching -60 dB at `decaySec`,
-// one-pole lowpass whose cutoff follows brightness, 3 ms linear fade at the voice end so no tail ends on a step.
+// two-pole lowpass (two cascaded one-pole stages) whose cutoff follows brightness, 3 ms linear fade at the voice end so no tail ends on a step.
 function addNote(out, start, hz, gain, id, decaySec, bright) {
   const len = Math.min(out.length - start, Math.ceil(decaySec * SR));
   if (len <= 0) return;
