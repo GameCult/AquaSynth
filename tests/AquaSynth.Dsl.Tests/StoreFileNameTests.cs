@@ -15,14 +15,55 @@ public sealed class StoreFileNameTests
     [Theory]
     [InlineData("dings.warm-bell")]
     [InlineData("demo-stream-block")]
-    [InlineData("A_b.c-1")]
+    [InlineData("a_b.c-1")]
+    [InlineData("conx")]
+    [InlineData("com10")]
     public void CleanIdsPassThroughUnchanged(string id) => Assert.Equal(id, StoreFileName.From(id));
+
+    [Fact]
+    public void RewrittenIdOutputAsAnIdDoesNotCollideWithTheOriginal()
+    {
+        var rewritten = StoreFileName.From("a b");
+        Assert.NotEqual(rewritten, StoreFileName.From(rewritten));
+        Assert.NotEqual(StoreFileName.From("a_b"), rewritten);
+    }
+
+    [Fact]
+    public void IdsDifferingOnlyByCaseGetDistinctNames()
+    {
+        var names = new[] { "A", "a", "Ab", "aB", "ab" }.Select(StoreFileName.From).ToArray();
+        Assert.Equal(names.Length, names.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Theory]
+    [InlineData("CON")]
+    [InlineData("nul")]
+    [InlineData("Aux.txt")]
+    [InlineData("com1")]
+    [InlineData("COM9.f32")]
+    [InlineData("lpt0")]
+    [InlineData("prn.cc")]
+    public void WindowsDeviceStemsAreRewritten(string id)
+    {
+        var name = StoreFileName.From(id);
+        Assert.NotEqual(id.ToLowerInvariant(), name.ToLowerInvariant());
+        Assert.Matches("-[0-9a-f]{16}$", name);
+    }
+
+    [Fact]
+    public void OverlongIdsAreBoundedAndStayDistinct()
+    {
+        var a = StoreFileName.From(new string('x', 400));
+        var b = StoreFileName.From(new string('x', 399) + "y");
+        Assert.True(a.Length + ".cc".Length <= 255);
+        Assert.NotEqual(a, b);
+    }
 
     [Fact]
     public void RewrittenIdsCarryHashOfTheOriginal()
     {
         // sha256("a b") begins c2a5..., checked independently of the implementation.
-        var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("a b"u8.ToArray()))[..8].ToLowerInvariant();
+        var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("a b"u8.ToArray()))[..16].ToLowerInvariant();
         Assert.Equal($"a_b-{expected}", StoreFileName.From("a b"));
     }
 
@@ -52,17 +93,25 @@ public sealed class StoreFileNameTests
     }
 
     [Fact]
-    public async Task DaemonReceiptForTraversalCommandIdStaysInsideStore()
+    public async Task DaemonSampleFilesForTraversalCommandIdStayInsideStore()
     {
         var parent = Path.Combine(Path.GetTempPath(), "aquasynth-sfn-" + Guid.NewGuid().ToString("N"));
         var storeRoot = Path.Combine(parent, "store");
         using var service = new AquaSynthDaemonService(new AquaSynthDaemonOptions(storeRoot));
 
-        await service.SampleAsync(new AquaSynthInstrumentSampleCommand(
-            "../../escape", "test.invalid", "test_invalid", "this is not aqua syntax", DurationSeconds: 0.1f));
+        // A patch that compiles reaches the samples/ write; without native Faust only the compile-failed branch runs.
+        var result = await service.SampleAsync(new AquaSynthInstrumentSampleCommand(
+            "../../escape", "test.sine", "test_sine",
+            "voice wave=sine freq=440 gain=.2 attack=.001 sustain=.05 decay=.05", DurationSeconds: 0.1f));
 
         Assert.Empty(Directory.GetFiles(parent));
         Assert.Empty(Directory.GetDirectories(parent).Where(d => Path.GetFileName(d) != "store"));
-        Assert.NotEmpty(Directory.GetFiles(Path.Combine(storeRoot, "compile")));
+        if (string.Equals(result.RenderReceipt.Status, "succeeded", StringComparison.Ordinal))
+        {
+            Assert.Equal(storeRoot, Path.GetDirectoryName(Path.GetDirectoryName(UriPath(result.RenderReceipt.Float32Uri))));
+            Assert.Equal(storeRoot, Path.GetDirectoryName(Path.GetDirectoryName(UriPath(result.RenderReceipt.WavUri))));
+        }
     }
+
+    private static string UriPath(string uri) => new Uri(uri).LocalPath;
 }

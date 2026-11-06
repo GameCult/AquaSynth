@@ -661,8 +661,9 @@ public sealed class AquaSynthDaemonService : IDisposable
         var renderId = RenderId(command.CommandId);
         var sampleDir = Path.Combine(options.StoreRoot, "samples");
         Directory.CreateDirectory(sampleDir);
-        var floatPath = Path.Combine(sampleDir, $"{renderId}.f32");
-        var wavPath = Path.Combine(sampleDir, $"{renderId}.wav");
+        var sampleStem = StoreFileName.From(renderId);
+        var floatPath = Path.Combine(sampleDir, $"{sampleStem}.f32");
+        var wavPath = Path.Combine(sampleDir, $"{sampleStem}.wav");
         await WriteFloat32Async(floatPath, samples).ConfigureAwait(false);
         await WriteWavAsync(wavPath, samples, patch.Manifest.SampleRate).ConfigureAwait(false);
 
