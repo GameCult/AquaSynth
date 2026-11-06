@@ -1,0 +1,7 @@
+{
+  "name": "earcon-workshop",
+  "private": true,
+  "type": "module",
+  "description": "Static, dependency-free earcon family generator for AquaSynth. Renders; does not listen.",
+  "scripts": { "test": "node test.mjs", "export": "node cli.mjs" }
+}

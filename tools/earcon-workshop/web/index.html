@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AquaSynth Earcon Workshop</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">AquaSynth lab</p>
+      <h1>Earcon Workshop</h1>
+      <p class="lede">Pick the events your tool needs and a voice. The workshop renders one short, related earcon per event, entirely in this page, and exports WAVs plus a JSON pack. <strong>Nobody has listened to any of this.</strong> The checks measure silence, clipping, onset and difference between siblings; they cannot tell you it sounds good.</p>
+    </header>
+    <section class="bar">
+      <label>Voice <select id="identity"></select></label>
+      <span id="idnote" class="dim"></span>
+      <button id="family" type="button">Audition family</button>
+      <button id="stop" type="button">Stop</button>
+      <meter id="level" min="0" max="1" value="0" title="output peak"></meter>
+      <span id="status" role="status"></span>
+    </section>
+    <section class="cols">
+      <div>
+        <h2>Events</h2>
+        <div id="events" class="events"></div>
+        <h2>Tweak <small>(one factor each, applied to the whole family)</small></h2>
+        <div id="controls" class="controls"></div>
+        <p><button id="reset" type="button">Reset sliders</button></p>
+      </div>
+      <div>
+        <h2>Export</h2>
+        <p><button id="zip" type="button">Download pack (.zip)</button> <button id="json" type="button">pack.json only</button></p>
+        <p class="dim">The zip holds one 16-bit mono WAV per chosen event, <code>pack.json</code> and a <code>README.md</code> on using them in CI, chat bots and apps. Offline render from the same code that played above.</p>
+        <h2>Pack <small>(measured, not judged)</small></h2>
+        <pre id="pack"></pre>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
