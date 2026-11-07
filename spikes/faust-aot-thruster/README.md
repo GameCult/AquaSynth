@@ -24,22 +24,23 @@ Linux thread. It shows the patch is cheap, not that a Unity player meets its dea
 thread, P/Invoke, IL2CPP, mixer or Windows scheduling in it).
 
 Measured 2026-11-06/07, Faust 2.90.20, AMD EPYC-Genoa, shared Linux host (load average ~8 on 16 cores):
-median 0.052 ms (0.49% of the 10.667 ms deadline), p99 0.08-0.16 ms (~1-1.5%). Cheap: that part is
-reliable.
+median 0.052 ms (0.49% of the 10.667 ms deadline), p99 0.08-0.16 ms (~1-1.5%). Cheap on this host:
+median 0.052 ms, p99 under 0.16 ms. The host's tail is not judgeable (see below).
 
 **Max block time: UNEXPLAINED. It is not a pass.** Max was 10.8-17.1 ms, with 1-5 of 20000 blocks over
-the deadline per run (70-74 of 400000). What the instrumented runs (`run.sh`, `CORE=<cpu>` pins with
+the deadline per run (400000-block `process` runs: 70-74 over; see the control below). What the instrumented runs (`run.sh`, `CORE=<cpu>` pins with
 `taskset`; every overrun prints a `wall_unix` timestamp, wall ms and thread CPU ms) do show:
 
-- Not per-block DSP cost: `NOOP=1` times a 0.05 ms busy-wait instead of `process`, and stalls the same
-  way (core 3, 400000 blocks: 74 overruns with `process`, 67 with the busy-wait, both ~11 ms).
+- Not per-block DSP cost: `NOOP=1` times a 0.05 ms busy-wait instead of `process`, and stalls about the
+  same way (core 3, 400000 blocks: 74 overruns with `process`, 67 with the busy-wait, both ~11 ms; counts
+  differ by ~10%, no run-to-run spread measured for the control).
 - Not a DSP-state pattern: overrun block indices differ every run and are not tied to the rpm sweep.
 - Periodic in wall time, per core: pinned to core 3, overruns recur every ~0.3-0.4 s (mostly); pinned
-  to core 9, every ~1-2 s (17 in 400000 blocks). Unpinned runs get 1-5 per 20000.
+  to core 9, every ~1-2 s (17 in 400000 blocks). Cause of the periodicity untested (not shown to be a timer). Unpinned runs get 1-5 per 20000.
 - The thread's CPU time over a stalled block is about equal to its wall time (e.g. 10.84 vs 10.85 ms),
-  so the stall is charged to the thread rather than showing as time off-CPU. Ordinary run-queue
-  preemption would not look like that. The earlier claim that these were scheduler preemption is
-  withdrawn.
+  so the stall is charged to the thread rather than showing as time off-CPU. An ordinary guest
+  run-queue preemption would be expected to show off-CPU time; this does not. The host (vCPU steal) is
+  left open. The earlier claim that these were scheduler preemption is withdrawn, not refuted.
 
 Cause not identified (candidates: hypervisor/container CPU accounting, per-core host timer or housekeeping
 work, SMI; none tested). Whether the player would see it is unknown. A quiet, realtime-priority or

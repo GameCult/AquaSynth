@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
     if (!t || blocks < 100) return 2;
     float* out = malloc(sizeof(float) * frames);
     double* ms = malloc(sizeof(double) * blocks);
-    double* cpu = malloc(sizeof(double) * blocks);  /* thread CPU time per block: wall >> cpu means preempted, not DSP */
+    double* cpu = malloc(sizeof(double) * blocks);  /* thread CPU time per block: a large wall-cpu gap means time off-CPU; no gap means the stall is charged to the thread */
     double* wall = malloc(sizeof(double) * blocks); /* CLOCK_REALTIME at block end, seconds, for lining up with host load */
     const int warm = 200;
     for (int i = 0; i < warm + blocks; ++i) {
@@ -55,5 +55,5 @@ int main(int argc, char** argv) {
     printf("median_pct_deadline=%.2f p99_pct_deadline=%.2f max_pct_deadline=%.2f over_deadline=%d\n",
            100 * med / deadline, 100 * p99 / deadline, 100 * mx / deadline, over);
     free(out); free(ms); free(cpu); free(wall); aqs_thruster_destroy(t);
-    return 0; /* timing is reported, not gated: a shared host preempts */
+    return 0; /* timing is reported, not gated: a shared host stalls */
 }
