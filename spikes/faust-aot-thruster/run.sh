@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the AOT thruster spike, run the boundary test, then the per-block timing report.
 # Linux only. usage: run.sh [--bench-only] ; env: FAUST (faust CLI), FAUST_PREFIX (has include/faust),
-# FAUST_LIBS (dir with stdfaust.lib), OUT (build dir), BLOCKS, RATE, FRAMES.
+# FAUST_LIBS (dir with stdfaust.lib), CORE (cpu to pin the bench to via taskset; default: unpinned), OUT (build dir), BLOCKS, RATE, FRAMES.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 FAUST=${FAUST:-faust}
@@ -18,4 +18,10 @@ gcc -O2 -I"$here" -o "$OUT/test_thruster" "$here/test_thruster.c" -L"$OUT" -laqs
 gcc -O2 -I"$here" -o "$OUT/bench_thruster" "$here/bench_thruster.c" -L"$OUT" -laqs_thruster -lm -Wl,-rpath,"$OUT"
 "$OUT/test_thruster"
 echo "--- timing (Linux $(uname -r), $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs)); Windows/Unity: unverified"
-"$OUT/bench_thruster" "${BLOCKS:-20000}" "${RATE:-48000}" "${FRAMES:-512}"
+PIN=()
+if [ -n "${CORE:-}" ]; then
+  command -v taskset >/dev/null && PIN=(taskset -c "$CORE") || echo "CORE set but taskset missing: running unpinned" >&2
+fi
+echo "bench start $(date -u +%FT%T.%NZ) pin=${PIN[*]:-none} loadavg_before=$(cut -d' ' -f1-3 /proc/loadavg)"
+"${PIN[@]}" "$OUT/bench_thruster" "${BLOCKS:-20000}" "${RATE:-48000}" "${FRAMES:-512}" ${NOOP:+noop}
+echo "bench end   $(date -u +%FT%T.%NZ) loadavg_after=$(cut -d' ' -f1-3 /proc/loadavg)"
