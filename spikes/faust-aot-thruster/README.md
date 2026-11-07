@@ -28,7 +28,7 @@ median 0.052 ms (0.49% of the 10.667 ms deadline), p99 0.08-0.16 ms (~1-1.5%). C
 median 0.052 ms, p99 under 0.16 ms. The host's tail is not judgeable (see below).
 
 **Max block time: UNEXPLAINED. It is not a pass.** Max was 10.8-17.1 ms, with 1-5 of 20000 blocks over
-the deadline per run (400000-block `process` runs: 70-74 over; see the control below). What the instrumented runs (`run.sh`, `CORE=<cpu>` pins with
+the deadline per run (400000-block `process`: 74 over in one run, core 3; see the control below). What the instrumented runs (`run.sh`, `CORE=<cpu>` pins with
 `taskset`; every overrun prints a `wall_unix` timestamp, wall ms and thread CPU ms) do show:
 
 - Not per-block DSP cost: `NOOP=1` times a 0.05 ms busy-wait instead of `process`, and stalls about the
