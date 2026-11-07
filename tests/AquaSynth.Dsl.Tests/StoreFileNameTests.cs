@@ -93,7 +93,7 @@ public sealed class StoreFileNameTests
     }
 
     [Fact]
-    public async Task DaemonSampleFilesForTraversalCommandIdStayInsideStore()
+    public async Task DaemonSampleFilesForDotDotCommandIdStayInsideStore()
     {
         var parent = Path.Combine(Path.GetTempPath(), "aquasynth-sfn-" + Guid.NewGuid().ToString("N"));
         var storeRoot = Path.Combine(parent, "store");
@@ -101,7 +101,7 @@ public sealed class StoreFileNameTests
 
         // A patch that compiles reaches the samples/ write; without native Faust only the compile-failed branch runs.
         var result = await service.SampleAsync(new AquaSynthInstrumentSampleCommand(
-            "../../escape", "test.sine", "test_sine",
+            "..", "test.sine", "test_sine",
             "voice wave=sine freq=440 gain=.2 attack=.001 sustain=.05 decay=.05", DurationSeconds: 0.1f));
 
         Assert.Empty(Directory.GetFiles(parent));

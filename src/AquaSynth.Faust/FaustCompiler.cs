@@ -222,12 +222,8 @@ public static class FaustCompiler
         _ => throw new ArgumentOutOfRangeException(nameof(language), language, null)
     };
 
-    private static string SafeArtifactName(string value)
-    {
-        var sanitized = new string(value.Select(character =>
-            char.IsAsciiLetterOrDigit(character) || character is '-' or '_' ? character : '_').ToArray());
-        return string.IsNullOrWhiteSpace(sanitized) ? "aquasynth_patch" : sanitized;
-    }
+    private static string SafeArtifactName(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "aquasynth_patch" : StoreFileName.From(value);
 
     private static async Task<string?> FaustArchDirAsync(string faustPath, CancellationToken cancellationToken)
     {
