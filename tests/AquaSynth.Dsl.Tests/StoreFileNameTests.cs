@@ -48,6 +48,8 @@ public sealed class StoreFileNameTests
         var name = StoreFileName.From(id);
         Assert.NotEqual(id.ToLowerInvariant(), name.ToLowerInvariant());
         Assert.Matches("-[0-9a-f]{16}$", name);
+        var stem = name.Split('.')[0].TrimEnd(' ');
+        Assert.DoesNotMatch("^(?i:con|prn|aux|nul|com[0-9]|lpt[0-9])$", stem);
     }
 
     [Fact]

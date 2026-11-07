@@ -38,6 +38,12 @@ public static class StoreFileName
             return safe;
         }
 
+        // "nul.x-<hash>" still has the device stem "nul"; the underscore moves the whole name off it.
+        if (IsDeviceStem(safe))
+        {
+            safe = "_" + safe;
+        }
+
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id)))[..HashLength].ToLowerInvariant();
         return $"{safe}-{hash}";
     }
