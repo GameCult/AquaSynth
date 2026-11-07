@@ -128,5 +128,20 @@ public sealed class StoreFileNameTests
         Assert.Throws<ArgumentException>(() => IpaGestureExperiment.WriteRound(root, "..", [new IpaGestureExperimentTarget("a", "p", "voiceless_bilabial_plosive")], [new IpaGestureExperimentVariant("base")]));
     }
 
+    [Fact]
+    public void IpaRoundJoinedTargetVariantIdsThatConcatenateEquallyKeepDistinctFiles()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"aquasynth-ipa-join-{Guid.NewGuid():N}");
+        var result = IpaGestureExperiment.WriteRound(
+            root,
+            "round-join",
+            [new IpaGestureExperimentTarget("a", "p", "voiceless_bilabial_plosive", .1f), new IpaGestureExperimentTarget("a-b", "m", "voiced_bilabial_nasal", .1f)],
+            [new IpaGestureExperimentVariant("b-c"), new IpaGestureExperimentVariant("c")]);
+
+        Assert.Equal(4, result.Candidates.Count);
+        Assert.Equal(4, result.Candidates.Select(c => c.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(4, result.Candidates.Select(c => c.ScriptPath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
     private static string UriPath(string uri) => new Uri(uri).LocalPath;
 }

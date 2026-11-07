@@ -122,7 +122,7 @@ public static class IpaGestureExperiment
         {
             foreach (var variant in variantList)
             {
-                var candidateId = StoreFileName.From($"{target.Id}-{variant.Id}");
+                var candidateId = StoreFileName.From($"{StoreFileName.From(target.Id)}/{StoreFileName.From(variant.Id)}");
                 var script = BuildCandidateScript(target, variant);
                 var scriptPath = Path.Combine(candidateDirectory, $"{candidateId}.aqua");
                 File.WriteAllText(scriptPath, script, Encoding.UTF8);
