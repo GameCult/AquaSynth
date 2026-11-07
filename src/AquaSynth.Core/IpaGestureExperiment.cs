@@ -108,7 +108,7 @@ public static class IpaGestureExperiment
             throw new ArgumentException("At least one experiment variant is required.", nameof(variants));
         }
 
-        var roundDirectory = Path.Combine(rootDirectory, SafeFileName(roundId));
+        var roundDirectory = Path.Combine(rootDirectory, StoreFileName.From(roundId));
         var candidateDirectory = Path.Combine(roundDirectory, "candidates");
         var timelineDirectory = Path.Combine(roundDirectory, "timelines");
         Directory.CreateDirectory(candidateDirectory);
@@ -122,7 +122,7 @@ public static class IpaGestureExperiment
         {
             foreach (var variant in variantList)
             {
-                var candidateId = SafeFileName($"{target.Id}-{variant.Id}");
+                var candidateId = StoreFileName.From($"{target.Id}-{variant.Id}");
                 var script = BuildCandidateScript(target, variant);
                 var scriptPath = Path.Combine(candidateDirectory, $"{candidateId}.aqua");
                 File.WriteAllText(scriptPath, script, Encoding.UTF8);
@@ -704,13 +704,6 @@ public static class IpaGestureExperiment
 
     private static string SafeDslName(string value) =>
         new(value.Select(character => char.IsLetterOrDigit(character) ? character : '_').ToArray());
-
-    private static string SafeFileName(string value)
-    {
-        var invalid = Path.GetInvalidFileNameChars().ToHashSet();
-        var safe = new string(value.Select(character => invalid.Contains(character) || char.IsWhiteSpace(character) ? '-' : character).ToArray());
-        return safe.Length == 0 ? "candidate" : safe;
-    }
 
     private static string Format(float value) =>
         value.ToString("0.######", CultureInfo.InvariantCulture);

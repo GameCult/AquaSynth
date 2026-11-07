@@ -113,5 +113,20 @@ public sealed class StoreFileNameTests
         }
     }
 
+    [Fact]
+    public void IpaRoundCandidatesWithCollidingSanitisedIdsKeepDistinctFilesAndStayInRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"aquasynth-ipa-sfn-{Guid.NewGuid():N}");
+        var result = IpaGestureExperiment.WriteRound(
+            root,
+            "round-sfn",
+            [new IpaGestureExperimentTarget("a/b", "p", "voiceless_bilabial_plosive", .1f), new IpaGestureExperimentTarget("a-b", "m", "voiced_bilabial_nasal", .1f)],
+            [new IpaGestureExperimentVariant("base")]);
+
+        Assert.Equal(2, result.Candidates.Select(c => c.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(result.Candidates, c => Assert.StartsWith(Path.GetFullPath(root), Path.GetFullPath(c.ScriptPath)));
+        Assert.Throws<ArgumentException>(() => IpaGestureExperiment.WriteRound(root, "..", [new IpaGestureExperimentTarget("a", "p", "voiceless_bilabial_plosive")], [new IpaGestureExperimentVariant("base")]));
+    }
+
     private static string UriPath(string uri) => new Uri(uri).LocalPath;
 }
