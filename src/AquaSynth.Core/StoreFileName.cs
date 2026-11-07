@@ -48,6 +48,9 @@ public static class StoreFileName
         return $"{safe}-{hash}";
     }
 
+    /// <summary>A child of <paramref name="root"/> named for an external id; the result never leaves the root.</summary>
+    public static string Combine(string root, string id) => Path.Combine(root, From(id));
+
     private static bool IsFixedPoint(string id, string safe)
     {
         if (safe != id || id.EndsWith('.') || id.Any(char.IsAsciiLetterUpper) || IsDeviceStem(id) || EndsWithHashShape(id))

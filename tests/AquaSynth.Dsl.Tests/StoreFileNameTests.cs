@@ -43,9 +43,12 @@ public sealed class StoreFileNameTests
     [InlineData("COM9.f32")]
     [InlineData("lpt0")]
     [InlineData("prn.cc")]
+    [InlineData("nul.x")]
+    [InlineData("LPT1.x")]
     public void WindowsDeviceStemsAreRewritten(string id)
     {
         var name = StoreFileName.From(id);
+        Assert.StartsWith("_", name);
         Assert.NotEqual(id.ToLowerInvariant(), name.ToLowerInvariant());
         Assert.Matches("-[0-9a-f]{16}$", name);
         var stem = name.Split('.')[0].TrimEnd(' ');
@@ -144,6 +147,22 @@ public sealed class StoreFileNameTests
         Assert.Equal(4, result.Candidates.Select(c => c.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(4, result.Candidates.Select(c => c.ScriptPath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
+
+    [Theory]
+    [InlineData("../x")]
+    [InlineData("..\\x")]
+    [InlineData("/etc/x")]
+    [InlineData("C:\\x")]
+    public void BatchIdsFromTheCommandLineCannotLeaveTheArtifactRoot(string batchId)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "artifact-root-probe", "artifacts");
+        var full = Path.GetFullPath(StoreFileName.Combine(root, batchId));
+        Assert.Equal(Path.GetFullPath(root), Path.GetDirectoryName(full));
+    }
+
+    [Fact]
+    public void BareDotDotBatchIdIsRefused() =>
+        Assert.Throws<ArgumentException>(() => StoreFileName.Combine(Path.GetTempPath(), ".."));
 
     private static string UriPath(string uri) => new Uri(uri).LocalPath;
 }

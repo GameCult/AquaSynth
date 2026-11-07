@@ -124,7 +124,7 @@ public static class IpaTrialOrchestrator
             throw new ArgumentException("At least one IPA trial target set is required.", nameof(trialSets));
         }
 
-        var batchDirectory = Path.Combine(artifactRoot, StoreFileName.From(options.BatchId));
+        var batchDirectory = StoreFileName.Combine(artifactRoot, options.BatchId);
         Directory.CreateDirectory(batchDirectory);
         var storePath = Path.Combine(batchDirectory, options.TrialResultStoreFileName);
         var referenceRenderer = new PinkTromboneReferenceRenderer();
@@ -156,7 +156,7 @@ public static class IpaTrialOrchestrator
                 var candidateDir = Path.Combine(round.RoundDirectory, "audio", candidate.Id);
                 Directory.CreateDirectory(candidateDir);
                 var script = await File.ReadAllTextAsync(candidate.ScriptPath, cancellationToken).ConfigureAwait(false);
-                var source = FaustEmitter.EmitScript(script, new FaustExportOptions(StoreFileName.From(candidate.Id))).Source;
+                var source = FaustEmitter.EmitScript(script, new FaustExportOptions(candidate.Id)).Source;
                 var dspPath = Path.Combine(candidateDir, "candidate.dsp");
                 await File.WriteAllTextAsync(dspPath, source, cancellationToken).ConfigureAwait(false);
 
@@ -274,7 +274,7 @@ public static class IpaTrialOrchestrator
             throw new ArgumentException("At least one IPA script candidate is required.", nameof(candidates));
         }
 
-        var batchDirectory = Path.Combine(artifactRoot, StoreFileName.From(options.BatchId));
+        var batchDirectory = StoreFileName.Combine(artifactRoot, options.BatchId);
         var candidateRoot = Path.Combine(batchDirectory, "agent-candidates");
         var timelineRoot = Path.Combine(batchDirectory, "agent-timelines");
         Directory.CreateDirectory(candidateRoot);
