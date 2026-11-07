@@ -160,6 +160,33 @@ public sealed class StoreFileNameTests
         Assert.Equal(Path.GetFullPath(root), Path.GetDirectoryName(full));
     }
 
+    [Theory]
+    [InlineData("\\\\host\\share\\x")]
+    [InlineData("C:x")]
+    [InlineData("a:b")]
+    [InlineData("x.")]
+    [InlineData("x ")]
+    [InlineData("x. ")]
+    public void WindowsAbsoluteAndTrailingDotOrSpaceIdsStayContainedAndPlain(string id)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "artifact-root-probe", "artifacts");
+        var name = StoreFileName.From(id);
+        Assert.Matches("^[A-Za-z0-9._-]+$", name);
+        Assert.False(name.EndsWith('.') || name.EndsWith(' '));
+        Assert.Equal(Path.GetFullPath(root), Path.GetDirectoryName(Path.GetFullPath(StoreFileName.Combine(root, id))));
+    }
+
+    [Theory]
+    [InlineData("../x")]
+    [InlineData("a/b")]
+    [InlineData("name:with:colons")]
+    public void LoweredDspFileNameStaysInTheOutputDirectory(string name)
+    {
+        var outDir = Path.Combine(Path.GetTempPath(), "aqualower-probe", "out");
+        var file = StoreFileName.From(name) + ".dsp";
+        Assert.Equal(Path.GetFullPath(outDir), Path.GetDirectoryName(Path.GetFullPath(Path.Combine(outDir, file))));
+    }
+
     [Fact]
     public void BareDotDotBatchIdIsRefused() =>
         Assert.Throws<ArgumentException>(() => StoreFileName.Combine(Path.GetTempPath(), ".."));
