@@ -47,8 +47,9 @@ foreach (var spec in args.Skip(2))
         warnings.AddRange(export.Warnings);
     }
     else source = text;
-    File.WriteAllText(Path.Combine(outDir, name + ".dsp"), source);
-    entries.Add(new { name, origin = rel.Replace('\\', '/'), kind = path.EndsWith(".aqua", StringComparison.Ordinal) ? "aqua" : "faust", dsp = name + ".dsp", warnings });
+    var dspFile = StoreFileName.From(name) + ".dsp";
+    File.WriteAllText(Path.Combine(outDir, dspFile), source);
+    entries.Add(new { name, origin = rel.Replace('\\', '/'), kind = path.EndsWith(".aqua", StringComparison.Ordinal) ? "aqua" : "faust", dsp = dspFile, warnings });
     Console.WriteLine($"{name}: {source.Length} chars from {rel}, {warnings.Count} warnings");
 }
 File.WriteAllText(Path.Combine(outDir, "catalog.json"), JsonSerializer.Serialize(entries, new JsonSerializerOptions { WriteIndented = true }));

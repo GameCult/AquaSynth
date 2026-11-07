@@ -13,6 +13,11 @@ namespace AquaSynth.Dsl;
 /// rewritten names always do, so the two sets cannot meet; distinct ids stay distinct up to a 64-bit
 /// hash. The result is never a path: no separators, never "." or "..".
 /// </summary>
+/// <remarks>
+/// Not handled: symlinks and junctions already inside a store are followed, and Windows 8.3 short names
+/// were not verified. An id with an uppercase letter is rewritten, so a batch directory named for such
+/// an id gains a hash suffix.
+/// </remarks>
 public static class StoreFileName
 {
     private const int MaxStem = 100;

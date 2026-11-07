@@ -118,6 +118,36 @@ public sealed class StoreFileNameTests
         }
     }
 
+    [Fact]
+    public void IpaRoundCandidatesWithCollidingSanitisedIdsKeepDistinctFilesAndStayInRoot()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"aquasynth-ipa-sfn-{Guid.NewGuid():N}");
+        var result = IpaGestureExperiment.WriteRound(
+            root,
+            "round-sfn",
+            [new IpaGestureExperimentTarget("a/b", "p", "voiceless_bilabial_plosive", .1f), new IpaGestureExperimentTarget("a-b", "m", "voiced_bilabial_nasal", .1f)],
+            [new IpaGestureExperimentVariant("base")]);
+
+        Assert.Equal(2, result.Candidates.Select(c => c.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.All(result.Candidates, c => Assert.StartsWith(Path.GetFullPath(root), Path.GetFullPath(c.ScriptPath)));
+        Assert.Throws<ArgumentException>(() => IpaGestureExperiment.WriteRound(root, "..", [new IpaGestureExperimentTarget("a", "p", "voiceless_bilabial_plosive")], [new IpaGestureExperimentVariant("base")]));
+    }
+
+    [Fact]
+    public void IpaRoundJoinedTargetVariantIdsThatConcatenateEquallyKeepDistinctFiles()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"aquasynth-ipa-join-{Guid.NewGuid():N}");
+        var result = IpaGestureExperiment.WriteRound(
+            root,
+            "round-join",
+            [new IpaGestureExperimentTarget("a", "p", "voiceless_bilabial_plosive", .1f), new IpaGestureExperimentTarget("a-b", "m", "voiced_bilabial_nasal", .1f)],
+            [new IpaGestureExperimentVariant("b-c"), new IpaGestureExperimentVariant("c")]);
+
+        Assert.Equal(4, result.Candidates.Count);
+        Assert.Equal(4, result.Candidates.Select(c => c.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(4, result.Candidates.Select(c => c.ScriptPath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
     [Theory]
     [InlineData("../x")]
     [InlineData("..\\x")]
@@ -128,6 +158,33 @@ public sealed class StoreFileNameTests
         var root = Path.Combine(Path.GetTempPath(), "artifact-root-probe", "artifacts");
         var full = Path.GetFullPath(StoreFileName.Combine(root, batchId));
         Assert.Equal(Path.GetFullPath(root), Path.GetDirectoryName(full));
+    }
+
+    [Theory]
+    [InlineData("\\\\host\\share\\x")]
+    [InlineData("C:x")]
+    [InlineData("a:b")]
+    [InlineData("x.")]
+    [InlineData("x ")]
+    [InlineData("x. ")]
+    public void WindowsAbsoluteAndTrailingDotOrSpaceIdsStayContainedAndPlain(string id)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "artifact-root-probe", "artifacts");
+        var name = StoreFileName.From(id);
+        Assert.Matches("^[A-Za-z0-9._-]+$", name);
+        Assert.False(name.EndsWith('.') || name.EndsWith(' '));
+        Assert.Equal(Path.GetFullPath(root), Path.GetDirectoryName(Path.GetFullPath(StoreFileName.Combine(root, id))));
+    }
+
+    [Theory]
+    [InlineData("../x")]
+    [InlineData("a/b")]
+    [InlineData("name:with:colons")]
+    public void LoweredDspFileNameStaysInTheOutputDirectory(string name)
+    {
+        var outDir = Path.Combine(Path.GetTempPath(), "aqualower-probe", "out");
+        var file = StoreFileName.From(name) + ".dsp";
+        Assert.Equal(Path.GetFullPath(outDir), Path.GetDirectoryName(Path.GetFullPath(Path.Combine(outDir, file))));
     }
 
     [Fact]
