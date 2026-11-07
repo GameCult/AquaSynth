@@ -45,6 +45,7 @@ public sealed class StoreFileNameTests
     [InlineData("prn.cc")]
     [InlineData("nul.x")]
     [InlineData("LPT1.x")]
+    [InlineData("CON.tar.gz")]
     public void WindowsDeviceStemsAreRewritten(string id)
     {
         var name = StoreFileName.From(id);
@@ -53,6 +54,20 @@ public sealed class StoreFileNameTests
         Assert.Matches("-[0-9a-f]{16}$", name);
         var stem = name.Split('.')[0].TrimEnd(' ');
         Assert.DoesNotMatch("^(?i:con|prn|aux|nul|com[0-9]|lpt[0-9])$", stem);
+    }
+
+    [Theory]
+    [InlineData("nul ")]
+    [InlineData("COM\u00b9")]
+    [InlineData("COM1 .x")]
+    [InlineData("con\u00e9.x")]
+    [InlineData("NUL.")]
+    public void DeviceLookalikesNeverLeaveAReservedStem(string id)
+    {
+        var name = StoreFileName.From(id);
+        Assert.Matches("^[A-Za-z0-9._-]+$", name);
+        Assert.DoesNotMatch("^(?i:con|prn|aux|nul|com[0-9]|lpt[0-9])$", name.Split('.')[0].TrimEnd(' '));
+        Assert.Matches("-[0-9a-f]{16}$", name);
     }
 
     [Fact]
@@ -146,6 +161,23 @@ public sealed class StoreFileNameTests
         Assert.Equal(4, result.Candidates.Count);
         Assert.Equal(4, result.Candidates.Select(c => c.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Equal(4, result.Candidates.Select(c => c.ScriptPath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Fact]
+    public void IpaRoundPairsWithSeparatorCharactersInIdsStayDistinct()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"aquasynth-ipa-pair-{Guid.NewGuid():N}");
+        string[] targets = ["a", "a/b", "a-b", "a_b", "A", "a b"];
+        string[] variants = ["b-c", "c", "b/c", "b_c", "B-C", "b c"];
+        var result = IpaGestureExperiment.WriteRound(
+            root,
+            "round-pairs",
+            targets.Select(t => new IpaGestureExperimentTarget(t, "p", "voiceless_bilabial_plosive", .1f)).ToArray(),
+            variants.Select(v => new IpaGestureExperimentVariant(v)).ToArray());
+
+        Assert.Equal(36, result.Candidates.Count);
+        Assert.Equal(36, result.Candidates.Select(c => c.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(36, result.Candidates.Select(c => c.ScriptPath).Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     [Theory]
