@@ -6,7 +6,7 @@ Question: how does Faust DSP (the thruster, `patches/thruster/thruster.dsp`, v5)
 built Unity player on Windows and Linux? (a) ahead-of-time (AOT) Faust to C++ per patch
 inside a native plugin, or (b) runtime `libfaust`/LLVM inside the player.
 
-**Limitation:** AOT Faust-to-C++ fixes the patch set at build time. Player-authored or modded patches cannot run in a built player; live-edited patches run only in the editor or browser lane.
+**Limitation:** AOT Faust-to-C++ fixes the patch set at build time. Player-authored or modded patches cannot run in a built player; live-edited patches run only in the editor (the developer-time lane of path (b)).
 
 Marks: **[V]** verified here by reading source or running a tool on 2026-11-06.
 **[U]** unverified: from memory, or needs a Unity editor/player or a Windows host this run
@@ -16,6 +16,9 @@ did not have. Nothing here has been run inside Unity.
 
 Take (a) for shipped patches such as the thruster. Keep (b) as a developer-time lane only, if
 at all. Confidence: about 80% on the choice, lower on the details marked [U].
+
+The cost of (a): the patch set is fixed at build time. A built player cannot run
+player-authored or modded patches; live-edited patches run only in the editor, through (b).
 
 - (a) fits the thruster: a fixed graph with ordinary controls, which
   `docs/faust-toolchain-boundary.md` ("Parameter changes are not recompiles"; "Shipping
@@ -246,7 +249,9 @@ including at the worst rpm sweep, under CPU load. Nothing here has been run.
 **Deadline.** `D = frames / sampleRate`. Unity's block comes from `AudioSettings.GetDSPBufferSize`
 (`FaustPlugin_template.cs` `getBufferSize`). Test 256, 512, 1024 frames at 44.1 k and
 48 k (the render manifest uses 48 k / 512, i.e. D = 10.67 ms). Proposed pass line:
-p99.9 under 25% of D, max under 50% of D (a proposal, not a ruling).
+p99.9 under 25% of D, max under 50% of D (Aqua's ruling, 2026-11-07). The spike's
+shared-host outliers (max 10.8-17.1 ms, 4-5 blocks over deadline) mean the max line can only
+be judged on a quiet host; a max miss on a loaded host is not a verdict.
 
 **What to time.**
 
@@ -287,6 +292,9 @@ the plugin as above, and read `AudioSettings` underrun counters / Profiler `Audi
 [U: exact counter names] over a 10-minute run in a development build on each OS.
 
 ## Unverified list, in one place
+
+- That a built player can run anything but the patches compiled into it: player-authored or
+  modded patches are out of reach by construction under (a); live edit needs the editor and (b).
 
 - That the generated Windows `.dll` and Linux `.so` load and play in a Unity Windows/Linux
   player (no Unity available in this run).
