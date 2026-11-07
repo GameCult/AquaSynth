@@ -250,8 +250,15 @@ including at the worst rpm sweep, under CPU load. Nothing here has been run.
 (`FaustPlugin_template.cs` `getBufferSize`). Test 256, 512, 1024 frames at 44.1 k and
 48 k (the render manifest uses 48 k / 512, i.e. D = 10.67 ms). Proposed pass line:
 p99.9 under 25% of D, max under 50% of D (Aqua's ruling, 2026-11-07). The spike's
-shared-host outliers (max 10.8-17.1 ms, 4-5 blocks over deadline) mean the max line can only
-be judged on a quiet host; a max miss on a loaded host is not a verdict.
+shared-host outliers (max 10.8-17.1 ms, 4-5 blocks over deadline) are **unexplained**: the spike
+(`spikes/faust-aot-thruster/`) shows they are not per-block DSP cost (an empty timed busy-wait stalls
+the same way), but not what causes them. Until a quiet or realtime host explains or removes them, the
+max line has no verdict from this host.
+
+**What the spike measures, and what it does not.** It times a bare C loop calling the compiled
+`process` back to back on Linux. That shows the patch is cheap (median 0.05 ms against 10.67 ms). It
+does not show that a Unity player meets its deadline: the player's audio thread, the managed-to-native
+transition, IL2CPP, mixer and other DSP sharing the callback, and Windows scheduling are all absent.
 
 **What to time.**
 
