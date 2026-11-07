@@ -214,7 +214,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
         throw new InvalidDataException($"No .aqua song candidates found under `{patchRoot}`.");
     }
 
-    var batchDirectory = Path.Combine(artifactRoot, batchId);
+    var batchDirectory = StoreFileName.Combine(artifactRoot, batchId);
     var candidateRoot = Path.Combine(batchDirectory, "song-candidates");
     var timelineRoot = Path.Combine(batchDirectory, "song-timelines");
     Directory.CreateDirectory(candidateRoot);
@@ -228,7 +228,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
     {
         var startedAt = DateTimeOffset.UtcNow;
         var startedStamp = Stopwatch.GetTimestamp();
-        var safeCandidateId = SafeName(candidate.CandidateId);
+        var safeCandidateId = StoreFileName.From(candidate.CandidateId);
         var candidateDir = Path.Combine(candidateRoot, safeCandidateId);
         var audioDir = Path.Combine(candidateDir, "audio");
         Directory.CreateDirectory(audioDir);
@@ -2658,10 +2658,10 @@ static bool IsOfficialMusicArtifactPath(string path)
 }
 
 static string CandidatePatchPath(SongSummaryRow row) =>
-    Path.Combine(Path.GetDirectoryName(row.SummaryPath)!, "song-candidates", SafeName(row.CandidateId), "candidate.aqua");
+    Path.Combine(Path.GetDirectoryName(row.SummaryPath)!, "song-candidates", StoreFileName.From(row.CandidateId), "candidate.aqua");
 
 static string CandidateAnalysisPath(SongSummaryRow row) =>
-    Path.Combine(Path.GetDirectoryName(row.SummaryPath)!, "song-candidates", SafeName(row.CandidateId), "candidate-analysis.md");
+    Path.Combine(Path.GetDirectoryName(row.SummaryPath)!, "song-candidates", StoreFileName.From(row.CandidateId), "candidate-analysis.md");
 
 static string EvaluatorReportPath(SongSummaryRow row) =>
     Path.Combine(Path.GetDirectoryName(row.SummaryPath)!, "evaluator-report.md");
