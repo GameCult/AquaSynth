@@ -214,7 +214,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
         throw new InvalidDataException($"No .aqua song candidates found under `{patchRoot}`.");
     }
 
-    var batchDirectory = Path.Combine(artifactRoot, batchId);
+    var batchDirectory = StoreFileName.Combine(artifactRoot, batchId);
     var candidateRoot = Path.Combine(batchDirectory, "song-candidates");
     var timelineRoot = Path.Combine(batchDirectory, "song-timelines");
     Directory.CreateDirectory(candidateRoot);
