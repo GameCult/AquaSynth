@@ -13,8 +13,6 @@ public static partial class FaustEmitter
     private const float LadderGlottalReflection = 0.75f;
     // Speed of sound in cm/s used only to size the lip end correction from the lip radius (the ladder's own cell length uses the path's speed).
     private const float LipEndCorrectionSoundSpeedCentimeters = 35000f;
-    // Full-open velum diameter in cm, as in Pink Trombone's velum target.
-    private const float VelumOpenDiameterCentimeters = 0.4f;
 
     private sealed record LadderPath(
         WaveguidePath Path,
@@ -70,8 +68,9 @@ public static partial class FaustEmitter
                 continue;
             }
 
+            // The velopharyngeal port area, cm^2: opening * coupling * the design maximum (NasalTractAreas); it is the nasal ladder's first cell.
             var velum = $"{name}_primitive_branch_{SafeIdentifier(branch.Name)}_velum_area";
-            source.AppendLine($"    {velum} = max(0.000001, pow({admittances[branch.Name]} * {F(VelumOpenDiameterCentimeters)}, 2.0));");
+            source.AppendLine($"    {velum} = max(0.000001, {admittances[branch.Name]} * {F(NasalTractAreas.VelopharyngealPortMaximumAreaSquareCentimeters)});");
             var sum = $"({oral.A(cell)} + {oral.A(cell + 1)} + {velum})";
             var key = $"{name}_primitive_branch_{SafeIdentifier(branch.Name)}";
             source.AppendLine($"    {key}_refl_left = (2.0 * {oral.A(cell)} - {sum}) / {sum};");

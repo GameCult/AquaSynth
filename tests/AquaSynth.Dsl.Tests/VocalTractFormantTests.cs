@@ -14,7 +14,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     private const int Rate = 48000;
     private const float Pitch = 10f;
 
-    private static string Script(float tongueIndex, float tongueDiameter, float lipOpening, float velum = .01f) => $$"""
+    private static string Script(float tongueIndex, float tongueDiameter, float lipOpening, float velum = 0f) => $$"""
         morphology name=oral length_cm=17 diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index={{tongueIndex}} tongue_diameter={{tongueDiameter}} constriction_index=4 constriction_diameter=4 lip_opening={{lipOpening}}
         morphology name=nasal length_cm=12 diameters=.04,.28,.52,.72
         waveguide_path name=oral_path morphology=oral loss=.998
@@ -164,7 +164,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     [Fact]
     public void LadderStaysBoundedForASecondWithTheVelumOpen()
     {
-        foreach (var (ti, td, lo, velum) in new[] { (3f, .15f, 2.2f, .01f), (1.5f, .5f, 2.2f, 1f), (2f, 1.2f, .6f, 1f) })
+        foreach (var (ti, td, lo, velum) in new[] { (3f, .15f, 2.2f, 0f), (1.5f, .5f, 2.2f, 1f), (2f, 1.2f, .6f, 1f) })
         {
             var window = Render(Script(ti, td, lo, velum));
             if (window is null) return;
@@ -182,11 +182,13 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     [Fact]
     public void WithTheMouthClosedOnlyAnOpenVelumLetsSoundOutThroughTheNose()
     {
-        // constriction_diameter .001 at tract index 4 shuts the oral ladder; the only way out is the junction into the nasal ladder.
+        // constriction_diameter .001 at tract index 4 shuts the oral ladder; the only way out is the junction into the nasal ladder. A shut
+        // velum is opening 0: the port area is linear in the opening, and a flow source into a nearly lossless closed tract leaves through even
+        // a 0.008 cm^2 port (opening .01 measured rms 1.0e-2 against 2.1e-2 open).
         string Closed(float velum) => Script(1.5f, .5f, 2.2f, velum)
             .Replace("constriction_diameter=4", "constriction_diameter=.001", StringComparison.Ordinal)
             .Replace("diameters=.04,.28,.52,.72", "diameters=.9,1.3,1.5,1.2", StringComparison.Ordinal);
-        var shut = Render(Closed(.01f));
+        var shut = Render(Closed(0f));
         var open = Render(Closed(1f));
         if (shut is null || open is null) return;
 
@@ -341,7 +343,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         waveguide_path name=oral_path morphology=oral speed=350 loss=.998
         waveguide_path name=nasal_path morphology=nasal speed=350 loss=.997
         source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.5 noise=0 impedance=.3 flow_scale=.12 tilt=0
-        branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
+        branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=0 coupling=1
         radiation_load name=mouth path=oral_path aperture=1 reflection=-1 impedance=.28
         radiation_load name=nostril path=nasal_path aperture=.8 reflection=-1 impedance=.28
         vocal_network name=voice paths=oral_path,nasal_path sources=folds branches=velopharynx radiation=mouth,nostril
@@ -468,5 +470,88 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
 
         output.WriteLine($"ah lip cap 4 cm F1 {open[0]}; 0.4 cm F1 {capped[0]}");
         Assert.True(capped[0] < open[0] - 80, $"lip cap .4 cm F1 {capped[0]} vs open {open[0]}");
+    }
+
+    // ---- Nasal coupling: the murmur of /m/ and /n/ against the nostril transfer of tools/formant-check/tube_formants.py --nasal ----
+
+    // The independent tube chain (Story 2008 geometric-mean oral shape, port after section 22 of 44, A_vp 0.56 cm^2 = the gesture's 0.7 opening,
+    // the 19-section nasal table, rigid closed oral end after section 44 for /m/ and section 37 for /n/, 17.52 cm): N1 325 / 352 Hz, transfer
+    // zeros (short circuit of the oral side branch) 882 / 1136 Hz; the quarter-wave c / 4L of the uniform branch would say 999 / 1465 Hz.
+    private const double TubeM1 = 325, TubeN1 = 352, TubeMZero = 882, TubeNZero = 1136;
+
+    // Smoothed line spectrum in dB (flattened by the saw's 1/f) of a steady 10 Hz render, indexed by line number k (k * Pitch Hz).
+    private static double[] SmoothedDb(float[] window)
+    {
+        var lines = Lines(window);
+        var db = lines.Select(line => 20 * Math.Log10(Math.Max(1e-12, line))).ToArray();
+        return db.Select((_, k) => k < 2 || k > db.Length - 3 ? db[k] : db.Skip(k - 2).Take(5).Average()).ToArray();
+    }
+
+    // First dip above the first peak: the first local minimum of the smoothed spectrum, 200-2000 Hz, at least 3 dB under the lower of the
+    // maxima on either side of it.
+    private static double FirstDip(double[] db)
+    {
+        for (var k = (int)(200 / Pitch); k < (int)(2000 / Pitch); k++)
+        {
+            if (!(db[k] < db[k - 1] && db[k] <= db[k + 1])) continue;
+            var left = db[k]; for (var j = k; j > 0 && db[j] >= left; j--) left = db[j];
+            var right = db[k]; for (var j = k; j < db.Length - 1 && db[j] >= right; j++) right = db[j];
+            if (Math.Min(left, right) - db[k] >= 3) return k * Pitch;
+        }
+
+        return double.NaN;
+    }
+
+    private (double N1, double Dip)? Murmur(string ipa)
+    {
+        var window = GestureWindow(ipa);
+        if (window is null) return null;
+        var n1 = Peaks(window)[0];
+        var dip = FirstDip(SmoothedDb(window));
+        output.WriteLine($"/{ipa}/ murmur: N1 {n1:F0} Hz, first dip {dip:F0} Hz");
+        return (n1, dip);
+    }
+
+    [Fact]
+    public void TheMurmurOfMAndNHasItsFirstPeakBelow400HzNearTheTubeChain()
+    {
+        var m = Murmur("m");
+        var n = Murmur("n");
+        if (m is null || n is null) return;
+
+        Assert.InRange(m.Value.N1, 250, 400);
+        Assert.InRange(n.Value.N1, 250, 400);
+        Assert.InRange(m.Value.N1, TubeM1 * .85, TubeM1 * 1.15);
+        Assert.InRange(n.Value.N1, TubeN1 * .85, TubeN1 * 1.15);
+    }
+
+    [Fact]
+    public void TheFirstZeroOfTheNasalMurmurSitsWhereTheOralSideBranchPutsItAndRisesWhenTheBranchIsShorter()
+    {
+        var m = Murmur("m");
+        var n = Murmur("n");
+        if (m is null || n is null) return;
+
+        Assert.InRange(m.Value.Dip, TubeMZero * .85, TubeMZero * 1.15);
+        Assert.InRange(n.Value.Dip, TubeNZero * .85, TubeNZero * 1.15);
+        // /n/ closes the mouth 2.6 cm from the lips, /m/ at the lips: a shorter branch beyond the port, a higher zero.
+        Assert.True(n.Value.Dip >= 1.15 * m.Value.Dip, $"/n/ dip {n.Value.Dip} Hz against /m/ dip {m.Value.Dip} Hz");
+    }
+
+    [Fact]
+    public void AnOralClosureWithTheVelumShutLeavesTheMurmurSilentAndOpeningTheVelumLetsItOut()
+    {
+        var open = GestureWindow("m");
+        if (open is null) return;
+
+        // The same /m/ with the velum spline held shut: the gesture's own velum control is the only door, so remove it.
+        var shut = Render(IpaGestureExperiment.BuildWordScript([(new IpaGestureExperimentTarget("v_m", "m", "", 1.5f), 1f)], Pitch, 0.1f)
+            .Replace("noise=.04", "noise=0 tilt=1", StringComparison.Ordinal)
+            .Replace($"freq={Pitch}", $"freq={Pitch} min_freq=5", StringComparison.Ordinal),
+            patch => patch with { ControlSplines = patch.ControlSplines.Where(spline => spline.SurfacePath != "/vocal/branches/0/opening").ToArray() });
+        if (shut is null) return;
+
+        output.WriteLine($"/m/ velum open rms {Rms(open):E2}, velum shut rms {Rms(shut):E2}");
+        Assert.True(Rms(open) > 10 * Rms(shut), $"open {Rms(open):E2} shut {Rms(shut):E2}");
     }
 }

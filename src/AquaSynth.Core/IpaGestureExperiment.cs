@@ -232,13 +232,13 @@ public static class IpaGestureExperiment
 
     private static string Scaffold(IReadOnlyList<string> gestureLines, float sustain, float frequency) => $$"""
         patch gain=.45
-        morphology name=oral length_cm={{Format(StoryVowelAreas.MeanLengthCentimeters)}} diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=4
+        morphology name=oral length_cm={{Format(StoryVowelAreas.MeanLengthCentimeters)}} diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 constriction_width=.03 lip_opening=4
         vowel_set area_function=oral source={{StoryVowelAreas.Source}}
-        morphology name=nasal length_cm=12 diameters=.04,.28,.52,.72
+        morphology name=nasal length_cm={{Format(NasalTractAreas.LengthCentimeters)}} areas={{NasalTractAreas.AreasList()}}
         waveguide_path name=oral_path morphology=oral speed={{TractSpeedMetersPerSecond}} strategy=thiran order=1 max_delay=4096 loss=.998
         waveguide_path name=nasal_path morphology=nasal speed={{TractSpeedMetersPerSecond}} strategy=thiran order=1 max_delay=4096 loss=.997
         source_port name=folds path=oral_path kind=glottal position=0 pressure=.66 tension=.54 opening=.42 noise=.04 impedance=.32 flow_scale=.12
-        branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
+        branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=0 coupling=1
         constriction_contact name=contact path=oral_path position=.92 opening=1 resistance=.45 stored_pressure=.12
         radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-1 impedance=.28
         radiation_load name=nostril path=nasal_path kind=lip position=1 aperture=.8 reflection=-1 impedance=.28

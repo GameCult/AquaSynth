@@ -1525,7 +1525,19 @@ public static class PatchScript
                 return;
             }
 
-            AddAuthoredSpline($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, (0, place), (1, place));
+            if (_areaFunctions.Count > 0 && _areaFunctions[0].Vowels is not null && _areaFunctions[0].Deformation is { } control)
+            {
+                // Under vowel_set the constriction is placed by distance along the tract: the surface is a section index, so a normalized
+                // place fraction would land at fraction * sections / (sections - 1) of the tract, past the lips for a labial.
+                var sections = Math.Max(2, _areaFunctions[0].Shape.Sections);
+                var position = ConsonantPositionFromGlottis(tokens, place, _areaFunctions[0].Shape.LengthCentimeters);
+                HoldOnSurface($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, position * (sections - 1) / control.IndexScale);
+            }
+            else
+            {
+                AddAuthoredSpline($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, (0, place), (1, place));
+            }
+
             AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, constriction), (0.5f, constriction), (1, Math.Min(0.65f, constriction + 0.2f)));
 
             if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial") || tokens.Contains("rounded"))
@@ -1544,13 +1556,13 @@ public static class PatchScript
             {
                 AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.02f), (0.65f, 0.02f), (1, 0.9f));
                 AddAuthoredSpline($"{name}_stored_pressure", "/vocal/contacts/0/stored_pressure", start, duration, (0, 0.4f), (0.65f, 0.75f), (1, 0.05f));
-                AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
+                AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
             else if (tokens.Contains("fricative"))
             {
                 AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.18f), (1, 0.22f));
                 AddAuthoredSpline($"{name}_contact_resistance", "/vocal/contacts/0/resistance", start, duration, (0, 0.75f), (1, 0.85f));
-                AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
+                AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
             else
             {
@@ -1577,7 +1589,7 @@ public static class PatchScript
             // gain the consonant closures use (the lip cell cannot shut), so a vowel keeps it fully open; scaling it by the lip
             // area as well counted the rounding twice and left /u/ 30 dB under /i/.
             AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, 1), (1, 1));
-            AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
+            AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
         }
 
         // Holds a surface at a value in its own unit (cm, section index); splines carry the surface's normalized range.
@@ -1617,6 +1629,25 @@ public static class PatchScript
                 .Replace('-', '_')
                 .Split(['_', ',', '+', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // A shut velum is opening 0: the port area is linear in the opening (opening * coupling * NasalTractAreas maximum), so 0.01 would
+        // leave a 0.008 cm^2 leak that shows in the oral formants.
+        private const float VelumClosed = 0f;
+
+        // Distance from the lip plane to the alveolar ridge in cm. A DESIGN VALUE; no source for the distance was retrieved. 2.555 cm puts the
+        // closure on the centre of ladder cell 20 of 24 of the scaffold tract (17.52 cm at 48 kHz and 350 m/s: (20.5 / 24) * 17.52 = 14.965 cm
+        // from the glottis), the cell grid being what a narrow constriction (scaffold constriction_width .03, e-fold 0.63 cm) can close; it is
+        // the ladder's counterpart of the tube check's closed end after section 37 of 44 (14.73 cm).
+        private const float AlveolarRidgeCentimetersFromLips = 2.555f;
+
+        // Normalized position (0 glottis, 1 lips) of a consonant's constriction in the vowel_set path: labials at the lip plane, alveolars
+        // AlveolarRidgeCentimetersFromLips behind it, every other place at its PlaceTarget fraction of the tract length.
+        private static float ConsonantPositionFromGlottis(HashSet<string> tokens, float placeFraction, float lengthCentimeters)
+        {
+            if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial")) return 1;
+            if (tokens.Contains("alveolar")) return 1 - AlveolarRidgeCentimetersFromLips / lengthCentimeters;
+            return placeFraction;
+        }
 
         private static float PlaceTarget(HashSet<string> tokens)
         {
