@@ -40,15 +40,30 @@ render against the population means (is the speaker typical). Only the first is 
 
 ## Ladder against the tube chain (measured 2026-11-08, unheard)
 
-`tools/formant-check/ladder_formants.py` runs the ladder's update equations in numpy on the 24-cell resampling of each Story shape
-(17.52 cm, 350 m/s, loss .998, glottal reflection .75). With the lip reflection at the scaffold's -.82 the rounded and back vowels
-show no F2 spectral peak, only a damped shoulder (/ʌ/ 624/3064, /ɔ/ 615/3173, /o/ 674/2546, /ʊ/ 533/2774, /u/ 278/2575 against the tube chain's
-549/809, 516/692, 477/787, 478/850, 271/761). Burg LPC (`burg_formants.py`) on a 140 Hz render of the same ladder still places a pole near the
-tube chain (/u/ 301/744, /ʊ/ 526/848), so F2 is heavily damped rather than absent; the 10 Hz harmonic-line reading and LPC order 12 do not see it. With the lip reflection at -1 F2 returns but every back vowel reads 6-13 percent above the
-tube chain (/ɔ/ 568/741, /o/ 524/844, /ɑ/ 688/1031, /u/ 290/835); 48 cells instead of 24 change nothing, so cell quantisation is not
-the cause. The tube chain uses a frequency-dependent piston radiation (end correction, narrow lips reflect almost totally); the ladder's
-lip is a constant real reflection. The front vowels (/i ɪ e ɛ æ/) are within 2-7 percent at -.82. Which radiation model the ladder
-should have is open (ruling owed); the vowel tests of `VocalTractFormantTests` skip the nine vowels outside 6 percent until then.
+The ladder's lip termination is the open-end reflectance R(z) = -g (1-b)/(1-b z^-1) (Smith PASP; Valimaki and Karjalainen 1994; Levine and
+Schwinger): g = 1 is the radiation load's `reflection` magnitude (sign stays negative), and b follows the lip cell's area, with a = sqrt(A/pi) cm,
+q = (a fs / c)^2, c = 35000 cm/s, b/(1-b)^2 = q, b = ((2q+1) - sqrt(4q+1)) / (2q), clamped to [0, .9]. The low-frequency loss 1-|R|^2 is then
+(ka)^2 and the DC group delay b/(1-b) samples is the end correction. A constant -.82 reflection, the earlier termination, had no F2 peak for
+the rounded and back vowels and no end correction.
+
+`tools/formant-check/ladder_formants.py --filtered` runs the same ladder in numpy (24 cells, 17.52 cm, 350 m/s, loss .998, glottal reflection .75).
+Against the independent tube chain (`tube_formants.py`, 17.52 cm; baffled-piston R||L radiation) the numpy ladder reads at g = 1 (F1/F2 error %):
+i +1.4/+0.4, ih +1.7/+1.5, e +2.3/+4.2, eh +4.0/+3.1, ae +2.9/+3.5, uh +5.6/+4.3, ah +5.1/+6.6, aw +8.6/+3.7, o +8.2/+5.0, oo_short +5.5/+8.2,
+u +6.0/+8.2. Lowering g does not help (g = .95: aw F1 +9.6; g = .9: the aw F2 peak is lost). The ladder therefore reads systematically high:
+F1 +4 to +9%, F2 +3 to +8% for the back vowels. That bias is diagnosed, not isolated: raising the glottal reflection to .9 moves only /aw/ F1
+(8.6 to 6.2%); a 1.4 times larger end correction leaves a worst case of 6.9%; the remaining suspects (cell-length quantisation of a 24.03-cell
+tract, and that the reference itself uses a different radiation model) are untested. It is the open item.
+
+Held tolerances (`VocalTractFormantTests`, harmonic-line reading of the 10 Hz render): the front vowels i ih e eh ae within 6% on F1 and F2;
+the back and rounded vowels within 10%, which is the measured disagreement between two lip radiation models (the ladder's one-pole
+Levine-Schwinger-form reflectance, the tube chain's baffled piston R||L) plus the ladder's cell quantisation. Only /u/ meets its 10% band in the
+render; uh, ah, aw, o and oo_short read F1 +14.8, +10.8, +12.4, +25.8 and +13.0% against the tube chain (render 630, 720, 580, 600, 540 Hz; LPC agrees
+with the harmonic lines) and stay skipped with those numbers. The numpy ladder reads those F1 20-85 Hz lower than the render, so that excess sits in
+the rendered chain (untested suspect: the glottal tissue-valve source's spectral shape; `load_coupling=0` changed nothing), not in the lip reflectance.
+
+Burg LPC (`burg_formants.py`) on the WordRender renders at 140 Hz (held vowels): /i/ in nibu 279/2105/2924, /u/ in nibu 283/836/2637, /ih/ in bin
+359/2012/2536, /oo_short/ (bʊn) in bun 543/899/2781, against the tube chain i 251/2063/2877, u 271/761/2574, ih 346/1987/2491, oo_short 478/850/2760 and
+Hillenbrand male means i 343/2323/3001, u 380/992/2355, ih 429/2034/2687, oo_short 469/1123/2435.
 
 ## Not retrieved (from the fact sheet)
 

@@ -11,6 +11,8 @@ public static partial class FaustEmitter
 {
     // Reflection at the closed glottal end of a path that carries a source.
     private const float LadderGlottalReflection = 0.75f;
+    // Speed of sound in cm/s used only to size the lip end correction from the lip radius (the ladder's own cell length uses the path's speed).
+    private const float LipEndCorrectionSoundSpeedCentimeters = 35000f;
     // Full-open velum diameter in cm, as in Pink Trombone's velum target.
     private const float VelumOpenDiameterCentimeters = 0.4f;
 
@@ -125,7 +127,15 @@ public static partial class FaustEmitter
                     : $"        '{member.L(i)} = ({member.L(i + 1)} + {member.Refl(i + 1)} * ({member.R(i)} + {member.L(i + 1)})) * {loss};");
             }
 
-            equations.AppendLine($"        '{member.L(last)} = {member.R(last)} * ({lipReflection}) * {loss};");
+            // Open-end reflectance R(z) = -g (1-b)/(1-b z^-1): g is the radiation load's reflection (DC gain, negative), b follows the
+            // lip cell's area so that the low-frequency loss 1-|R|^2 ~ (ka)^2 and the DC group delay b/(1-b) is the end correction
+            // (Levine & Schwinger; Smith PASP; Valimaki & Karjalainen 1994). With a = sqrt(A/pi) in cm, q = (a fs / c)^2, c = 35000 cm/s,
+            // b/(1-b)^2 = q gives b = ((2q+1) - sqrt(4q+1)) / (2q). The pole is one-sample state in the same slot the constant used.
+            var q = $"{member.Prefix}_lip_q";
+            var b = $"{member.Prefix}_lip_b";
+            source.AppendLine($"    {q} = max(0.000001, pow(sqrt({member.A(last)} / ma.PI) * ma.SR / {F(LipEndCorrectionSoundSpeedCentimeters)}, 2.0));");
+            source.AppendLine($"    {b} = min(0.9, max(0.0, ((2.0 * {q} + 1.0) - sqrt(4.0 * {q} + 1.0)) / (2.0 * {q})));");
+            equations.AppendLine($"        '{member.L(last)} = ({b} * {member.L(last)} + (1.0 - {b}) * ({lipReflection}) * {member.R(last)}) * {loss};");
         }
 
         var outputs = string.Join(", ", members.Select(member => member.R(member.Cells - 1)));

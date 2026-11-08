@@ -240,8 +240,8 @@ public static class IpaGestureExperiment
         source_port name=folds path=oral_path kind=glottal position=0 pressure=.66 tension=.54 opening=.42 noise=.04 impedance=.32 flow_scale=.12
         branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
         constriction_contact name=contact path=oral_path position=.92 opening=1 resistance=.45 stored_pressure=.12
-        radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-.82 impedance=.28
-        radiation_load name=nostril path=nasal_path kind=lip position=1 aperture=.8 reflection=-.82 impedance=.28
+        radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-1 impedance=.28
+        radiation_load name=nostril path=nasal_path kind=lip position=1 aperture=.8 reflection=-1 impedance=.28
         probe_timeline name=flow network=voice blocks=12 block_size=64
         vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=contact branches=velopharynx radiation=mouth,nostril probe=flow
         {{string.Join("\n", gestureLines)}}

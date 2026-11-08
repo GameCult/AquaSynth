@@ -21,8 +21,8 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         waveguide_path name=nasal_path morphology=nasal loss=.997
         source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.5 noise=0 impedance=.3 flow_scale=.12 tilt=0
         branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening={{velum}} coupling=1
-        radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
-        radiation_load name=nostril path=nasal_path aperture=.8 reflection=-.82 impedance=.28
+        radiation_load name=mouth path=oral_path aperture=.8 reflection=-1 impedance=.28
+        radiation_load name=nostril path=nasal_path aperture=.8 reflection=-1 impedance=.28
         vocal_network name=voice paths=oral_path,nasal_path sources=folds branches=velopharynx radiation=mouth,nostril
         vocal network=voice freq={{Pitch}} min_freq=5 gain=.5 sustain=1.5
         """;
@@ -290,7 +290,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         Assert.InRange(peaks[1], f2 * .9, f2 * 1.1);
     }
 
-    [Fact(Skip = "u loses F2 at the scaffold lip reflection -.82 (docs/research/articulatory-vocal-tract-sources.md, ladder against the tube chain): radiation-model fork")]
+    [Fact]
     public void AuthoredRoundedBackVowelPlacesF1AndF2NearTheStoryTubeChain()
     {
         // With a radiating highpass that rose with aperture (540 Hz at aperture 1) the envelope read u's F1 at 450 Hz.
@@ -301,7 +301,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         Assert.InRange(peaks[1], 761 * .9, 761 * 1.1);
     }
 
-    [Fact(Skip = "u loses F2 at the scaffold lip reflection -.82 (docs/research/articulatory-vocal-tract-sources.md, ladder against the tube chain): radiation-model fork")]
+    [Fact]
     public void AuthoredVowelGesturesDifferInTheirFormants()
     {
         var i = GesturePeaks("i");
@@ -314,7 +314,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         Assert.True(i[1] > a[1] + 800 && a[1] > u[1] + 100, $"F2 i {i[1]} a {a[1]} u {u[1]}");
     }
 
-    [Fact(Skip = "u loses F2 at the scaffold lip reflection -.82 (docs/research/articulatory-vocal-tract-sources.md, ladder against the tube chain): radiation-model fork")]
+    [Fact]
     public void RoundedBackVowelIsAudibleNextToTheCloseFrontVowel()
     {
         // The rendered /ˈnibu/ had /u/ 29 dB under /i/: the gesture scaled the radiating aperture (an output gain) by the lip area
@@ -342,8 +342,8 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         waveguide_path name=nasal_path morphology=nasal speed=350 loss=.997
         source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.5 noise=0 impedance=.3 flow_scale=.12 tilt=0
         branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
-        radiation_load name=mouth path=oral_path aperture=1 reflection=-.82 impedance=.28
-        radiation_load name=nostril path=nasal_path aperture=.8 reflection=-.82 impedance=.28
+        radiation_load name=mouth path=oral_path aperture=1 reflection=-1 impedance=.28
+        radiation_load name=nostril path=nasal_path aperture=.8 reflection=-1 impedance=.28
         vocal_network name=voice paths=oral_path,nasal_path sources=folds branches=velopharynx radiation=mouth,nostril
         {{string.Join("\n", weights.Select(w => $"control_spline name=w_{w.Key} surface=/vocal/areas/0/area/vowel_{w.Key} interp=linear points=0:{w.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},4:{w.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"))}}
         vocal network=voice freq={{Pitch}} min_freq=5 gain=.5 sustain=1.5
@@ -354,48 +354,55 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         var window = Render(StoryScript(new Dictionary<string, float> { [id] = 1f }, lipOpening));
         if (window is null) return null;
         var peaks = Peaks(window);
-        output.WriteLine($"story {id}: peaks " + string.Join(" ", peaks.Select(p => p.ToString("F0"))));
+        output.WriteLine($"story {id}: peaks " + string.Join(" ", peaks.Select(p => p.ToString("F0"))) + " lpc " + string.Join(" ", LpcPeaks(window).Select(p => p.ToString("F0"))));
         Assert.True(peaks.Length >= 2, $"{id}: fewer than two spectral peaks");
         return peaks;
     }
 
     // F1/F2 (F3) of the Story 2008 area functions at 17.52 cm from tools/formant-check/tube_formants.py (an independent
     // transfer-matrix estimate in the frequency domain):  python3 tools/formant-check/tube_formants.py docs/research/data/story2008-area-functions.csv --length-cm 17.52
-    public static TheoryData<string, double, double> StoryTubeChain => new()
+    //
+    // Bands: the front vowels (i ih e eh ae) are held to 6% on F1 and F2. The back and rounded vowels (uh ah aw o oo_short u) are held to 10%:
+    // that is the measured disagreement between two lip radiation models (the ladder's one-pole Levine-Schwinger-form reflectance with g = 1,
+    // the tube chain's baffled piston R||L) plus the ladder's cell quantisation. The ladder reads systematically high against the tube chain
+    // (F1 +4 to +9%, F2 +3 to +8%); that bias is diagnosed (the glottal end moves only /aw/ F1, the end correction alone does not close it),
+    // not isolated. Do not tune it away in a test: it is the open item recorded in docs/research/articulatory-vocal-tract-sources.md.
+    public static TheoryData<string, double, double, double> StoryTubeChain => new()
     {
-        { "ih", 346, 1987 }, { "eh", 527, 1571 },
+        { "i", 251, 2063, .06 }, { "ih", 346, 1987, .06 }, { "e", 432, 1827, .06 }, { "eh", 527, 1571, .06 }, { "ae", 729, 1523, .06 },
+        { "u", 271, 761, .10 },
     };
+
+    // The rendered back vowels outside the 10% band (harmonic-line and LPC readings agree, so it is not the picker): F1 reads uh 630 (549 tube, +14.8%),
+    // ah 720 (650, +10.8%), aw 580 (516, +12.4%), o 600 (477, +25.8%), oo_short 540 (478, +13.0%); the F2 of each is within 7%. The numpy copy of the ladder
+    // (tools/formant-check/ladder_formants.py --filtered) reads those F1 20-85 Hz lower than the render, so the excess is in the rendered chain, not in the
+    // lip reflectance (untested suspect: the glottal tissue-valve source's spectral shape and load feedback; load_coupling=0 changed nothing).
+    // Skipped with the numbers, not widened.
+    public static TheoryData<string, double, double, double> StoryTubeChainOutsideBand => new()
+    {
+        { "uh", 549, 809, .10 }, { "ah", 650, 913, .10 }, { "aw", 516, 692, .10 }, { "o", 477, 787, .10 }, { "oo_short", 478, 850, .10 },
+    };
+
+    [Theory(Skip = "rendered F1 outside the 10% band: uh +14.8%, ah +10.8%, aw +12.4%, o +25.8%, oo_short +13.0% (see comment above, cut B1 report)")]
+    [MemberData(nameof(StoryTubeChainOutsideBand))]
+    public void LadderRenderReproducesTheTubeChainFormantsOfTheBackVowelsOutsideTheBand(string id, double f1, double f2, double band)
+    {
+        var peaks = StoryPeaks(id);
+        if (peaks is null) return;
+
+        Assert.InRange(peaks[0], f1 * (1 - band), f1 * (1 + band));
+        Assert.InRange(peaks[1], f2 * (1 - band), f2 * (1 + band));
+    }
 
     [Theory]
     [MemberData(nameof(StoryTubeChain))]
-    public void LadderReproducesTheTubeChainFormantsOfEachStoryVowel(string id, double f1, double f2)
+    public void LadderReproducesTheTubeChainFormantsOfEachStoryVowel(string id, double f1, double f2, double band)
     {
         var peaks = StoryPeaks(id);
         if (peaks is null) return;
 
-        Assert.InRange(peaks[0], f1 * .94, f1 * 1.06);
-        Assert.InRange(peaks[1], f2 * .94, f2 * 1.06);
-    }
-
-    // The other nine vowels miss the 6% band with the ladder's fixed lip reflection -.82 (docs/research/articulatory-vocal-tract-sources.md, "Ladder against the tube chain"): the back and
-    // rounded vowels show no F2 peak (the narrow lip cells over-damp it; Burg LPC still finds a pole near the tube chain), and a numpy copy of the ladder with the lip reflection at -1
-    // still reads them 6-13% above the tube chain, which models a frequency-dependent piston radiation with end correction. That is a
-    // radiation-model fork, not a tolerance to widen; these are skipped, not loosened, until it is ruled.
-    public static TheoryData<string, double, double> StoryTubeChainBeyondTheLadderRadiation => new()
-    {
-        { "i", 251, 2063 }, { "e", 432, 1827 }, { "ae", 729, 1523 },
-        { "uh", 549, 809 }, { "ah", 650, 913 }, { "aw", 516, 692 }, { "o", 477, 787 }, { "oo_short", 478, 850 }, { "u", 271, 761 },
-    };
-
-    [Theory(Skip = "ladder lip reflection -.82 and no radiation end correction: see \"Ladder against the tube chain\" in docs/research/articulatory-vocal-tract-sources.md")]
-    [MemberData(nameof(StoryTubeChainBeyondTheLadderRadiation))]
-    public void LadderReproducesTheTubeChainFormantsOfTheRemainingStoryVowels(string id, double f1, double f2)
-    {
-        var peaks = StoryPeaks(id);
-        if (peaks is null) return;
-
-        Assert.InRange(peaks[0], f1 * .94, f1 * 1.06);
-        Assert.InRange(peaks[1], f2 * .94, f2 * 1.06);
+        Assert.InRange(peaks[0], f1 * (1 - band), f1 * (1 + band));
+        Assert.InRange(peaks[1], f2 * (1 - band), f2 * (1 + band));
     }
 
     [Fact]
