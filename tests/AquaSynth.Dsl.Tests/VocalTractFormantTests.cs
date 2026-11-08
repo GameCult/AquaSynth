@@ -194,12 +194,17 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
 
     // The authored vowel gestures (PatchScript's VowelShapes, reached through the IPA word script) rendered end to end through the
     // exporter, merged splines and the ladder; the source is a bright 10 Hz saw so the tract's response is sampled densely.
-    private double[]? GesturePeaks(string ipa)
+    private float[]? GestureWindow(string ipa)
     {
         var script = IpaGestureExperiment.BuildWordScript([(new IpaGestureExperimentTarget($"v_{ipa}", ipa, "", 1.5f), 1f)], Pitch, 0.1f)
             .Replace("noise=.04", "noise=0 tilt=1", StringComparison.Ordinal)
             .Replace($"freq={Pitch}", $"freq={Pitch} min_freq=5", StringComparison.Ordinal);
-        var window = Render(script);
+        return Render(script);
+    }
+
+    private double[]? GesturePeaks(string ipa)
+    {
+        var window = GestureWindow(ipa);
         if (window is null) return null;
         var peaks = LpcPeaks(window);
         output.WriteLine($"gesture {ipa}: peaks " + string.Join(" ", peaks.Select(p => p.ToString("F0"))));
@@ -286,11 +291,12 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     [Fact]
     public void AuthoredRoundedBackVowelPlacesF2NearTheTextbook()
     {
-        // u's F1 (about 290 Hz) is under the order-12 envelope's resolution; its F2 is the lowest peak it resolves.
+        // The radiating highpass (40 + 500 * aperture Hz, aperture 1 for a vowel) sits above u's 292 Hz F1, so the order-12
+        // envelope reads that peak high (450 Hz); F2 is the second peak.
         var peaks = GesturePeaks("u");
         if (peaks is null) return;
 
-        Assert.InRange(peaks[0], 876 * .9, 876 * 1.1);
+        Assert.InRange(peaks[1], 876 * .9, 876 * 1.1);
     }
 
     [Fact]
@@ -302,7 +308,23 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         if (i is null || u is null || a is null) return;
 
         Assert.True(a[0] > i[0] + 250, $"F1 i {i[0]} a {a[0]}");
-        // F2: i 2380 > a 1060 > u 840.
-        Assert.True(i[1] > a[1] + 800 && a[1] > u[0] + 100, $"F2 i {i[1]} a {a[1]} u {u[0]}");
+        // F2: i 2380 > a 1060 > u 880.
+        Assert.True(i[1] > a[1] + 800 && a[1] > u[1] + 100, $"F2 i {i[1]} a {a[1]} u {u[1]}");
+    }
+
+    [Fact]
+    public void RoundedBackVowelIsAudibleNextToTheCloseFrontVowel()
+    {
+        // The rendered /ˈnibu/ had /u/ 29 dB under /i/: the gesture scaled the radiating aperture (an output gain) by the lip area
+        // the ladder already carries. Measured here: -4.3 dB; with the old aperture scale -22.7 dB.
+        var i = GestureWindow("i");
+        var u = GestureWindow("u");
+        if (i is null || u is null) return;
+
+        var gap = 20 * Math.Log10(Rms(u) / Rms(i));
+        var uPeaks = LpcPeaks(u);
+        output.WriteLine($"u rms {Rms(u):E2} i rms {Rms(i):E2} gap {gap:F1} dB; u peaks {string.Join(" ", uPeaks.Select(p => p.ToString("F0")))}");
+        Assert.InRange(gap, -10, 3);
+        Assert.True(uPeaks[1] < 1000, $"u F2 {uPeaks[1]}");
     }
 }

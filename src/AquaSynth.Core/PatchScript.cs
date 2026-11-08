@@ -1450,7 +1450,7 @@ public static class PatchScript
 
             if (tokens.Contains("vowel"))
             {
-                EmitVowelGesture(name, tokens, start, duration, intensity);
+                EmitVowelGesture(name, tokens, start, duration);
                 return;
             }
 
@@ -1503,7 +1503,7 @@ public static class PatchScript
             (0.5f, 0.5f, 0, 2.00f, 1.20f, 0.60f), // schwa 497/1503
         ];
 
-        private void EmitVowelGesture(string name, HashSet<string> tokens, float start, float duration, float intensity)
+        private void EmitVowelGesture(string name, HashSet<string> tokens, float start, float duration)
         {
             var front = tokens.Contains("front") ? 1f : tokens.Contains("back") ? 0f : 0.5f;
             var open = tokens.Contains("close") ? 0f : tokens.Contains("mid") ? 0.5f : tokens.Contains("open") ? 1f : 0.5f;
@@ -1516,8 +1516,10 @@ public static class PatchScript
             HoldOnSurface($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, shape.LipCm);
             // A vowel leaves the tract unconstricted: hold the constriction at the surface maximum.
             AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, 1), (1, 1));
-            var aperture = Math.Clamp(shape.LipCm / 2.2f * (0.9f + 0.1f * intensity), 0.02f, 1);
-            AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, aperture), (1, aperture));
+            // The ladder's lip cell already carries the lip area into the resonance and the level. Aperture is the radiating
+            // gain the consonant closures use (the lip cell cannot shut), so a vowel keeps it fully open; scaling it by the lip
+            // area as well counted the rounding twice and left /u/ 30 dB under /i/.
+            AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, 1), (1, 1));
             AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
         }
 
