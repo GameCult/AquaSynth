@@ -42,8 +42,9 @@ render against the population means (is the speaker typical). Only the first is 
 
 `tools/formant-check/ladder_formants.py` runs the ladder's update equations in numpy on the 24-cell resampling of each Story shape
 (17.52 cm, 350 m/s, loss .998, glottal reflection .75). With the lip reflection at the scaffold's -.82 the rounded and back vowels
-lose F2 altogether (/ʌ/ 624/3064, /ɔ/ 615/3173, /o/ 674/2546, /ʊ/ 533/2774, /u/ 278/2575 against the tube chain's
-549/809, 516/692, 477/787, 478/850, 271/761). With the lip reflection at -1 F2 returns but every back vowel reads 6-13 percent above the
+show no F2 spectral peak, only a damped shoulder (/ʌ/ 624/3064, /ɔ/ 615/3173, /o/ 674/2546, /ʊ/ 533/2774, /u/ 278/2575 against the tube chain's
+549/809, 516/692, 477/787, 478/850, 271/761). Burg LPC (`burg_formants.py`) on a 140 Hz render of the same ladder still places a pole near the
+tube chain (/u/ 301/744, /ʊ/ 526/848), so F2 is heavily damped rather than absent; the 10 Hz harmonic-line reading and LPC order 12 do not see it. With the lip reflection at -1 F2 returns but every back vowel reads 6-13 percent above the
 tube chain (/ɔ/ 568/741, /o/ 524/844, /ɑ/ 688/1031, /u/ 290/835); 48 cells instead of 24 change nothing, so cell quantisation is not
 the cause. The tube chain uses a frequency-dependent piston radiation (end correction, narrow lips reflect almost totally); the ladder's
 lip is a constant real reflection. The front vowels (/i ɪ e ɛ æ/) are within 2-7 percent at -.82. Which radiation model the ladder

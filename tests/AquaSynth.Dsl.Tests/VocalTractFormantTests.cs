@@ -378,7 +378,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     }
 
     // The other nine vowels miss the 6% band with the ladder's fixed lip reflection -.82 (docs/research/articulatory-vocal-tract-sources.md, "Ladder against the tube chain"): the back and
-    // rounded vowels lose F2 altogether (the narrow lip cells over-damp it), and a numpy copy of the ladder with the lip reflection at -1
+    // rounded vowels show no F2 peak (the narrow lip cells over-damp it; Burg LPC still finds a pole near the tube chain), and a numpy copy of the ladder with the lip reflection at -1
     // still reads them 6-13% above the tube chain, which models a frequency-dependent piston radiation with end correction. That is a
     // radiation-model fork, not a tolerance to widen; these are skipped, not loosened, until it is ruled.
     public static TheoryData<string, double, double> StoryTubeChainBeyondTheLadderRadiation => new()
