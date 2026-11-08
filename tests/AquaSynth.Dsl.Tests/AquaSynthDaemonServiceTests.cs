@@ -4,6 +4,7 @@ using GameCult.Caching.MessagePack;
 
 namespace AquaSynth.Dsl.Tests;
 
+[Collection("NativeFaust")]
 public sealed class AquaSynthDaemonServiceTests
 {
     [Fact]

@@ -3,6 +3,7 @@ using AquaSynth.Faust;
 
 namespace AquaSynth.Dsl.Tests;
 
+[Collection("NativeFaust")]
 public sealed class FaustRenderedSpeechLossSurfaceTests
 {
     [Fact]
