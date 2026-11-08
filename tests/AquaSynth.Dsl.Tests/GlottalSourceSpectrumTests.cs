@@ -6,6 +6,7 @@ namespace AquaSynth.Dsl.Tests;
 
 // The primitive vocal network has no resonators, so the rendered spectrum is the glottal source's own: harmonics of the
 // pitch with a tilt-controlled rolloff. These tests render through the native Faust path and measure by DFT.
+[Collection("NativeFaust")]
 public sealed class GlottalSourceSpectrumTests(ITestOutputHelper output)
 {
     private const int Rate = 48000;
@@ -21,7 +22,7 @@ public sealed class GlottalSourceSpectrumTests(ITestOutputHelper output)
         """;
 
     // One second of steady output, so every harmonic of Pitch and every other integer-Hz frequency sits on its own DFT bin.
-    private float[]? Render(float tilt, float pitch = Pitch)
+    private float[]? Render(float tilt, float pitch = Pitch, int skip = 4800)
     {
         var source = FaustEmitter.Emit(PatchScript.Parse(Script(tilt, pitch)), new FaustExportOptions("glottal_spectrum")).Source;
         using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(SampleRate: Rate));
@@ -39,8 +40,8 @@ public sealed class GlottalSourceSpectrumTests(ITestOutputHelper output)
         using (patch)
         {
             var samples = patch!.Render(1.0f);
-            Assert.True(samples.Length >= Rate + 4800, $"render too short: {samples.Length}");
-            return samples.Skip(4800).Take(Rate).ToArray();
+            Assert.True(samples.Length >= Rate + skip, $"render too short: {samples.Length}");
+            return samples.Skip(skip).Take(Rate).ToArray();
         }
     }
 
@@ -97,16 +98,18 @@ public sealed class GlottalSourceSpectrumTests(ITestOutputHelper output)
     [Fact]
     public void BrightestHighPitchedSourceDoesNotAlias()
     {
-        // The threshold sits between the measured band-limited saw (-97 dB) and a naive saw (-78 dB). At 2744 Hz (48 kHz is 17.49 periods) a naive saw folds partials above Nyquist onto the frequencies between true harmonics.
+        // 2744 Hz is 17.49 samples per period, and 48000 and 2744 share a factor of 8, so a naive saw folds its partials above
+        // Nyquist onto multiples of 8 Hz that are not harmonics of the pitch; the band-limited saw leaves them 44.8 dB down (worst bin, measured) and a naive saw 18.9 dB down. The threshold sits between.
         const float pitch = 2744f;
-        var window = Render(0f, pitch);
+        // The tract rings for a few hundred ms after the note starts; that decaying transient is not periodic and would fill the gaps between harmonics, so the window starts after it.
+        var window = Render(0f, pitch, skip: 16800);
         if (window is null) return;
 
-        var fundamental = Magnitude(window, pitch);
-        var between = Enumerable.Range(0, 7).Select(k => Magnitude(window, pitch * k + pitch / 2)).ToArray();
-        var worst = Db(between.Max() / fundamental);
-        output.WriteLine($"tilt 0 pitch {pitch}: worst inter-harmonic level {worst:F1} dB re fundamental");
-        Assert.True(worst < -90, $"inter-harmonic energy {worst:F1} dB re fundamental");
+        // The vocal tract shapes the harmonics, so the reference is the strongest of them rather than the fundamental.
+        var strongest = Enumerable.Range(1, 6).Max(k => Magnitude(window, pitch * k));
+        var worst = Db(Enumerable.Range(100, 900).Where(n => n % 343 != 0).Max(n => Magnitude(window, 8.0 * n)) / strongest);
+        output.WriteLine($"tilt 0 pitch {pitch}: worst non-harmonic level 800-8000 Hz {worst:F1} dB re strongest harmonic");
+        Assert.True(worst < -32, $"non-harmonic energy {worst:F1} dB re strongest harmonic");
     }
 
     [Fact]

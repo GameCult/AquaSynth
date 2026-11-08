@@ -3,6 +3,7 @@ using AquaSynth.Faust;
 
 namespace AquaSynth.Dsl.Tests;
 
+[Collection("NativeFaust")]
 public sealed class NativeFaustRuntimeTests
 {
     [Fact]
@@ -169,7 +170,7 @@ public sealed class NativeFaustRuntimeTests
             var samples = patch.Render(controls);
 
             Assert.Contains("/vocal/sources/0/pressure", controls.Keys);
-            Assert.DoesNotContain("/vocal/radiation/0/reflection", controls.Keys);
+            Assert.Contains("/vocal/radiation/0/reflection", controls.Keys);
             Assert.True(samples.Length > 1024);
             Assert.Contains(samples, sample => MathF.Abs(sample) > 0.0001f);
         }

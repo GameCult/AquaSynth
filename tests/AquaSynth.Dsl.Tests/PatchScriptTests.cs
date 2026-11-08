@@ -316,7 +316,7 @@ public sealed class PatchScriptTests
         Assert.Contains("primitive_contact_voices_0_constriction", faust);
         Assert.Contains("primitive_branch_voices_0_velopharynx", faust);
         Assert.Contains("primitive_radiation_voices_0_lip", faust);
-        Assert.Contains("de.fdelay1a", faust);
+        Assert.Contains("primitive_ladder", faust);
         Assert.DoesNotContain("graph_loop ~ si.bus", faust);
         Assert.DoesNotContain("graph_terminal_area_voices_0_area_", faust);
         Assert.DoesNotContain("tract_lf", faust);
@@ -462,7 +462,7 @@ public sealed class PatchScriptTests
 
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("primitive_vocal", DebugProbeUi: true));
         Assert.Contains("primitive_radiated", export.Source);
-        Assert.Contains("de.fdelay1a", export.Source);
+        Assert.Contains("primitive_ladder", export.Source);
         Assert.Contains("/debug/voice_0/path/oral/delay", export.Source);
         Assert.Contains("/debug/voice_0/path/oral/incoming_wave", export.Source);
         Assert.Contains("/debug/voice_0/path/oral/outgoing_wave", export.Source);
@@ -986,7 +986,7 @@ public sealed class PatchScriptTests
 
         var export = FaustEmitter.Emit(patch, new FaustExportOptions("tract_graph"));
         Assert.Contains("primitive_radiated", export.Source);
-        Assert.Contains("de.fdelay1a", export.Source);
+        Assert.Contains("primitive_ladder", export.Source);
         Assert.Contains("primitive_source_voices_0_source", export.Source);
         Assert.Contains("primitive_radiation_voices_0_lip", export.Source);
         Assert.DoesNotContain("acoustic_graph_radiated", export.Source);
@@ -1180,7 +1180,7 @@ public sealed class PatchScriptTests
         Assert.Contains("primitive_path_voices_0_oral", faust);
         Assert.Contains("primitive_branch_voices_0_velopharynx", faust);
         Assert.Contains("primitive_contact_voices_0_constriction", faust);
-        Assert.Contains("de.fdelay1a", faust);
+        Assert.Contains("primitive_ladder", faust);
         Assert.DoesNotContain("graph_loop ~ si.bus", faust);
         Assert.DoesNotContain("_wg_", faust);
     }
