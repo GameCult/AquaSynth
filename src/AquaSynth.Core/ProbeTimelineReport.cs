@@ -80,6 +80,9 @@ public static class ProbeTimelineReport
                 Add(samples, block, $"contact:{contact.Name}", "resistance", resistance);
                 Add(samples, block, $"contact:{contact.Name}", "reservoir", reservoir);
                 Add(samples, block, $"contact:{contact.Name}", "released_flow", reservoir * opening * (1 - Math.Min(0.95f, resistance * 0.5f)));
+                var releaseGain = SurfaceValue(surfacesByField, splinesBySurface, $"{owner}/release_flow", contact.ReleaseFlow, timeSeconds);
+                // The exporter's burst is white noise of this amplitude (noise itself is not mirrored).
+                Add(samples, block, $"contact:{contact.Name}", "burst_amplitude", releaseGain * stored * 4 * opening * (1 - opening));
             }
 
             foreach (var branchName in network.Branches)

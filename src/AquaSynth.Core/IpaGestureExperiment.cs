@@ -8,7 +8,8 @@ public sealed record IpaGestureExperimentTarget(
     string Ipa,
     string Descriptor,
     float DurationSeconds = 0.18f,
-    string Notes = "");
+    string Notes = "",
+    float PitchRatio = 1f);
 
 public sealed record IpaGestureExperimentVariant(
     string Id,
@@ -225,7 +226,7 @@ public static class IpaGestureExperiment
     }
 
     private static string GestureLine(IpaGestureExperimentTarget target, float start, float duration, float intensity) =>
-        $"phoneme_gesture name={SafeDslName(target.Id)} ipa={target.Ipa} {(target.Descriptor.Length == 0 ? "" : $"descriptor={target.Descriptor.Replace(' ', '_')} ")}start={Format(start)} dur={Format(duration)} intensity={Format(intensity)}";
+        $"phoneme_gesture name={SafeDslName(target.Id)} ipa={target.Ipa} {(target.Descriptor.Length == 0 ? "" : $"descriptor={target.Descriptor.Replace(' ', '_')} ")}start={Format(start)} dur={Format(duration)} intensity={Format(intensity)}{(target.PitchRatio == 1f ? "" : $" pitch_ratio={Format(target.PitchRatio)}")}";
 
     // One cell per sample at 48 kHz: 17.52 cm * 48000 / 350 m/s = 24.03 cells, a ladder 17.5 cm long (the mean of Story's vocal tract lengths).
     private const int TractSpeedMetersPerSecond = 350;

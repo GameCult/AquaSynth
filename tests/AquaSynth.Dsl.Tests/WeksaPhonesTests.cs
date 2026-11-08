@@ -74,7 +74,7 @@ public sealed class WeksaPhonesTests
         var word = WeksaPhonesReader.Parse(Line($"[{Ph("b", "none")},{Ph("ɪ", "primary")},{Ph("n", "none")},{Ph("b", "none")},{Ph("ʊ", "none")}]"));
         var plan = WeksaWordPlan.From(word, "x");
         Assert.True(plan.Renderable);
-        Assert.Equal([WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.VowelSeconds, WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.VowelSeconds],
+        Assert.Equal([WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.VowelSeconds * WeksaWordPlan.CueFor(WeksaStress.Primary).Duration, WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.VowelSeconds],
             plan.Phones.Select(p => p.Target.DurationSeconds));
         var patch = PatchScript.Parse(IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140));
         var ih = patch.ControlSplines.Where(s => s.Name.StartsWith("x_1_ɪ_vowel_", StringComparison.Ordinal)).ToDictionary(s => s.SurfacePath, s => s.Points[0].Value);
@@ -85,22 +85,49 @@ public sealed class WeksaPhonesTests
         Assert.Equal(0f, oo["/vocal/areas/0/area/vowel_u"]);
     }
 
-    [Fact]
-    public void StressMovesOnlyTheIntensityOfTheMarkedPhone()
-    {
-        string Script(WeksaStress onI) => IpaGestureExperiment.BuildWordScript(
-            WeksaWordPlan.From(new WeksaPhones("en-US", "ˈnibu",
-                [new("n", WeksaStress.None), new("i", onI), new("b", WeksaStress.None), new("u", WeksaStress.None)]), "w").Phones.ToArray());
+    private static WeksaWordPlan Plan(WeksaStress onI) => WeksaWordPlan.From(new WeksaPhones("en-US", "ˈnibu",
+        [new("n", WeksaStress.None), new("i", onI), new("b", WeksaStress.None), new("u", WeksaStress.None)]), "w");
 
-        var none = Script(WeksaStress.None).Split('\n');
-        var primary = Script(WeksaStress.Primary).Split('\n');
-        Assert.Equal(none.Length, primary.Length);
-        var differing = Enumerable.Range(0, none.Length).Where(i => none[i] != primary[i]).ToArray();
-        Assert.Single(differing);
-        Assert.Contains("ipa=i ", primary[differing[0]]);
-        var strip = (string l) => Regex.Replace(l, @"intensity=\S+", "");
-        Assert.Equal(strip(none[differing[0]]), strip(primary[differing[0]]));
-        Assert.Contains("intensity=1.2", primary[differing[0]]);
+    [Fact]
+    public void StressIsLongerLouderAndHigherOnTheMarkedPhoneOnly()
+    {
+        var none = Plan(WeksaStress.None).Phones;
+        var primary = Plan(WeksaStress.Primary).Phones;
+        var secondary = Plan(WeksaStress.Secondary).Phones;
+        foreach (var k in new[] { 0, 2, 3 })
+        {
+            Assert.Equal(none[k].Target, primary[k].Target);
+            Assert.Equal(none[k].Intensity, primary[k].Intensity);
+        }
+
+        Assert.Equal(WeksaWordPlan.VowelSeconds, none[1].Target.DurationSeconds);
+        Assert.Equal(1f, none[1].Target.PitchRatio);
+        Assert.Equal(1f, none[1].Intensity);
+        Assert.Equal(WeksaWordPlan.VowelSeconds * 220f / 160f, primary[1].Target.DurationSeconds, 5);
+        Assert.Equal(1.06f, primary[1].Target.PitchRatio);
+        Assert.Equal(1.26f, primary[1].Intensity);
+        // Secondary sits strictly between unstressed and primary on every cue.
+        Assert.InRange(secondary[1].Target.DurationSeconds, none[1].Target.DurationSeconds + 1e-4f, primary[1].Target.DurationSeconds - 1e-4f);
+        Assert.InRange(secondary[1].Target.PitchRatio, 1.001f, 1.059f);
+        Assert.InRange(secondary[1].Intensity, 1.001f, 1.259f);
+    }
+
+    [Fact]
+    public void StressReachesTheScriptAsDurationF0RatioAndSourceLevelAndShiftsLaterPhones()
+    {
+        var patch = (WeksaStress s) => PatchScript.Parse(IpaGestureExperiment.BuildWordScript(Plan(s).Phones.ToArray(), 140));
+        var none = patch(WeksaStress.None);
+        var primary = patch(WeksaStress.Primary);
+        float First(SynthPatch p, string prefix, string surface) =>
+            p.ControlSplines.Single(sp => sp.Name.StartsWith(prefix, StringComparison.Ordinal) && sp.SurfacePath == surface).Points[0].Value;
+
+        // pitch_ratio surface range 0.5..2: normalized (1.06 - .5) / 1.5; unstressed holds 1 -> (1 - .5) / 1.5.
+        Assert.Equal((1.06f - .5f) / 1.5f, First(primary, "w_1_i_source_pitch", "/vocal/sources/0/pitch_ratio"), 4);
+        Assert.Equal((1f - .5f) / 1.5f, First(none, "w_1_i_source_pitch", "/vocal/sources/0/pitch_ratio"), 4);
+        Assert.Equal(First(none, "w_1_i_source_level", "/vocal/sources/0/flow_scale") * 1.26f, First(primary, "w_1_i_source_level", "/vocal/sources/0/flow_scale"), 4);
+        // The b after the stressed vowel starts later by the vowel's extra length.
+        float Start(SynthPatch p) => p.PhonemeGestures.Single(g => g.Ipa == "b").StartSeconds;
+        Assert.Equal(WeksaWordPlan.VowelSeconds * (220f / 160f - 1f), Start(primary) - Start(none), 4);
     }
 
     [Fact]

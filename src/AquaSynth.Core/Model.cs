@@ -473,7 +473,8 @@ public sealed record SourcePort(
     float Noise = 0.08f,
     float Impedance = 0.35f,
     float FlowScale = 0.02f,
-    float Tilt = 0.5f);
+    float Tilt = 0.5f,
+    float PitchRatio = 1f);
 
 public sealed record ConstrictionContact(
     string Name,

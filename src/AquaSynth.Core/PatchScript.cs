@@ -938,7 +938,8 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.08f, $"/vocal/sources/{_sourcePorts.Count}/noise", "noise", "aspiration"),
                 GetBoundFloat(fields, line, 0.35f, $"/vocal/sources/{_sourcePorts.Count}/impedance", "impedance", "load", "source_impedance"),
                 GetBoundFloat(fields, line, 0.02f, $"/vocal/sources/{_sourcePorts.Count}/flow_scale", "flow_scale", "scale"),
-                GetBoundFloat(fields, line, 0.5f, $"/vocal/sources/{_sourcePorts.Count}/tilt", "tilt", "spectral_tilt"));
+                GetBoundFloat(fields, line, 0.5f, $"/vocal/sources/{_sourcePorts.Count}/tilt", "tilt", "spectral_tilt"),
+                GetBoundFloat(fields, line, 1f, $"/vocal/sources/{_sourcePorts.Count}/pitch_ratio", "pitch_ratio", "f0_ratio"));
             _sourcePorts.Add(port);
             _sourcePortsByName[name] = port;
             RegisterSourcePortSurfaces(_sourcePorts.Count - 1, port);
@@ -1385,6 +1386,7 @@ public static class PatchScript
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "impedance"), port.Name, "impedance", port.Impedance, 0.05f, 2);
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "flow_scale"), port.Name, "flow_scale", port.FlowScale, 0, 0.2f);
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "tilt"), port.Name, "tilt", port.Tilt);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "pitch_ratio"), port.Name, "pitch_ratio", port.PitchRatio, 0.5f, 2f);
         }
 
         private void RegisterAreaFunctionSurfaces(int index, AreaFunction area)
@@ -1502,7 +1504,7 @@ public static class PatchScript
             }
         }
 
-        private void EmitPhonemeGestureSplines(string name, string descriptor, float start, float duration, float intensity)
+        private void EmitPhonemeGestureSplines(string name, string descriptor, float start, float duration, float intensity, float pitchRatio = 1f)
         {
             var tokens = DescriptorTokens(descriptor);
             var voiced = tokens.Contains("voiced") || tokens.Contains("vowel") || tokens.Contains("nasal") || tokens.Contains("approximant");
@@ -1517,6 +1519,10 @@ public static class PatchScript
             AddAuthoredSpline($"{name}_source_pressure", "/vocal/sources/0/pressure", start, duration, (0, 0.4f), (0.2f, pressure), (1, pressure * 0.85f));
             AddAuthoredSpline($"{name}_source_tension", "/vocal/sources/0/tension", start, duration, (0, voiced ? 0.55f : 0.18f), (1, voiced ? 0.62f : 0.20f));
             AddAuthoredSpline($"{name}_source_opening", "/vocal/sources/0/opening", start, duration, (0, voiced ? 0.45f : 0.25f), (1, voiced ? 0.48f : 0.28f));
+            // Intensity is an amplitude factor on the source's flow scale (the level lever: pressure saturates in the tanh), and the f0 ratio
+            // is held per gesture; both default to the source's own value.
+            HoldFractionOfDefault($"{name}_source_level", "/vocal/sources/0/flow_scale", start, duration, intensity);
+            HoldOnSurface($"{name}_source_pitch", "/vocal/sources/0/pitch_ratio", start, duration, pitchRatio);
             AddAuthoredSpline($"{name}_source_noise", "/vocal/sources/0/noise", start, duration, (0, tokens.Contains("fricative") ? 0.45f : 0.05f), (1, tokens.Contains("fricative") ? 0.55f : 0.05f));
 
             if (tokens.Contains("vowel"))
@@ -1556,6 +1562,9 @@ public static class PatchScript
             {
                 AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.02f), (0.65f, 0.02f), (1, 0.9f));
                 AddAuthoredSpline($"{name}_stored_pressure", "/vocal/contacts/0/stored_pressure", start, duration, (0, 0.4f), (0.65f, 0.75f), (1, 0.05f));
+                // The release burst is turbulence at the opening constriction: its gain is held for the plosive and the exporter shapes
+                // it by the stored pressure and the opening (see PrimitiveContactExpression).
+                HoldOnSurface($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, PlosiveBurstGain);
                 AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
             else if (tokens.Contains("fricative"))
@@ -1590,6 +1599,16 @@ public static class PatchScript
             // area as well counted the rounding twice and left /u/ 30 dB under /i/.
             AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, 1), (1, 1));
             AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
+            // The contact is fully open for a vowel; a contact left half open by the previous stop would keep making release noise.
+            AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 1), (1, 1));
+        }
+
+        // Holds a surface at its default value times a factor (clamped to the surface range).
+        private void HoldFractionOfDefault(string name, string surfacePath, float start, float duration, float factor)
+        {
+            if (!_controlSurfacesByPath.TryGetValue(surfacePath, out var surface)) return;
+            var normalized = Math.Clamp(surface.DefaultNormalized * factor, 0, 1);
+            AddAuthoredSpline(name, surfacePath, start, duration, (0, normalized), (1, normalized));
         }
 
         // Holds a surface at a value in its own unit (cm, section index); splines carry the surface's normalized range.
@@ -1633,6 +1652,10 @@ public static class PatchScript
         // A shut velum is opening 0: the port area is linear in the opening (opening * coupling * NasalTractAreas maximum), so 0.01 would
         // leave a 0.008 cm^2 leak that shows in the oral formants.
         private const float VelumClosed = 0f;
+
+        // Gain of the plosive release burst (contact release_flow, surface range 0..2). A DESIGN VALUE set by measurement against the
+        // following vowel; no published burst level was retrieved.
+        private const float PlosiveBurstGain = 0.06f;
 
         // Distance from the lip plane to the alveolar ridge in cm. A DESIGN VALUE; no source for the distance was retrieved. 2.555 cm puts the
         // closure on the centre of ladder cell 20 of 24 of the scaffold tract (17.52 cm at 48 kHz and 350 m/s: (20.5 / 24) * 17.52 = 14.965 cm
@@ -2655,13 +2678,14 @@ public static class PatchScript
             var start = GetFloat(fields, line, 0, "start", "time", "at");
             var duration = Math.Max(0.001f, GetFloat(fields, line, 0.12f, "dur", "duration", "length"));
             var intensity = Math.Clamp(GetFloat(fields, line, 1, "intensity", "gain", "strength"), 0, 2);
+            var pitchRatio = Math.Clamp(GetFloat(fields, line, 1, "pitch_ratio", "f0_ratio"), 0.5f, 2f);
             var descriptor = GestureDescriptor(ipa, fields);
             var name = TryGetAny(fields, ["name", "n"], out var nameText)
                 ? nameText
                 : $"ipa_{SafeName(ipa)}_{_phonemeGestures.Count}";
 
             _phonemeGestures.Add(new PhonemeGesture(name, ipa, descriptor, start, duration, intensity));
-            EmitPhonemeGestureSplines(name, descriptor, start, duration, intensity);
+            EmitPhonemeGestureSplines(name, descriptor, start, duration, intensity, pitchRatio);
         }
 
         private void AddControlCurve(IReadOnlyDictionary<string, string> fields, int line)

@@ -714,6 +714,8 @@ public static partial class FaustEmitter
         var opening = parameters.Expression(OwnerField(owner, "opening"), port.Opening);
         var impedance = parameters.Expression(OwnerField(owner, "impedance"), port.Impedance);
         var flowScale = parameters.Expression(OwnerField(owner, "flow_scale"), port.FlowScale);
+        // f0 is the voice frequency times the source's ratio (the stress cue), smoothed over 10 ms so a step in the ratio is a glide.
+        var pitchRatio = $"({parameters.Expression(OwnerField(owner, "pitch_ratio"), port.PitchRatio)} : si.smooth(ba.tau2pole(0.01)))";
         var load = $"{voiceName}_primitive_source_{safe}_load_pressure";
         var voiced = $"{voiceName}_primitive_source_{safe}_voiced";
         var flow = $"{voiceName}_primitive_source_{safe}_flow";
@@ -721,7 +723,7 @@ public static partial class FaustEmitter
         // Harmonic glottal source: a band-limited saw through a one-pole lowpass. Tilt 0 is the brightest source and 1 the
         // steepest rolloff; the cutoff sweeps five octaves, 6400 Hz down to 200 Hz, and sits below Nyquist.
         var cutoff = $"min(0.45 * ma.SR, 200.0 * pow(2.0, (1.0 - clip01({parameters.Expression(OwnerField(owner, "tilt"), port.Tilt)})) * 5.0))";
-        source.AppendLine($"    {voiced} = (os.sawtooth({frequency}) : fi.lowpass(1, {cutoff})) * clip01({opening}) * clip01(0.25 + {tension});");
+        source.AppendLine($"    {voiced} = (os.sawtooth(({frequency}) * {pitchRatio}) : fi.lowpass(1, {cutoff})) * clip01({opening}) * clip01(0.25 + {tension});");
         source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * (({voiced}) * ma.tanh((({pressure}) * (0.5 + {tension})) / max(0.05, {impedance})) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)})", -2, 2)};");
         keepAlive.Add(load);
         keepAlive.Add(voiced);
@@ -744,13 +746,19 @@ public static partial class FaustEmitter
         var opening = $"clip01({parameters.Expression(OwnerField(owner, "opening"), contact.Opening)})";
         var resistance = parameters.Expression(OwnerField(owner, "resistance"), contact.Resistance);
         var stored = parameters.Expression(OwnerField(owner, "stored_pressure"), contact.StoredPressure);
+        var releaseGain = parameters.Expression(OwnerField(owner, "release_flow"), contact.ReleaseFlow);
         var released = $"{voiceName}_primitive_contact_{safe}_released_flow";
         var reservoir = $"{voiceName}_primitive_contact_{safe}_reservoir";
+        var burst = $"{voiceName}_primitive_contact_{safe}_burst";
         source.AppendLine($"    {reservoir} = {ProbeSignal(options, $"/debug/{voiceName}/contact/{contact.Name}/reservoir", $"(({stored}) + (1.0 - {opening}) * {resistance})", 0, 2)};");
         source.AppendLine($"    {released} = {ProbeSignal(options, $"/debug/{voiceName}/contact/{contact.Name}/released_flow", $"({reservoir}) * {opening} * (1.0 - min(0.95, {resistance} * 0.5))", -2, 2)};");
+        // Release burst: noise whose amplitude is the stored pressure through the opening area as it passes between shut and open
+        // (4 * o * (1 - o) peaks at half open and vanishes at both ends), so a shut or fully open contact is silent.
+        source.AppendLine($"    {burst} = {ProbeSignal(options, $"/debug/{voiceName}/contact/{contact.Name}/burst", $"no.noise * ({releaseGain}) * ({stored}) * 4.0 * {opening} * (1.0 - {opening})", -2, 2)};");
         keepAlive.Add(reservoir);
+        keepAlive.Add(burst);
         keepAlive.Add(released);
-        return released;
+        return $"({released} + {burst})";
     }
 
     // Open fraction of a branch port: the ladder reads it as the velum area when the branch joins two paths of the network,
