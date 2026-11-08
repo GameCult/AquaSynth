@@ -21,7 +21,7 @@ if (FaustCompiler.FindFaust() is null)
 }
 
 var script = Script(request);
-var export = FaustEmitter.EmitScript(script, new FaustExportOptions("aqua_tract_graph_audition"));
+var export = FaustEmitter.EmitScript(script, new FaustExportOptions("aqua_tract_graph_audition", SampleRate: request.SampleRate));
 var render = await FaustCompiler.RenderAsync(
     export.Source,
     new FaustRenderOptions(request.SampleRate, request.DurationSeconds));

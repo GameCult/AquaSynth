@@ -156,12 +156,13 @@ public static class IpaTrialOrchestrator
                 var candidateDir = Path.Combine(round.RoundDirectory, "audio", candidate.Id);
                 Directory.CreateDirectory(candidateDir);
                 var script = await File.ReadAllTextAsync(candidate.ScriptPath, cancellationToken).ConfigureAwait(false);
-                var source = FaustEmitter.EmitScript(script, new FaustExportOptions(candidate.Id)).Source;
+                var referenceFixture = PinkTromboneParityFixtures.ById(target.ReferenceFixtureId);
+                var reference = referenceRenderer.Render(referenceFixture.Controls, target.Target.DurationSeconds + .18f);
+                // The vocal ladder's cell length is tied to the rate the DSP runs at, which is the reference's rate.
+                var source = FaustEmitter.EmitScript(script, new FaustExportOptions(candidate.Id, SampleRate: reference.SampleRate)).Source;
                 var dspPath = Path.Combine(candidateDir, "candidate.dsp");
                 await File.WriteAllTextAsync(dspPath, source, cancellationToken).ConfigureAwait(false);
 
-                var referenceFixture = PinkTromboneParityFixtures.ById(target.ReferenceFixtureId);
-                var reference = referenceRenderer.Render(referenceFixture.Controls, target.Target.DurationSeconds + .18f);
                 var candidateRender = await FaustCompiler.RenderAsync(
                     source,
                     new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate),
@@ -311,12 +312,12 @@ public static class IpaTrialOrchestrator
             var timelinePath = Path.Combine(timelineRoot, $"{safeCandidateId}.csv");
             await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv(timeline), cancellationToken).ConfigureAwait(false);
 
-            var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId)).Source;
+            var referenceFixture = PinkTromboneParityFixtures.ById(mapped.target.ReferenceFixtureId);
+            var reference = referenceRenderer.Render(referenceFixture.Controls, mapped.target.Target.DurationSeconds + .18f);
+            var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId, SampleRate: reference.SampleRate)).Source;
             var dspPath = Path.Combine(candidateDir, "candidate.dsp");
             await File.WriteAllTextAsync(dspPath, source, cancellationToken).ConfigureAwait(false);
 
-            var referenceFixture = PinkTromboneParityFixtures.ById(mapped.target.ReferenceFixtureId);
-            var reference = referenceRenderer.Render(referenceFixture.Controls, mapped.target.Target.DurationSeconds + .18f);
             var candidateRender = await FaustCompiler.RenderAsync(
                 source,
                 new FaustRenderOptions(reference.SampleRate, reference.Samples.Length / (float)reference.SampleRate),
