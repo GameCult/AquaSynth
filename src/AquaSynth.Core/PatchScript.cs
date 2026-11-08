@@ -8,6 +8,34 @@ public sealed class PatchScriptException(int line, string message) : Exception($
 }
 public static class PatchScript
 {
+    /// <summary>
+    /// The DSL's own IPA table: the phones a phoneme_gesture knows without an explicit descriptor. A hand-written script
+    /// that names another phone falls back to an alveolar approximant; a caller that must not be approximated asks here first.
+    /// </summary>
+    public static bool TryIpaDescriptor(string ipa, out string descriptor)
+    {
+        var known = ipa switch
+        {
+            "p" => "voiceless_bilabial_plosive",
+            "b" => "voiced_bilabial_plosive",
+            "m" => "voiced_bilabial_nasal",
+            "n" => "voiced_alveolar_nasal",
+            "s" => "voiceless_alveolar_fricative",
+            "z" => "voiced_alveolar_fricative",
+            "ʃ" => "voiceless_postalveolar_fricative",
+            "ʒ" => "voiced_postalveolar_fricative",
+            "ʍ" => "voiceless_labial_velar_fricative",
+            "w" => "voiced_labial_velar_approximant",
+            "i" => "voiced_close_front_unrounded_vowel",
+            "u" => "voiced_close_back_rounded_vowel",
+            "a" or "ɑ" => "voiced_open_back_unrounded_vowel",
+            "æ" => "voiced_open_front_unrounded_vowel",
+            "ə" => "voiced_mid_central_unrounded_vowel",
+            _ => null
+        };
+        descriptor = known ?? "";
+        return known is not null;
+    }
 
     public static SynthPatch Parse(string script)
     {
@@ -1551,25 +1579,7 @@ public static class PatchScript
                 return $"{phonation}_{place}_{manner}";
             }
 
-            return ipa switch
-            {
-                "p" => "voiceless_bilabial_plosive",
-                "b" => "voiced_bilabial_plosive",
-                "m" => "voiced_bilabial_nasal",
-                "n" => "voiced_alveolar_nasal",
-                "s" => "voiceless_alveolar_fricative",
-                "z" => "voiced_alveolar_fricative",
-                "ʃ" => "voiceless_postalveolar_fricative",
-                "ʒ" => "voiced_postalveolar_fricative",
-                "ʍ" => "voiceless_labial_velar_fricative",
-                "w" => "voiced_labial_velar_approximant",
-                "i" => "voiced_close_front_unrounded_vowel",
-                "u" => "voiced_close_back_rounded_vowel",
-                "a" or "ɑ" => "voiced_open_back_unrounded_vowel",
-                "æ" => "voiced_open_front_unrounded_vowel",
-                "ə" => "voiced_mid_central_unrounded_vowel",
-                _ => "voiced_alveolar_approximant"
-            };
+            return TryIpaDescriptor(ipa, out var known) ? known : "voiced_alveolar_approximant";
         }
 
         private static HashSet<string> DescriptorTokens(string descriptor) =>
