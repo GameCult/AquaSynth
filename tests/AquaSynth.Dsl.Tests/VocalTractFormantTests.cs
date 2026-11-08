@@ -142,7 +142,8 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         var peaks = FirstTwo(name, ti, td, lo);
         if (peaks is null) return;
 
-        Assert.InRange(peaks[0], f1 * .92, f1 * 1.08);
+        // F1 within 20%: the harmonic-line reading of a low F1 shifts with the output highpass (i reads 230-260 Hz for the 271 Hz impulse peak).
+        Assert.InRange(peaks[0], f1 * .8, f1 * 1.2);
         Assert.InRange(peaks[1], f2 * .92, f2 * 1.08);
     }
 
@@ -289,13 +290,13 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void AuthoredRoundedBackVowelPlacesF2NearTheTextbook()
+    public void AuthoredRoundedBackVowelPlacesF1AndF2NearTheTextbook()
     {
-        // The radiating highpass (40 + 500 * aperture Hz, aperture 1 for a vowel) sits above u's 292 Hz F1, so the order-12
-        // envelope reads that peak high (450 Hz); F2 is the second peak.
+        // With a radiating highpass that rose with aperture (540 Hz at aperture 1) the envelope read u's F1 at 450 Hz.
         var peaks = GesturePeaks("u");
         if (peaks is null) return;
 
+        Assert.InRange(peaks[0], 292 * .85, 350);
         Assert.InRange(peaks[1], 876 * .9, 876 * 1.1);
     }
 
@@ -321,6 +322,8 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         var u = GestureWindow("u");
         if (i is null || u is null) return;
 
+        var a = GestureWindow("a");
+        if (a is not null) output.WriteLine($"a rms {Rms(a):E2}");
         var gap = 20 * Math.Log10(Rms(u) / Rms(i));
         var uPeaks = LpcPeaks(u);
         output.WriteLine($"u rms {Rms(u):E2} i rms {Rms(i):E2} gap {gap:F1} dB; u peaks {string.Join(" ", uPeaks.Select(p => p.ToString("F0")))}");

@@ -787,6 +787,11 @@ public static partial class FaustEmitter
         return exchanged;
     }
 
+    // DC and rumble block on the ladder's lip flow, below the lowest authored vowel F1 (about 270 Hz). It does not depend on the
+    // aperture: the ladder's lip cell already carries the lip area, and a corner that rose with aperture (40 + 500 Hz) sat above
+    // /u/'s F1 and put a 450 Hz hump in its envelope. The aperture stays the gain consonant closures use.
+    private const string RadiationHighpassHz = "200.0";
+
     private static string PrimitiveRadiationExpression(
         StringBuilder source,
         SynthPatch patch,
@@ -809,7 +814,7 @@ public static partial class FaustEmitter
         source.AppendLine($"    {voiceName}_primitive_radiation_{safe}_reflection = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/reflection", reflection, -1, 1)};");
         source.AppendLine($"    {boundary} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/boundary_flow", $"({wave}) * {aperture} / max(0.05, {impedance})", -4, 4)};");
         source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/flow", boundary, -4, 4)};");
-        source.AppendLine($"    {output} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/output", $"{flow} : fi.highpass(1, 40.0 + 500.0 * {aperture})", -4, 4)};");
+        source.AppendLine($"    {output} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/output", $"{flow} : fi.highpass(1, {RadiationHighpassHz})", -4, 4)};");
         keepAlive.Add($"{voiceName}_primitive_radiation_{safe}_reflection");
         keepAlive.Add(boundary);
         keepAlive.Add(flow);
