@@ -1,0 +1,18 @@
+:root { color-scheme: light dark; --fg: #1d1f24; --bg: #f6f5f1; --card: #fff; --line: #cfcdc4; --accent: #1f5f8b; }
+@media (prefers-color-scheme: dark) { :root { --fg: #e8e6df; --bg: #17181b; --card: #212328; --line: #3a3d44; --accent: #6db3e0; } }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+main { max-width: 46rem; margin: 0 auto; padding: 1rem; }
+h1 { font-size: 1.4rem; margin: 0.5rem 0; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+.card.done { border-left: 6px solid var(--accent); }
+.feel { font-style: italic; }
+.row { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; align-items: center; margin: 0.5rem 0; }
+.row label { white-space: nowrap; }
+input[type=text], textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 0.4rem; background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; }
+audio { width: 100%; }
+button { font: inherit; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+button.quiet { background: transparent; color: var(--accent); }
+button:disabled { opacity: 0.4; cursor: default; }
+.bar { position: sticky; top: 0; background: var(--bg); padding: 0.5rem 0; border-bottom: 1px solid var(--line); z-index: 1; }
+.pair { border: 2px dashed var(--line); border-radius: 10px; padding: 0 0.75rem; margin: 1rem 0; }
+small, .hint { opacity: 0.75; }

@@ -1,0 +1,7 @@
+{
+  "name": "aqua-listen",
+  "private": true,
+  "type": "module",
+  "description": "Listening-test kit builder: a folder of clips and a manifest become one self-contained HTML page that collects keep/fix/drop verdicts. No dependencies.",
+  "scripts": { "build": "node build.mjs", "test": "node test.mjs" }
+}
