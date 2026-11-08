@@ -708,7 +708,10 @@ public static class FaustEmitter
         var voiced = $"{voiceName}_primitive_source_{safe}_voiced";
         var flow = $"{voiceName}_primitive_source_{safe}_flow";
         source.AppendLine($"    {load} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/load_pressure", $"({impedance}) * ({pressure})", 0, 2)};");
-        source.AppendLine($"    {voiced} = os.osc({frequency}) * clip01({opening}) * clip01(0.25 + {tension});");
+        // Harmonic glottal source: a band-limited saw through a one-pole lowpass. Tilt 0 is the brightest source and 1 the
+        // steepest rolloff; the cutoff sweeps five octaves, 6400 Hz down to 200 Hz, and sits below Nyquist.
+        var cutoff = $"min(0.45 * ma.SR, 200.0 * pow(2.0, (1.0 - clip01({parameters.Expression(OwnerField(owner, "tilt"), port.Tilt)})) * 5.0))";
+        source.AppendLine($"    {voiced} = (os.sawtooth({frequency}) : fi.lowpass(1, {cutoff})) * clip01({opening}) * clip01(0.25 + {tension});");
         source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * (({voiced}) * ma.tanh((({pressure}) * (0.5 + {tension})) / max(0.05, {impedance})) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)})", -2, 2)};");
         keepAlive.Add(load);
         keepAlive.Add(voiced);

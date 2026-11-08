@@ -866,7 +866,8 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.5f, $"/vocal/sources/{_sourcePorts.Count}/opening", "opening", "open"),
                 GetBoundFloat(fields, line, 0.08f, $"/vocal/sources/{_sourcePorts.Count}/noise", "noise", "aspiration"),
                 GetBoundFloat(fields, line, 0.35f, $"/vocal/sources/{_sourcePorts.Count}/impedance", "impedance", "load", "source_impedance"),
-                GetBoundFloat(fields, line, 0.02f, $"/vocal/sources/{_sourcePorts.Count}/flow_scale", "flow_scale", "scale"));
+                GetBoundFloat(fields, line, 0.02f, $"/vocal/sources/{_sourcePorts.Count}/flow_scale", "flow_scale", "scale"),
+                GetBoundFloat(fields, line, 0.5f, $"/vocal/sources/{_sourcePorts.Count}/tilt", "tilt", "spectral_tilt"));
             _sourcePorts.Add(port);
             _sourcePortsByName[name] = port;
             RegisterSourcePortSurfaces(_sourcePorts.Count - 1, port);
@@ -1312,6 +1313,7 @@ public static class PatchScript
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "noise"), port.Name, "noise", port.Noise);
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "impedance"), port.Name, "impedance", port.Impedance, 0.05f, 2);
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "flow_scale"), port.Name, "flow_scale", port.FlowScale, 0, 0.2f);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "tilt"), port.Name, "tilt", port.Tilt);
         }
 
         private void RegisterAreaFunctionSurfaces(int index, AreaFunction area)
