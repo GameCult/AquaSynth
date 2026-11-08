@@ -1487,16 +1487,50 @@ public static class PatchScript
             }
         }
 
+        // Vowel tract shapes for the Kelly-Lochbaum ladder on the experiment scaffold (six rest diameters, 17 cm, 48 kHz): tongue
+        // section index (0..5), tongue and lip diameters in cm. Each was found by grid search over the exported ladder's impulse
+        // response (peak picking) toward textbook F1/F2, not by hand: measured F1/F2 in Hz in the trailing comment.
+        // Features are (front 0..1, openness 0..1, rounded 0/1); a descriptor selects the nearest anchor, there is no interpolation
+        // because the shapes are not monotone in formant space.
+        private static readonly (float Front, float Open, float Round, float TongueIndex, float TongueCm, float LipCm)[] VowelShapes =
+        [
+            (1.0f, 0.0f, 0, 3.00f, 0.15f, 2.20f), // i  271/2313
+            (0.0f, 0.0f, 1, 2.25f, 0.45f, 0.05f), // u  292/876
+            (0.0f, 1.0f, 0, 1.50f, 0.35f, 1.00f), // a  703/1084
+            (1.0f, 1.0f, 0, 0.50f, 0.30f, 1.00f), // ae 665/1755
+            (1.0f, 0.5f, 0, 2.50f, 1.80f, 2.20f), // e  535/1799
+            (0.0f, 0.5f, 1, 1.50f, 0.10f, 1.60f), // o  454/962
+            (0.5f, 0.5f, 0, 2.00f, 1.20f, 0.60f), // schwa 497/1503
+        ];
+
         private void EmitVowelGesture(string name, HashSet<string> tokens, float start, float duration, float intensity)
         {
-            var frontness = tokens.Contains("front") ? 0.70f : tokens.Contains("back") ? 0.30f : 0.50f;
-            var openness = tokens.Contains("close") ? 0.30f : tokens.Contains("mid") ? 0.50f : tokens.Contains("open") ? 0.78f : 0.55f;
-            var rounding = tokens.Contains("rounded") ? 0.35f : tokens.Contains("unrounded") ? 0.72f : 0.60f;
-            AddAuthoredSpline($"{name}_tongue_index", "/vocal/areas/0/area/tongue_index", start, duration, (0, frontness), (1, frontness));
-            AddAuthoredSpline($"{name}_tongue_diameter", "/vocal/areas/0/area/tongue_diameter", start, duration, (0, openness), (1, openness));
-            AddAuthoredSpline($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, (0, rounding), (1, rounding));
-            AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, Math.Clamp(rounding + 0.1f * intensity, 0, 1)), (1, Math.Clamp(rounding + 0.1f * intensity, 0, 1)));
+            var front = tokens.Contains("front") ? 1f : tokens.Contains("back") ? 0f : 0.5f;
+            var open = tokens.Contains("close") ? 0f : tokens.Contains("mid") ? 0.5f : tokens.Contains("open") ? 1f : 0.5f;
+            var round = tokens.Contains("rounded") && !tokens.Contains("unrounded") ? 1f : 0f;
+            var shape = VowelShapes
+                .OrderBy(candidate => MathF.Abs(candidate.Front - front) + MathF.Abs(candidate.Open - open) + MathF.Abs(candidate.Round - round))
+                .First();
+            HoldOnSurface($"{name}_tongue_index", "/vocal/areas/0/area/tongue_index", start, duration, shape.TongueIndex);
+            HoldOnSurface($"{name}_tongue_diameter", "/vocal/areas/0/area/tongue_diameter", start, duration, shape.TongueCm);
+            HoldOnSurface($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, shape.LipCm);
+            // A vowel leaves the tract unconstricted: hold the constriction at the surface maximum.
+            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, 1), (1, 1));
+            var aperture = Math.Clamp(shape.LipCm / 2.2f * (0.9f + 0.1f * intensity), 0.02f, 1);
+            AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, aperture), (1, aperture));
             AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
+        }
+
+        // Holds a surface at a value in its own unit (cm, section index); splines carry the surface's normalized range.
+        private void HoldOnSurface(string name, string surfacePath, float start, float duration, float value)
+        {
+            if (!_controlSurfacesByPath.TryGetValue(surfacePath, out var surface) || surface.MaxValue <= surface.MinValue)
+            {
+                return;
+            }
+
+            var normalized = Math.Clamp((value - surface.MinValue) / (surface.MaxValue - surface.MinValue), 0, 1);
+            AddAuthoredSpline(name, surfacePath, start, duration, (0, normalized), (1, normalized));
         }
 
         private static string GestureDescriptor(string ipa, IReadOnlyDictionary<string, string> fields)
