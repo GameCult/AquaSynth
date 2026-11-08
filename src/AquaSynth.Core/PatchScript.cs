@@ -1518,6 +1518,7 @@ public static class PatchScript
                 "p" => "voiceless_bilabial_plosive",
                 "b" => "voiced_bilabial_plosive",
                 "m" => "voiced_bilabial_nasal",
+                "n" => "voiced_alveolar_nasal",
                 "s" => "voiceless_alveolar_fricative",
                 "z" => "voiced_alveolar_fricative",
                 "ʃ" => "voiceless_postalveolar_fricative",
