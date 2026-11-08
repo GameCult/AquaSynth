@@ -72,3 +72,45 @@ Dang & Honda 1994 text; per-consonant nasal zero ranges; Fry and Lieberman magni
 /b/ voice-bar level; Liljencrants 1985; the JOS book tract chapters. The Story 2008 table came through a page summariser, not a PDF
 text extraction; every column was checked by computing its formants (all eleven give vowel-typical F1/F2 orderings), which
 catches a gross transcription error, not a small one.
+
+## Render verification, stress cue and plosive burst (2026-11-08, unheard)
+
+Renders: `WordRender` at f0 140 Hz, one 180 ms vowel per file (`v_<id>`), plus /ɑmɑ/, /ɑnɑ/, /ˈnibu/ with and without primary stress, /bɪn/, /bʊn/.
+Estimator: `tools/formant-check/verify_renders.py` over `burg_formants.py` (Burg LPC order 12 at 10 kHz, 30 ms frames, vowel window 70-150 ms), a separate
+Python process that shares no code with the C# tests or the ladder; references are Hillenbrand 1995 and Peterson & Barney 1952 male means (above) and the
+tube chain at 17.52 cm (`tube_formants.py`). Files: `/opt/commons/handoff/aqua-tract-articulatory-20261108` (wav/, scripts/, manifest.json, verify.txt, verify.json).
+
+| vowel | Burg F1/F2 | tube chain F1/F2 | render vs tube F1/F2 % | Hillenbrand F1/F2 | render vs Hillenbrand % |
+|---|---|---|---|---|---|
+| i | 290/2111 | 251/2063 | +15.5/+2.3 | 343/2323 | -15.4/-9.1 |
+| ɪ | 374/2032 | 346/1987 | +8.2/+2.3 | 429/2034 | -12.7/-0.1 |
+| e | 439/1929 | 432/1827 | +1.6/+5.6 | 476/2090 | -7.8/-7.7 |
+| ɛ | 553/1602 | 527/1571 | +4.9/+2.0 | 588/1803 | -6.0/-11.1 |
+| æ | 718/1558 | 729/1523 | -1.5/+2.3 | 591/1930 | +21.5/-19.3 |
+| ʌ | 573/811 | 549/809 | +4.4/+0.3 | 621/1181 | -7.7/-31.3 |
+| ɑ | 646/949 | 650/913 | -0.6/+3.9 | 757/1309 | -14.7/-27.5 |
+| ɔ | 523/718 | 516/692 | +1.4/+3.8 | 656/1023 | -20.3/-29.8 |
+| o | 555/819 | 477/787 | +16.4/+4.1 | 498/910 | +11.4/-10.0 |
+| ʊ | 520/897 | 478/850 | +8.8/+5.5 | 469/1123 | +10.9/-20.1 |
+| u | 300/816 | 271/761 | +10.7/+7.2 | 380/992 | -21.1/-17.7 |
+
+Against its own area function the render sits within 6 percent for e ɛ æ ʌ ɑ ɔ and F2 of all eleven within 7.2 percent; F1 of i, o, u and ʊ reads 9-16 percent high.
+The F1 excess is the ladder's known high bias (above) plus the LPC's resolution with a 140 Hz line spacing for F1 near 270-300 Hz: not separated. Against the population
+means the render is 8-30 percent off for the back vowels' F2, which is the one-speaker gap described above, not a defect test.
+
+Nasal: /ɑmɑ/ murmur Burg N1 220 Hz (F2 989), /ɑnɑ/ murmur 285 Hz (F2 1041), inside Fujimura's low-N1 range; murmur rms re the second vowel -7.4 dB (m) and -2.7 dB (n). A real murmur
+is weaker than that (no source retrieved for the level); the /n/ is too loud. Open.
+
+Stress (cue values in `WeksaWordPlan.CueFor`): primary stress renders longer by 75 ms for the vowel (design 68 ms), f0 148.1 against 139.9 Hz (ratio 1.059; design 1.06), level +0.93 dB at the end of the vowel
+(design +2 dB). The shortfall is not the amplitude path: `IntensityIsAnAmplitudeFactorOnTheRenderedLevel` renders /ɑ/ at intensity 1.26 against 1 and finds the 2 dB; in /i/ with F1 near 290 Hz,
+raising f0 by 6 percent moves the harmonic nearest F1 and costs about one dB of the gain.
+
+Plosive: /bɪn/ closure peak 0.0000 (voice bar below 16-bit resolution here), release 60-95 ms peak 0.0625, vowel 0.126 (-6 dB). The burst itself (difference of renders with and without `release_flow`)
+peaks at about 0.0076, -24 dB re the vowel peak; the release peak in the table above is the voicing breaking through as the contact opens. Burst gain 0.06 is a DESIGN VALUE.
+
+Weak spots found in the renders: (1) the vowel level is not steady, it rises for about 100 ms after onset (ɑ: rms 0.028 at 80 ms to 0.079 at 160 ms) so any window early in a vowel
+reads low; the cause is not isolated (surface smoothing and the pressure ramp are the suspects). (2) /n/ murmur louder than a nasal murmur should be. (3) Closure is silent, not a voice bar.
+(4) Only f0 and level of the first vowel are checked per cue; the cues' perceptual strength is unknown. Everything here is a measurement, nothing was heard.
+
+Mutations (hand-applied, restored, each run against the named tests): pitch ratio ignored, burst removed, burst not shaped by opening, burst gain x20 (0.06 to 1.2), stress duration ignored,
+stress pitch ignored, stress amplitude ignored, secondary equal to primary, probe timeline sample rate re-hardcoded to 48000: nine of nine killed. Script: `work/mut-b3.sh` in the aqua workspace.

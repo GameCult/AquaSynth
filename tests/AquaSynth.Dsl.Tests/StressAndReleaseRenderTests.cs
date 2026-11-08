@@ -75,6 +75,24 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void IntensityIsAnAmplitudeFactorOnTheRenderedLevel()
+    {
+        double Level(float intensity)
+        {
+            var script = IpaGestureExperiment.BuildWordScript([(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.5f), intensity)], 110);
+            var x = Render(script, 0.6f);
+            return x is null ? double.NaN : Rms(x, 0.3, 0.5);
+        }
+
+        var unity = Level(1f);
+        var stressed = Level(1.26f);
+        if (double.IsNaN(unity)) return;
+        var db = 20 * Math.Log10(stressed / unity);
+        output.WriteLine($"level at intensity 1.26 against 1: {db:F2} dB (factor wanted {20 * Math.Log10(1.26):F2})");
+        Assert.InRange(db, 1.7, 2.3);
+    }
+
+    [Fact]
     public void PlosiveReleaseBurstIsAboveTheClosureAndBelowTheFollowingVowel()
     {
         var script = IpaGestureExperiment.BuildWordScript(
