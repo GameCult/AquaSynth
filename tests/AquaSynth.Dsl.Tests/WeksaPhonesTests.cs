@@ -61,11 +61,28 @@ public sealed class WeksaPhonesTests
     [Fact]
     public void ReportsPhonesTheTractCannotMakeAndRendersNothing()
     {
-        var word = WeksaPhonesReader.Parse(Line($"[{Ph("n", "none")},{Ph("ɪ", "primary")},{Ph("b", "none")},{Ph("ʊ", "none")}]"));
+        var word = WeksaPhonesReader.Parse(Line($"[{Ph("n", "none")},{Ph("ŋ", "primary")},{Ph("b", "none")},{Ph("θ", "none")}]"));
         var plan = WeksaWordPlan.From(word, "x");
         Assert.False(plan.Renderable);
-        Assert.Equal(["ɪ", "ʊ"], plan.Unsupported.Select(p => p.Ipa));
+        Assert.Equal(["ŋ", "θ"], plan.Unsupported.Select(p => p.Ipa));
         Assert.Empty(plan.Phones);
+    }
+
+    [Fact]
+    public void NearCloseVowelsRenderAsVowelsWithTheirOwnStoryShape()
+    {
+        var word = WeksaPhonesReader.Parse(Line($"[{Ph("b", "none")},{Ph("ɪ", "primary")},{Ph("n", "none")},{Ph("b", "none")},{Ph("ʊ", "none")}]"));
+        var plan = WeksaWordPlan.From(word, "x");
+        Assert.True(plan.Renderable);
+        Assert.Equal([WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.VowelSeconds, WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.VowelSeconds],
+            plan.Phones.Select(p => p.Target.DurationSeconds));
+        var patch = PatchScript.Parse(IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140));
+        var ih = patch.ControlSplines.Where(s => s.Name.StartsWith("x_1_ɪ_vowel_", StringComparison.Ordinal)).ToDictionary(s => s.SurfacePath, s => s.Points[0].Value);
+        Assert.Equal(1f, ih["/vocal/areas/0/area/vowel_ih"]);
+        Assert.Equal(0f, ih["/vocal/areas/0/area/vowel_i"]);
+        var oo = patch.ControlSplines.Where(s => s.Name.StartsWith("x_4_ʊ_vowel_", StringComparison.Ordinal)).ToDictionary(s => s.SurfacePath, s => s.Points[0].Value);
+        Assert.Equal(1f, oo["/vocal/areas/0/area/vowel_oo_short"]);
+        Assert.Equal(0f, oo["/vocal/areas/0/area/vowel_u"]);
     }
 
     [Fact]
@@ -89,8 +106,9 @@ public sealed class WeksaPhonesTests
     [Fact]
     public void PhonesTheWordPlanAcceptsAreExactlyTheDslTable()
     {
-        foreach (var ipa in new[] { "n", "i", "b", "u", "a", "ə" })
-            Assert.True(PatchScript.TryIpaDescriptor(ipa, out _));
-        Assert.False(PatchScript.TryIpaDescriptor("ɪ", out _));
+        foreach (var ipa in new[] { "n", "i", "b", "u", "a", "ə", "ɪ", "ʊ", "e", "ɛ", "æ", "ʌ", "ɑ", "ɔ", "o" })
+            Assert.True(PatchScript.TryIpaDescriptor(ipa, out var descriptor) && descriptor.EndsWith("_vowel", StringComparison.Ordinal) == "iuaəɪʊeɛæʌɑɔo".Contains(ipa));
+        foreach (var ipa in new[] { "ŋ", "θ", "ɹ", "l" })
+            Assert.False(PatchScript.TryIpaDescriptor(ipa, out _));
     }
 }

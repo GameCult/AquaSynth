@@ -1671,16 +1671,20 @@ public static partial class FaustEmitter
             (segment.StartPosition + segment.EndPosition) * 0.5f);
 
     /// <summary>
-    /// The one owner of the Gaussian tongue/constriction/lip area deformation: cross-section area (cm^2) of a tract at a
-    /// normalized position, as a Faust expression over the control surfaces under <paramref name="areaPath"/>. Acoustic
-    /// graph terminals and segments and the vocal ladder's cells all read their area here.
+    /// The one owner of the tract area model: cross-section area (cm^2) of a tract at a normalized position, as a Faust
+    /// expression over the control surfaces under <paramref name="areaPath"/>. Acoustic graph terminals and segments and the
+    /// vocal ladder's cells all read their area here. The base diameter is either the rest shape deformed by the Gaussian
+    /// tongue and lip terms, or, when <paramref name="vowels"/> are given, the log-area blend of the measured vowel shapes
+    /// weighted by the vowel_* surfaces (no tongue term; lip_opening is then a cap on the lip cells). The constriction term
+    /// applies to either base.
     /// </summary>
     private static string DeformedAreaExpression(
         ParameterMap parameters,
         TractAreaFunction shape,
         AcousticAreaControl? area,
         string areaPath,
-        float position)
+        float position,
+        IReadOnlyList<VowelAreaShape>? vowels = null)
     {
         var restDiameter = shape.DiameterAt(position);
         if (area is null)
@@ -1690,22 +1694,47 @@ public static partial class FaustEmitter
 
         var sections = Math.Max(2, shape.Sections);
         var index = F(position * (sections - 1));
-        var tongueIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "tongue_index"), area.TongueIndex), area.IndexScale);
-        var tongueDiameter = parameters.Expression(OwnerField(areaPath, "tongue_diameter"), area.TongueDiameter);
-        var tongueWidth = $"max(0.001, {F(area.TongueWidth)} * {F(sections)})";
         var constrictionIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "constriction_index"), area.ConstrictionIndex), area.IndexScale);
         var constrictionDiameter = parameters.Expression(OwnerField(areaPath, "constriction_diameter"), area.ConstrictionDiameter);
         var constrictionWidth = $"max(0.001, {F(area.ConstrictionWidth)} * {F(sections)})";
         var lipOpening = parameters.Expression(OwnerField(areaPath, "lip_opening"), area.LipOpening);
         var lipWeight = MathF.Exp(0 - MathF.Pow((1 - position) / Math.Max(0.001f, area.LipWidth), 2));
-        var tongueWeight = $"exp(0.0 - pow(({index} - ({tongueIndex})) / ({tongueWidth}), 2.0))";
         var constrictionWeight = $"exp(0.0 - pow(({index} - ({constrictionIndex})) / ({constrictionWidth}), 2.0))";
-        var baseDiameter = $"({F(restDiameter)} + (({tongueDiameter}) - {F(restDiameter)}) * ({tongueWeight}) + (({lipOpening}) - {F(restDiameter)}) * {F(lipWeight)})";
+        string baseDiameter;
+        if (vowels is { Count: > 0 })
+        {
+            // The cap applies to the cells inside the lip Gaussian's half-power region; elsewhere it is unbounded.
+            var blended = VowelBlendDiameter(parameters, vowels, areaPath, position);
+            baseDiameter = lipWeight >= 0.5f ? $"min({blended}, ({lipOpening}))" : blended;
+            baseDiameter = $"({baseDiameter})";
+        }
+        else
+        {
+            var tongueIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "tongue_index"), area.TongueIndex), area.IndexScale);
+            var tongueDiameter = parameters.Expression(OwnerField(areaPath, "tongue_diameter"), area.TongueDiameter);
+            var tongueWidth = $"max(0.001, {F(area.TongueWidth)} * {F(sections)})";
+            var tongueWeight = $"exp(0.0 - pow(({index} - ({tongueIndex})) / ({tongueWidth}), 2.0))";
+            baseDiameter = $"({F(restDiameter)} + (({tongueDiameter}) - {F(restDiameter)}) * ({tongueWeight}) + (({lipOpening}) - {F(restDiameter)}) * {F(lipWeight)})";
+        }
+
         var diameter = $"max(0.0, min({baseDiameter}, ({constrictionDiameter}) + max(0.0, ({baseDiameter}) - ({constrictionDiameter})) * (1.0 - ({constrictionWeight}))))";
         return $"(({diameter}) * ({diameter}))";
 
         static string ScaledAreaIndex(string expression, float scale) =>
             scale == 1 ? expression : $"(({expression}) * {F(scale)})";
+    }
+
+    // Diameter of the blend exp(sum_k w_k ln A_k / max(1e-3, sum_k w_k)) of the vowel shapes at one position, A_k read at that position
+    // by linear interpolation in area. Weights below zero count as zero; when they sum to under 1e-3 the blend is the geometric mean of
+    // the shapes (select2 picks it), so zero weights are a defined shape rather than NaN.
+    private static string VowelBlendDiameter(ParameterMap parameters, IReadOnlyList<VowelAreaShape> vowels, string areaPath, float position)
+    {
+        var logs = vowels.Select(vowel => MathF.Log(Math.Max(0.000001f, StoryVowelAreas.AreaAt(vowel.Areas, position)))).ToArray();
+        var weights = vowels.Select(vowel => $"max(0.0, {parameters.Expression(OwnerField(areaPath, StoryVowelAreas.SurfaceField(vowel.Name)), 0)})").ToArray();
+        var total = $"({string.Join(" + ", weights)})";
+        var numerator = $"({string.Join(" + ", weights.Select((weight, k) => $"{weight} * ({F(logs[k])})"))})";
+        var geometricMean = F(MathF.Exp(logs.Average()));
+        return $"sqrt(select2({total} < 0.001, exp({numerator} / max(0.001, {total})), {geometricMean}))";
     }
 
     private static WaveClockPolicy ResolveWaveClock(

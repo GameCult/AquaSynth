@@ -38,6 +38,17 @@ follows Story's area functions can be correct and still sit 10-30 percent from a
 reports two distances: render against the area function's own predicted formants (does the ladder implement the tube), and
 render against the population means (is the speaker typical). Only the first is a defect test.
 
+## Ladder against the tube chain (measured 2026-11-08, unheard)
+
+`tools/formant-check/ladder_formants.py` runs the ladder's update equations in numpy on the 24-cell resampling of each Story shape
+(17.52 cm, 350 m/s, loss .998, glottal reflection .75). With the lip reflection at the scaffold's -.82 the rounded and back vowels
+lose F2 altogether (/ʌ/ 624/3064, /ɔ/ 615/3173, /o/ 674/2546, /ʊ/ 533/2774, /u/ 278/2575 against the tube chain's
+549/809, 516/692, 477/787, 478/850, 271/761). With the lip reflection at -1 F2 returns but every back vowel reads 6-13 percent above the
+tube chain (/ɔ/ 568/741, /o/ 524/844, /ɑ/ 688/1031, /u/ 290/835); 48 cells instead of 24 change nothing, so cell quantisation is not
+the cause. The tube chain uses a frequency-dependent piston radiation (end correction, narrow lips reflect almost totally); the ladder's
+lip is a constant real reflection. The front vowels (/i ɪ e ɛ æ/) are within 2-7 percent at -.82. Which radiation model the ladder
+should have is open (ruling owed); the vowel tests of `VocalTractFormantTests` skip the nine vowels outside 6 percent until then.
+
 ## Not retrieved (from the fact sheet)
 
 Story-Titze-Hoffman 1996/1998 numeric tables; Fant 1960, Stevens-House, Wakita, Ladefoged tables; Maeda per-vowel values;

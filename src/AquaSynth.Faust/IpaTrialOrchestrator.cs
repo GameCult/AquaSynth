@@ -460,7 +460,7 @@ public static class IpaTrialOrchestrator
         IReadOnlyList<ProbeTimelineSample> timeline)
     {
         var tokens = DescriptorTokens(target.Descriptor);
-        var expected = ExpectedSurfaces(tokens);
+        var expected = ExpectedSurfaces(tokens, target.Descriptor);
         var touched = patch.ControlSplines
             .Where(spline => spline.Enabled)
             .Select(spline => spline.SurfacePath)
@@ -479,7 +479,7 @@ public static class IpaTrialOrchestrator
         return Math.Clamp(.5f * coverage + .25f * motion + .25f * primitive, 0, 1);
     }
 
-    private static string[] ExpectedSurfaces(HashSet<string> tokens)
+    private static string[] ExpectedSurfaces(HashSet<string> tokens, string descriptor)
     {
         var surfaces = new List<string>
         {
@@ -492,11 +492,13 @@ public static class IpaTrialOrchestrator
         {
             surfaces.AddRange(
             [
-                "/vocal/areas/0/area/tongue_index",
-                "/vocal/areas/0/area/tongue_diameter",
                 "/vocal/areas/0/area/lip_opening",
                 "/vocal/radiation/0/aperture"
             ]);
+            if (StoryVowelAreas.IdForDescriptor(descriptor) is { } vowelId)
+            {
+                surfaces.Add($"/vocal/areas/0/area/{StoryVowelAreas.SurfaceField(vowelId)}");
+            }
         }
         else
         {

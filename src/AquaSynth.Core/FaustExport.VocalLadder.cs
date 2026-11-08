@@ -4,7 +4,7 @@ namespace AquaSynth.Dsl;
 
 // The vocal_network resonator: a Kelly-Lochbaum ladder per waveguide path, one cell per sample (cell length c / sample
 // rate), written as a Faust `letrec` so every wave variable is a one-sample state. Cell areas come from the morphology
-// rest shape deformed by the path's area control (the same Gaussian model the acoustic graph uses). A branch port whose
+// rest shape deformed by the path's area control, or from its measured vowel shapes (DeformedAreaExpression owns both). A branch port whose
 // two paths are both in the network becomes a three-port parallel junction (Pink Trombone's velum: ports are the oral
 // cells either side of the join and the branch path's first cell, whose area is the branch opening).
 public static partial class FaustEmitter
@@ -93,7 +93,7 @@ public static partial class FaustEmitter
                     continue;
                 }
 
-                var area = DeformedAreaExpression(parameters, member.Area.Shape, member.Area.Deformation, $"/vocal/areas/{member.AreaIndex}/area", (i + 0.5f) / member.Cells);
+                var area = DeformedAreaExpression(parameters, member.Area.Shape, member.Area.Deformation, $"/vocal/areas/{member.AreaIndex}/area", (i + 0.5f) / member.Cells, member.Area.Vowels);
                 source.AppendLine($"    {member.A(i)} = max(0.000001, {area});");
             }
 

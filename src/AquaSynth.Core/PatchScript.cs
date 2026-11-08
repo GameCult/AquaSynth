@@ -11,9 +11,16 @@ public static class PatchScript
     /// <summary>
     /// The DSL's own IPA table: the phones a phoneme_gesture knows without an explicit descriptor. A hand-written script
     /// that names another phone falls back to an alveolar approximant; a caller that must not be approximated asks here first.
+    /// Vowels come from <see cref="StoryVowelAreas"/>, the one table that also says which measured tract shape each selects.
     /// </summary>
     public static bool TryIpaDescriptor(string ipa, out string descriptor)
     {
+        if (StoryVowelAreas.TryVowelForIpa(ipa, out var vowelDescriptor, out _))
+        {
+            descriptor = vowelDescriptor;
+            return true;
+        }
+
         var known = ipa switch
         {
             "p" => "voiceless_bilabial_plosive",
@@ -26,11 +33,6 @@ public static class PatchScript
             "ʒ" => "voiced_postalveolar_fricative",
             "ʍ" => "voiceless_labial_velar_fricative",
             "w" => "voiced_labial_velar_approximant",
-            "i" => "voiced_close_front_unrounded_vowel",
-            "u" => "voiced_close_back_rounded_vowel",
-            "a" or "ɑ" => "voiced_open_back_unrounded_vowel",
-            "æ" => "voiced_open_front_unrounded_vowel",
-            "ə" => "voiced_mid_central_unrounded_vowel",
             _ => null
         };
         descriptor = known ?? "";
@@ -244,6 +246,10 @@ public static class PatchScript
                 case "morphology":
                     FlushPendingOperatorGraph();
                     AddAreaFunction(fields, line);
+                    break;
+                case "vowel_set":
+                    FlushPendingOperatorGraph();
+                    AddVowelSet(fields, line);
                     break;
                 case "waveguide_path":
                     FlushPendingOperatorGraph();
@@ -739,6 +745,43 @@ public static class PatchScript
             _areaFunctions.Add(area);
             _areaFunctionsByName[name] = area;
             RegisterAreaFunctionSurfaces(_areaFunctions.Count - 1, area);
+        }
+
+        // vowel_set area_function=<morphology name> source=story2008: attaches the eleven measured vowel shapes to a morphology and
+        // registers a weight surface /vocal/areas/<i>/area/vowel_<id> in [0,1] for each (default 0; all zero is the geometric mean shape).
+        // The morphology's tongue surfaces stay registered but no longer shape the tract. Must precede the phoneme_gestures that drive it.
+        private void AddVowelSet(IReadOnlyDictionary<string, string> fields, int line)
+        {
+            var name = RequiredAny(fields, ["area_function", "morphology", "area", "shape"], line);
+            var source = Required(fields, "source", line);
+            if (!source.Equals(StoryVowelAreas.Source, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new PatchScriptException(line, $"unknown vowel source `{source}` (only `{StoryVowelAreas.Source}`)");
+            }
+
+            if (!_areaFunctionsByName.TryGetValue(name, out var area))
+            {
+                throw new PatchScriptException(line, $"unknown area function `{name}`");
+            }
+
+            if (area.Deformation is null)
+            {
+                throw new PatchScriptException(line, $"area function `{name}` has no area control (constriction and lip surfaces) for vowels to work with");
+            }
+
+            if (area.Vowels is not null)
+            {
+                throw new PatchScriptException(line, $"area function `{name}` already has vowel shapes");
+            }
+
+            var index = _areaFunctions.IndexOf(area);
+            var withVowels = area with { Vowels = StoryVowelAreas.All.Select(vowel => new VowelAreaShape(vowel.Id, vowel.Areas)).ToArray() };
+            _areaFunctions[index] = withVowels;
+            _areaFunctionsByName[name] = withVowels;
+            foreach (var vowel in StoryVowelAreas.All)
+            {
+                RegisterNormalizedPrimitiveSurface(OwnerField($"/vocal/areas/{index}/area", StoryVowelAreas.SurfaceField(vowel.Id)), name, StoryVowelAreas.SurfaceField(vowel.Id), 0);
+            }
         }
 
         private void AddWaveguidePath(IReadOnlyDictionary<string, string> fields, int line)
@@ -1478,7 +1521,7 @@ public static class PatchScript
 
             if (tokens.Contains("vowel"))
             {
-                EmitVowelGesture(name, tokens, start, duration);
+                EmitVowelGesture(name, descriptor, start, duration);
                 return;
             }
 
@@ -1515,35 +1558,21 @@ public static class PatchScript
             }
         }
 
-        // Vowel tract shapes for the Kelly-Lochbaum ladder on the experiment scaffold (six rest diameters, 17 cm, 48 kHz): tongue
-        // section index (0..5), tongue and lip diameters in cm. Each was found by grid search over the exported ladder's impulse
-        // response (peak picking) toward textbook F1/F2, not by hand: measured F1/F2 in Hz in the trailing comment.
-        // Features are (front 0..1, openness 0..1, rounded 0/1); a descriptor selects the nearest anchor, there is no interpolation
-        // because the shapes are not monotone in formant space.
-        private static readonly (float Front, float Open, float Round, float TongueIndex, float TongueCm, float LipCm)[] VowelShapes =
-        [
-            (1.0f, 0.0f, 0, 3.00f, 0.15f, 2.20f), // i  271/2313
-            (0.0f, 0.0f, 1, 2.25f, 0.45f, 0.05f), // u  292/876
-            (0.0f, 1.0f, 0, 1.50f, 0.35f, 1.00f), // a  703/1084
-            (1.0f, 1.0f, 0, 0.50f, 0.30f, 1.00f), // ae 665/1755
-            (1.0f, 0.5f, 0, 2.50f, 1.80f, 2.20f), // e  535/1799
-            (0.0f, 0.5f, 1, 1.50f, 0.10f, 1.60f), // o  454/962
-            (0.5f, 0.5f, 0, 2.00f, 1.20f, 0.60f), // schwa 497/1503
-        ];
-
-        private void EmitVowelGesture(string name, HashSet<string> tokens, float start, float duration)
+        // A vowel gesture raises the weight of the descriptor's Story vowel to 1 and holds every other vowel weight at 0 (the schwa and
+        // any vowel descriptor without a Story shape hold all of them at 0: the geometric-mean shape). The constriction and the lip cap
+        // stay open, the velum closed. On a morphology without vowel_set the vowel surfaces do not exist and nothing is held.
+        private void EmitVowelGesture(string name, string descriptor, float start, float duration)
         {
-            var front = tokens.Contains("front") ? 1f : tokens.Contains("back") ? 0f : 0.5f;
-            var open = tokens.Contains("close") ? 0f : tokens.Contains("mid") ? 0.5f : tokens.Contains("open") ? 1f : 0.5f;
-            var round = tokens.Contains("rounded") && !tokens.Contains("unrounded") ? 1f : 0f;
-            var shape = VowelShapes
-                .OrderBy(candidate => MathF.Abs(candidate.Front - front) + MathF.Abs(candidate.Open - open) + MathF.Abs(candidate.Round - round))
-                .First();
-            HoldOnSurface($"{name}_tongue_index", "/vocal/areas/0/area/tongue_index", start, duration, shape.TongueIndex);
-            HoldOnSurface($"{name}_tongue_diameter", "/vocal/areas/0/area/tongue_diameter", start, duration, shape.TongueCm);
-            HoldOnSurface($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, shape.LipCm);
-            // A vowel leaves the tract unconstricted: hold the constriction at the surface maximum.
+            var target = StoryVowelAreas.IdForDescriptor(descriptor);
+            foreach (var vowel in StoryVowelAreas.All)
+            {
+                var weight = vowel.Id == target ? 1f : 0f;
+                HoldOnSurface($"{name}_{StoryVowelAreas.SurfaceField(vowel.Id)}", $"/vocal/areas/0/area/{StoryVowelAreas.SurfaceField(vowel.Id)}", start, duration, weight);
+            }
+
+            // A vowel leaves the tract unconstricted: hold the constriction and the lip cap at the surface maximum.
             AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, 1), (1, 1));
+            AddAuthoredSpline($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, (0, 1), (1, 1));
             // The ladder's lip cell already carries the lip area into the resonance and the level. Aperture is the radiating
             // gain the consonant closures use (the lip cell cannot shut), so a vowel keeps it fully open; scaling it by the lip
             // area as well counted the rounding twice and left /u/ 30 dB under /i/.
@@ -4014,6 +4043,7 @@ public static class PatchScript
         "nasal_branch" or "nose_branch" or "nasal" => "nasal_branch",
         "tract_motion" or "shape_motion" or "slew" => "tract_motion",
         "path" or "acoustic_path" or "morphology_path" => "acoustic_path",
+        "vowel_set" or "vowelset" => "vowel_set",
         "waveguide_path" or "waveguidepath" or "wg_path" => "waveguide_path",
         "source_port" or "acoustic_source" or "port_source" => "source_port",
         "constriction_contact" or "contact_port" or "contact" => "constriction_contact",
