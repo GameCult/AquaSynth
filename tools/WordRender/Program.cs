@@ -30,12 +30,9 @@ var seconds = phones.Sum(p => p.Item1.DurationSeconds) + 0.12f;
 var home = AquaSynthFaustToolchain.Find();
 Console.WriteLine($"faust home: {home ?? "(not found)"}");
 using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(SampleRate: Rate));
-// The exporter bakes splines in as offsets summed per surface; the engine's ControlSplineTimeline merges them per surface
-// into one absolute curve. Back-to-back gestures only sequence under the timeline, so the DSP is emitted without splines
-// (surface sliders only) and the timeline drives the sliders block by block, as NativeFaustRuntime.ControlValuesAt does.
-var scripted = PatchScript.Parse(script);
-var timeline = ControlSurfaceCatalog.FromPatch(scripted).CreateTimeline();
-var source = FaustEmitter.Emit(scripted with { ControlSplines = [] }, new FaustExportOptions(label)).Source;
+// The exporter emits one merged spline per surface (the ControlSplineTimeline curve), so the DSP carries the word's motion
+// itself and no slider is driven from outside.
+var source = FaustEmitter.Emit(PatchScript.Parse(script), new FaustExportOptions(label)).Source;
 File.WriteAllText(Path.Combine(outDir, "source.dsp"), source);
 if (!compiler.TryCompileSource(new AquaSynthCompileIdentity(label, label, ""), source, seconds, out var patch0, out var cerr))
 {
@@ -54,8 +51,7 @@ var pcm = new short[blocks * Frames];
 double sum = 0; float peak = 0; var nan = false;
 for (var blk = 0; blk < blocks; blk++)
 {
-    var ctl = patch.ControlValuesAt(timeline, blk * Frames / (float)Rate);
-    stream.ProcessBlock(Frames, IntPtr.Zero, outP, ctl);
+    stream.ProcessBlock(Frames, IntPtr.Zero, outP);
     for (var i = 0; i < Frames; i++)
     {
         var v = buf[i];

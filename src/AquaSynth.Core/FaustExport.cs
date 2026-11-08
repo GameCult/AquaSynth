@@ -160,9 +160,7 @@ public static class FaustEmitter
                 : publicControl;
             source.AppendLine($"{baseId} = {boundControl};");
 
-            var splines = patch.ControlSplines
-                .Where(spline => spline.Enabled && spline.SurfacePath.Equals(surface.Path, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
+            var splines = ControlSplineTimeline.SurfaceSplines(patch.ControlSplines, surface.Path);
             if (splines.Length == 0)
             {
                 source.AppendLine($"{normalized} = clip01({baseId});");

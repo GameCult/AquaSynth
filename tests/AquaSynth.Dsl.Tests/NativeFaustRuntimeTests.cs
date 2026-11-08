@@ -174,4 +174,76 @@ public sealed class NativeFaustRuntimeTests
             Assert.Contains(samples, sample => MathF.Abs(sample) > 0.0001f);
         }
     }
+
+    // Two back-to-back gestures on one surface. The engine's ControlSplineTimeline merges them into one absolute curve, so
+    // after the loud gesture ends the quiet one owns the value; summing per-spline offsets would keep the loud tail on top.
+    private const string BackToBackPressure = """
+        morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.5,.9
+        waveguide_path name=oral_path morphology=oral loss=.998
+        source_port name=folds path=oral_path pressure=.5 tension=.55 opening=.45 noise=0 impedance=.3
+        radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
+        vocal_network name=voice paths=oral_path sources=folds radiation=mouth
+        {0}
+        vocal network=voice freq=150 gain=.2 sustain=.5
+        """;
+
+    private const string LoudGesture = "control_spline name=loud surface=/vocal/sources/0/pressure points=0:1,0.1:1";
+    private const string QuietGesture = "control_spline name=quiet surface=/vocal/sources/0/pressure points=0.2:.05,0.5:.05";
+
+    [Fact]
+    public void ExporterEmitsOneMergedSplinePerSurfaceWithTimelineSemantics()
+    {
+        var both = PatchScript.Parse(string.Format(BackToBackPressure, LoudGesture + "\n" + QuietGesture));
+        var source = FaustEmitter.Emit(both, new FaustExportOptions("merged")).Source;
+        var surface = both.ControlSurfaces.Single(candidate => candidate.Path == "/vocal/sources/0/pressure");
+
+        var timeline = new ControlSplineTimeline(both.ControlSplines);
+        Assert.InRange(timeline.ValueAt(surface.Path, .35f), .04f, .06f);
+
+        // the surface carries one spline over the union of both gestures' points, not one spline per gesture
+        Assert.Contains("/splines/loud_quiet/0/value", source);
+        Assert.Contains("/splines/loud_quiet/3/value", source);
+        Assert.DoesNotContain("/splines/loud/", source);
+        Assert.DoesNotContain("/splines/quiet/", source);
+
+        // single-spline surfaces keep their own spline
+        var single = FaustEmitter.Emit(PatchScript.Parse(string.Format(BackToBackPressure, QuietGesture)), new FaustExportOptions("single")).Source;
+        Assert.Contains("/splines/quiet/0/value", single);
+    }
+
+    [Fact]
+    public void MergedSurfaceSplinesRenderTheQuietGestureAfterTheLoudOneEnds()
+    {
+        var both = RenderTailRms(string.Format(BackToBackPressure, LoudGesture + "\n" + QuietGesture));
+        var quietOnly = RenderTailRms(string.Format(BackToBackPressure, QuietGesture));
+        if (both is null || quietOnly is null) return;
+
+        Assert.True(quietOnly > 0, "reference render is silent");
+        Assert.InRange(both.Value / quietOnly.Value, .8, 1.25);
+    }
+
+    private static double? RenderTailRms(string script)
+    {
+        using var compiler = new AquaSynthPatchCompiler();
+        var source = FaustEmitter.Emit(PatchScript.Parse(script), new FaustExportOptions("merge_probe")).Source;
+        if (!compiler.TryCompileSource(new AquaSynthCompileIdentity("merge_probe", "merge_probe", script), source, .6f, out var patch, out var error))
+        {
+            if (error?.Contains("Faust toolchain not found", StringComparison.OrdinalIgnoreCase) == true ||
+                error?.Contains("Faust DLL not found", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                return null;
+            }
+
+            Assert.Fail($"merge probe compile failed: {error}");
+        }
+
+        using (patch)
+        {
+            var samples = patch!.Render(1.0f);
+            var rate = 48000;
+            var window = samples.Skip((int)(.35 * rate)).Take((int)(.1 * rate)).ToArray();
+            Assert.True(window.Length > 1000, $"render too short: {samples.Length}");
+            return Math.Sqrt(window.Sum(sample => (double)sample * sample) / window.Length);
+        }
+    }
 }
