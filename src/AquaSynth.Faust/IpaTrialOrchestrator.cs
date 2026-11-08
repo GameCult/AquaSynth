@@ -139,7 +139,8 @@ public static class IpaTrialOrchestrator
                 targetSet.Id,
                 targetSet.Targets.Select(target => target.Target),
                 targetSet.Variants,
-                options.TimelineBlocks);
+                options.TimelineBlocks,
+                options.SampleRate);
             var analysis = IpaGestureExperiment.AnalyzeRound(round);
             var targetById = targetSet.Targets.ToDictionary(target => target.Target.Id, StringComparer.OrdinalIgnoreCase);
 

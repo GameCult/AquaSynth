@@ -91,7 +91,8 @@ public static class IpaGestureExperiment
         string roundId,
         IEnumerable<IpaGestureExperimentTarget> targets,
         IEnumerable<IpaGestureExperimentVariant> variants,
-        int timelineBlocks = 12)
+        int timelineBlocks = 12,
+        float sampleRate = 48000)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(roundId);
@@ -128,7 +129,7 @@ public static class IpaGestureExperiment
                 File.WriteAllText(scriptPath, script, Encoding.UTF8);
 
                 var patch = PatchScript.Parse(script);
-                var timeline = ProbeTimelineReport.Build(patch, NetworkName, Math.Max(1, timelineBlocks));
+                var timeline = ProbeTimelineReport.Build(patch, NetworkName, Math.Max(1, timelineBlocks), sampleRate);
                 var timelinePath = Path.Combine(timelineDirectory, $"{candidateId}.csv");
                 File.WriteAllText(timelinePath, ProbeTimelineReport.ToCsv(timeline), Encoding.UTF8);
 
