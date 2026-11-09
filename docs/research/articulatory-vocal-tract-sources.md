@@ -49,17 +49,21 @@ the rounded and back vowels and no end correction.
 `tools/formant-check/ladder_formants.py --filtered` runs the same ladder in numpy (24 cells, 17.52 cm, 350 m/s, loss .998, glottal reflection .75).
 Against the independent tube chain (`tube_formants.py`, 17.52 cm; baffled-piston R||L radiation) the numpy ladder reads at g = 1 (F1/F2 error %):
 i +1.4/+0.4, ih +1.7/+1.5, e +2.3/+4.2, eh +4.0/+3.1, ae +2.9/+3.5, uh +5.6/+4.3, ah +5.1/+6.6, aw +8.6/+3.7, o +8.2/+5.0, oo_short +5.5/+8.2,
-u +6.0/+8.2. Lowering g does not help (g = .95: aw F1 +9.6; g = .9: the aw F2 peak is lost). The ladder therefore reads systematically high:
-F1 +4 to +9%, F2 +3 to +8% for the back vowels. That bias is diagnosed, not isolated: raising the glottal reflection to .9 moves only /aw/ F1
+u +6.0/+8.2. Lowering g does not help (g = .95: aw F1 +9.6; g = .9: the aw F2 peak is lost). The numpy ladder therefore reads systematically high
+against the tube chain: F1 +4 to +9%, F2 +3 to +8% for the back vowels. That bias is diagnosed, not isolated: raising the glottal reflection to .9 moves only /aw/ F1
 (8.6 to 6.2%); a 1.4 times larger end correction leaves a worst case of 6.9%; the remaining suspects (cell-length quantisation of a 24.03-cell
 tract, and that the reference itself uses a different radiation model) are untested. It is the open item.
 
 Held tolerances (`VocalTractFormantTests`, harmonic-line reading of the 10 Hz render): the front vowels i ih e eh ae within 6% on F1 and F2;
 the back and rounded vowels within 10%, which is the measured disagreement between two lip radiation models (the ladder's one-pole
-Levine-Schwinger-form reflectance, the tube chain's baffled piston R||L) plus the ladder's cell quantisation. Only /u/ meets its 10% band in the
-render; uh, ah, aw, o and oo_short read F1 +14.8, +10.8, +12.4, +25.8 and +13.0% against the tube chain (render 630, 720, 580, 600, 540 Hz; LPC agrees
-with the harmonic lines) and stay skipped with those numbers. The numpy ladder reads those F1 20-85 Hz lower than the render, so that excess sits in
-the rendered chain (untested suspect: the glottal tissue-valve source's spectral shape; `load_coupling=0` changed nothing), not in the lip reflectance.
+Levine-Schwinger-form reflectance, the tube chain's baffled piston R||L) plus the ladder's cell quantisation. All eleven meet their bands. For
+a while uh, ah, aw, o and oo_short read F1 +14.8, +10.8, +12.4, +25.8 and +13.0% against the tube chain and the tests were skipped with those
+numbers; the numpy ladder read those F1 20-85 Hz lower than the render. The cause was the velopharyngeal junction in `FaustExport.VocalLadder.cs`:
+it summed the areas of oral cells 11 and 12 and used their reflection coefficients for the junction that sits between cells 10 and 11, so the
+pharynx (cells 10-12 of /o/: .52 .33 .52 cm^2) carried the next step's reflection with the wrong sign. Isolated by running the lip wave of the rendered
+ladder under an impulse against the numpy copy (the first echo already differed: -0.30 against -0.23), with the velum shut. Fixed, the render agrees
+with the numpy ladder to 10 Hz (o 520/830, uh 580/840, ah 690/980, aw 550/720, oo_short 500/920, u 290/820 at the harmonic lines) and the five tests
+run. The rest of the high reading against the tube chain (F1 +1.5 to +9%, F2 +2 to +8%) is the two radiation models' disagreement above.
 
 Burg LPC (`burg_formants.py`) on the WordRender renders at 140 Hz (held vowels): /i/ in nibu 279/2105/2924, /u/ in nibu 283/836/2637, /ih/ in bin
 359/2012/2536, /oo_short/ (bʊn) in bun 543/899/2781, against the tube chain i 251/2063/2877, u 271/761/2574, ih 346/1987/2491, oo_short 478/850/2760 and
@@ -82,35 +86,44 @@ tube chain at 17.52 cm (`tube_formants.py`). Files: `/opt/commons/handoff/aqua-t
 
 | vowel | Burg F1/F2 | tube chain F1/F2 | render vs tube F1/F2 % | Hillenbrand F1/F2 | render vs Hillenbrand % |
 |---|---|---|---|---|---|
-| i | 290/2111 | 251/2063 | +15.5/+2.3 | 343/2323 | -15.4/-9.1 |
-| ɪ | 374/2032 | 346/1987 | +8.2/+2.3 | 429/2034 | -12.7/-0.1 |
-| e | 439/1929 | 432/1827 | +1.6/+5.6 | 476/2090 | -7.8/-7.7 |
-| ɛ | 553/1602 | 527/1571 | +4.9/+2.0 | 588/1803 | -6.0/-11.1 |
-| æ | 718/1558 | 729/1523 | -1.5/+2.3 | 591/1930 | +21.5/-19.3 |
-| ʌ | 573/811 | 549/809 | +4.4/+0.3 | 621/1181 | -7.7/-31.3 |
-| ɑ | 646/949 | 650/913 | -0.6/+3.9 | 757/1309 | -14.7/-27.5 |
-| ɔ | 523/718 | 516/692 | +1.4/+3.8 | 656/1023 | -20.3/-29.8 |
-| o | 555/819 | 477/787 | +16.4/+4.1 | 498/910 | +11.4/-10.0 |
-| ʊ | 520/897 | 478/850 | +8.8/+5.5 | 469/1123 | +10.9/-20.1 |
-| u | 300/816 | 271/761 | +10.7/+7.2 | 380/992 | -21.1/-17.7 |
+| i | 294/2080 | 251/2063 | +17.0/+0.8 | 343/2323 | -14.3/-10.4 |
+| ɪ | 375/2024 | 346/1987 | +8.5/+1.8 | 429/2034 | -12.5/-0.5 |
+| e | 448/1925 | 432/1827 | +3.7/+5.4 | 476/2090 | -5.9/-7.9 |
+| ɛ | 551/1603 | 527/1571 | +4.5/+2.0 | 588/1803 | -6.3/-11.1 |
+| æ | 739/1550 | 729/1523 | +1.4/+1.8 | 591/1930 | +25.0/-19.7 |
+| ʌ | 538/822 | 549/809 | -2.1/+1.6 | 621/1181 | -13.4/-30.4 |
+| ɑ | 607/950 | 650/913 | -6.6/+4.0 | 757/1309 | -19.8/-27.4 |
+| ɔ | 499/715 | 516/692 | -3.4/+3.4 | 656/1023 | -24.0/-30.1 |
+| o | 488/806 | 477/787 | +2.3/+2.4 | 498/910 | -2.0/-11.4 |
+| ʊ | 486/894 | 478/850 | +1.7/+5.2 | 469/1123 | +3.7/-20.4 |
+| u | 308/811 | 271/761 | +13.8/+6.6 | 380/992 | -18.9/-18.2 |
 
-Against its own area function the render sits within 6 percent for e ɛ æ ʌ ɑ ɔ and F2 of all eleven within 7.2 percent; F1 of i, o, u and ʊ reads 9-16 percent high.
-The F1 excess is the ladder's known high bias (above) plus the LPC's resolution with a 140 Hz line spacing for F1 near 270-300 Hz: not separated. Against the population
+(Table re-rendered 2026-11-09 after the junction fix, the nasal and stress changes below; the first table, 2026-11-08, had o, ʊ and u 9-16% high.)
+
+Against its own area function the render sits within 6.6 percent on F1 for every vowel but /i/ (+17%) and /u/ (+13.8%), whose F1 near 270-300 Hz is under the LPC's resolution at a
+140 Hz line spacing (the 10 Hz harmonic-line reading in `VocalTractFormantTests` puts them at 260 and 290 Hz, +3.6 and +7.0%); F2 of all eleven is within 6.6 percent. Against the population
 means the render is 8-30 percent off for the back vowels' F2, which is the one-speaker gap described above, not a defect test.
 
-Nasal: /ɑmɑ/ murmur Burg N1 220 Hz (F2 989), /ɑnɑ/ murmur 285 Hz (F2 1041), inside Fujimura's low-N1 range; murmur rms re the second vowel -7.4 dB (m) and -2.7 dB (n). A real murmur
-is weaker than that (no source retrieved for the level); the /n/ is too loud. Open.
+Nasal (steady parts: the consonant's middle 60 percent against the mean power of the flanking vowels, 70 ms before and 90 ms from 30 ms after): /ɑmɑ/ -11.8 dB, /ɑnɑ/ -9.6 dB, Burg N1 295 and 332 Hz,
+inside Fujimura's low-N1 range. The target band is 8 to 16 dB under the vowels, a DESIGN value: no primary level was retrieved (secondary accounts of Fujimura 1962 and later put nasal murmurs
+well under their vowels). Before: -13.2 and -3.8 dB by the same measure (the old whole-segment rms read -2.8 and +1.8 dB). Three causes, in order: the /n/ oral closure began to open at half the gesture,
+a third before the velum and the contact (held to 0.8 now); then, with the junction on its own interface the nose took its share and both murmurs rose to -4.2 and -2.2 dB; the nasal path now carries
+the damping of the nasal cavity (soft walls, turbinates, sinuses): loss .975 per cell, a bandwidth of about 380 Hz at this sample rate (`IpaGestureExperiment.NasalPathLoss`; the bandwidth is a design value,
+none retrieved). /n/ stays 2 dB louder than /m/: the cause is not isolated (a shorter oral side branch is the physical candidate).
 
-Stress (cue values in `WeksaWordPlan.CueFor`): primary stress renders longer by 75 ms for the vowel (design 68 ms), f0 148.1 against 139.9 Hz (ratio 1.059; design 1.06), level +0.93 dB at the end of the vowel
-(design +2 dB). The shortfall is not the amplitude path: `IntensityIsAnAmplitudeFactorOnTheRenderedLevel` renders /ɑ/ at intensity 1.26 against 1 and finds the 2 dB; in /i/ with F1 near 290 Hz,
-raising f0 by 6 percent moves the harmonic nearest F1 and costs about one dB of the gain.
+Stress (cue values in `WeksaWordPlan.CueFor`): primary stress renders longer by 75 ms for the vowel (design 68 ms), f0 148.1 against 139.9 Hz (ratio 1.059; design 1.06). Level: +2.0 dB mean over the five vowels
+i a u e o (`PrimaryStressRendersAboutTwoDecibelsLouderOnAverageOverVowels`, 2.05 dB in the last run) with the amplitude factor at 1.30 (was 1.26: +1.7 dB). The f0 rise alone moves the harmonics against F1 and
+changes the level by -1.3 to +1.8 dB by vowel, so a single vowel is a noisy measure of the amplitude cue: /i/ in /nibu/ (steady window 150-250 ms) reads +0.21 dB in the last render (+0.99 before), isolated /i/
++0.79 dB, /e/ +4.1 dB. The mean is what is held; the scatter between vowels is the harmonic/formant interaction of a 140 Hz voice, not the cue.
 
-Plosive: /bɪn/ closure peak 0.0000 (voice bar below 16-bit resolution here), release 60-95 ms peak 0.0625, vowel 0.126 (-6 dB). The burst itself (difference of renders with and without `release_flow`)
-peaks at about 0.0076, -24 dB re the vowel peak; the release peak in the table above is the voicing breaking through as the contact opens. Burst gain 0.06 is a DESIGN VALUE.
+Plosive: word-initial /b/ closure is the tract wall's voice bar, -29.2 dB re the following vowel, /p/ -40.1 dB (`PlosiveClosureCarriesTheVoiceBarOnlyWhenVoiced`); /bɪn/ closure peak 0.0036 (was 0.0000, below 16-bit
+resolution), release 60-95 ms peak 0.0695, vowel 0.129. The wall radiation reads the first-cell pressure of the ladder (R0 + L0), band-limits it to 90-300 Hz and adds it at gain 0.7 (a DESIGN value for a voice-bar
+level of -30 dB; the primary level was not retrieved, and the 2.4 manual's skin radiation, Birkholz & Zhang 2025, is the reference to read). In a vowel the term moves the f0 harmonics by under 1 dB. The burst
+itself (difference of renders with and without `release_flow`) peaks at about 0.006-0.008, -24 dB re the vowel peak; the release peak in the table above is the voicing breaking through as the contact opens. Burst gain 0.06 is a DESIGN VALUE.
 
 Weak spots found in the renders: (1) the vowel level is not steady, it rises for about 100 ms after onset (ɑ: rms 0.028 at 80 ms to 0.079 at 160 ms) so any window early in a vowel
-reads low; the cause is not isolated (surface smoothing and the pressure ramp are the suspects). (2) /n/ murmur louder than a nasal murmur should be. (3) Closure is silent, not a voice bar.
-(4) Only f0 and level of the first vowel are checked per cue; the cues' perceptual strength is unknown. Everything here is a measurement, nothing was heard.
+reads low; the cause is not isolated (surface smoothing and the pressure ramp are the suspects). (2) /n/ murmur 2 dB above /m/ (above). (3) The voice bar's level is a design value and its band
+(90-300 Hz) assumes f0 of 90 Hz and up. (4) Only f0 and level of the first vowel are checked per cue; the cues' perceptual strength is unknown. Everything here is a measurement, nothing was heard.
 
 Mutations (hand-applied, restored, each run against the named tests): pitch ratio ignored, burst removed, burst not shaped by opening, burst gain x20 (0.06 to 1.2), stress duration ignored,
 stress pitch ignored, stress amplitude ignored, secondary equal to primary, probe timeline sample rate re-hardcoded to 48000: nine of nine killed. Script: `work/mut-b3.sh` in the aqua workspace.
