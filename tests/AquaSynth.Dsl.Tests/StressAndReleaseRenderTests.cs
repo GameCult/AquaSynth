@@ -175,4 +175,30 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         output.WriteLine($"mean {diffs.Average():F2} dB");
         Assert.InRange(diffs.Average(), 1.8, 2.3);
     }
+
+    // Standard deviation, so the slow offset a shutting tract leaves behind does not count as sound.
+    private static double Deviation(float[] x, double from, double to)
+    {
+        var seg = x.Skip((int)(from * Rate)).Take((int)((to - from) * Rate)).Select(v => (double)v).ToArray();
+        var mean = seg.Average();
+        return Math.Sqrt(seg.Sum(v => (v - mean) * (v - mean)) / seg.Length);
+    }
+
+    // A word-initial plosive's closure (0.03 to 0.058 s of a 0.095 s consonant shut to 0.062 s) against the vowel after it (0.15 to 0.25 s). The
+    // mouth is shut, so all that gets out is the tract wall radiation of the voiced source: the voice bar, about 30 dB under the vowel for /b/
+    // (a DESIGN value, no primary level retrieved; Stevens 1998 per secondary sources has voicing weaker as transglottal pressure falls), and
+    // near-silent for /p/, whose source is weak. The closure was 0.0000 (below 16 bits) before the wall radiation.
+    [Theory]
+    [InlineData("b", -34, -26)]
+    [InlineData("p", -60, -38)]
+    public void PlosiveClosureCarriesTheVoiceBarOnlyWhenVoiced(string ipa, double lowDb, double highDb)
+    {
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(new IpaGestureExperimentTarget("w_0_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_1_a", "a", "", 0.18f), 1f)], 140);
+        var x = Render(script, 0.4f);
+        if (x is null) return;
+        var db = 20 * Math.Log10(Math.Max(1e-9, Deviation(x, 0.03, 0.058)) / Deviation(x, 0.15, 0.25));
+        output.WriteLine($"/{ipa}/ closure {db:F1} dB re the following vowel");
+        Assert.InRange(db, lowDb, highDb);
+    }
 }

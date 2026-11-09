@@ -647,8 +647,8 @@ public static partial class FaustEmitter
             }
         }
 
-        var lips = members.Count == 0
-            ? new Dictionary<string, string>()
+        var (lips, glottalPressures) = members.Count == 0
+            ? (new Dictionary<string, string>(), new Dictionary<string, string>())
             : EmitVocalLadder(source, patch, network, name, members, inputs, admittances, parameters, warnings);
 
         foreach (var member in members)
@@ -683,6 +683,17 @@ public static partial class FaustEmitter
                 {
                     radiated.Add(PrimitiveRadiationExpression(source, patch, name, load, wave, parameters, options, keepAlive));
                 }
+            }
+
+            if (glottalPressures.TryGetValue(path.Name, out var glottalPressure))
+            {
+                // Tract wall radiation: the pressure inside the tract, low-passed, leaves through the cheeks and neck whether or not the mouth
+                // is open. It is the only sound a closed mouth makes (the voice bar of a voiced stop) and sits far under the mouth's output
+                // in a vowel.
+                var wall = $"{member.Prefix}_wall_radiation";
+                source.AppendLine($"    {wall} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/wall_radiation", $"(({glottalPressure}) : fi.highpass(2, {WallRadiationHighpassHz}) : fi.lowpass(2, {WallRadiationLowpassHz})) * {WallRadiationGain}", -4, 4)};");
+                keepAlive.Add(wall);
+                radiated.Add(wall);
             }
         }
 
@@ -799,6 +810,14 @@ public static partial class FaustEmitter
     // aperture: the ladder's lip cell already carries the lip area, and a corner that rose with aperture (40 + 500 Hz) sat above
     // /u/'s F1 and put a 450 Hz hump in its envelope. The aperture stays the gain consonant closures use.
     private const string RadiationHighpassHz = "200.0";
+
+    // Tract wall radiation (the voice bar). Corners: skin and soft tissue pass only the low end of the voice (below about 200-300 Hz), and
+    // a second-order highpass at 90 Hz keeps the slow pressure drift of a shutting tract out (a 40 Hz first-order corner left it in). The gain
+    // is a DESIGN VALUE set so a word-initial voiced closure reads 30 dB under the following vowel (/p/ 41 dB), while the wall term moves a
+    // vowel's f0 harmonics by under 1 dB (no primary level retrieved; docs/research/articulatory-vocal-tract-sources.md).
+    private const string WallRadiationHighpassHz = "90.0";
+    private const string WallRadiationLowpassHz = "300.0";
+    private const string WallRadiationGain = "0.7";
 
     private static string PrimitiveRadiationExpression(
         StringBuilder source,

@@ -37,9 +37,10 @@ public static partial class FaustEmitter
 
     /// <summary>
     /// Emits the area, reflection and junction definitions and the recursive ladder for <paramref name="members"/>, and returns,
-    /// per path, the identifier of its lip output (the right-going wave leaving its last cell).
+    /// per path, the identifier of its lip output (the right-going wave leaving its last cell) and, for each path that ends at a glottis,
+    /// the identifier of the pressure in its first cell (the tract wall radiation reads it).
     /// </summary>
-    private static IReadOnlyDictionary<string, string> EmitVocalLadder(
+    private static (IReadOnlyDictionary<string, string> Lips, IReadOnlyDictionary<string, string> GlottalPressures) EmitVocalLadder(
         StringBuilder source,
         SynthPatch patch,
         VocalNetwork network,
@@ -137,22 +138,29 @@ public static partial class FaustEmitter
             equations.AppendLine($"        '{member.L(last)} = ({b} * {member.L(last)} + (1.0 - {b}) * ({lipReflection}) * {member.R(last)}) * {loss};");
         }
 
-        var outputs = string.Join(", ", members.Select(member => member.R(member.Cells - 1)));
+        // Outputs: every path's lip wave, then the first-cell pressure R0 + L0 of each path that ends at a glottis (a branch path's first
+        // cell is the junction, not a glottis).
+        var glottal = members.Where(member => !targets.ContainsKey(member)).ToArray();
+        var outputs = string.Join(", ", members.Select(member => member.R(member.Cells - 1)).Concat(glottal.Select(member => $"({member.R(0)} + {member.L(0)})")));
+        var outputCount = members.Count + glottal.Length;
         var ladder = $"{name}_primitive_ladder";
         source.AppendLine($"    {ladder} = ({outputs}) letrec {{");
         source.Append(equations);
         source.AppendLine("    };");
 
         var lips = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        for (var m = 0; m < members.Count; m++)
+        var glottalPressures = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (var m = 0; m < outputCount; m++)
         {
-            var lip = $"{members[m].Prefix}_lip";
-            source.AppendLine(members.Count == 1
-                ? $"    {lip} = {ladder};"
-                : $"    {lip} = {ladder} : ba.selector({m}, {members.Count});");
-            lips[members[m].Path.Name] = lip;
+            var isLip = m < members.Count;
+            var owner = isLip ? members[m] : glottal[m - members.Count];
+            var tap = $"{owner.Prefix}_{(isLip ? "lip" : "glottal_pressure")}";
+            source.AppendLine(outputCount == 1
+                ? $"    {tap} = {ladder};"
+                : $"    {tap} = {ladder} : ba.selector({m}, {outputCount});");
+            (isLip ? lips : glottalPressures)[owner.Path.Name] = tap;
         }
 
-        return lips;
+        return (lips, glottalPressures);
     }
 }
