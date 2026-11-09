@@ -179,6 +179,21 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
 
     private static double Rms(float[] window) => Math.Sqrt(window.Sum(x => (double)x * x) / window.Length);
 
+    // Rms of the part of the window above a frequency (Parseval over the bins of a zero-padded transform). The tract wall radiates a voice bar
+    // below about 300 Hz with the mouth shut and the velum shut, so "the nose is the only door" is read where the wall barely reaches.
+    private static double RmsAbove(float[] window, double hz)
+    {
+        var n = 1 << 17;
+        var re = new double[n];
+        var im = new double[n];
+        for (var i = 0; i < window.Length; i++) re[i] = window[i] * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / window.Length));
+        Fft(re, im);
+        double power = 0;
+        for (var k = (int)(hz * n / Rate); k < n / 2; k++) power += re[k] * re[k] + im[k] * im[k];
+        var windowPower = Enumerable.Range(0, window.Length).Sum(i => Math.Pow(0.5 - 0.5 * Math.Cos(2 * Math.PI * i / window.Length), 2));
+        return Math.Sqrt(2 * power / n / windowPower);
+    }
+
     [Fact]
     public void WithTheMouthClosedOnlyAnOpenVelumLetsSoundOutThroughTheNose()
     {
@@ -192,8 +207,8 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         var open = Render(Closed(1f));
         if (shut is null || open is null) return;
 
-        output.WriteLine($"mouth shut: velum closed rms {Rms(shut):E2}, velum open rms {Rms(open):E2}; open peaks {string.Join(" ", Peaks(open).Select(p => p.ToString("F0")))}");
-        Assert.True(Rms(open) > 5 * Rms(shut), $"nasal output rms {Rms(open):E2} vs velum-closed {Rms(shut):E2}");
+        output.WriteLine($"mouth shut, above 600 Hz: velum closed rms {RmsAbove(shut, 600):E2}, velum open rms {RmsAbove(open, 600):E2}; open peaks {string.Join(" ", Peaks(open).Select(p => p.ToString("F0")))}");
+        Assert.True(RmsAbove(open, 600) > 5 * RmsAbove(shut, 600), $"nasal output rms {RmsAbove(open, 600):E2} vs velum-closed {RmsAbove(shut, 600):E2}");
     }
 
     // The authored vowel gestures (the Story vowel weights, reached through the IPA word script) rendered end to end through the
@@ -551,7 +566,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
             patch => patch with { ControlSplines = patch.ControlSplines.Where(spline => spline.SurfacePath != "/vocal/branches/0/opening").ToArray() });
         if (shut is null) return;
 
-        output.WriteLine($"/m/ velum open rms {Rms(open):E2}, velum shut rms {Rms(shut):E2}");
-        Assert.True(Rms(open) > 10 * Rms(shut), $"open {Rms(open):E2} shut {Rms(shut):E2}");
+        output.WriteLine($"/m/ above 600 Hz: velum open rms {RmsAbove(open, 600):E2}, velum shut rms {RmsAbove(shut, 600):E2}");
+        Assert.True(RmsAbove(open, 600) > 10 * RmsAbove(shut, 600), $"open {RmsAbove(open, 600):E2} shut {RmsAbove(shut, 600):E2}");
     }
 }
