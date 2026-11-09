@@ -380,36 +380,17 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     // transfer-matrix estimate in the frequency domain):  python3 tools/formant-check/tube_formants.py docs/research/data/story2008-area-functions.csv --length-cm 17.52
     //
     // Bands: the front vowels (i ih e eh ae) are held to 6% on F1 and F2. The back and rounded vowels (uh ah aw o oo_short u) are held to 10%:
-    // that is the measured disagreement between two lip radiation models (the ladder's one-pole Levine-Schwinger-form reflectance with g = 1,
-    // the tube chain's baffled piston R||L) plus the ladder's cell quantisation. The ladder reads systematically high against the tube chain
-    // (F1 +4 to +9%, F2 +3 to +8%); that bias is diagnosed (the glottal end moves only /aw/ F1, the end correction alone does not close it),
-    // not isolated. Do not tune it away in a test: it is the open item recorded in docs/research/articulatory-vocal-tract-sources.md.
+    // the measured disagreement between two lip radiation models (the ladder's one-pole Levine-Schwinger-form reflectance with g = 1, the tube
+    // chain's baffled piston R||L) plus the ladder's cell quantisation. The nasal junction used to take the reflection coefficients of the
+    // interface one cell further on (sum over cells 11 and 12 instead of 10 and 11), which put the wrong step in the pharynx and read the
+    // back vowels' F1 12 to 26% high (uh +14.8%, ah +10.8%, aw +12.4%, o +25.8%, oo_short +13.0% against this table, five tests skipped on those
+    // numbers); the ladder now agrees with the numpy copy (tools/formant-check/ladder_formants.py --filtered --lip-reflection -1) to 10 Hz.
     public static TheoryData<string, double, double, double> StoryTubeChain => new()
     {
         { "i", 251, 2063, .06 }, { "ih", 346, 1987, .06 }, { "e", 432, 1827, .06 }, { "eh", 527, 1571, .06 }, { "ae", 729, 1523, .06 },
+        { "uh", 549, 809, .10 }, { "ah", 650, 913, .10 }, { "aw", 516, 692, .10 }, { "o", 477, 787, .10 }, { "oo_short", 478, 850, .10 },
         { "u", 271, 761, .10 },
     };
-
-    // The rendered back vowels outside the 10% band (harmonic-line and LPC readings agree, so it is not the picker): F1 reads uh 630 (549 tube, +14.8%),
-    // ah 720 (650, +10.8%), aw 580 (516, +12.4%), o 600 (477, +25.8%), oo_short 540 (478, +13.0%); the F2 of each is within 7%. The numpy copy of the ladder
-    // (tools/formant-check/ladder_formants.py --filtered) reads those F1 20-85 Hz lower than the render, so the excess is in the rendered chain, not in the
-    // lip reflectance (untested suspect: the glottal tissue-valve source's spectral shape and load feedback; load_coupling=0 changed nothing).
-    // Skipped with the numbers, not widened.
-    public static TheoryData<string, double, double, double> StoryTubeChainOutsideBand => new()
-    {
-        { "uh", 549, 809, .10 }, { "ah", 650, 913, .10 }, { "aw", 516, 692, .10 }, { "o", 477, 787, .10 }, { "oo_short", 478, 850, .10 },
-    };
-
-    [Theory(Skip = "rendered F1 outside the 10% band: uh +14.8%, ah +10.8%, aw +12.4%, o +25.8%, oo_short +13.0% (see comment above, cut B1 report)")]
-    [MemberData(nameof(StoryTubeChainOutsideBand))]
-    public void LadderRenderReproducesTheTubeChainFormantsOfTheBackVowelsOutsideTheBand(string id, double f1, double f2, double band)
-    {
-        var peaks = StoryPeaks(id);
-        if (peaks is null) return;
-
-        Assert.InRange(peaks[0], f1 * (1 - band), f1 * (1 + band));
-        Assert.InRange(peaks[1], f2 * (1 - band), f2 * (1 + band));
-    }
 
     [Theory]
     [MemberData(nameof(StoryTubeChain))]

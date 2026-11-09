@@ -72,10 +72,11 @@ public static partial class FaustEmitter
             // The velopharyngeal port area, cm^2: opening * coupling * the design maximum (NasalTractAreas); it is the nasal ladder's first cell.
             var velum = $"{name}_primitive_branch_{SafeIdentifier(branch.Name)}_velum_area";
             source.AppendLine($"    {velum} = max(0.000001, {admittances[branch.Name]} * {F(NasalTractAreas.VelopharyngealPortMaximumAreaSquareCentimeters)});");
-            var sum = $"({oral.A(cell)} + {oral.A(cell + 1)} + {velum})";
+            // The junction sits on the interface between oral cells cell - 1 and cell: R(cell) is entered from R(cell - 1), L(cell - 1) from L(cell).
+            var sum = $"({oral.A(cell - 1)} + {oral.A(cell)} + {velum})";
             var key = $"{name}_primitive_branch_{SafeIdentifier(branch.Name)}";
-            source.AppendLine($"    {key}_refl_left = (2.0 * {oral.A(cell)} - {sum}) / {sum};");
-            source.AppendLine($"    {key}_refl_right = (2.0 * {oral.A(cell + 1)} - {sum}) / {sum};");
+            source.AppendLine($"    {key}_refl_left = (2.0 * {oral.A(cell - 1)} - {sum}) / {sum};");
+            source.AppendLine($"    {key}_refl_right = (2.0 * {oral.A(cell)} - {sum}) / {sum};");
             source.AppendLine($"    {key}_refl_nose = (2.0 * {velum} - {sum}) / {sum};");
             junctions.Add(new LadderJunction(oral, nasal, cell, velum, $"{key}_refl_left", $"{key}_refl_right", $"{key}_refl_nose"));
         }
