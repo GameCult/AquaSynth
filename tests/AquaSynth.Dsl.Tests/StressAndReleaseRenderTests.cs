@@ -134,8 +134,10 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     }
 
     // Fujimura 1962 and later accounts put the nasal murmur well under the flanking vowels; the target band is 8 to 16 dB under (a DESIGN
-    // value: no primary level was retrieved, docs/research/articulatory-vocal-tract-sources.md). /m/ measured -12.8 dB; /n/ read -3.8 dB
-    // while its alveolar closure began to open at half the gesture, a third before the velum and the contact did.
+    // value: no primary level was retrieved, docs/research/articulatory-vocal-tract-sources.md). Two defects held it out of the band: /n/
+    // read -3.8 dB while its alveolar closure began to open at half the gesture, a third before the velum and the contact did (now held to
+    // 0.8: /n/ -8.8, /m/ -12.8), and once the nasal junction sat on its own interface the nose took its share and both read -2.2 and -4.2 dB
+    // until the nasal path carried its real damping (loss .975 per cell; /m/ -11.8, /n/ -9.6).
     [Theory]
     [InlineData("m")]
     [InlineData("n")]

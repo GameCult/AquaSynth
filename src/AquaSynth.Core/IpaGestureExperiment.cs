@@ -231,13 +231,19 @@ public static class IpaGestureExperiment
     // One cell per sample at 48 kHz: 17.52 cm * 48000 / 350 m/s = 24.03 cells, a ladder 17.5 cm long (the mean of Story's vocal tract lengths).
     private const int TractSpeedMetersPerSecond = 350;
 
+    // Per-cell pass factor of the nasal path. The nasal cavity is the most heavily damped part of the tract (soft walls, turbinates, the paranasal
+    // sinuses), so a nasal murmur has broad formants and sits well under its vowels. A factor of .975 per 0.73 cm cell is a bandwidth of about
+    // 380 Hz, a DESIGN VALUE set from the murmur level: with the junction on its own interface and .997 (the oral tract's .998 less a little) the
+    // murmur read -4.2 dB (/m/) and -2.2 dB (/n/) re the flanking vowels; the target is 8 to 16 dB under (no primary level or bandwidth retrieved).
+    private const string NasalPathLoss = ".975";
+
     private static string Scaffold(IReadOnlyList<string> gestureLines, float sustain, float frequency) => $$"""
         patch gain=.45
         morphology name=oral length_cm={{Format(StoryVowelAreas.MeanLengthCentimeters)}} diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 constriction_width=.03 lip_opening=4
         vowel_set area_function=oral source={{StoryVowelAreas.Source}}
         morphology name=nasal length_cm={{Format(NasalTractAreas.LengthCentimeters)}} areas={{NasalTractAreas.AreasList()}}
         waveguide_path name=oral_path morphology=oral speed={{TractSpeedMetersPerSecond}} strategy=thiran order=1 max_delay=4096 loss=.998
-        waveguide_path name=nasal_path morphology=nasal speed={{TractSpeedMetersPerSecond}} strategy=thiran order=1 max_delay=4096 loss=.997
+        waveguide_path name=nasal_path morphology=nasal speed={{TractSpeedMetersPerSecond}} strategy=thiran order=1 max_delay=4096 loss={{NasalPathLoss}}
         source_port name=folds path=oral_path kind=glottal position=0 pressure=.66 tension=.54 opening=.42 noise=.04 impedance=.32 flow_scale=.12
         branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=0 coupling=1
         constriction_contact name=contact path=oral_path position=.92 opening=1 resistance=.45 stored_pressure=.12
