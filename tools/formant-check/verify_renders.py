@@ -61,10 +61,13 @@ def main():
         p = os.path.join(a.dir, w, f"{w}.wav")
         if not os.path.exists(p): continue
         x, sr = wav(p)
-        seg = [(0, .18), (.18, .275), (.275, .455)]
-        r = [rms(x, sr, *s) for s in seg]
-        res[w] = {"rms": r, "murmur_db_re_vowel": round(20 * np.log10(r[1] / max(r[0], 1e-9)), 1), "burg_murmur": burg(p, .20, .26)}
-        print(f"{w}: rms V/{c}/V {['%.4f' % q for q in r]} murmur {res[w]['murmur_db_re_vowel']} dB re first vowel; Burg of the murmur {res[w]['burg_murmur']}")
+        # steady parts only: the consonant's middle 60 percent against the mean power of the 70 ms before it and the 90 ms from 30 ms after it
+        c0, c1 = .18, .275
+        v1, v2 = rms(x, sr, c0 - .08, c0 - .01), rms(x, sr, c1 + .03, c1 + .12)
+        m = rms(x, sr, c0 + .2 * (c1 - c0), c1 - .2 * (c1 - c0))
+        db = round(20 * np.log10(max(m, 1e-9) / np.sqrt((v1 ** 2 + v2 ** 2) / 2)), 1)
+        res[w] = {"rms": [v1, m, v2], "murmur_db_re_flanking_vowels": db, "burg_murmur": burg(p, .20, .26)}
+        print(f"{w}: steady rms V/{c}/V {['%.4f' % q for q in (v1, m, v2)]} murmur {db} dB re the flanking vowels; Burg of the murmur {res[w]['burg_murmur']}")
     # stress
     p0, p1 = os.path.join(a.dir, "nibu_flat", "nibu_flat.wav"), os.path.join(a.dir, "nibu", "nibu.wav")
     if os.path.exists(p0) and os.path.exists(p1):

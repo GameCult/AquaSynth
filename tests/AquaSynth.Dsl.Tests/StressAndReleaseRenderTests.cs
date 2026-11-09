@@ -113,4 +113,38 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         Assert.True(burstAfter < burstPeak / 5, "the burst is over once the vowel is open");
         Assert.True(burstPeak < vowelPeak / 2, "the burst stays well under the following vowel's peak (the b level fix)");
     }
+
+    // /ɑ C ɑ/ at the scaffold's own durations (vowel 0.18 s, consonant 0.095 s). Returns the render and the consonant's [start, end).
+    private (float[]? Samples, double From, double To) VowelConsonantVowel(string ipa, float frequency = 140)
+    {
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], frequency);
+        return (Render(script, 0.5f), 0.18, 0.275);
+    }
+
+    // Level of the consonant's middle 60 percent against the mean power of the steady parts of the two flanking vowels (the 70 ms before the
+    // consonant and 90 ms from 30 ms after it), in dB.
+    private static double ConsonantDbReVowels(float[] x, double from, double to)
+    {
+        var v1 = Rms(x, from - 0.08, from - 0.01);
+        var v2 = Rms(x, to + 0.03, to + 0.12);
+        var vowels = Math.Sqrt((v1 * v1 + v2 * v2) / 2);
+        var span = to - from;
+        return 20 * Math.Log10(Math.Max(1e-9, Rms(x, from + 0.2 * span, to - 0.2 * span)) / vowels);
+    }
+
+    // Fujimura 1962 and later accounts put the nasal murmur well under the flanking vowels; the target band is 8 to 16 dB under (a DESIGN
+    // value: no primary level was retrieved, docs/research/articulatory-vocal-tract-sources.md). /m/ measured -12.8 dB; /n/ read -3.8 dB
+    // while its alveolar closure began to open at half the gesture, a third before the velum and the contact did.
+    [Theory]
+    [InlineData("m")]
+    [InlineData("n")]
+    public void NasalMurmurIsWellBelowTheFlankingVowels(string ipa)
+    {
+        var (x, from, to) = VowelConsonantVowel(ipa);
+        if (x is null) return;
+        var db = ConsonantDbReVowels(x, from, to);
+        output.WriteLine($"/{ipa}/ murmur {db:F1} dB re the flanking vowels");
+        Assert.InRange(db, -16, -8);
+    }
 }

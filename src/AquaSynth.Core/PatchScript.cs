@@ -1544,7 +1544,11 @@ public static class PatchScript
                 AddAuthoredSpline($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, (0, place), (1, place));
             }
 
-            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, constriction), (0.5f, constriction), (1, Math.Min(0.65f, constriction + 0.2f)));
+            // A nasal stop holds its oral closure for as long as the velum and the contact stay put (to 0.8 of the gesture): the murmur is the
+            // closed-mouth sound, and an alveolar closure that began to open at 0.5 let the oral tract radiate again over the last third (/n/ read
+            // -3.8 dB under its vowels against /m/ -13.2 dB, whose lips hold to 0.7).
+            var closureHold = tokens.Contains("nasal") ? 0.8f : 0.5f;
+            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, constriction), (closureHold, constriction), (1, Math.Min(0.65f, constriction + 0.2f)));
 
             if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial") || tokens.Contains("rounded"))
             {
