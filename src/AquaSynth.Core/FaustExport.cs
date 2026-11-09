@@ -813,8 +813,10 @@ public static partial class FaustEmitter
 
     // Tract wall radiation (the voice bar). Corners: skin and soft tissue pass only the low end of the voice (below about 200-300 Hz), and
     // a second-order highpass at 90 Hz keeps the slow pressure drift of a shutting tract out (a 40 Hz first-order corner left it in). The gain
-    // is a DESIGN VALUE set so a word-initial voiced closure reads 30 dB under the following vowel (/p/ 41 dB), while the wall term moves a
-    // vowel's f0 harmonics by under 1 dB (no primary level retrieved; docs/research/articulatory-vocal-tract-sources.md).
+    // is a DESIGN VALUE set so a word-initial voiced closure reads 30 dB under the following vowel (/p/ 41 dB); the wall term moves a
+    // vowel's f0 line by under 1 dB and its 200 and 300 Hz harmonics by up to 1.5 dB on one open vowel (no primary level retrieved;
+    // docs/research/articulatory-vocal-tract-sources.md). Both corners are second-order sections: the closed-tract bar is about 25 dB down
+    // above 300 Hz, not cut off there.
     private const string WallRadiationHighpassHz = "90.0";
     private const string WallRadiationLowpassHz = "300.0";
     private const string WallRadiationGain = "0.7";

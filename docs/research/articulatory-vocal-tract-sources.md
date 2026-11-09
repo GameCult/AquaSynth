@@ -63,7 +63,10 @@ it summed the areas of oral cells 11 and 12 and used their reflection coefficien
 pharynx (cells 10-12 of /o/: .52 .33 .52 cm^2) carried the next step's reflection with the wrong sign. Isolated by running the lip wave of the rendered
 ladder under an impulse against the numpy copy (the first echo already differed: -0.30 against -0.23), with the velum shut. Fixed, the render agrees
 with the numpy ladder to 10 Hz (o 520/830, uh 580/840, ah 690/980, aw 550/720, oo_short 500/920, u 290/820 at the harmonic lines) and the five tests
-run. The rest of the high reading against the tube chain (F1 +1.5 to +9%, F2 +2 to +8%) is the two radiation models' disagreement above.
+run. Read by Burg LPC on the renders (Soul pass of 2026-11-09), F1 error against the tube chain fell from 5c32bf6 to the fix 05efdc9 as uh +5.3 to -0.5, ah +2.5 to -4.3,
+aw +4.2 to +0.7, o +16.7 to +5.7, oo_short +12.7 to +4.9 percent: +2.5..+16.7 high before, -4.3..+5.9 after, the +5.9 being u, which the fix did not change (ah now
+undershoots by 4.3). The earlier "12-26 percent high becomes 1.5-9 percent high" came from the harmonic-line picker, not from LPC. What remains against the tube chain
+(F1 +1.5 to +9%, F2 +2 to +8% at the harmonic lines) is the two radiation models' disagreement above.
 
 Burg LPC (`burg_formants.py`) on the WordRender renders at 140 Hz (held vowels): /i/ in nibu 279/2105/2924, /u/ in nibu 283/836/2637, /ih/ in bin
 359/2012/2536, /oo_short/ (bʊn) in bun 543/899/2781, against the tube chain i 251/2063/2877, u 271/761/2574, ih 346/1987/2491, oo_short 478/850/2760 and
@@ -118,7 +121,7 @@ changes the level by -1.3 to +1.8 dB by vowel, so a single vowel is a noisy meas
 
 Plosive: word-initial /b/ closure is the tract wall's voice bar, -29.2 dB re the following vowel, /p/ -40.1 dB (`PlosiveClosureCarriesTheVoiceBarOnlyWhenVoiced`); /bɪn/ closure peak 0.0036 (was 0.0000, below 16-bit
 resolution), release 60-95 ms peak 0.0695, vowel 0.129. The wall radiation reads the first-cell pressure of the ladder (R0 + L0), band-limits it to 90-300 Hz and adds it at gain 0.7 (a DESIGN value for a voice-bar
-level of -30 dB; the primary level was not retrieved, and the 2.4 manual's skin radiation, Birkholz & Zhang 2025, is the reference to read). In a vowel the term moves the f0 harmonics by under 1 dB. The burst
+level of -30 dB; the primary level was not retrieved, and the 2.4 manual's skin radiation, Birkholz & Zhang 2025, is the reference to read). In a vowel the term moves the f0 line by under 1 dB; the 200 and 300 Hz harmonics move up to +1.5 dB on one open vowel (wall-only measurement, Soul pass). The band is two second-order sections, not a brick wall: with the mouth and the velum shut the bar sits about 25 dB down above 300 Hz. The burst
 itself (difference of renders with and without `release_flow`) peaks at about 0.006-0.008, -24 dB re the vowel peak; the release peak in the table above is the voicing breaking through as the contact opens. Burst gain 0.06 is a DESIGN VALUE.
 
 Weak spots found in the renders: (1) the vowel level is not steady, it rises for about 100 ms after onset (ɑ: rms 0.028 at 80 ms to 0.079 at 160 ms) so any window early in a vowel
