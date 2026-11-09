@@ -105,11 +105,11 @@ public sealed class WeksaPhonesTests
         Assert.Equal(1f, none[1].Intensity);
         Assert.Equal(WeksaWordPlan.VowelSeconds * 220f / 160f, primary[1].Target.DurationSeconds, 5);
         Assert.Equal(1.06f, primary[1].Target.PitchRatio);
-        Assert.Equal(1.26f, primary[1].Intensity);
+        Assert.Equal(1.30f, primary[1].Intensity);
         // Secondary sits strictly between unstressed and primary on every cue.
         Assert.InRange(secondary[1].Target.DurationSeconds, none[1].Target.DurationSeconds + 1e-4f, primary[1].Target.DurationSeconds - 1e-4f);
         Assert.InRange(secondary[1].Target.PitchRatio, 1.001f, 1.059f);
-        Assert.InRange(secondary[1].Intensity, 1.001f, 1.259f);
+        Assert.InRange(secondary[1].Intensity, 1.001f, 1.299f);
     }
 
     [Fact]
@@ -124,7 +124,7 @@ public sealed class WeksaPhonesTests
         // pitch_ratio surface range 0.5..2: normalized (1.06 - .5) / 1.5; unstressed holds 1 -> (1 - .5) / 1.5.
         Assert.Equal((1.06f - .5f) / 1.5f, First(primary, "w_1_i_source_pitch", "/vocal/sources/0/pitch_ratio"), 4);
         Assert.Equal((1f - .5f) / 1.5f, First(none, "w_1_i_source_pitch", "/vocal/sources/0/pitch_ratio"), 4);
-        Assert.Equal(First(none, "w_1_i_source_level", "/vocal/sources/0/flow_scale") * 1.26f, First(primary, "w_1_i_source_level", "/vocal/sources/0/flow_scale"), 4);
+        Assert.Equal(First(none, "w_1_i_source_level", "/vocal/sources/0/flow_scale") * 1.30f, First(primary, "w_1_i_source_level", "/vocal/sources/0/flow_scale"), 4);
         // The b after the stressed vowel starts later by the vowel's extra length.
         float Start(SynthPatch p) => p.PhonemeGestures.Single(g => g.Ipa == "b").StartSeconds;
         Assert.Equal(WeksaWordPlan.VowelSeconds * (220f / 160f - 1f), Start(primary) - Start(none), 4);

@@ -84,14 +84,16 @@ public sealed record WeksaWordPlan(IReadOnlyList<(IpaGestureExperimentTarget Tar
 
     /// <summary>
     /// Primary stress: duration 220/160 = 1.375 (stressed against unstressed syllable in initial-stress pairs, Sluijter and van
-    /// Heuven 1996), amplitude 2 dB = 1.26 (the 1-3 dB overall-intensity difference they report), f0 +6 percent (their unaccented
-    /// f0 difference). Secondary stress is placed halfway, in dB and in percent: a DESIGN VALUE, no secondary-stress measurement was
-    /// retrieved. Unheard.
+    /// Heuven 1996), amplitude 1.30 = 2.3 dB on the source flow, f0 +6 percent (their unaccented f0 difference). The amplitude is set
+    /// by the rendered result, not the nominal 2 dB (their 1-3 dB overall-intensity difference): the f0 rise alone moves the harmonics against
+    /// F1 and changes the rendered level by -1.3 to +1.8 dB by vowel (i -0.7, a -0.3, u -1.3, e -0.8, o +1.8), so 1.26 rendered +1.7 dB on
+    /// average over those five and 1.30 renders +2.0. Secondary stress is placed halfway, in dB and in percent: a DESIGN VALUE, no
+    /// secondary-stress measurement was retrieved. Unheard.
     /// </summary>
     public static StressCue CueFor(WeksaStress stress) => stress switch
     {
-        WeksaStress.Primary => new(220f / 160f, 1.26f, 1.06f),
-        WeksaStress.Secondary => new(1.19f, 1.12f, 1.03f),
+        WeksaStress.Primary => new(220f / 160f, 1.30f, 1.06f),
+        WeksaStress.Secondary => new(1.19f, 1.14f, 1.03f),
         _ => new(1f, 1f, 1f)
     };
 

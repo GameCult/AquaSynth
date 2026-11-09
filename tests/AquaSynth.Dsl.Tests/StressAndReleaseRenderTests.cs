@@ -147,4 +147,32 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         output.WriteLine($"/{ipa}/ murmur {db:F1} dB re the flanking vowels");
         Assert.InRange(db, -16, -8);
     }
+
+    // The primary-stress cue as the plan applies it (amplitude and f0 ratio, same vowel length) against the unstressed vowel, over five vowels:
+    // the f0 rise alone moves the harmonics against F1 and the level by -1.3 to +1.8 dB by vowel, so the amplitude factor is held to the mean
+    // rendered result, 2 dB (Sluijter and van Heuven 1996: 1 to 3 dB overall). Measured 1.7 dB with the amplitude at 1.26 (outside the band), 2.0 dB at 1.30.
+    [Fact]
+    public void PrimaryStressRendersAboutTwoDecibelsLouderOnAverageOverVowels()
+    {
+        var cue = WeksaWordPlan.CueFor(WeksaStress.Primary);
+        var diffs = new List<double>();
+        foreach (var vowel in new[] { "i", "a", "u", "e", "o" })
+        {
+            double Level(float ratio, float intensity)
+            {
+                var script = IpaGestureExperiment.BuildWordScript([(new IpaGestureExperimentTarget($"w_0_{vowel}", vowel, "", 0.25f, PitchRatio: ratio), intensity)], 140, 0.2f);
+                var x = Render(script, 0.45f);
+                return x is null ? double.NaN : Rms(x, 0.12, 0.22);
+            }
+
+            var flat = Level(1f, 1f);
+            if (double.IsNaN(flat)) return;
+            var db = 20 * Math.Log10(Level(cue.PitchRatio, cue.Amplitude) / flat);
+            output.WriteLine($"/{vowel}/ stressed against unstressed: {db:F2} dB");
+            diffs.Add(db);
+        }
+
+        output.WriteLine($"mean {diffs.Average():F2} dB");
+        Assert.InRange(diffs.Average(), 1.8, 2.3);
+    }
 }
