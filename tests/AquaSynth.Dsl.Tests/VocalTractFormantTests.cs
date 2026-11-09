@@ -181,7 +181,9 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
 
     // Rms of the part of the window above a frequency (Parseval over the bins of a zero-padded transform). The tract wall radiates a voice bar
     // below about 300 Hz with the mouth shut and the velum shut, so "the nose is the only door" is read where the wall barely reaches.
-    private static double RmsAbove(float[] window, double hz)
+    private static double RmsAbove(float[] window, double hz) => RmsBetween(window, hz, Rate / 2.0);
+
+    private static double RmsBetween(float[] window, double lowHz, double highHz)
     {
         var n = 1 << 17;
         var re = new double[n];
@@ -189,9 +191,50 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         for (var i = 0; i < window.Length; i++) re[i] = window[i] * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / window.Length));
         Fft(re, im);
         double power = 0;
-        for (var k = (int)(hz * n / Rate); k < n / 2; k++) power += re[k] * re[k] + im[k] * im[k];
+        for (var k = (int)(lowHz * n / Rate); k < Math.Min(n / 2, (int)(highHz * n / Rate)); k++) power += re[k] * re[k] + im[k] * im[k];
         var windowPower = Enumerable.Range(0, window.Length).Sum(i => Math.Pow(0.5 - 0.5 * Math.Cos(2 * Math.PI * i / window.Length), 2));
         return Math.Sqrt(2 * power / n / windowPower);
+    }
+
+    // The wall term's band, read from the render of a shut mouth and a shut velum (the wall is then the only path out). Behaviour, not
+    // brick walls: the 300 Hz low-pass is a second-order roll-off and the 90 Hz high-pass a second-order shelf, so these compare band levels.
+    private float[]? ShutMouthShutVelum() => Render(MouthShutScript(0f));
+
+    private static string MouthShutScript(float velum) => Script(1.5f, .5f, 2.2f, velum)
+        .Replace("constriction_diameter=4", "constriction_diameter=.001", StringComparison.Ordinal)
+        .Replace("diameters=.04,.28,.52,.72", "diameters=.9,1.3,1.5,1.2", StringComparison.Ordinal);
+
+    // The velum-open junction's nasal coefficient, (2 Yv - sum Y) / sum Y: with the mouth shut the first resonance the nose lets out sits at
+    // 520 Hz (400 Hz when the coefficient is (Yv - sum Y) / sum Y, and output above 600 Hz falls from 39 to 24 times the shut-velum level).
+    [Fact]
+    public void TheNasalReflectionCoefficientPlacesTheFirstResonanceOfAShutMouthWithTheVelumOpen()
+    {
+        var open = Render(MouthShutScript(1f));
+        if (open is null) return;
+
+        var first = Peaks(open)[0];
+        output.WriteLine($"mouth shut, velum open: first peak {first:F0} Hz");
+        Assert.InRange(first, 460, 580);
+    }
+
+    [Fact]
+    public void TheWallBarRollsOffBetweenItsTwoCornersAndOpensAboveTheSlowDrift()
+    {
+        var shut = ShutMouthShutVelum();
+        if (shut is null) return;
+
+        var drift = RmsBetween(shut, 5, 40);
+        var bar = RmsBetween(shut, 90, 200);
+        var upper = RmsBetween(shut, 230, 300);
+        var above = RmsAbove(shut, 600);
+        output.WriteLine($"wall bar band levels: 5-40 Hz {drift:E2}, 90-200 Hz {bar:E2}, 230-300 Hz {upper:E2}, above 600 Hz {above:E2}");
+
+        // The high-pass keeps the slow pressure drift out: measured 5-40 Hz at 0.4 of the bar, and 3.2 of it with the corner at 20 Hz.
+        Assert.True(drift < bar, $"sub-90 Hz drift {drift:E2} vs the 90-200 Hz bar {bar:E2}");
+        // The low-pass at 300 Hz still passes the 230-300 Hz harmonics: measured 0.14 of the bar, and 0.07 of it with the corner at 150 Hz.
+        Assert.True(upper > bar / 10, $"230-300 Hz {upper:E2} vs the 90-200 Hz bar {bar:E2}");
+        // The bar is not a brick wall but it is a bar: the low end stands well over what leaks above 600 Hz.
+        Assert.True(bar > 10 * above, $"bar {bar:E2} vs above 600 Hz {above:E2}");
     }
 
     [Fact]
@@ -200,11 +243,8 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         // constriction_diameter .001 at tract index 4 shuts the oral ladder; the only way out is the junction into the nasal ladder. A shut
         // velum is opening 0: the port area is linear in the opening, and a flow source into a nearly lossless closed tract leaves through even
         // a 0.008 cm^2 port (opening .01 measured rms 1.0e-2 against 2.1e-2 open).
-        string Closed(float velum) => Script(1.5f, .5f, 2.2f, velum)
-            .Replace("constriction_diameter=4", "constriction_diameter=.001", StringComparison.Ordinal)
-            .Replace("diameters=.04,.28,.52,.72", "diameters=.9,1.3,1.5,1.2", StringComparison.Ordinal);
-        var shut = Render(Closed(0f));
-        var open = Render(Closed(1f));
+        var shut = Render(MouthShutScript(0f));
+        var open = Render(MouthShutScript(1f));
         if (shut is null || open is null) return;
 
         output.WriteLine($"mouth shut, above 600 Hz: velum closed rms {RmsAbove(shut, 600):E2}, velum open rms {RmsAbove(open, 600):E2}; open peaks {string.Join(" ", Peaks(open).Select(p => p.ToString("F0")))}");
