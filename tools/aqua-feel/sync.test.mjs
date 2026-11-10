@@ -155,6 +155,8 @@ t("parsers refuse input that would give a plausible wrong answer", () => {
 t("valid layouts are accepted: header after blank or comment lines, semicolons, trailing commas, CRLF, BOM", () => {
   assert.equal(readTrack("\n\nt,luma\r\n0,0.1,\r\n0.1;0.2\r\n0.2 0.3\r\n").v.length, 3);
   assert.equal(readTrack("\uFEFF0,0.1\n0.1,0.2\n0.2,0.3\n").v.length, 3);
+  assert.equal(readEvents("0.5,a\r1.0,b\r").length, 2, "CR-only line ends");
+  assert.equal(readTrack("t0,luma_0to1\n0,0.1\n0.1,0.2\n0.2,0.3\n").v.length, 3, "a header may contain digits");
   assert.deepEqual(readEvents("# list\ntime (s);label\n0.5;kick\n1.0;snare, loud\n").map((e) => [e.t, e.label]), [[0.5, "kick"], [1, "snare, loud"]]);
 });
 
@@ -204,7 +206,7 @@ t("readTrack takes header + t,value rows or a single column with fps; readEvents
   const ff = process.env.FFMPEG ?? "ffmpeg";
   let have = true; try { execFileSync(ff, ["-version"], { stdio: "ignore" }); } catch { have = false; }
   if (!have) console.log("skip video path: no ffmpeg (set FFMPEG)");
-  if (have) for (const [vOff, aOff] of [[0, 0], [0.06, 0], [0, 0.08], [0.25, 0.1], [0.5, 0.5]]) {
+  if (have) for (const [vOff, aOff, vfps] of [[0, 0, 60], [0.06, 0, 60], [0, 0.08, 60], [0.25, 0.1, 60], [0.5, 0.5, 60], [0.1, 0, 15], [0.1, 0, 24], [0, 0.1, 15]]) {
     const { mkdtempSync, writeFileSync } = await import("node:fs"), { tmpdir } = await import("node:os"), { join } = await import("node:path");
     const dir = mkdtempSync(join(tmpdir(), "sync-clip-")), fx = makeFixture({ offsetMs: 0, fps: 60, seconds: 4, events: [0.5, 1.4, 2.3, 3.2] });
     const wavP = join(dir, "a.wav"), rawP = join(dir, "v.gray"), outP = join(dir, "clip.mkv");
@@ -212,14 +214,14 @@ t("readTrack takes header + t,value rows or a single column with fps; readEvents
     writeFileSync(rawP, Buffer.concat(Array.from(fx.visual.v, (x) => Buffer.alloc(64 * 36, Math.round(255 * x)))));
     // encode each stream alone, then mux with -itsoffset and stream copy: that is what puts a start_time on the stream in the file
     const vP = join(dir, "v.mkv"), aP = join(dir, "a.mka");
-    execFileSync(ff, ["-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", "64x36", "-r", "60", "-i", rawP, "-c:v", "ffv1", vP]);
+    execFileSync(ff, ["-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", "64x36", "-r", "60", "-i", rawP, "-vf", `fps=${vfps}:round=up`, "-c:v", "ffv1", vP]);
     execFileSync(ff, ["-v", "error", "-y", "-i", wavP, "-c:a", "pcm_s16le", aP]);
     execFileSync(ff, ["-v", "error", "-y", "-itsoffset", String(vOff), "-i", vP, "-itsoffset", String(aOff), "-i", aP, "-map", "0:v", "-map", "1:a", "-c", "copy", outP]);
     const v = readVideo(outP, { ffmpeg: ff }), truth = (aOff - vOff) * 1000; // audio = visual shifted by (aOff - vOff)
     // events are on the container clock, which ffmpeg shifts so the earliest stream starts at 0
-    const r = syncAnalyze({ audio: v.audio.samples, sampleRate: v.audio.sampleRate, audioStartS: v.audio.startS, visual: v.luma, events: fx.events.map((e) => ({ t: e.t + vOff - Math.min(vOff, aOff), label: e.label })) });
-    n++; console.log(`ok   ffmpeg clip, video starts ${vOff * 1000} ms, audio ${aOff * 1000} ms: true lag ${truth} ms inside every interval`);
-    for (const p of r.pairs) assert.ok(p.lagLowMs - 1e-6 <= truth && truth <= p.lagHighMs + 1e-6, `video@${vOff} audio@${aOff}: [${p.lagLowMs}, ${p.lagHighMs}] vs ${truth}`);
+    const r = syncAnalyze({ audio: v.audio.samples, sampleRate: v.audio.sampleRate, audioStartS: v.audio.startS, visual: v.luma, events: fx.events.map((e) => ({ t: e.t + vOff - Math.min(vOff, aOff), label: e.label })), visualResampled: v.resampled });
+    n++; console.log(`ok   ffmpeg clip, video (${vfps} fps) starts ${vOff * 1000} ms, audio ${aOff * 1000} ms: true lag ${truth} ms inside every interval`);
+    for (const p of r.pairs) assert.ok(p.lagLowMs - 1e-6 <= truth && truth <= p.lagHighMs + 1e-6, `video@${vOff}/${vfps}fps audio@${aOff}: [${p.lagLowMs}, ${p.lagHighMs}] vs ${truth}`);
     assert.equal(r.pairs.length, 4);
   }
   if (have) t("a real browser capture (VFR vp8+opus webm): every logged hit pairs, and the lag is a constant (spread under one frame)", () => {

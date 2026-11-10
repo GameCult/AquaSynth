@@ -16,7 +16,7 @@ node feel.mjs sync --wav capture.wav --track frames.csv [--events hits.txt] [--f
 node feel.mjs sync --video capture.mp4 [--events hits.txt] [--kind luma|flux]
 # options: --profile default|bt1359|ebu-r37|atsc-is191   --lead-ms N --lag-ms N   --pair-window-ms N (default 200)
 #          --min-gap-ms N   --allow-unpaired   --json out.json   --no-gate
-node sync.test.mjs                   # 37 checks on synthetic fixtures; 43 with FFMPEG=/path/to/ffmpeg (also builds clips with known stream offsets and runs a real browser capture)
+node sync.test.mjs                   # 37 checks on synthetic fixtures; 46 with FFMPEG=/path/to/ffmpeg (also builds clips with known stream offsets and runs a real browser capture)
 node sync-fixture.mjs DIR 80 60      # write a fixture (audio 80 ms late, 60 fps) to try the CLI on
 ```
 
@@ -37,15 +37,15 @@ event log, audio onsets pair with visual onsets by proximity (within the pairing
 another onset of the same kind lies closer than twice the pairing window** (400 ms by default). Nearest-onset pairing is right only if the true lag is under half
 the spacing of the onsets, and the tool cannot know the lag, so it takes the pairing window as the largest lag you consider plausible. The cost is real: material
 faster than 2.5 hits per second cannot pass at the default, however good the sync. Narrow `--pair-window-ms` if the lag is known to be small (`50` clears 100 ms
-spacing), or space the events out. A lag beyond the window reads as `no-audio-onset`; a lag beyond half the hit spacing but inside the window can read as the
-previous hit's (wrong sign), which the ambiguity rule is there to catch.
+spacing), or space the events out. A lag beyond the window reads as `no-audio-onset`, or, when the previous hit's sound lands inside the window, as that hit's (wrong sign, e.g.
++250 ms at 0.45 s spacing reads -200 ms); it fails either way, but do not trust the sign of a lag larger than half the hit spacing.
 Parsers refuse input they cannot read (timecodes, a third column, empty cells, non-increasing times) rather than guess.
 
 ## How onsets are found
 
 - **Audio:** log-magnitude spectral flux (1024-sample window, 128-sample hop, 60 Hz and up), half-wave rectified; peaks over
   median + 8 robust sigmas, at least 50 ms apart; each is then refined on the samples to the first one that rises above both 10% of the local peak and
-  2.5 times the steady bed (the median block peak of the 0.1 s before, after removing the median as DC). A bed louder than a tenth of the hit still defeats it.
+  2.5 times the steady bed (the median block peak of the 85 ms before, after removing the median as DC). A bed louder than a tenth of the hit still defeats it.
 - **Visual:** the positive step (luma) or the value (flux) of the track; peaks over median + 8 robust sigmas and at least 10% of the
   track's range, at least 100 ms apart (`--min-gap-ms` changes it, for both trains; flashes closer than that merge into one onset and the events beyond the first go unpaired); the onset is the first frame of the rise reaching 50% of the peak.
 
@@ -75,8 +75,8 @@ lip-sync is more sensitive than a game impact) and on the viewer; they are popul
 A visual onset can only land on a frame, and a frame is stamped when its picture started to be displayed. A change at time tau first shows in the first frame
 stamped at or after tau, so the measured visual time is late by 0 to one frame period, and the measured lag (audio minus visual) is **biased low** by that much. The audio
 onset is good to about half a hop (1.4 ms). Each pair therefore reports `lagLowMs = lag - 1.4` and `lagHighMs = lag + frame period + 1.4`: the truth lies in that interval
-(16.7 + 2.7 ms wide at 60 fps; 33.3 + 2.7 ms at 30 fps), and the verdict is read off the interval. This holds for events on and off the frame grid in the fixtures
-(`sync.test.mjs`). The display's own latency (the time from stamp to light) is not in it.
+(16.7 + 2.7 ms wide at 60 fps; 33.3 + 2.7 ms at 30 fps). A video is resampled to constant frame rate, which snaps each frame to the nearest source frame, so for a video the interval is half a period wider on each side (`[lag - period/2 - hop/2, lag + 1.5 period + hop/2]`), and the verdict is read off the interval. This holds for events on and off the frame grid in the fixtures
+(`sync.test.mjs`; the video clips there are built with frame stamps at or after the change, the model's assumption). The display's own latency (the time from stamp to light) is not in it.
 
 ## What the metric cannot tell you
 

@@ -37,15 +37,15 @@ export function readWav(buf) {
 }
 
 const NUM = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/, num = (x) => (typeof x === "number" ? x : typeof x === "string" && NUM.test(x.trim()) ? Number(x) : NaN);
-// A header is a first data line with no digit in it; a line with digits that fails to parse (a timecode, a hex number) is an error.
-const isHeader = (line, first) => first && !/\d/.test(line);
+// A header is a first data line whose first field does not start like a number; a first field that does (a timecode, a hex number) is an error.
+const isHeader = (line, first) => first && !/^[+-]?\.?\d/.test(line);
 
 // Frame-diff track: lines of "t,value" (seconds, strictly increasing) or a single "value" column with fps given. Only the first line may be a header.
 // Anything else that does not parse is an error: a silently dropped or shifted row would give a plausible wrong lag.
 export function readTrack(text, fps) {
   const t = [], v = [];
   let first = true, ncols = 0;
-  text.replace(/^﻿/, "").split(/\r?\n/).forEach((raw, ln) => {
+  text.replace(/^﻿/, "").split(/\r\n|\r|\n/).forEach((raw, ln) => {
     const line = raw.trim().replace(/[\s,;]+$/, ""); if (!line) return;
     const wasFirst = first; first = false;
     const tok = line.split(/[\s,;]+/), f = tok.map(num);
@@ -75,7 +75,7 @@ export function readEvents(text) {
     });
   } else {
     out = []; let first = true;
-    s.split(/\r?\n/).forEach((raw, ln) => {
+    s.split(/\r\n|\r|\n/).forEach((raw, ln) => {
       const l = raw.trim(); if (!l || l.startsWith("#")) return;
       const wasFirst = first; first = false;
       const m = l.match(/^([^,;\s]+)(?:[,;\s]+(.*))?$/), t = num(m[1]);
@@ -112,7 +112,7 @@ export function readVideo(path, { ffmpeg = process.env.FFMPEG ?? "ffmpeg", targe
     t[f] = f / fps; lum[f] = s / (W * H) / 255; flux[f] = f ? df / (W * H) / 255 : 0;
   }
   const a = new Float32Array(audioRaw.buffer.slice(audioRaw.byteOffset, audioRaw.byteOffset + audioRaw.length - (audioRaw.length % 4)));
-  return { audio: { samples: a, sampleRate: 48000, startS: aStart }, luma: { t, v: lum }, flux: { t, v: flux }, fps, videoStartS: _vStart };
+  return { audio: { samples: a, sampleRate: 48000, startS: aStart }, luma: { t, v: lum }, flux: { t, v: flux }, fps, resampled: true, videoStartS: _vStart };
 }
 
 // ---------- onset detection ----------
@@ -199,7 +199,7 @@ const crowded = (list, o, windowS) => list.some((x) => x !== o && Math.abs(x.t -
 // Frame quantisation: a visual change at time tau first shows in the frame stamped at or after tau, so visual - tau is in [0, framePeriod) and the
 // measured lag (audio - visual) is biased LOW by up to a frame period. The truth therefore lies in [lag - audioHop/2, lag + framePeriod + audioHop/2];
 // a pair is judged on that interval, not on a point.
-export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visualKind = "luma", events, profile = "default", leadMs, lagMs, pairWindowMs = 200, minGapMs, allowUnpaired = false }) {
+export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visualKind = "luma", events, profile = "default", leadMs, lagMs, pairWindowMs = 200, minGapMs, allowUnpaired = false, visualResampled = false }) {
   if (!PROFILES[profile]) throw new Error(`unknown profile ${profile}`);
   const prof = { ...PROFILES[profile] }, custom = leadMs !== undefined || lagMs !== undefined;
   if (leadMs !== undefined) prof.leadMs = leadMs;
@@ -208,9 +208,10 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   for (const [n, x] of [["leadMs", prof.leadMs], ["lagMs", prof.lagMs], ["pairWindowMs", pairWindowMs]]) if (!Number.isFinite(x) || x < 0 || (n === "pairWindowMs" && x === 0)) throw new Error(`${n} must be a ${n === "pairWindowMs" ? "positive" : "non-negative"} number`);
   const gap = minGapMs === undefined ? {} : { minGapS: minGapMs / 1000 };
   const a = audioOnsets(audio, sampleRate, { startS: audioStartS, ...gap }), v = visualOnsets(visual, { kind: visualKind, ...gap });
-  const hopMs = a.resolutionMs, periodMs = v.framePeriodMs, win = pairWindowMs / 1000;
+  // A video resampled to constant frame rate by `fps` snaps each frame to the nearest source frame: half a period more slack on each side.
+  const hopMs = a.resolutionMs, periodMs = v.framePeriodMs, win = pairWindowMs / 1000, snapMs = visualResampled ? periodMs / 2 : 0;
   const classify = (lag) => {
-    const lo = lag - hopMs / 2, hi = lag + periodMs + hopMs / 2; // truth interval, ms
+    const lo = lag - hopMs / 2 - snapMs, hi = lag + periodMs + hopMs / 2 + snapMs; // truth interval, ms
     if (lo >= -prof.leadMs && hi <= prof.lagMs) return "inside-window";
     if (lo > prof.lagMs) return "audio-late-detectable";
     if (hi < -prof.leadMs) return "audio-early-detectable";
@@ -219,7 +220,7 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   const pairs = [], usedA = new Set(), usedV = new Set();
   const row = (label, eventS, ao, vo, ambiguous) => {
     const r = { label, eventS, audioS: ao?.t ?? null, visualS: vo?.t ?? null, audioVsEventMs: ao && eventS !== null ? (ao.t - eventS) * 1e3 : null, visualVsEventMs: vo && eventS !== null ? (vo.t - eventS) * 1e3 : null, lagMs: ao && vo ? (ao.t - vo.t) * 1e3 : null };
-    if (r.lagMs !== null) { r.lagLowMs = r.lagMs - hopMs / 2; r.lagHighMs = r.lagMs + periodMs + hopMs / 2; }
+    if (r.lagMs !== null) { r.lagLowMs = r.lagMs - hopMs / 2 - snapMs; r.lagHighMs = r.lagMs + periodMs + hopMs / 2 + snapMs; }
     r.verdict = r.lagMs === null ? (ao ? "no-visual-onset" : vo ? "no-audio-onset" : "no-onsets") : ambiguous ? "ambiguous-pairing" : classify(r.lagMs);
     return r;
   };
@@ -253,7 +254,7 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   summary.pass = summary.pairs > 0 && summary.outsideWindow === 0 && summary.missing === 0 && summary.ambiguous === 0 && (allowUnpaired || unpaired === 0);
   return {
     schema: "aqua-feel.sync.v1", lagConvention: "lagMs = audio onset - visual onset; positive = audio late, negative = audio early. Truth lies in [lagLowMs, lagHighMs] (visual onsets are quantised up to the next frame)",
-    profile: { name: custom ? `${profile}+override` : profile, ...prof }, allowUnpaired, pairWindowMs, visualKind, audioResolutionMs: hopMs, framePeriodMs: periodMs,
+    profile: { name: custom ? `${profile}+override` : profile, ...prof }, allowUnpaired, pairWindowMs, visualResampled, visualKind, audioResolutionMs: hopMs, framePeriodMs: periodMs,
     audioOnsets: a.onsets, visualOnsets: v.onsets, pairs, summary,
   };
 }
@@ -261,7 +262,7 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
 export function formatSync(r) {
   const f = (x, d = 1) => (x === null || x === undefined ? "   -  " : x.toFixed(d).padStart(7));
   const L = [`profile ${r.profile.name}: audio may lead by ${r.profile.leadMs} ms, lag by ${r.profile.lagMs} ms (${r.profile.note})`,
-    `lag = audio - visual (+ = audio late). The visual onset is quantised up to the next frame (period ${r.framePeriodMs.toFixed(1)} ms), so the true lag lies in [lag - ${(r.audioResolutionMs / 2).toFixed(1)}, lag + ${(r.framePeriodMs + r.audioResolutionMs / 2).toFixed(1)}] ms`,
+    `lag = audio - visual (+ = audio late). The visual onset is quantised up to the next frame (period ${r.framePeriodMs.toFixed(1)} ms), so the true lag lies in [lag - ${(r.audioResolutionMs / 2 + (r.visualResampled ? r.framePeriodMs / 2 : 0)).toFixed(1)}, lag + ${(r.framePeriodMs * (r.visualResampled ? 1.5 : 1) + r.audioResolutionMs / 2).toFixed(1)}] ms${r.visualResampled ? " (video resampled to constant frame rate)" : ""}`,
     "", "label        event s   audio s  visual s  a-ev ms  v-ev ms   lag ms  verdict"];
   for (const p of r.pairs) L.push(`${String(p.label).padEnd(10).slice(0, 10)} ${f(p.eventS, 3)}  ${f(p.audioS, 3)}  ${f(p.visualS, 3)}  ${f(p.audioVsEventMs)}  ${f(p.visualVsEventMs)}  ${f(p.lagMs)}  ${p.verdict}`);
   const s = r.summary, rng = s.minLagMs === null ? "-" : `${s.minLagMs.toFixed(1)}..${s.maxLagMs.toFixed(1)}`;
