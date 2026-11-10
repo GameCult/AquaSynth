@@ -63,9 +63,12 @@ it summed the areas of oral cells 11 and 12 and used their reflection coefficien
 pharynx (cells 10-12 of /o/: .52 .33 .52 cm^2) carried the next step's reflection with the wrong sign. Isolated by running the lip wave of the rendered
 ladder under an impulse against the numpy copy (the first echo already differed: -0.30 against -0.23), with the velum shut. Fixed, the render agrees
 with the numpy ladder to 10 Hz (o 520/830, uh 580/840, ah 690/980, aw 550/720, oo_short 500/920, u 290/820 at the harmonic lines) and the five tests
-run. Read by Burg LPC on the renders (Soul pass of 2026-11-09), F1 error against the tube chain fell from 5c32bf6 to the fix 05efdc9 as uh +5.3 to -0.5, ah +2.5 to -4.3,
-aw +4.2 to +0.7, o +16.7 to +5.7, oo_short +12.7 to +4.9 percent: +2.5..+16.7 high before, -4.3..+5.9 after, the +5.9 being u, which the fix did not change (ah now
-undershoots by 4.3). The earlier "12-26 percent high becomes 1.5-9 percent high" came from the harmonic-line picker, not from LPC. What remains against the tube chain
+run. Read by Burg LPC on the renders (Soul pass of 2026-11-09, vowel window about 100-200 ms), F1 error against the tube chain fell from 5c32bf6 to the fix 05efdc9 as uh +5.3 to -0.5, ah +2.5 to -4.3,
+aw +4.2 to +0.7, o +16.7 to +5.7, oo_short +12.7 to +4.9 percent (a reconcile rerun on the same renders, 2026-11-10, reproduces these to within 1 point in the 100-200 ms window, aw least: +3.6 to -0.1).
+The figures depend on the window: in the 70-150 ms window of the table below the same renders read uh +4.4 to -2.1, ah -0.6 to -6.6, aw +1.3 to -3.4, o +16.3 to +2.3, oo_short +8.8 to +1.7, and the two vowels
+the fix did not repair, u and i, read +10.7 to +13.8 and +15.6 to +17.1 (u +4.6 to +6.4 and i +10.8 to +12.2 at 100-200 ms). So the junction fix removed the large positive bias of o and oo_short in either window (ah turns from near zero or slightly high to 4-7 percent low),
+and the earlier "-4.3..+5.9 after" range is the five repaired vowels plus u read at one window: it does not cover i and u, which stay 5-17 percent high by Burg and are the LPC's resolution limit at 140 Hz
+(see the table note); ah undershoots by 4 to 7 percent after the fix. The earlier "12-26 percent high becomes 1.5-9 percent high" came from the harmonic-line picker, not from LPC. What remains against the tube chain
 (F1 +1.5 to +9%, F2 +2 to +8% at the harmonic lines) is the two radiation models' disagreement above.
 
 Burg LPC (`burg_formants.py`) on the WordRender renders at 140 Hz (held vowels): /i/ in nibu 279/2105/2924, /u/ in nibu 283/836/2637, /ih/ in bin
