@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""gen_page.py <publishDir> : writes <publishDir>/index.html (static, no autoplay, no script needed beyond the loudness-match checkbox) from <publishDir>/metrics.json,
+"""gen_page.py <publishDir> : writes <publishDir>/index.html (static, no autoplay, one-clip-at-a-time script only) from <publishDir>/metrics.json,
 voices.json, findings/onsets-{before,after}.json and findings/nibu-after.json (inspect_clips.py output). <publishDir>/out holds the v4 files (senders/, proposals/, neutral/)
 and out/v3/senders/{void,nibu} the v3 files they are heard beside; <publishDir>/findings holds the PNGs."""
 import json, html, os, sys
@@ -10,9 +10,8 @@ MOTIFS = ["mention", "dm", "message", "invite"]
 RHY = {"mention": "one note", "dm": "two slower notes, rising", "message": "two quick notes, rising", "invite": "a long pause, then a short one: three notes"}
 clip = {(r["sender"], r["motif"]): r for r in M["clips"] + M["proposals"]}; neu = {n["motif"]: n for n in M["neutral"]}; S = M["summary"]
 e = html.escape
-def aud(src, label, role="voice", match=None):
-    d = f' data-match="{match:.4f}"' if match else ""
-    return f'<audio controls preload="none" src="{src}" aria-label="{e(label)}" data-role="{role}"{d}></audio>'
+def aud(src, label, role="voice"):
+    return f'<audio controls preload="none" src="{src}" aria-label="{e(label)}" data-role="{role}"></audio>'
 def ms(s, m): return f'<div class="sub">{clip[(s, m)]["durationMs"]:.0f} ms</div>'
 def table(cols, caption):  # cols: [(header, fn(m) -> cell html)]
     head = "".join(f'<th scope="col">{e(h)}</th>' for h, _ in cols)
@@ -82,15 +81,13 @@ audio{{width:100%;min-width:10rem}}img{{max-width:100%;height:auto;width:48%}}fi
 {void_section()}
 {nibu_section()}
 <h2>Unchanged voices</h2>
-<label><input type="checkbox" id="match" checked> Play the neutral fallback at the same A-weighted loudness as the voice beside it (the staged neutral files are louder than the voices). Some devices ignore the per-element volume this uses; the neutral then plays louder.</label>
+<p>The neutral fallback beside each voice is loudness-matched to it like every other clip (before this, the staged neutral files were 4 to 14 dB louder than the voices).</p>
 {"".join(plain(s) for s in unchanged)}
 </main>
 <script>
 (function(){{
-  var all=[].slice.call(document.querySelectorAll("audio")), match=document.getElementById("match");
-  function level(a){{a.volume=(a.dataset.role==="neutral"&&match.checked)?parseFloat(a.dataset.match):1}}
-  all.forEach(function(a){{level(a);a.addEventListener("play",function(){{level(a);all.forEach(function(o){{if(o!==a)o.pause()}})}})}});
-  match.addEventListener("change",function(){{all.forEach(level)}});
+  var all=[].slice.call(document.querySelectorAll("audio"));
+  all.forEach(function(a){{a.addEventListener("play",function(){{all.forEach(function(o){{if(o!==a)o.pause()}})}})}});
 }})();
 </script></body></html>'''
 open(os.path.join(root, "index.html"), "w").write(page); print("wrote index.html", len(page))

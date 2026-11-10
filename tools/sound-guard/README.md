@@ -17,8 +17,7 @@ python3 -m unittest -v test_guard                        # in tools/sound-guard:
 ```
 
 `python3` must have numpy, scipy and soundfile (libsndfile with Vorbis), as for aqua-ear; `node` renders and reads the intended note times. This sandbox:
-`/var/lib/mind-aqua-self/ogg-venv/bin/python`. Self-render needs the neutral fallback clips (`finish.py` wants `out/neutral/*.ogg`): default
-`config.neutral_source` in `thresholds.json`, or `--neutral DIR`. Exit 0 = pass, 1 = failed assertion or stale known failure, 2 = tool error (render failed,
+`/var/lib/mind-aqua-self/ogg-venv/bin/python`. Self-render builds the Dings (including the neutral fallbacks, from the Earcon Workshop warm-bell identity) and the earcons itself. Exit 0 = pass, 1 = failed assertion or stale known failure, 2 = tool error (render failed,
 aqua-ear's thresholds drifted from the pins, node missing).
 
 ## What is asserted, per clip
@@ -47,8 +46,8 @@ and `neutral_events` (the neutral clips are Earcon Workshop warm-bell renders; t
 ## Known failures
 
 `known_failures` in `thresholds.json` lists clips that fail today, each with the assertion, the measured number, a slack and a reason. The guard prints them on every
-run. If one stops failing the run fails (`STALE`: remove the entry); if its number moves by more than the slack the run fails until the entry is re-justified. Today:
-the four neutral fallback clips are 4.3 to 13.7 dB louder than the sender clips (assertion 6). Everything else passes.
+run. If one stops failing the run fails (`STALE`: remove the entry); if its number moves by more than the slack the run fails until the entry is re-justified. Today the list is empty: the four neutral fallback clips
+were 4.3 to 13.7 dB louder than the sender clips until `finish.py` equalised them with the senders.
 
 ## What the guard cannot see (measured, not guessed)
 
