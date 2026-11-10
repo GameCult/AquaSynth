@@ -7,7 +7,12 @@ export const RPM = 600;
 export const NOISE_PERCENTS = [100, 50, 20, 0];
 export const SECONDS = 4;
 
-export const variants = () => NOISE_PERCENTS.map((noise) => ({ id: `noise${noise}`, params: { rpm: RPM, noise } }));
+// mix 0 is the current thruster.dsp; mix 1 is the v5 mix as cut at c6561da (before aqua-feel's 2026-11-05 edit). The four
+// noise levels run on the current mix; the v5 mix is added at noise 100 so the noise sweep has the old mix to compare against.
+export const variants = () => [
+  ...NOISE_PERCENTS.map((noise) => ({ id: `noise${noise}`, params: { rpm: RPM, noise, mix: 0 } })),
+  { id: "v5noise100", params: { rpm: RPM, noise: 100, mix: 1 } },
+];
 
 // mulberry32: small seeded PRNG so a session (and its tests) can be replayed from the seed.
 export function rng(seed) {

@@ -15,20 +15,23 @@ const t = async (name, fn) => { await fn(); n++; console.log(`ok   ${name}`); };
 
 await t("design: every unordered pair once, both positions used, replayable from the seed", () => {
   const d = makeDesign(7);
-  assert.equal(d.length, 6);
+  assert.equal(d.length, 10);
   const keys = d.map((x) => [x.A.id, x.B.id].sort().join("|"));
-  assert.equal(new Set(keys).size, 6);
-  for (const v of variants()) assert.equal(d.filter((x) => x.A.id === v.id || x.B.id === v.id).length, 3);
+  assert.equal(new Set(keys).size, 10);
+  for (const v of variants()) assert.equal(d.filter((x) => x.A.id === v.id || x.B.id === v.id).length, 4);
   assert.deepEqual(makeDesign(7), d);
   // position is not tied to variant: over many seeds each variant lands in A about half the time
   const inA = Object.fromEntries(variants().map((v) => [v.id, 0]));
   for (let s = 0; s < 2000; s++) for (const x of makeDesign(s)) inA[x.A.id]++;
-  for (const c of Object.values(inA)) assert.ok(Math.abs(c / 6000 - 0.5) < 0.05, `A share ${c / 6000}`);
+  for (const c of Object.values(inA)) assert.ok(Math.abs(c / 8000 - 0.5) < 0.05, `A share ${c / 8000}`);
   assert.notDeepEqual(makeDesign(1).map((x) => x.A.id), makeDesign(2).map((x) => x.A.id));
 });
 
-await t("variants: rpm 600 and noise 100/50/20/0", () => {
-  assert.deepEqual(variants().map((v) => v.params), [100, 50, 20, 0].map((noise) => ({ rpm: 600, noise })));
+await t("variants: rpm 600, current mix at noise 100/50/20/0, and the v5 mix at noise 100", () => {
+  assert.deepEqual(variants().map((v) => v.params), [
+    ...[100, 50, 20, 0].map((noise) => ({ rpm: 600, noise, mix: 0 })),
+    { rpm: 600, noise: 100, mix: 1 },
+  ]);
 });
 
 await t("stats: peak, rms, non-finite counted and excluded", () => {
@@ -45,7 +48,7 @@ await t("one word: trimmed, no inner whitespace, bounded; ratings 1-5 integers",
 
 const fakeExport = (seed, rate) => {
   const design = makeDesign(seed), rand = rng(seed);
-  const renders = { noise100: { peak: 0.19, rms: 0.073 }, noise50: { peak: 0.15, rms: 0.05 }, noise20: { peak: 0.12, rms: 0.04 }, noise0: { peak: 0.1, rms: 0.035 } };
+  const renders = { noise100: { peak: 0.19, rms: 0.073 }, noise50: { peak: 0.15, rms: 0.05 }, noise20: { peak: 0.12, rms: 0.04 }, noise0: { peak: 0.1, rms: 0.035 }, v5noise100: { peak: 0.19, rms: 0.073 } };
   const answers = design.map(() => Object.fromEntries(["A", "B"].map((p) => [p, { rating: 1 + Math.floor(rand() * 5), word: "w", time: "2026-11-04T00:00:00Z", plays: 1 }])));
   return { design, renders, answers, doc: buildExport({ seed, design, renders, answers, sampleRate: rate, userAgent: "test-ua", exportedAt: "2026-11-04T00:00:00Z" }) };
 };
@@ -53,7 +56,7 @@ const fakeExport = (seed, rate) => {
 await t("export: one record per heard sound with the required fields", () => {
   const { doc, design, answers } = fakeExport(3, 44100);
   assert.equal(doc.schema, SCHEMA); assert.equal(doc.sampleRate, 44100); assert.equal(doc.userAgent, "test-ua");
-  assert.equal(doc.records.length, 12);
+  assert.equal(doc.records.length, 20);
   for (const r of doc.records) for (const k of ["patch", "params", "rating", "word", "time", "peak", "rms", "variant", "trial", "position"]) assert.ok(r[k] !== undefined, k);
   const r = doc.records[0];
   assert.equal(r.variant, design[0].A.id); assert.equal(r.rating, answers[0].A.rating); assert.equal(r.patch, PATCH);
@@ -87,9 +90,10 @@ const synth = (ratingOf, listeners = 12) => {
 
 await t("analyze: ratings that follow rms are reported as predicted by peak and rms", () => {
   const rep = analyze(synth((r) => (r.rms > 0.06 ? 5 : r.rms > 0.045 ? 4 : r.rms > 0.037 ? 2 : 1)));
-  assert.equal(rep.records, 144);
-  assert.deepEqual(rep.variants.map((v) => v.noise), [100, 50, 20, 0]);
+  assert.equal(rep.records, 240);
+  assert.deepEqual(rep.variants.map((v) => [v.mix, v.noise]), [[0, 100], [0, 50], [0, 20], [0, 0], [1, 100]]);
   assert.ok(rep.variants[0].mean > rep.variants[3].mean);
+  assert.ok(rep.variants[4].id === "v5noise100");
   for (const p of rep.predictors) assert.ok(p.predicts && p.rho > 0.9, `${p.key} rho ${p.rho}`);
   assert.match(format(rep), /PREDICTS/);
 });
@@ -134,9 +138,12 @@ const compile = async (path, name) => {
 };
 const trial = await compile(join(here, "thruster-trial.dsp"), "thruster_trial");
 const base = await compile(join(here, "../../patches/thruster/thruster.dsp"), "thruster");
+const v5 = await compile(join(here, "thruster-v5-c6561da.dsp"), "thruster_v5");
 const SR = 48000;
+const maxDiffOf = (a, b) => { assert.equal(a.samples.length, b.samples.length); let m = 0; for (let i = 0; i < a.samples.length; i++) m = Math.max(m, Math.abs(a.samples[i] - b.samples[i])); return m; };
 
-await t("patch: exposes rpm and noise controls", () => {
+await t("patch: exposes rpm, noise and mix controls", () => {
+  assert.ok(trial.controls.some((c) => c.label === "mix" && c.init === 0));
   assert.ok(trial.controls.some((c) => c.label === "noise" && c.init === 100));
   assert.ok(trial.controls.some((c) => c.label === "rpm"));
 });
@@ -149,7 +156,16 @@ await t("patch: noise=100 is sample-identical to patches/thruster/thruster.dsp a
   assert.ok(maxDiff < 1e-6, `max diff ${maxDiff}`);
 });
 
-await t("patch: all four variants finite and non-silent, rendered at 44100 and 48000, noise 0 is deterministic", async () => {
+await t("patch: mix=1 noise=100 is sample-identical to the v5 thruster as cut at c6561da, at rpm 600, and differs from mix=0", async () => {
+  const a = await renderVariant(trial.g, trial.controls, { params: { rpm: 600, noise: 100, mix: 1 } }, SR, 2);
+  const b = await renderVariant(v5.g, v5.controls, { params: { rpm: 600 } }, SR, 2);
+  const cur = await renderVariant(trial.g, trial.controls, { params: { rpm: 600, noise: 100, mix: 0 } }, SR, 2);
+  assert.ok(maxDiffOf(a, b) < 1e-6, `max diff ${maxDiffOf(a, b)}`);
+  assert.ok(maxDiffOf(a, cur) > 1e-2, "the two mixes must be audibly different signals, not equal");
+  assert.ok(a.rms > cur.rms, `v5 rms ${a.rms} should exceed current ${cur.rms}`);
+});
+
+await t("patch: all variants finite and non-silent, rendered at 44100 and 48000, noise 0 is deterministic", async () => {
   for (const rate of [44100, 48000]) {
     const seen = [];
     for (const v of variants()) {
@@ -166,7 +182,7 @@ await t("patch: all four variants finite and non-silent, rendered at 44100 and 4
 
 await t("patch: noise genuinely removes the noise layers (rms falls monotonically 100>50>20>0, rumble remains)", async () => {
   const rms = [];
-  for (const v of variants()) rms.push((await renderVariant(trial.g, trial.controls, v, SR)).rms);
+  for (const v of variants().slice(0, 4)) rms.push((await renderVariant(trial.g, trial.controls, v, SR)).rms);
   assert.ok(rms[0] > rms[1] && rms[1] > rms[2] && rms[2] > rms[3], rms.join(" > "));
   assert.ok(rms[3] > 1e-3);
 });

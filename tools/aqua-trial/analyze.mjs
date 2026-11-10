@@ -57,11 +57,11 @@ export function analyze(exports) {
     const words = {};
     for (const r of rs) { const w = r.word.toLowerCase(); words[w] = (words[w] ?? 0) + 1; }
     return {
-      id, noise: rs[0].params.noise, n: ratings.length, mean: mean(ratings), sd: sd(ratings),
+      id, noise: rs[0].params.noise, mix: rs[0].params.mix ?? 0, n: ratings.length, mean: mean(ratings), sd: sd(ratings),
       min: Math.min(...ratings), max: Math.max(...ratings),
       peak: mean(rs.map((r) => r.peak)), rms: mean(rs.map((r) => r.rms)), words,
     };
-  }).sort((a, b) => b.noise - a.noise);
+  }).sort((a, b) => a.mix - b.mix || b.noise - a.noise);
   const predictors = ["peak", "rms"].map((k) => predictor(records, k));
   // Context: the manipulated variable itself, so a peak/rms "prediction" can be told apart from noise-amount doing the work.
   const noise = predictor(records.map((r) => ({ ...r, noise: r.params.noise })), "noise");
@@ -71,10 +71,10 @@ export function analyze(exports) {
 const f = (x, d = 3) => (Number.isFinite(x) ? x.toFixed(d) : "n/a");
 
 export function format(rep) {
-  const out = [`${rep.listeners} listener export(s), ${rep.records} ratings`, "", "variant     noise%    n   mean     sd  min max    peak     rms  words"];
+  const out = [`${rep.listeners} listener export(s), ${rep.records} ratings`, "", "variant       mix noise%    n   mean     sd  min max    peak     rms  words"];
   for (const v of rep.variants) {
     const words = Object.entries(v.words).sort((a, b) => b[1] - a[1]).map(([w, c]) => (c > 1 ? `${w}x${c}` : w)).join(",");
-    out.push(`${v.id.padEnd(11)} ${String(v.noise).padStart(5)} ${String(v.n).padStart(4)} ${f(v.mean, 2).padStart(6)} ${f(v.sd, 2).padStart(6)} ${String(v.min).padStart(4)} ${String(v.max).padStart(3)} ${f(v.peak).padStart(7)} ${f(v.rms).padStart(7)}  ${words}`);
+    out.push(`${v.id.padEnd(12)} ${String(v.mix).padStart(3)} ${String(v.noise).padStart(5)} ${String(v.n).padStart(4)} ${f(v.mean, 2).padStart(6)} ${f(v.sd, 2).padStart(6)} ${String(v.min).padStart(4)} ${String(v.max).padStart(3)} ${f(v.peak).padStart(7)} ${f(v.rms).padStart(7)}  ${words}`);
   }
   out.push("", "Did render level predict the rating? (Spearman rho over individual ratings, permutation p; predicts = |rho|>=0.5 and p<0.05)");
   for (const p of rep.predictors) out.push(`  ${p.key.padEnd(5)} rho ${f(p.rho, 2).padStart(6)}  p ${f(p.p, 4)}  n ${p.n}  -> ${p.predicts ? "PREDICTS" : "no evidence it predicts"}`);
