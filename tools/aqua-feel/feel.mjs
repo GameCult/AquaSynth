@@ -5,6 +5,7 @@
 // Usage: node feel.mjs run [--out DIR] [--only SUBSTR] [--no-gate]   render, measure, write report + gallery, gate
 //        node feel.mjs gate REPORT.json [THRESHOLDS.json] [--partial] re-gate a report (--partial: a subset; skips id-rule and waiver bookkeeping)
 //        node feel.mjs compare BEFORE.json AFTER.json [--only SUBSTR]  before/after table
+//        node feel.mjs sync --wav A.wav --track T.csv [--events E] | --video V [--fps N] [--kind luma|flux] [--profile P] [--json OUT]   A/V synchrony (SYNC.md)
 //        node feel.mjs correlate TRIAL_EXPORT.json ...              feel metrics vs listening-trial ratings
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -53,7 +54,27 @@ async function run() {
   process.exit(!noGate && !report.gate.pass ? 1 : 0);
 }
 
+async function sync() {
+  const { syncAnalyze, readWav, readTrack, readEvents, readVideo, formatSync } = await import("./sync.mjs");
+  const wav = flag("--wav"), trk = flag("--track"), vid = flag("--video"), evs = flag("--events"), fps = Number(flag("--fps") ?? 0) || undefined;
+  const kind = flag("--kind") ?? "luma", profile = flag("--profile") ?? "default", json = flag("--json"), noGate = bool("--no-gate");
+  const lead = flag("--lead-ms"), lag = flag("--lag-ms");
+  let audio, sampleRate, audioStartS = 0, visual;
+  try {
+    if (vid) { const v = readVideo(vid); audio = v.audio.samples; sampleRate = v.audio.sampleRate; audioStartS = v.audio.startS; visual = kind === "flux" ? v.flux : v.luma; }
+    else if (wav && trk) { const w = readWav(readFileSync(wav)); audio = w.samples; sampleRate = w.sampleRate; visual = readTrack(readFileSync(trk, "utf8"), fps); }
+    else throw new Error("give --video FILE, or --wav FILE with --track FILE");
+    const r = syncAnalyze({ audio, sampleRate, audioStartS, visual, visualKind: kind, profile, events: evs ? readEvents(readFileSync(evs, "utf8")) : undefined,
+      leadMs: lead === undefined ? undefined : Number(lead), lagMs: lag === undefined ? undefined : Number(lag) });
+    r.caveat = "Nothing here was heard or seen: two onset lists compared. The metric is not the verdict; see SYNC.md.";
+    console.log(formatSync(r));
+    if (json) writeFileSync(json, JSON.stringify(r, null, 1));
+    process.exit(!noGate && !r.summary.pass ? 1 : 0);
+  } catch (e) { console.error(`sync: ${e.message}`); process.exit(2); }
+}
+
 const cmds = {
+  sync,
   run,
   gate() {
     const partial = bool("--partial"), report = readJson(args[0]), g = gate(report, readJson(args[1] ?? join(here, "thresholds.json")), { partial });
