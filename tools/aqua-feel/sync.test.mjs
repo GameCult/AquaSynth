@@ -13,7 +13,7 @@ const run = (o, extra = {}) => { const fx = makeFixture(o); return { fx, r: sync
 const inInterval = (p, truth) => p.lagLowMs - 1e-9 <= truth && truth <= p.lagHighMs + 1e-9;
 const OFFGRID = [0.5042, 1.3117, 2.2209, 3.4033, 4.1161, 5.0087]; // events between frame boundaries at 30 and 60 fps
 
-for (const fps of [30, 60]) for (const off of [-60, -20, 0, 40, 80, 150, 250]) {
+for (const fps of [30, 60]) for (const off of [-60, -20, 0, 40, 80, 150, 190]) {
   t(`${fps} fps, ${off} ms offset: the truth is inside every pair's interval, events on and off the frame grid`, () => {
     for (const events of [FIXTURE_EVENTS_S, OFFGRID]) {
       const { r } = run({ offsetMs: off, fps, events });
@@ -73,9 +73,16 @@ t("an event with no sound is reported, not paired to a neighbour", () => {
   assert.equal(p.verdict, "no-audio-onset"); assert.equal(p.lagMs, null); assert.equal(r.summary.pass, false);
 });
 
-t("an offset past the 300 ms pairing window is reported as missing, not as a 300+ ms lag", () => {
-  const { r } = run({ offsetMs: 400 });
+t("an offset past the 200 ms pairing window is reported as missing, not as a longer lag", () => {
+  const { r } = run({ offsetMs: 250 });
   assert.equal(r.pairs[0].verdict, "no-audio-onset"); assert.equal(r.summary.pass, false);
+});
+
+t("sparse events (0.7 s or more apart) pair without ambiguity at a +80 ms lag; the same lag at 0.3 s spacing is ambiguous", () => {
+  assert.equal(run({ offsetMs: 80 }).r.summary.ambiguous, 0);
+  const ev = [0.5, 0.8, 1.1, 1.4, 1.7];
+  const { r } = run({ offsetMs: 80, events: ev });
+  assert.equal(r.summary.ambiguous, ev.length); assert.equal(r.summary.pass, false);
 });
 
 // ---- regressions from the Soul pass on PR #32 ----
@@ -116,8 +123,8 @@ t("flashes closer than the visual minimum gap merge, and then an event goes unpa
 });
 
 t("a stray sound or flash fails the check unless --allow-unpaired is given", () => {
-  const fx = makeFixture({ offsetMs: 0 }), a = Float32Array.from(fx.audio), click = makeFixture({ offsetMs: 0, events: [0.1] }).audio;
-  for (let i = 4000; i < 7000; i++) a[i] += click[i];
+  const fx = makeFixture({ offsetMs: 0 }), a = Float32Array.from(fx.audio), click = makeFixture({ offsetMs: 0, events: [2.8] }).audio;
+  for (let i = 134000; i < 137500; i++) a[i] += click[i];
   const run2 = (o) => syncAnalyze({ audio: a, sampleRate: 48000, visual: fx.visual, events: fx.events, ...o });
   assert.equal(run2({}).summary.unpairedAudio, 1); assert.equal(run2({}).summary.pass, false);
   assert.equal(run2({ allowUnpaired: true }).summary.pass, true);
@@ -125,7 +132,7 @@ t("a stray sound or flash fails the check unless --allow-unpaired is given", () 
 
 t("bad options fail loudly: NaN window, unknown profile", () => {
   const fx = makeFixture({});
-  assert.throws(() => syncAnalyze({ audio: fx.audio, sampleRate: 48000, visual: fx.visual, lagMs: NaN }), /positive/);
+  assert.throws(() => syncAnalyze({ audio: fx.audio, sampleRate: 48000, visual: fx.visual, lagMs: NaN }), /non-negative/);
   assert.throws(() => syncAnalyze({ audio: fx.audio, sampleRate: 48000, visual: fx.visual, profile: "nope" }), /unknown profile/);
 });
 
@@ -137,8 +144,22 @@ t("parsers refuse input that would give a plausible wrong answer", () => {
   assert.throws(() => readEvents('[{"time":2}]'), /no numeric time/);
   assert.throws(() => readEvents("# only a comment\n"), /no events/);
   assert.throws(() => readTrack("0,0,0.1\n1,0.1,0.2\n2,0.2,0.3\n"), /3 columns/);
-  assert.throws(() => readTrack("0.0,0.1\n0.0167,\n0.0333,0.3\n"), /not numeric/);
+  assert.throws(() => readTrack("0.0,0.1\n0.0167,\n0.0333,0.3\n"), /earlier lines had 2/);
   assert.throws(() => readTrack("0,0.1\n0.5,0.2\n0.4,0.3\n"), /does not increase/);
+  assert.throws(() => readEvents('[{"t":null}]'), /no numeric time/); assert.throws(() => readEvents('[{"t":""},1]'), /no numeric time/);
+  assert.throws(() => readEvents('[{"t":true}]'), /no numeric time/); assert.throws(() => readEvents("0x10\n"), /does not start with a time/);
+  assert.throws(() => readEvents('[{"t":1,"label":{"a":1}}]'), /label must be a string/);
+  assert.throws(() => readEvents("0:01.5\n"), /does not start with a time/);
+});
+
+t("valid layouts are accepted: header after blank or comment lines, semicolons, trailing commas, CRLF, BOM", () => {
+  assert.equal(readTrack("\n\nt,luma\r\n0,0.1,\r\n0.1;0.2\r\n0.2 0.3\r\n").v.length, 3);
+  assert.equal(readTrack("\uFEFF0,0.1\n0.1,0.2\n0.2,0.3\n").v.length, 3);
+  assert.deepEqual(readEvents("# list\ntime (s);label\n0.5;kick\n1.0;snare, loud\n").map((e) => [e.t, e.label]), [[0.5, "kick"], [1, "snare, loud"]]);
+});
+
+t("zero-width windows are expressible: --lag-ms 0 makes any positive lag outside", () => {
+  assert.equal(run({ offsetMs: 40 }, { lagMs: 0 }).r.summary.pass, false);
 });
 
 t("silence and a flat track yield no onsets and no pass", () => {
@@ -183,7 +204,25 @@ t("readTrack takes header + t,value rows or a single column with fps; readEvents
   const ff = process.env.FFMPEG ?? "ffmpeg";
   let have = true; try { execFileSync(ff, ["-version"], { stdio: "ignore" }); } catch { have = false; }
   if (!have) console.log("skip video path: no ffmpeg (set FFMPEG)");
-  else t("a real browser capture (VFR vp8+opus webm): every logged hit pairs, and the lag is a constant (spread under one frame)", () => {
+  if (have) for (const [vOff, aOff] of [[0, 0], [0.06, 0], [0, 0.08], [0.25, 0.1], [0.5, 0.5]]) {
+    const { mkdtempSync, writeFileSync } = await import("node:fs"), { tmpdir } = await import("node:os"), { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "sync-clip-")), fx = makeFixture({ offsetMs: 0, fps: 60, seconds: 4, events: [0.5, 1.4, 2.3, 3.2] });
+    const wavP = join(dir, "a.wav"), rawP = join(dir, "v.gray"), outP = join(dir, "clip.mkv");
+    writeFileSync(wavP, wavFloat32(fx.audio));
+    writeFileSync(rawP, Buffer.concat(Array.from(fx.visual.v, (x) => Buffer.alloc(64 * 36, Math.round(255 * x)))));
+    // encode each stream alone, then mux with -itsoffset and stream copy: that is what puts a start_time on the stream in the file
+    const vP = join(dir, "v.mkv"), aP = join(dir, "a.mka");
+    execFileSync(ff, ["-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "gray", "-s", "64x36", "-r", "60", "-i", rawP, "-c:v", "ffv1", vP]);
+    execFileSync(ff, ["-v", "error", "-y", "-i", wavP, "-c:a", "pcm_s16le", aP]);
+    execFileSync(ff, ["-v", "error", "-y", "-itsoffset", String(vOff), "-i", vP, "-itsoffset", String(aOff), "-i", aP, "-map", "0:v", "-map", "1:a", "-c", "copy", outP]);
+    const v = readVideo(outP, { ffmpeg: ff }), truth = (aOff - vOff) * 1000; // audio = visual shifted by (aOff - vOff)
+    // events are on the container clock, which ffmpeg shifts so the earliest stream starts at 0
+    const r = syncAnalyze({ audio: v.audio.samples, sampleRate: v.audio.sampleRate, audioStartS: v.audio.startS, visual: v.luma, events: fx.events.map((e) => ({ t: e.t + vOff - Math.min(vOff, aOff), label: e.label })) });
+    n++; console.log(`ok   ffmpeg clip, video starts ${vOff * 1000} ms, audio ${aOff * 1000} ms: true lag ${truth} ms inside every interval`);
+    for (const p of r.pairs) assert.ok(p.lagLowMs - 1e-6 <= truth && truth <= p.lagHighMs + 1e-6, `video@${vOff} audio@${aOff}: [${p.lagLowMs}, ${p.lagHighMs}] vs ${truth}`);
+    assert.equal(r.pairs.length, 4);
+  }
+  if (have) t("a real browser capture (VFR vp8+opus webm): every logged hit pairs, and the lag is a constant (spread under one frame)", () => {
     const v = readVideo(new URL("./fixtures/browser-capture.webm", import.meta.url).pathname, { ffmpeg: ff });
     const ev = readEvents(readFileSync(new URL("./fixtures/browser-capture.events.txt", import.meta.url), "utf8"));
     const r = syncAnalyze({ audio: v.audio.samples, sampleRate: v.audio.sampleRate, audioStartS: v.audio.startS, visual: v.luma, events: ev });

@@ -2,7 +2,7 @@
 
 Checks audio-visual synchrony of a capture: finds audio onsets and visual onsets, pairs them, reports the lag per event in ms and
 compares it with published detectability windows. Standalone: Node 18+, no npm dependencies (`feel.mjs` imports `sync.mjs`, which
-imports one FFT from `metrics.js`). ffmpeg and ffprobe are needed only to read a video file directly.
+imports one FFT from `metrics.js`). ffmpeg (no ffprobe) is needed only to read a video file directly.
 
 **The metric is not the verdict.** It compares two onset lists extracted from signals. A human ear and eye still decide whether a
 capture feels in sync. Nothing here heard or saw anything.
@@ -12,12 +12,11 @@ capture feels in sync. Nothing here heard or saw anything.
 ```
 # WAV + a per-frame track (no ffmpeg needed)
 node feel.mjs sync --wav capture.wav --track frames.csv [--events hits.txt] [--fps 60] [--kind luma|flux]
-# a video with one audio and one video stream (needs ffmpeg + ffprobe on PATH)
+# a video with one audio and one video stream (needs ffmpeg on PATH, or FFMPEG=/path/to/ffmpeg)
 node feel.mjs sync --video capture.mp4 [--events hits.txt] [--kind luma|flux]
-# options: --profile default|bt1359|ebu-r37|atsc-is191   --lead-ms N --lag-ms N   --pair-window-ms N (default 300)
+# options: --profile default|bt1359|ebu-r37|atsc-is191   --lead-ms N --lag-ms N   --pair-window-ms N (default 200)
 #          --min-gap-ms N   --allow-unpaired   --json out.json   --no-gate
-# ffmpeg/ffprobe: on PATH, or FFMPEG=/path FFPROBE=/path (a static ffmpeg without ffprobe works)
-node sync.test.mjs                   # 34 checks on synthetic fixtures (35 with ffmpeg: FFMPEG=/path/to/ffmpeg also runs a real browser capture)
+node sync.test.mjs                   # 37 checks on synthetic fixtures; 43 with FFMPEG=/path/to/ffmpeg (also builds clips with known stream offsets and runs a real browser capture)
 node sync-fixture.mjs DIR 80 60      # write a fixture (audio 80 ms late, 60 fps) to try the CLI on
 ```
 
@@ -33,10 +32,13 @@ offsets are applied so both clocks are the container's.
 
 **Lag convention.** `lag = audio onset - visual onset`. Positive means the sound comes after the picture (audio late); negative means
 the sound comes first (audio early). With `--events`, each logged event is matched to the nearest audio and nearest visual onset
-within 300 ms, and `a-ev` / `v-ev` give each side's offset from the logged time, so you can tell which side is late. Without an
-event log, audio onsets pair with visual onsets by proximity (within 300 ms, one-to-one, nearest first). **A pair is `ambiguous-pairing` and fails the check when
-another onset of the same kind lies inside the pairing window**: with hits closer together than about twice the lag, the nearest onset is not
-necessarily the right one and no amount of arithmetic can tell. Narrow `--pair-window-ms` if you know the lag is small, or space your events out.
+within the pairing window (200 ms), and `a-ev` / `v-ev` give each side's offset from the logged time, so you can tell which side is late. Without an
+event log, audio onsets pair with visual onsets by proximity (within the pairing window, one-to-one, nearest first). **A pair is `ambiguous-pairing` and fails the check when
+another onset of the same kind lies closer than twice the pairing window** (400 ms by default). Nearest-onset pairing is right only if the true lag is under half
+the spacing of the onsets, and the tool cannot know the lag, so it takes the pairing window as the largest lag you consider plausible. The cost is real: material
+faster than 2.5 hits per second cannot pass at the default, however good the sync. Narrow `--pair-window-ms` if the lag is known to be small (`50` clears 100 ms
+spacing), or space the events out. A lag beyond the window reads as `no-audio-onset`; a lag beyond half the hit spacing but inside the window can read as the
+previous hit's (wrong sign), which the ambiguity rule is there to catch.
 Parsers refuse input they cannot read (timecodes, a third column, empty cells, non-increasing times) rather than guess.
 
 ## How onsets are found
@@ -60,7 +62,7 @@ Per pair, against a window of how far audio may lead (`lead`) or trail (`lag`) t
 
 Verdict words: `inside-window` (the whole truth interval, below, lies inside the window); `audio-late-detectable` / `audio-early-detectable` (the whole interval lies outside);
 `borderline` (the interval straddles a window edge: not shown to be outside, so it does not fail the gate, and the report says "NOT DETECTABLY OUTSIDE" rather than "WITHIN");
-`ambiguous-pairing`; `no-audio-onset` / `no-visual-onset` / `no-onsets` (the logged event had no onset within the pairing window, so a sound further than 300 ms from its event
+`ambiguous-pairing`; `no-audio-onset` / `no-visual-onset` / `no-onsets` (the logged event had no onset within the pairing window, so a sound further than 200 ms from its event
 reads as absent). `pass` means no pair is detectably outside, ambiguous or missing, and nothing is unpaired (unless `--allow-unpaired`).
 Sources: [ITU-R BT.1359-1](https://www.itu.int/dms_pubrec/itu-r/rec/bt/R-REC-BT.1359-1-199811-I!!PDF-E.pdf) (the PDF text was
 fragmentary in the search; figures confirmed against secondary summaries), and the TV Technology articles
@@ -94,6 +96,8 @@ onset is good to about half a hop (1.4 ms). Each pair therefore reports `lagLowM
   few or none, and silence in either track is reported as no pass, not as sync.
 - **Measurements from downscaled luminance.** A flash that is local (a small icon) moves the mean luminance little and may fall
   below the 10%-of-range floor; use a cropped frame-diff track in that case.
+- **Known stream offsets.** `sync.test.mjs` builds clips with ffmpeg whose video or audio stream starts late (`-itsoffset`, stream copy) and checks that the known lag lies in every pair's interval, so the container start-time bookkeeping has a ground truth; the clips are synthetic flashes and tones.
+- **A pulsing bed.** The bed estimate is a median of block peaks and cannot follow dynamics: a 4 Hz tremolo bed at 10% depth under the hits pulled some lags off by up to 28 ms in testing. Beds louder than a tenth of the hit and noise gates that cut the sound to digital silence (the noise resuming reads as an onset) can also give a wrong onset that passes when the true lag is well inside the window.
 - **One real clip.** `fixtures/browser-capture.webm` is a headless-Chromium MediaRecorder capture (WebAudio beeps and canvas flashes scheduled at the same instants, vp8 + opus, recipe in `fixtures/record-browser-capture.cjs`). It is a test that the video path runs and pairs, not a validation of the lag it reports: nothing independent says what the true lag of that clip is. No Playground UI or Perlines clip has been run.
-- **The tuned constants.** The 8-sigma threshold, window sizes, 300 ms pairing window, 10% floors and 2.5x bed factor were set against synthetic
+- **The tuned constants.** The 8-sigma threshold, window sizes, 200 ms pairing window, 10% floors and 2.5x bed factor were set against synthetic
   fixtures (`sync-fixture.mjs`: tone-burst hits against 4-frame flashes, known offset, with noise, tone and DC beds) and one browser clip. They have not been tuned on game or music content.

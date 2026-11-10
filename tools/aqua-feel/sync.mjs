@@ -2,7 +2,7 @@
 // NOTHING HERE HEARS OR SEES ANYTHING. It compares two onset lists extracted from signals; see SYNC.md for what that cannot tell you.
 // Library: syncAnalyze({ audio, sampleRate, visual:{t,v}, events, profile }) -> report. CLI wiring is in feel.mjs (`node feel.mjs sync ...`).
 import { readFileSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { fft } from "./metrics.js";
 
 // Lag convention: lag = audio onset time - visual onset time. Positive = audio LATE (after the picture); negative = audio EARLY.
@@ -36,15 +36,23 @@ export function readWav(buf) {
   return { samples: out, sampleRate: fmt.sr, channels: fmt.ch };
 }
 
+const NUM = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/, num = (x) => (typeof x === "number" ? x : typeof x === "string" && NUM.test(x.trim()) ? Number(x) : NaN);
+// A header is a first data line with no digit in it; a line with digits that fails to parse (a timecode, a hex number) is an error.
+const isHeader = (line, first) => first && !/\d/.test(line);
+
 // Frame-diff track: lines of "t,value" (seconds, strictly increasing) or a single "value" column with fps given. Only the first line may be a header.
 // Anything else that does not parse is an error: a silently dropped or shifted row would give a plausible wrong lag.
 export function readTrack(text, fps) {
   const t = [], v = [];
-  text.split(/\r?\n/).forEach((raw, ln) => {
-    const line = raw.trim(); if (!line) return;
-    const tok = line.split(/[\s,;]+/), f = tok.map(Number);
-    if (tok.some((x) => x === "") || f.some((x) => !Number.isFinite(x))) { if (ln === 0 && !t.length && !v.length) return; throw new Error(`track line ${ln + 1} is not numeric: ${raw}`); }
+  let first = true, ncols = 0;
+  text.replace(/^﻿/, "").split(/\r?\n/).forEach((raw, ln) => {
+    const line = raw.trim().replace(/[\s,;]+$/, ""); if (!line) return;
+    const wasFirst = first; first = false;
+    const tok = line.split(/[\s,;]+/), f = tok.map(num);
+    if (f.some((x) => !Number.isFinite(x))) { if (isHeader(line, wasFirst)) return; throw new Error(`track line ${ln + 1} is not numeric: ${raw}`); }
     if (f.length > 2) throw new Error(`track line ${ln + 1} has ${f.length} columns; expected "t,value" or one value per line: ${raw}`);
+    if (ncols && f.length !== ncols) throw new Error(`track line ${ln + 1} has ${f.length} column(s), earlier lines had ${ncols} (an empty cell?): ${raw}`);
+    ncols = f.length;
     if (f.length === 2) { if (t.length && f[0] <= t[t.length - 1]) throw new Error(`track line ${ln + 1}: time ${f[0]} does not increase`); t.push(f[0]); v.push(f[1]); }
     else { if (!fps) throw new Error("single-column track needs --fps"); t.push(v.length / fps); v.push(f[0]); }
   });
@@ -54,18 +62,24 @@ export function readTrack(text, fps) {
 
 // Events: JSON array of numbers or {t,label}, or text lines "t[,label]" in seconds ('#' comments; the first line may be a header). Anything else is an error.
 export function readEvents(text) {
-  const s = text.trim(), fin = (x, where) => { if (!Number.isFinite(x)) throw new Error(`event ${where} has no numeric time`); return x; };
+  const s = text.replace(/^﻿/, "").trim(), fin = (x, where) => { if (!Number.isFinite(x)) throw new Error(`event ${where} has no numeric time`); return x; };
   let out;
   if (s.startsWith("[") || s.startsWith("{")) {
     const j = JSON.parse(s), a = Array.isArray(j) ? j : j.events;
     if (!Array.isArray(a)) throw new Error("events JSON must be an array or {events:[...]}");
-    out = a.map((e, i) => (typeof e === "number" ? { t: fin(e, i), label: `e${i}` } : e && typeof e === "object" ? { t: fin(Number(e.t), i), label: String(e.label ?? `e${i}`) } : fin(NaN, i)));
+    out = a.map((e, i) => {
+      if (typeof e === "number") return { t: fin(e, i), label: `e${i}` };
+      if (!e || typeof e !== "object") return fin(NaN, i);
+      if (e.label !== undefined && typeof e.label !== "string") throw new Error(`event ${i} label must be a string`);
+      return { t: fin(num(e.t), i), label: e.label ?? `e${i}` };
+    });
   } else {
-    out = [];
+    out = []; let first = true;
     s.split(/\r?\n/).forEach((raw, ln) => {
       const l = raw.trim(); if (!l || l.startsWith("#")) return;
-      const m = l.match(/^([^,\s]+)(?:[,\s]+(.*))?$/), t = Number(m[1]);
-      if (!Number.isFinite(t)) { if (ln === 0 && !out.length) return; throw new Error(`events line ${ln + 1} does not start with a time in seconds: ${raw}`); }
+      const wasFirst = first; first = false;
+      const m = l.match(/^([^,;\s]+)(?:[,;\s]+(.*))?$/), t = num(m[1]);
+      if (!Number.isFinite(t)) { if (isHeader(l, wasFirst)) return; throw new Error(`events line ${ln + 1} does not start with a time in seconds: ${raw}`); }
       out.push({ t, label: m[2]?.trim() || `e${out.length}` });
     });
   }
@@ -75,34 +89,30 @@ export function readEvents(text) {
 
 // Video via ffmpeg: audio as mono f32 at 48 kHz, video as 64x36 gray frames; per-frame mean luminance and mean |frame diff| (motion flux).
 // Stream start_time offsets are applied so both clocks are the container's clock; video is resampled to constant frame rate by pts.
-export function readVideo(path, { ffmpeg = process.env.FFMPEG ?? "ffmpeg", ffprobe = process.env.FFPROBE ?? "ffprobe", targetFps } = {}) {
-  // Stream facts from ffprobe when present, else from `ffmpeg -i` (static ffmpeg builds ship without ffprobe; -i prints them to stderr and exits 1).
-  let vs, as;
-  try {
-    const probe = JSON.parse(execFileSync(ffprobe, ["-v", "error", "-show_streams", "-of", "json", path], { encoding: "utf8" }));
-    const sv = probe.streams.find((x) => x.codec_type === "video"), sa = probe.streams.find((x) => x.codec_type === "audio");
-    if (sv && sa) { const [n, d] = sv.avg_frame_rate.split("/").map(Number); vs = { index: sv.index, fps: n / d, start: Number(sv.start_time ?? 0) || 0 }; as = { index: sa.index, start: Number(sa.start_time ?? 0) || 0 }; }
-  } catch (e) { if (e.code !== "ENOENT") throw new Error(`ffprobe failed: ${e.message}`); }
-  if (!vs) {
-    let err = ""; try { execFileSync(ffmpeg, ["-hide_banner", "-i", path], { encoding: "utf8", stdio: ["ignore", "ignore", "pipe"] }); } catch (e) { if (e.code === "ENOENT") throw new Error("neither ffprobe nor ffmpeg is on PATH (set FFMPEG/FFPROBE); give --wav and --track instead"); err = String(e.stderr ?? ""); }
-    const line = (kind) => err.split("\n").find((l) => new RegExp(`Stream #\\d+:(\\d+).*: ${kind}:`).test(l));
-    const vl = line("Video"), al = line("Audio");
-    if (!vl || !al) throw new Error("file needs one video and one audio stream");
-    const idx = (l) => Number(l.match(/Stream #\d+:(\d+)/)[1]), st = (l) => Number(l.match(/\bstart (\d+(?:\.\d+)?)/)?.[1] ?? 0);
-    const fpsm = vl.match(/(\d+(?:\.\d+)?) fps/) ?? vl.match(/(\d+(?:\.\d+)?) tbr/);
-    vs = { index: idx(vl), fps: Number(fpsm?.[1] ?? 30), start: st(vl) }; as = { index: idx(al), start: st(al) };
-  }
-  // Resample to constant frame rate by presentation time (a variable-frame-rate source, e.g. a browser capture, repeats frames), so frame f is at start + f/fps.
-  const fps = targetFps ?? vs.fps, W = 64, H = 36;
-  const audioRaw = execFileSync(ffmpeg, ["-v", "error", "-i", path, "-map", `0:${as.index}`, "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le", "-"], { maxBuffer: 1 << 30 });
-  const videoRaw = execFileSync(ffmpeg, ["-v", "error", "-i", path, "-map", `0:${vs.index}`, "-an", "-vf", `fps=${fps},scale=${W}:${H}:flags=area,format=gray`, "-f", "rawvideo", "-"], { maxBuffer: 1 << 30 });
+export function readVideo(path, { ffmpeg = process.env.FFMPEG ?? "ffmpeg", targetFps } = {}) {
+  // ffmpeg only (no ffprobe: static builds ship without it). `ffmpeg -i` lists the streams; the first decoded frame of each stream says when it starts.
+  const run = (a) => { const r = spawnSync(ffmpeg, a, { encoding: "utf8", maxBuffer: 1 << 26 }); if (r.error?.code === "ENOENT") throw new Error("ffmpeg is not on PATH (set FFMPEG=/path/to/ffmpeg); give --wav and --track instead"); return String(r.stderr ?? ""); };
+  const lines = run(["-hide_banner", "-i", path]).split("\n"), find = (kind) => lines.find((l) => new RegExp(`Stream #\\d+:\\d+.*: ${kind}:`).test(l));
+  const vl = find("Video"), al = find("Audio");
+  if (!vl || !al) throw new Error("file needs one video and one audio stream");
+  const idx = (l) => Number(l.match(/Stream #\d+:(\d+)/)[1]), fpsm = vl.match(/(\d+(?:\.\d+)?) fps/) ?? vl.match(/(\d+(?:\.\d+)?) tbr/);
+  const fps = targetFps ?? Number(fpsm?.[1] ?? 30), W = 64, H = 36, vi = idx(vl), ai = idx(al);
+  // Time of a stream's first frame on the container clock (ffmpeg shifts every stream by the earliest start, so these are relative to that).
+  const first = (flags) => { const m = run(["-hide_banner", "-i", path, ...flags, "-f", "null", "-"]).match(/pts_time:\s*(-?\d+(?:\.\d+)?)/); if (!m) throw new Error("could not read a stream start time from ffmpeg"); return Number(m[1]); };
+  const _vStart = first(["-map", `0:${vi}`, "-an", "-frames:v", "1", "-vf", "showinfo"]), aStart = first(["-map", `0:${ai}`, "-vn", "-frames:a", "1", "-af", "ashowinfo"]);
+  const out = (a) => execFileSync(ffmpeg, ["-v", "error", "-i", path, ...a, "-"], { maxBuffer: 1 << 30 });
+  const audioRaw = out(["-map", `0:${ai}`, "-vn", "-ac", "1", "-ar", "48000", "-f", "f32le"]);
+  // Resample to constant frame rate by presentation time (a variable-frame-rate source, e.g. a browser capture, repeats frames). ffmpeg pads the cfr
+  // video from the container start (the earliest stream start), so frame f is at f/fps whatever the video's own start_time: the video start is
+  // already in the padding and is not added again (adding it was a 2x-offset bug); the audio, written unpadded, carries its start as startS.
+  const videoRaw = out(["-map", `0:${vi}`, "-an", "-vf", `fps=${fps},scale=${W}:${H}:flags=area,format=gray`, "-f", "rawvideo"]);
   const frames = Math.floor(videoRaw.length / (W * H)), t = new Float64Array(frames), lum = new Float64Array(frames), flux = new Float64Array(frames);
   for (let f = 0; f < frames; f++) {
     let s = 0, df = 0; for (let i = 0; i < W * H; i++) { const p = videoRaw[f * W * H + i]; s += p; if (f) df += Math.abs(p - videoRaw[(f - 1) * W * H + i]); }
-    t[f] = vs.start + f / fps; lum[f] = s / (W * H) / 255; flux[f] = f ? df / (W * H) / 255 : 0;
+    t[f] = f / fps; lum[f] = s / (W * H) / 255; flux[f] = f ? df / (W * H) / 255 : 0;
   }
   const a = new Float32Array(audioRaw.buffer.slice(audioRaw.byteOffset, audioRaw.byteOffset + audioRaw.length - (audioRaw.length % 4)));
-  return { audio: { samples: a, sampleRate: 48000, startS: as.start }, luma: { t, v: lum }, flux: { t, v: flux }, fps };
+  return { audio: { samples: a, sampleRate: 48000, startS: aStart }, luma: { t, v: lum }, flux: { t, v: flux }, fps, videoStartS: _vStart };
 }
 
 // ---------- onset detection ----------
@@ -155,6 +165,8 @@ export function audioOnsets(x, sr, { startS = 0, k = 8, minGapS = 0.05 } = {}) {
     const bar = Math.max(0.1 * pk, 2.5 * bed);
     for (let i = a0; i < a1; i++) if (Math.abs(x[i] - dc) >= bar && bar < pk) { o.t = startS + i / sr; break; }
   }
+  // Two flux peaks can refine to the same sample onset (a step in the bed plus the hit): keep one per refined time within the minimum gap.
+  r.onsets = r.onsets.reduce((acc, o) => { const l = acc[acc.length - 1]; if (l && o.t - l.t < minGapS) { if (o.strength > l.strength) acc[acc.length - 1] = { ...o, t: Math.min(o.t, l.t) }; } else acc.push(o); return acc; }, []);
   r.resolutionMs = (1000 * HOP) / sr; r.windowMs = (1000 * N) / sr;
   return r;
 }
@@ -180,18 +192,20 @@ function match(anchors, onsets, windowS) {
   for (const [, i, j] of edges) if (!ai.has(i) && !oj.has(j)) { ai.set(i, j); oj.add(j); }
   return ai;
 }
-const within = (list, t, windowS) => list.filter((o) => Math.abs(o.t - t) <= windowS).length;
+// Nearest-onset pairing is right only if the true lag is under half the spacing of that train's onsets. The caller declares the largest lag it
+// considers plausible (the pairing window); a pair whose neighbouring onset lies closer than twice that cannot be told from a swap.
+const crowded = (list, o, windowS) => list.some((x) => x !== o && Math.abs(x.t - o.t) < 2 * windowS);
 
 // Frame quantisation: a visual change at time tau first shows in the frame stamped at or after tau, so visual - tau is in [0, framePeriod) and the
 // measured lag (audio - visual) is biased LOW by up to a frame period. The truth therefore lies in [lag - audioHop/2, lag + framePeriod + audioHop/2];
 // a pair is judged on that interval, not on a point.
-export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visualKind = "luma", events, profile = "default", leadMs, lagMs, pairWindowMs = 300, minGapMs, allowUnpaired = false }) {
+export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visualKind = "luma", events, profile = "default", leadMs, lagMs, pairWindowMs = 200, minGapMs, allowUnpaired = false }) {
   if (!PROFILES[profile]) throw new Error(`unknown profile ${profile}`);
   const prof = { ...PROFILES[profile] }, custom = leadMs !== undefined || lagMs !== undefined;
   if (leadMs !== undefined) prof.leadMs = leadMs;
   if (lagMs !== undefined) prof.lagMs = lagMs;
   if (custom) { prof.note = `profile ${profile} with the window overridden on the command line`; }
-  for (const [n, x] of [["leadMs", prof.leadMs], ["lagMs", prof.lagMs], ["pairWindowMs", pairWindowMs]]) if (!Number.isFinite(x) || x <= 0) throw new Error(`${n} must be a positive number`);
+  for (const [n, x] of [["leadMs", prof.leadMs], ["lagMs", prof.lagMs], ["pairWindowMs", pairWindowMs]]) if (!Number.isFinite(x) || x < 0 || (n === "pairWindowMs" && x === 0)) throw new Error(`${n} must be a ${n === "pairWindowMs" ? "positive" : "non-negative"} number`);
   const gap = minGapMs === undefined ? {} : { minGapS: minGapMs / 1000 };
   const a = audioOnsets(audio, sampleRate, { startS: audioStartS, ...gap }), v = visualOnsets(visual, { kind: visualKind, ...gap });
   const hopMs = a.resolutionMs, periodMs = v.framePeriodMs, win = pairWindowMs / 1000;
@@ -214,15 +228,14 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
     events.forEach((e, i) => {
       const ao = ma.has(i) ? a.onsets[ma.get(i)] : undefined, vo = mv.has(i) ? v.onsets[mv.get(i)] : undefined;
       if (ao) usedA.add(ma.get(i)); if (vo) usedV.add(mv.get(i));
-      // another onset of the same train inside the window: the nearest need not be the right one
-      pairs.push(row(e.label, e.t, ao, vo, within(a.onsets, e.t, win) > 1 || within(v.onsets, e.t, win) > 1));
+      pairs.push(row(e.label, e.t, ao, vo, (ao && crowded(a.onsets, ao, win)) || (vo && crowded(v.onsets, vo, win))));
     });
   } else {
     const m = match(a.onsets.map((o) => o.t), v.onsets, win);
     a.onsets.forEach((ao, i) => {
       if (!m.has(i)) return;
       const vo = v.onsets[m.get(i)]; usedA.add(i); usedV.add(m.get(i));
-      pairs.push(row(`a${i}`, null, ao, vo, within(v.onsets, ao.t, win) > 1 || within(a.onsets, vo.t, win) > 1));
+      pairs.push(row(`a${i}`, null, ao, vo, crowded(a.onsets, ao, win) || crowded(v.onsets, vo, win)));
     });
   }
   const lags = pairs.map((p) => p.lagMs).filter((x) => x !== null);
@@ -253,7 +266,7 @@ export function formatSync(r) {
   for (const p of r.pairs) L.push(`${String(p.label).padEnd(10).slice(0, 10)} ${f(p.eventS, 3)}  ${f(p.audioS, 3)}  ${f(p.visualS, 3)}  ${f(p.audioVsEventMs)}  ${f(p.visualVsEventMs)}  ${f(p.lagMs)}  ${p.verdict}`);
   const s = r.summary, rng = s.minLagMs === null ? "-" : `${s.minLagMs.toFixed(1)}..${s.maxLagMs.toFixed(1)}`;
   L.push("", `${s.pairs} paired, ${s.unpairedAudio} audio and ${s.unpairedVisual} visual onsets unpaired${r.allowUnpaired ? " (allowed)" : " (fails the check unless --allow-unpaired)"}; median lag ${s.medianLagMs === null ? "-" : s.medianLagMs.toFixed(1)} ms, range ${rng} ms (spread ${s.spreadMs === null ? "-" : s.spreadMs.toFixed(1)} ms)`,
-    `${s.outsideWindow} outside the window, ${s.borderline} borderline, ${s.ambiguous} ambiguous (another onset within ${r.pairWindowMs} ms), ${s.missing} without both onsets. ${s.pass ? (s.borderline ? `NOT DETECTABLY OUTSIDE THE WINDOW (${s.borderline} borderline: the interval straddles the edge)` : "WITHIN WINDOW") : "NOT WITHIN WINDOW"} by this metric.`,
+    `${s.outsideWindow} outside the window, ${s.borderline} borderline, ${s.ambiguous} ambiguous (neighbouring onset closer than ${2 * r.pairWindowMs} ms), ${s.missing} without both onsets. ${s.pass ? (s.borderline ? `NOT DETECTABLY OUTSIDE THE WINDOW (${s.borderline} borderline: the interval straddles the edge)` : "WITHIN WINDOW") : "NOT WITHIN WINDOW"} by this metric.`,
     "A metric over two onset lists, not a verdict: a person still has to watch and listen (SYNC.md).");
   return L.join("\n");
 }
