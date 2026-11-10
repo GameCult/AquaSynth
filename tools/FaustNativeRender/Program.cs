@@ -4,9 +4,9 @@ using AquaSynth.Faust;
 
 // Offline render of one Faust source through the daemon's native libfaust path (AquaSynthPatchCompiler, -vec -lv 1)
 // to a mono float32 WAV, for diffing against aqua-feel's faustwasm render. 48 kHz, 512-frame blocks, like render.js.
-// usage: FaustNativeRender <patch.dsp> <out.wav> <seconds> [controlSuffix=value ...]
+// usage: FaustNativeRender <patch.dsp> <out.wav> <seconds> [control=value ...]
 const int Rate = 48000, Frames = 512;
-if (args.Length < 3) { Console.Error.WriteLine("usage: FaustNativeRender <patch.dsp> <out.wav> <seconds> [suffix=value ...]"); return 2; }
+if (args.Length < 3) { Console.Error.WriteLine("usage: FaustNativeRender <patch.dsp> <out.wav> <seconds> [control=value ...]"); return 2; }
 var dspPath = Path.GetFullPath(args[0]);
 var outPath = Path.GetFullPath(args[1]);
 var total = (int)Math.Round(double.Parse(args[2]) * Rate);
@@ -21,11 +21,13 @@ if (!compiler.TryCompileSource(new AquaSynthCompileIdentity(name, name, ""), sou
     return 1;
 }
 using var patch = patch0!;
+if (patch.Manifest.OutputCount != 1) { Console.Error.WriteLine($"expected 1 output, patch has {patch.Manifest.OutputCount}"); return 1; }
 var ctl = new Dictionary<string, float>();
 foreach (var spec in args.Skip(3))
 {
     var eq = spec.IndexOf('=');
-    var path = patch.ControlPaths.Single(p => p.EndsWith(spec[..eq]));
+    var key = spec[..eq];
+    var path = patch.ControlPaths.Single(p => p == key || p == "/" + key || p.EndsWith("/" + key));
     ctl[path] = float.Parse(spec[(eq + 1)..], System.Globalization.CultureInfo.InvariantCulture);
 }
 

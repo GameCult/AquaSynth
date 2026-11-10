@@ -33,8 +33,7 @@ non-zero on any unwaived failure or stale waiver. No CI runner exists in this re
   The command gain 0.6 is an assumption (`DingsPlaybackHost` takes it from the caller as 0..1), so the Ding loudness window depends on it.
 
 Render path: the same faustwasm offline processor the playground and the listening trial use (libfaust 2.90.x, `-ftz 2`),
-mono channel 0. It is **not** the daemon's native libfaust path (`-vec`); the two agree on sfxr and a tract voice, and diverge in waveform on the thruster (float32 rpm smoother) while its level and
-spectrum metrics agree: `docs/renders/aqua-feel-native-diff-2026-11-10.md`, `node native-diff.mjs`.
+mono channel 0. It is **not** the daemon's native libfaust path (`-vec`); on a thruster the two diverge in waveform because the wasm bundle's `si.smooth` and the sandbox's native stdlib are different library text (not the host, not `-vec`); level and spectrum metrics stay close: `docs/renders/aqua-feel-native-diff-2026-11-10.md`, `node native-diff.mjs`.
 
 ## What it measures (per item, `report.json` `items[].metrics`)
 

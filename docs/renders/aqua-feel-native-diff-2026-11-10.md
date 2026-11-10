@@ -2,10 +2,12 @@
 
 **Nothing here was heard.** Numbers from offline buffers, same Faust source, 48 kHz, mono, 512-frame blocks, same params.
 
-- wasm side: `tools/aqua-feel/render.js` (faustwasm 0.20.0, libfaust 2.90.x, `-ftz 2`).
-- native side: `tools/FaustNativeRender` over `AquaSynthPatchCompiler` (`NativeFaustRuntime.cs:530`: `-single -ftz 2 -vec -lv 1`), libfaust 2.90.20 + LLVM built in the Linux sandbox (`AQUASYNTH_FAUST_HOME`, overlay of the 2026-10-31 build).
+- wasm side: `tools/aqua-feel/render.js` (faustwasm 0.20.0, libfaust 2.90.19 and the stdlib bundled with it, `-ftz 2`).
+- native side: `tools/FaustNativeRender` over `AquaSynthPatchCompiler` (`NativeFaustRuntime.cs:530`: `-single -ftz 2 -vec -lv 1`), libfaust 2.90.20 + LLVM built in the Linux sandbox 2026-10-31, with the stdlib `faustlibraries-20261031` (master 3d8c6ef) from `AQUASYNTH_FAUST_HOME`. **The two sides compile against different standard-library text**, and that decides the thruster result below; "native" here means this sandbox's library, which the repo does not pin (`docs/faust-toolchain-boundary.md`: the host's `share/faust`).
 - driver: `node tools/aqua-feel/native-diff.mjs <FaustNativeRender dir> --tract <source.dsp>`; raw numbers in `aqua-feel-native-diff-2026-11-10.json`.
-- tract voice: `vowel-a` Faust source from the 2026-11-08 render kit (0.72 s, default controls).
+- tract voice: `vowel-a` Faust source from the 2026-11-08 render kit (0.72 s, default controls). Not in the repo (`--tract` takes a path), not an aqua-feel catalog item, so its `FAIL onsetMs` is the patch-group rule applied by this script, not a repo gate result.
+- the script has no tolerance and exits 1 only on a render error or a length mismatch; every other judgement is the reader's.
+- Nothing here was heard.
 
 Columns are wasm / native.
 
@@ -23,24 +25,33 @@ Hiss caps (noiseToToneADb, wasm / native; cap): rpm300 13.09/13.06 (16), rpm600 
 
 ## Verdict
 
-**sfxr: the two paths agree** to float rounding (2e-6). The sfxr flags and waivers (+0.908 dBTP, -5.33 LUFS, held noise) are properties of the Faust source, not of the wasm host.
+**sfxr (two items): the paths agree** to float rounding (2e-6). These two patches use no library smoother (`smooth01` and a local `seg_smooth`), so the agreement says nothing about the library difference below. The gate flags are the script's `gate()` applied to each side's metrics for these two items only; they match.
 
-**Tract voice: agrees to -52.6 dB** (max 1.9e-4 on a 0.084 peak); every metric within 0.02 dB or 0.01% centroid. Its `onsetMs` gate failure appears identically on both sides.
+**Tract voice: agrees to -52.6 dB** (max 1.9e-4 on a 0.084 peak); metrics within 0.02 dB and 0.01 % centroid. The residual is the same library difference: the source calls `si.smoo` 101 times; with the old smoother form pinned on both sides the error is -61.2 dB, with the new form pinned on both it is 3.1e-7 (-109.3 dB).
 
-**Thruster: waveforms diverge, metrics agree.** The error grows from ~1e-4 in the first 0.25 s to the size of the signal by 2 s at rpm 4800 (relative RMS error -8 dB), so the two renders are not the same waveform at high rpm. Level and spectrum metrics stay close: LUFS within 0.014 dB, true peak within 0.09 dB, sample peak within 1.2 %, centroid within 0.3 %, crest within 0.1 dB (rpm1200 0.11), hiss within 0.3 dB except rpm600 A-weighted, which reads 1.0 dB higher native.
+**Thruster: waveforms diverge, level and spectrum metrics stay close.** Relative RMS error -28.8 dB at rpm300 to -8.2 dB at rpm4800. At rpm4800 it grows over time: windowed -53, -33, -22, -15, -10 and -4 dB for 0-0.25, 0.25-0.5, 0.5-1, 1-1.5, 1.5-2 and 2-3 s. Differences in the metrics: LUFS 0.015 dB, true peak 0.081 dB, sample peak 1.2 %, centroid 0.3 %, crest 0.11 dB, hiss within 0.27 dB except rpm600 A-weighted, 1.0 dB higher native.
 
-### Cause (measured, one part not isolated)
+### Cause (isolated by a separate Soul pass, 2026-11-10)
 
-The thruster takes its rotor frequency from `rpm = hslider(...) : si.smooth(ba.tau2pole(0.2))`, and every oscillator (`os.sawtooth`, `os.square`, `os.osc`) integrates that frequency into phase. Rendering `rpm/6000` alone at rpm=4800: the first 1000 samples match to 0.001 rpm, then wasm **stalls at 4796.632** from about 2.5 s on while native converges to **4799.999**. A float32 simulation of the one-pole without fused multiply-add reproduces 4796.6318 exactly, so the wasm value is plain float32 rounding of the smoother (the increment drops under half an ulp). Native does not stall, so it evaluates the smoother with different arithmetic; whether that is `-vec`, `-lv 1` or LLVM JIT contraction was **not isolated** (a fused simulation stalls at 4797.66, not 4799.999, so FMA alone does not explain it). The ~3.4 rpm difference moves the rotor tone by ~0.085 Hz, a phase drift that grows to a full cycle in seconds; discontinuous saw edges then differ by up to 2.0 sample-wise (isolated `os.sawtooth(shaft)`: max err 1.99). Removing the `wander` noise changes nothing (rpm300 2.62e-2, rpm4800 2.89e-1 unchanged), so the random wander is not the cause. Noise-only parts (`rattle` 6.7e-4, `rpm/6000` 5.6e-4) agree closely, consistent with the sfxr result: the LCG noise is the same on both paths.
+The thruster smooths `rpm` with `si.smooth(ba.tau2pole(0.2))`, and every oscillator integrates that into phase. The two library texts define `si.smooth` differently:
 
-### What this invalidates
+- the wasm bundle (libfaust 2.90.19, `/usr/share/faust`): `smooth(s) = *(1.0 - s) : + ~ *(s)`. In float32 it stalls: the rpm freezes at **4796.632** from sample ~72063 (1.5 s) for a target of 4800. A float32 simulation without fused multiply-add reproduces 4796.6318359375.
+- the native overlay (faustlibraries master 3d8c6ef, `signals.lib:391`): `smooth = imp(3)`, an error-form recursion whose comment says it cannot stall. It reaches 4800.0001.
 
-- **Thruster v5 mix / hiss caps / loudness / true-peak / centroid claims:** stand. They are statistical and agree within the numbers above. The rpm600 hiss cap (8 dB) has 1.95 dB headroom natively, not the 2.96 dB the threshold note assumes; still passes.
-- **Anything that compares thruster sample-by-sample or by phase** (before/after waveform diffs, null tests, onset or envelope timing at sub-ms resolution on the rotor tone, `correlate` against ratings tied to exact waveforms) is wasm-specific. A listener on the daemon hears the same level and spectrum, a different phase trajectory.
-- **A listening trial on wasm renders of the thruster** heard rpm settling 0.07 % short of the target at rpm 4800. Not a timbre difference by these metrics, but the trial did not hear the daemon's path.
-- **sfxr flags:** not invalidated. They hold on the native path.
-- **Not tested here:** the other 75 aqua-feel items; the Ding mixes; the faust-vec flag itself in isolation; block sizes other than 512; live (non-offline) host behaviour.
+Evidence that the library text, not `-vec`, `-lv`, `-double` or contraction, decides it: the `faust` CLI emits the same update expression for the same `si.smooth` source under scalar, `-vec -lv 0/1` and `-double`. With the old explicit form pinned in the DSP on both sides, native ends at 4797.6573 (LLVM does contract to FMA, which moves the stall point from 4796.632 to 4797.657, matching the FMA simulation) and wasm at 4796.6319. With the explicit `imp(3)` form pinned on both sides, thruster error falls from 2.61e-2 to 5.7e-7 (rpm300, -120.3 dB) and from 2.87e-1 to 1.13e-4 (rpm4800, -80.5 dB). The stall point is also hypersensitive: one ulp on the pole constant gives 4799.38 or 4798.57.
 
-## Sandbox note
+The earlier version of this report said the cause was the float32 rounding of the smoother on a native path that "does not stall for an unisolated reason" and suggested `-vec`; that was wrong. The `wander` term is not the cause (removing it leaves rpm300 2.62e-2, rpm4800 2.89e-1).
 
-Native libfaust is buildable here: libfaust 2.90.20 with LLVM, built 2026-10-31 (`faust-llvm-build-20261031`, `faust-home-overlay-20261031`); `dotnet` 10.0.403 builds `FaustNativeRender` with `env-review.sh`.
+The isolation probes are scratch scripts in `/var/lib/mind-aqua-self/soul-nd-1` (not committed); the numbers above are not in the `.json`, which holds only the seven main rows.
+
+### What this does and does not invalidate
+
+- Level, true-peak, centroid, crest and hiss claims for the thruster hold on both libraries within the numbers above. The rpm600 hiss cap (8 dB) has 1.95 dB of headroom with the native library, not the 2.96 dB the threshold note assumes; still passes.
+- Sample- or phase-level comparisons of the thruster (null tests, exact waveform diffs, sub-ms timing of the rotor tone) are specific to the library that rendered them.
+- Which library a given daemon uses depends on its `share/faust`. A daemon shipping a release stdlib with the old `si.smooth` would stall like wasm; this sandbox's would not. The report cannot say what the production daemon does.
+- Other sources that import `si.smooth` or `si.smoo` are expected to show the same skew and were **not tested**: 11 sources by count (7 patches, 3 Ding instruments, plus `advanced-human-larynx-graph`), which puts most of the 36 Ding items (27 or more) on the divergent library.
+- **Not tested:** the other 75 of the 81 aqua-feel items, the sfxr-family patches beyond the two here, Ding mixes, block sizes other than 512, and any live (non-offline) host.
+
+## Toolchain
+
+dotnet 10.0.403 builds `FaustNativeRender` with `/var/lib/mind-aqua-self/env-review.sh`. Re-running the script reproduces the JSON byte for byte.
