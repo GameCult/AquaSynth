@@ -7,14 +7,15 @@ import { wavFloat32 } from "./render.js";
 
 export const FIXTURE_EVENTS_S = [0.5, 1.3, 2.2, 3.4, 4.1, 5.0];
 
-export function makeFixture({ offsetMs = 80, fps = 60, sampleRate = 48000, seconds = 6, noise = 0.003, events = FIXTURE_EVENTS_S, seed = 7 } = {}) {
+// bed: steady tones [[hz, amp], ...] under the hits; dc: constant offset; gain: hit amplitude. Events need not sit on frame boundaries.
+export function makeFixture({ offsetMs = 80, fps = 60, sampleRate = 48000, seconds = 6, noise = 0.003, events = FIXTURE_EVENTS_S, seed = 7, bed = [], dc = 0, gain = 0.6 } = {}) {
   let s = seed >>> 0; const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 2 ** 32 - 0.5; };
   const audio = new Float32Array(Math.round(sampleRate * seconds));
-  for (let i = 0; i < audio.length; i++) audio[i] = noise * 2 * rand();
+  for (let i = 0; i < audio.length; i++) { audio[i] = dc + noise * 2 * rand(); for (const [hz, amp] of bed) audio[i] += amp * Math.sin((2 * Math.PI * hz * i) / sampleRate); }
   for (const e of events) { // 40 ms decaying 880 Hz burst with a 1 ms ramp: a hit with a sharp but not instantaneous attack
     const start = Math.round((e + offsetMs / 1000) * sampleRate);
     for (let j = 0; j < 0.04 * sampleRate && start + j < audio.length; j++) {
-      const t = j / sampleRate; audio[start + j] += 0.6 * Math.min(1, t / 0.001) * Math.exp(-t / 0.012) * Math.sin(2 * Math.PI * 880 * t);
+      const t = j / sampleRate; audio[start + j] += gain * Math.min(1, t / 0.001) * Math.exp(-t / 0.012) * Math.sin(2 * Math.PI * 880 * t);
     }
   }
   const n = Math.round(fps * seconds), t = new Float64Array(n), v = new Float64Array(n);
