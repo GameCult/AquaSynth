@@ -51,7 +51,6 @@ function sine(buf, t0, hz0, hz1, glideTau, atkMs, tau, lenMs, gain) {
 
 // Eight voices, eight tonal families (the 2026-11-10 family assignment). Voice = hit(buf, t0 sample, deg, i (hit index), n (hits),
 // gapMs, rand, motif, room (ms left before the motif's length cap)). Each hit shortens itself to fit `room`. No voice is percussive by design; weksa's pluck and void's tick are the sharpest events.
-const fadeOut = at(8);
 const bell = (b, t, f0, parts, atkMs, lenMs, gain) => partials(b, t, f0, parts, atkMs, lenMs, gain);
 export const VOICES = {
   aqua: { object: "a soft water droplet", family: "liquid", caption: "One soft droplet per note: a round, watery 'bloop' whose pitch lifts as it lands. No click.",
@@ -64,31 +63,49 @@ export const VOICES = {
       for (let k = 0; k < len; k++) { const p = k / len, e = Math.sin(Math.PI * Math.min(1, p / 0.45) / 2) ** 2 * Math.cos(Math.PI / 2 * Math.max(0, (p - 0.55) / 0.45)) ** 2;
         let y = 0; for (let h = 1; h <= 6; h++) y += Math.sin(TAU * f0 * h * k / SR) / (h * h ** 0.5);
         b[t + k] += 1.4 * run(door[1], run(door[0], y)) * e; } } },
-  kiko: { object: "bowed glass", family: "bowed glass", caption: "A rising, shimmering glassy swell that blooms and fades like a flash cooling. Smooth, no click.",
-    hit(b, t, d, i, n, gap, r, m, room) { const len = Math.min(b.length - t, at(Math.min(m === "mention" ? 480 : 250, room))), f0 = 1318 * st(d);
-      for (let k = 0; k < len; k++) { const p = k / len, f = f0 * (0.96 + 0.07 * p), e = Math.sin(Math.PI * p ** 0.7) ** 2; let y = 0;
-        for (const [r2, a] of [[1, 1], [1.004, 0.8], [2.003, 0.3], [3.01, 0.12]]) y += a * Math.sin(TAU * f * r2 * k / SR);
-        b[t + k] += 0.45 * y * e * Math.min(1, (len - k) / fadeOut); } } },
-  libby: { object: "a small bell", family: "soft bell", caption: "One small bell note with a felt-soft start, no strike, ringing for about a quarter of a second.",
-    hit(b, t, d, i, n, gap, r, m, room) { const k = m === "mention" ? 2 : 1; bell(b, t, 784 * st(d), [[1, 1, 0.1 * k], [2.32, 0.22, 0.06 * k], [3.9, 0.06, 0.03 * k]], 26, Math.min(250 * k + (k > 1 ? 20 : 0), room), 0.85); } },
-  nibu: { object: "a console waking up", family: "analog synth", caption: "A soft, slightly cold filtered-saw tone that glides up a fifth and settles, with a faint dashboard blip underneath, like a console coming awake. In a mention, just the one note.",
-    hit(b, t, d, i, n, gap, r, m, room) { const len = Math.min(b.length - t, at(Math.min(m === "mention" ? 520 : 300, room))), f0 = 220 * st(d), lp = biquad("lp", 1700, 1.1), atk = at(28); let ph = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-      for (let k = 0; k < len; k++) { const f = f0 * (1 + 0.5 * (1 - Math.exp(-k / SR / 0.05))); let y = 0;
-        for (let h = 1; h <= 10; h++) { ph[h - 1] += TAU * f * h / SR; y += Math.sin(ph[h - 1]) / h; }
-        const p = k / len, e = Math.sin(Math.PI / 2 * Math.min(1, (k + 1) / atk)) ** 2 * (p < 0.6 ? 1 : Math.cos(Math.PI / 2 * (p - 0.6) / 0.4) ** 2);
-        b[t + k] += 0.95 * run(lp, y) * e; }
-      sine(b, t + at(90), 1760, 1760, 1, 5, 0.02, Math.min(60, Math.max(0, room - 90)), 0.1); } },
+  kiko: { object: "struck glass", family: "struck glass", caption: "Hypothesis, unheard: a small glass tapped once. A clean, instant start, then three inharmonic partials that ring and fall away, the upper ones first. No friction noise, no swell, no pitch movement. A note something follows settles before the next lands; the last note rings.",
+    hit(b, t, d, i, n, gap, r, m, room) { const last = i === n - 1, k = last ? 1.6 : 1, len = last ? Math.min(480, room - 10) : Math.min(gap, room);
+      partials(b, t, 1318 * st(d), [[1, 1, 0.12 * k], [2.76, 0.45, 0.07 * k], [5.4, 0.2, 0.04 * k]], 1, len, 0.8); } },
+  libby: { object: "a small bell", family: "soft bell", caption: "One small bell note with a felt-soft start, no strike. A note that something follows is shortened to settle before the next one lands; the last note rings.",
+    hit(b, t, d, i, n, gap, r, m, room) { const last = i === n - 1, k = last ? 2 : 1, len = last ? Math.min(520, room - 10) : Math.min(gap, room); bell(b, t, 784 * st(d), [[1, 1, 0.1 * k], [2.32, 0.22, 0.06 * k], [3.9, 0.06, 0.03 * k]], 26, len, 0.85); } },
   void: { object: "a hollow wooden note", family: "hollow wood", caption: "One round, hollow, almost wooden note that falls a little, finishing on a tiny dry tick. Higher than the horn.",
     hit(b, t, d, i, n, gap, r, m, room) { const f = 300 * st(d); const k = m === "mention" ? 2 : 1; sine(b, t, f * 1.2, f * 0.85, 0.05, 9, 0.085 * k, Math.min(230 * k, room), 0.9); sine(b, t, f * 2.4, f * 1.7, 0.05, 9, 0.03 * k, Math.min(120 * k, room), 0.12);
-      noiseBurst(b, t + at(95 * k), r, "bp", 1800, 1.0, 0.5, 0.003, 14, 0.2 * (room > 130 * k ? 1 : 0)); } },
+      // the tick is a soft knock, not a click: 4 ms attack (v2: 0.5 ms), peak level with the tone it lands on (v2: 3.3 dB over it)
+      noiseBurst(b, t + at(95 * k), r, "bp", 1800, 1.0, 4, 0.006, 24, 0.05 * (room > 130 * k ? 1 : 0)); } },
   weksa: { object: "a plucked brass compass", family: "plucked brass", caption: "A small plucked brass note, then a small bright rise: the sound of finding the thing. In a mention, just the one pluck.",
     hit(b, t, d, i, n, gap, r, m, room) { const br = 0.35 + 0.3 * i, k = m === "mention" ? 2 : 1; partials(b, t, 880 * st(d), [[1, 1, 0.06 * k], [2, 0.55, 0.045 * k], [3, br, 0.03 * k], [4, br * 0.6, 0.02 * k]], 3.5, Math.min(m === "mention" ? 480 : 240, room), 0.7); } },
 };
 
+// Nibu is the one openly synthetic voice. v2's glided saw was rejected (Meta, 2026-11-10: atrocious), so there are three proposals from three
+// families, none with a pitch glide; Nibu and Meta choose. VOICES.nibu is proposal 1 as a placeholder until they do.
+// shape: raised-cosine in over atk samples, raised-cosine out over the last rel samples.
+const shape = (k, len, atk, rel) => Math.sin(Math.PI / 2 * Math.min(1, (k + 1) / atk)) ** 2 * Math.sin(Math.PI / 2 * Math.min(1, (len - k) / rel)) ** 2;
+// the held-note length: a note something follows ends by the next onset; the last note rings as long as the motif allows.
+const heldLen = (b, t, ring, last, gap, room) => Math.min(b.length - t, at(Math.min(last ? ring : gap, room - 10)));
+export const NIBU_PROPOSALS = {
+  nibu1: { object: "a held square tone through a fixed filter", family: "static-filter square", caption: "Two held, soft, hollow square-wave tones a fifth apart (in a mention, just the first), filtered dark and not moving. Slow soft attack, long settle, no glide. Plainly synthetic.",
+    hit(b, t, d, i, n, gap, r, m, room) { const last = i === n - 1, len = heldLen(b, t, 520, last, gap, room), f0 = 220 * st(d === 4 || d === 5 ? 7 : d), lp = [biquad("lp", 1300, 0.7), biquad("lp", 1300, 0.7)], atk = at(40), rel = Math.floor(len * (last ? 0.55 : 0.4));
+      for (let k = 0; k < len; k++) { let y = 0; for (let h = 1; h <= 15; h += 2) y += Math.sin(TAU * f0 * h * k / SR) / h; b[t + k] += 0.9 * run(lp[1], run(lp[0], y)) * shape(k, len, atk, rel); } } },
+  nibu2: { object: "a small FM bell, low and plain", family: "low-index FM bell", caption: "A small FM bell in a low register: a harmonic 1:2 pair with a modest, fading index, so it is bright for a moment and then a plain tone. Pitched a tritone from Libby's bell and an octave and a half under it. No glide.",
+    hit(b, t, d, i, n, gap, r, m, room) { const last = i === n - 1, len = heldLen(b, t, 520, last, gap, room), f = 277.2 * st(d), tau = last ? 0.16 : 0.09, s = Math.min(1, (len / SR) / (4.6 * tau)), atk = at(8), rel = Math.min(at(15), len >> 2);
+      for (let k = 0; k < len; k++) { const e = Math.exp(-k / SR / (tau * s)), idx = 0.2 + 1.8 * Math.exp(-k / SR / (0.07 * s)); b[t + k] += 0.9 * e * Math.sin(TAU * f * k / SR + idx * Math.sin(TAU * f * 2 * k / SR)) * shape(k, len, atk, rel); } } },
+  nibu3: { object: "a low-resolution digital tone", family: "sample-rate-reduced sine", caption: "A soft sine that has been through an old converter: held at 8 kHz and 5 bits, then filtered smooth so it is grainy without being harsh. Soft attack, gentle decay, no glide. Synthetic in a different way from the other two.",
+    hit(b, t, d, i, n, gap, r, m, room) { const last = i === n - 1, len = heldLen(b, t, 520, last, gap, room), f = 349.2 * st(d), tau = last ? 0.18 : 0.1, s = Math.min(1, (len / SR) / (4.6 * tau)), atk = at(12), rel = Math.min(at(20), len >> 2), lp = [biquad("lp", 2600, 0.7), biquad("lp", 2600, 0.7)]; let held = 0;
+      for (let k = 0; k < len; k++) { if (k % 6 === 0) held = Math.round(Math.sin(TAU * f * k / SR) * 16) / 16; b[t + k] += 0.9 * run(lp[1], run(lp[0], held)) * Math.exp(-k / SR / (tau * s)) * shape(k, len, atk, rel); } } },
+};
+VOICES.nibu = { ...NIBU_PROPOSALS.nibu1 };
+const ALL = { ...VOICES, ...NIBU_PROPOSALS };
+// Each note renders into its own buffer with its own noise stream (seeded by sender and note index), so no note can read or write
+// another's state; a clip is the sum of its notes. A note knows only what follows it (gap, room), never what precedes it.
+const noteSeed = (sender, i) => (0x5eed ^ [...sender].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) ^ Math.imul(i + 1, 0x9e3779b1)) >>> 0;
+export function renderNote(sender, motif, i) {
+  const onsets = RHYTHM[motif], [ms, deg] = onsets[i], buf = new Float64Array(at(900)), gap = i + 1 < onsets.length ? onsets[i + 1][0] - ms : 160;
+  let room = MAX_MS[motif] - ms; if (motif === "message" && i + 1 < onsets.length) room = Math.min(room, gap);
+  ALL[sender].hit(buf, at(ms), deg, i, onsets.length, gap, prng(noteSeed(sender, i)), motif, room); return buf;
+}
 export function renderClip(sender, motif) {
-  const v = VOICES[sender], onsets = RHYTHM[motif];
-  const buf = new Float64Array(at(900)), rand = prng(0x5eed ^ (sender.length * 7919) ^ [...sender].reduce((a, c) => a * 31 + c.charCodeAt(0), 7) >>> 0);
-  onsets.forEach(([ms, deg], i) => { const gap = i + 1 < onsets.length ? onsets[i + 1][0] - ms : 160; let room = MAX_MS[motif] - ms; if (motif === "message" && i + 1 < onsets.length) room = Math.min(room, gap); v.hit(buf, at(ms), deg, i, onsets.length, gap, rand, motif, room); });
+  const buf = new Float64Array(at(900));
+  RHYTHM[motif].forEach((_, i) => { const note = renderNote(sender, motif, i); for (let k = 0; k < buf.length; k++) buf[k] += note[k]; });
   let end = buf.length; while (end > 1 && Math.abs(buf[end - 1]) < 1e-5) end--;   // trim silent tail (-100 dB)
   return Float32Array.from(buf.subarray(0, end));
 }

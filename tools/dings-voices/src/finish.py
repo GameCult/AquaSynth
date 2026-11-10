@@ -9,6 +9,7 @@ from metriclib import *
 SR = 48000
 SENDERS = ["aqua", "eureka", "heimdall", "kiko", "libby", "nibu", "void", "weksa"]
 MOTIFS = ["mention", "dm", "message", "invite"]
+PROPOSALS = ["nibu1", "nibu2", "nibu3"]   # Nibu proposals: matched to the same exposure, encoded under out/proposals/, not in the manifest
 PEAK_LIMIT_DBTP = -1.0          # brief: true peak under -1 dBTP (measured on the DECODED ogg)
 TARGET_PEAK_DBTP = -9.0         # the loudest clip is placed here, so there is 8 dB of headroom before the limit
 raw, out = sys.argv[1], sys.argv[2]
@@ -33,6 +34,14 @@ for (s, m), x in clips.items():
     rows.append(dict(sender=s, motif=m, file=f"senders/{s}/{m}.ogg", bytes=os.path.getsize(path), durationMs=round(1000 * len(z) / SR, 1),
         laeDb=round(lae(z), 2), lafmaxDb=round(lafmax(z), 2), samplePeakDb=round(20 * np.log10(np.max(np.abs(z))), 2), truePeakDbTP=round(true_peak_db(z), 2),
         onsetRiseMs=round(onset_rise_ms(z), 2) if m == "mention" else None, onsetMs=round(onset_time_ms(z), 1), **end_metrics(z), centroidHz=round(cen), flatnessDb=round(10 * np.log10(flat), 1)))
+prop_rows = []
+for p in PROPOSALS:
+    for m in MOTIFS:
+        x, sr = sf.read(os.path.join(raw, f"{p}-{m}.wav")); y = x * 10 ** ((target - lae(x)) / 20)
+        d = os.path.join(out, "proposals", p); os.makedirs(d, exist_ok=True); path = os.path.join(d, f"{m}.ogg")
+        sf.write(path, y.astype(np.float32), SR, format="OGG", subtype="VORBIS"); z, _ = sf.read(path); dec[(p, m)] = z; cen, flat = spectral(z)
+        prop_rows.append(dict(sender=p, motif=m, file=f"proposals/{p}/{m}.ogg", bytes=os.path.getsize(path), durationMs=round(1000 * len(z) / SR, 1), laeDb=round(lae(z), 2), lafmaxDb=round(lafmax(z), 2),
+            samplePeakDb=round(20 * np.log10(np.max(np.abs(z))), 2), truePeakDbTP=round(true_peak_db(z), 2), onsetRiseMs=round(onset_rise_ms(z), 2) if m == "mention" else None, onsetMs=round(onset_time_ms(z), 1), **end_metrics(z), centroidHz=round(cen), flatnessDb=round(10 * np.log10(flat), 1)))
 # neutral fallback, measured as shipped (not modified)
 neutral = []
 for m in MOTIFS:
@@ -43,11 +52,13 @@ pairs = []
 for m in MOTIFS:
     for a, b in itertools.combinations(SENDERS, 2):
         pairs.append(dict(motif=m, a=a, b=b, distDb=round(spec_dist(dec[(a, m)], dec[(b, m)]), 2)))
+family_pairs = [dict(motif=m, a=a, b=b, distDb=round(spec_dist(dec[(a, m)], dec[(b, m)]), 2)) for m in MOTIFS for a, b in [("kiko", "libby"), ("kiko", "nibu2"), ("libby", "nibu2"), ("kiko", "nibu1"), ("kiko", "nibu3"), ("libby", "nibu1"), ("libby", "nibu3")]]
 manifest = {"neutral": {m: f"neutral/{m}.ogg" for m in MOTIFS}, "senders": {s: {m: f"senders/{s}/{m}.ogg" for m in MOTIFS} for s in SENDERS}}
 json.dump(manifest, open(os.path.join(out, "manifest.json"), "w"), indent=2)
 summary = dict(targetLaeDb=round(target, 2), limitingClip=f"{limiting[0]}/{limiting[1]}", targetPeakDbTP=TARGET_PEAK_DBTP, peakLimitDbTP=PEAK_LIMIT_DBTP, heard=False,
                maxTruePeakDbTP=max(r["truePeakDbTP"] for r in rows), laeSpreadDb=round(max(r["laeDb"] for r in rows) - min(r["laeDb"] for r in rows), 2),
                lafmaxSpreadWithinMotifDb={m: round(max(r["lafmaxDb"] for r in rows if r["motif"] == m) - min(r["lafmaxDb"] for r in rows if r["motif"] == m), 2) for m in MOTIFS},
                maxMessageMs=max(r["durationMs"] for r in rows if r["motif"] == "message"), maxAnyMs=max(r["durationMs"] for r in rows))
-json.dump(dict(summary=summary, clips=rows, neutral=neutral, pairs=pairs), open(os.path.join(out, "..", "metrics.json"), "w"), indent=1)
+summary.update(maxProposalTruePeakDbTP=max(r['truePeakDbTP'] for r in prop_rows), maxProposalMs=max(r['durationMs'] for r in prop_rows))
+json.dump(dict(summary=summary, clips=rows, proposals=prop_rows, neutral=neutral, pairs=pairs, familyPairs=family_pairs), open(os.path.join(out, "..", "metrics.json"), "w"), indent=1)
 print(json.dumps(summary, indent=1))

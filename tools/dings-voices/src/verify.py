@@ -3,7 +3,7 @@
 import json, os, re, sys, itertools
 import numpy as np, soundfile as sf
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+root = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SENDERS = ["aqua", "eureka", "heimdall", "kiko", "libby", "nibu", "void", "weksa"]; MOTIFS = ["mention", "dm", "message", "invite"]
 PATH = re.compile(r"^[A-Za-z0-9_-]+(/[A-Za-z0-9_.-]+)*\.(ogg|mp3)$")
 man = json.load(open(os.path.join(root, "out", "manifest.json"))); bad = []
@@ -25,6 +25,11 @@ for s in SENDERS:
         if len(x) / sr > 0.6: bad.append(("over 600ms", s, m))
         em = end_metrics(x)
         if em['clipped'] or em['tailDb'] > -30 or abs(em['dcPct']) > 1: bad.append(('end', s, m, em))
+        laes.append(lae(x))
+for p in ["nibu1", "nibu2", "nibu3"]:
+    for m in MOTIFS:
+        x, sr = sf.read(os.path.join(root, "out", "proposals", p, f"{m}.ogg")); em = end_metrics(x)
+        if sr != 48000 or x.ndim != 1 or true_peak_db(x) >= -1.0 or (m == "message" and len(x) / sr > 0.4) or len(x) / sr > 0.6 or em['clipped'] or em['tailDb'] > -30 or abs(em['dcPct']) > 1: bad.append(("proposal", p, m, em))
         laes.append(lae(x))
 print("loudness spread (dB):", round(max(laes) - min(laes), 2), "| files checked:", len(laes))
 if max(laes) - min(laes) > 0.5: bad.append(("loudness spread", max(laes) - min(laes)))
