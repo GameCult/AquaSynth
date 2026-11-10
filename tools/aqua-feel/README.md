@@ -7,6 +7,8 @@ JSON and a static HTML gallery, and gates the numbers against thresholds.
 listener to check, not verdicts: a render can pass every threshold and sound wrong, and fail one and sound fine.
 The WAVs and the gallery exist so a person can press play.
 
+To look at a finished audio file (wav/ogg/flac: spectrogram, onsets at 1 ms, level envelope, click/clip/double-hit/overlap/abrupt-end detectors, two-file compare) rather than a rendered patch, use `../aqua-ear`.
+
 ## Run
 
 ```
