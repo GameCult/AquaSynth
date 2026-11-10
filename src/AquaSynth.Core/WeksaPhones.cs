@@ -71,19 +71,30 @@ public static class WeksaPhonesReader
 /// <summary>
 /// A Weksa phones line as a word the tract can render. Every phone must be in the DSL's IPA table
 /// (<see cref="PatchScript.TryIpaDescriptor"/>); a phone outside it is listed in <see cref="Unsupported"/> and the plan
-/// carries no targets, so nothing is approximated. Duration is the vowel/consonant length AquaSynth owns; stress moves
-/// only the gesture intensity, the one thing the word script uses stress for.
+/// carries no targets, so nothing is approximated. Base durations are the vowel/consonant lengths AquaSynth owns; stress
+/// carries its three acoustic cues (<see cref="StressCue"/>): the marked phone is longer, louder and higher in f0.
 /// </summary>
 public sealed record WeksaWordPlan(IReadOnlyList<(IpaGestureExperimentTarget Target, float Intensity)> Phones, IReadOnlyList<WeksaPhone> Unsupported)
 {
     public const float VowelSeconds = 0.18f, ConsonantSeconds = 0.095f;
     public bool Renderable => Unsupported.Count == 0;
 
-    public static float StressIntensity(WeksaStress stress) => stress switch
+    /// <summary>Duration factor, amplitude factor on the source flow and f0 ratio of a stressed phone against an unstressed one.</summary>
+    public readonly record struct StressCue(float Duration, float Amplitude, float PitchRatio);
+
+    /// <summary>
+    /// Primary stress: duration 220/160 = 1.375 (stressed against unstressed syllable in initial-stress pairs, Sluijter and van
+    /// Heuven 1996), amplitude 1.30 = 2.3 dB on the source flow, f0 +6 percent (their unaccented f0 difference). The amplitude is set
+    /// by the rendered result, not the nominal 2 dB (their 1-3 dB overall-intensity difference): the f0 rise alone moves the harmonics against
+    /// F1 and changes the rendered level by -1.3 to +1.8 dB by vowel (i -0.7, a -0.3, u -1.3, e -0.8, o +1.8), so 1.26 rendered +1.7 dB on
+    /// average over those five and 1.30 renders +2.0. Secondary stress is placed halfway, in dB and in percent: a DESIGN VALUE, no
+    /// secondary-stress measurement was retrieved. Unheard.
+    /// </summary>
+    public static StressCue CueFor(WeksaStress stress) => stress switch
     {
-        WeksaStress.Primary => 1.2f,
-        WeksaStress.Secondary => 1.1f,
-        _ => 1f
+        WeksaStress.Primary => new(220f / 160f, 1.30f, 1.06f),
+        WeksaStress.Secondary => new(1.19f, 1.14f, 1.03f),
+        _ => new(1f, 1f, 1f)
     };
 
     public static WeksaWordPlan From(WeksaPhones word, string label)
@@ -93,8 +104,9 @@ public sealed record WeksaWordPlan(IReadOnlyList<(IpaGestureExperimentTarget Tar
         var targets = word.Phones.Select((p, i) =>
         {
             PatchScript.TryIpaDescriptor(p.Ipa, out var descriptor);
-            var seconds = descriptor.EndsWith("_vowel", StringComparison.Ordinal) ? VowelSeconds : ConsonantSeconds;
-            return (new IpaGestureExperimentTarget($"{label}_{i}_{p.Ipa}", p.Ipa, "", seconds), StressIntensity(p.Stress));
+            var cue = CueFor(p.Stress);
+            var seconds = (descriptor.EndsWith("_vowel", StringComparison.Ordinal) ? VowelSeconds : ConsonantSeconds) * cue.Duration;
+            return (new IpaGestureExperimentTarget($"{label}_{i}_{p.Ipa}", p.Ipa, "", seconds, PitchRatio: cue.PitchRatio), cue.Amplitude);
         }).ToArray();
         return new WeksaWordPlan(targets, []);
     }

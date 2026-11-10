@@ -7,7 +7,7 @@ public sealed record ProbeTimelineSample(int Block, string Primitive, string Sig
 
 public static class ProbeTimelineReport
 {
-    public static IReadOnlyList<ProbeTimelineSample> Build(SynthPatch patch, string networkName, int blocks = 4)
+    public static IReadOnlyList<ProbeTimelineSample> Build(SynthPatch patch, string networkName, int blocks = 4, float sampleRate = 48000)
     {
         var network = patch.VocalNetworks.First(network => network.Name.Equals(networkName, StringComparison.OrdinalIgnoreCase));
         var areas = patch.AreaFunctions.ToDictionary(area => area.Name, StringComparer.OrdinalIgnoreCase);
@@ -27,7 +27,7 @@ public static class ProbeTimelineReport
 
         for (var block = 0; block < Math.Max(1, blocks); block++)
         {
-            var timeSeconds = block * blockSize / 48000f;
+            var timeSeconds = block * blockSize / sampleRate;
             var outgoingByPath = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             foreach (var pathName in network.Paths)
             {
@@ -37,7 +37,7 @@ public static class ProbeTimelineReport
                 var pathIndex = PathIndex(patch.WaveguidePaths, path);
                 var speed = SurfaceValue(surfacesByField, splinesBySurface, $"/vocal/paths/{pathIndex}/speed", path.PropagationSpeedMetersPerSecond, timeSeconds);
                 var loss = SurfaceValue(surfacesByField, splinesBySurface, $"/vocal/paths/{pathIndex}/loss", path.Loss, timeSeconds);
-                var delay = area.Shape.LengthMeters / Math.Max(1, speed) * 48000;
+                var delay = area.Shape.LengthMeters / Math.Max(1, speed) * sampleRate;
                 var incoming = PathIncomingFlow(patch, network, sources, contacts, branches, path.Name, surfacesByField, splinesBySurface, timeSeconds);
                 var outgoing = incoming * Math.Clamp(loss, 0, 1);
                 outgoingByPath[path.Name] = outgoing;
@@ -80,6 +80,9 @@ public static class ProbeTimelineReport
                 Add(samples, block, $"contact:{contact.Name}", "resistance", resistance);
                 Add(samples, block, $"contact:{contact.Name}", "reservoir", reservoir);
                 Add(samples, block, $"contact:{contact.Name}", "released_flow", reservoir * opening * (1 - Math.Min(0.95f, resistance * 0.5f)));
+                var releaseGain = SurfaceValue(surfacesByField, splinesBySurface, $"{owner}/release_flow", contact.ReleaseFlow, timeSeconds);
+                // The exporter's burst is white noise of this amplitude (noise itself is not mirrored).
+                Add(samples, block, $"contact:{contact.Name}", "burst_amplitude", releaseGain * stored * 4 * opening * (1 - opening));
             }
 
             foreach (var branchName in network.Branches)

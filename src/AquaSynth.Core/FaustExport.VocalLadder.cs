@@ -4,15 +4,15 @@ namespace AquaSynth.Dsl;
 
 // The vocal_network resonator: a Kelly-Lochbaum ladder per waveguide path, one cell per sample (cell length c / sample
 // rate), written as a Faust `letrec` so every wave variable is a one-sample state. Cell areas come from the morphology
-// rest shape deformed by the path's area control (the same Gaussian model the acoustic graph uses). A branch port whose
+// rest shape deformed by the path's area control, or from its measured vowel shapes (DeformedAreaExpression owns both). A branch port whose
 // two paths are both in the network becomes a three-port parallel junction (Pink Trombone's velum: ports are the oral
 // cells either side of the join and the branch path's first cell, whose area is the branch opening).
 public static partial class FaustEmitter
 {
     // Reflection at the closed glottal end of a path that carries a source.
     private const float LadderGlottalReflection = 0.75f;
-    // Full-open velum diameter in cm, as in Pink Trombone's velum target.
-    private const float VelumOpenDiameterCentimeters = 0.4f;
+    // Speed of sound in cm/s used only to size the lip end correction from the lip radius (the ladder's own cell length uses the path's speed).
+    private const float LipEndCorrectionSoundSpeedCentimeters = 35000f;
 
     private sealed record LadderPath(
         WaveguidePath Path,
@@ -37,9 +37,10 @@ public static partial class FaustEmitter
 
     /// <summary>
     /// Emits the area, reflection and junction definitions and the recursive ladder for <paramref name="members"/>, and returns,
-    /// per path, the identifier of its lip output (the right-going wave leaving its last cell).
+    /// per path, the identifier of its lip output (the right-going wave leaving its last cell) and, for each path that ends at a glottis,
+    /// the identifier of the pressure in its first cell (the tract wall radiation reads it).
     /// </summary>
-    private static IReadOnlyDictionary<string, string> EmitVocalLadder(
+    private static (IReadOnlyDictionary<string, string> Lips, IReadOnlyDictionary<string, string> GlottalPressures) EmitVocalLadder(
         StringBuilder source,
         SynthPatch patch,
         VocalNetwork network,
@@ -68,12 +69,14 @@ public static partial class FaustEmitter
                 continue;
             }
 
+            // The velopharyngeal port area, cm^2: opening * coupling * the design maximum (NasalTractAreas); it is the nasal ladder's first cell.
             var velum = $"{name}_primitive_branch_{SafeIdentifier(branch.Name)}_velum_area";
-            source.AppendLine($"    {velum} = max(0.000001, pow({admittances[branch.Name]} * {F(VelumOpenDiameterCentimeters)}, 2.0));");
-            var sum = $"({oral.A(cell)} + {oral.A(cell + 1)} + {velum})";
+            source.AppendLine($"    {velum} = max(0.000001, {admittances[branch.Name]} * {F(NasalTractAreas.VelopharyngealPortMaximumAreaSquareCentimeters)});");
+            // The junction sits on the interface between oral cells cell - 1 and cell: R(cell) is entered from R(cell - 1), L(cell - 1) from L(cell).
+            var sum = $"({oral.A(cell - 1)} + {oral.A(cell)} + {velum})";
             var key = $"{name}_primitive_branch_{SafeIdentifier(branch.Name)}";
-            source.AppendLine($"    {key}_refl_left = (2.0 * {oral.A(cell)} - {sum}) / {sum};");
-            source.AppendLine($"    {key}_refl_right = (2.0 * {oral.A(cell + 1)} - {sum}) / {sum};");
+            source.AppendLine($"    {key}_refl_left = (2.0 * {oral.A(cell - 1)} - {sum}) / {sum};");
+            source.AppendLine($"    {key}_refl_right = (2.0 * {oral.A(cell)} - {sum}) / {sum};");
             source.AppendLine($"    {key}_refl_nose = (2.0 * {velum} - {sum}) / {sum};");
             junctions.Add(new LadderJunction(oral, nasal, cell, velum, $"{key}_refl_left", $"{key}_refl_right", $"{key}_refl_nose"));
         }
@@ -93,7 +96,7 @@ public static partial class FaustEmitter
                     continue;
                 }
 
-                var area = DeformedAreaExpression(parameters, member.Area.Shape, member.Area.Deformation, $"/vocal/areas/{member.AreaIndex}/area", (i + 0.5f) / member.Cells);
+                var area = DeformedAreaExpression(parameters, member.Area.Shape, member.Area.Deformation, $"/vocal/areas/{member.AreaIndex}/area", (i + 0.5f) / member.Cells, member.Area.Vowels);
                 source.AppendLine($"    {member.A(i)} = max(0.000001, {area});");
             }
 
@@ -125,25 +128,40 @@ public static partial class FaustEmitter
                     : $"        '{member.L(i)} = ({member.L(i + 1)} + {member.Refl(i + 1)} * ({member.R(i)} + {member.L(i + 1)})) * {loss};");
             }
 
-            equations.AppendLine($"        '{member.L(last)} = {member.R(last)} * ({lipReflection}) * {loss};");
+            // Open-end reflectance R(z) = -g (1-b)/(1-b z^-1): g is the radiation load's reflection (DC gain, negative), b follows the
+            // lip cell's area so that the low-frequency loss 1-|R|^2 ~ (ka)^2 and the DC group delay b/(1-b) is the end correction
+            // (Levine & Schwinger; Smith PASP; Valimaki & Karjalainen 1994). With a = sqrt(A/pi) in cm, q = (a fs / c)^2, c = 35000 cm/s,
+            // b/(1-b)^2 = q gives b = ((2q+1) - sqrt(4q+1)) / (2q). The pole is one-sample state in the same slot the constant used.
+            var q = $"{member.Prefix}_lip_q";
+            var b = $"{member.Prefix}_lip_b";
+            source.AppendLine($"    {q} = max(0.000001, pow(sqrt({member.A(last)} / ma.PI) * ma.SR / {F(LipEndCorrectionSoundSpeedCentimeters)}, 2.0));");
+            source.AppendLine($"    {b} = min(0.9, max(0.0, ((2.0 * {q} + 1.0) - sqrt(4.0 * {q} + 1.0)) / (2.0 * {q})));");
+            equations.AppendLine($"        '{member.L(last)} = ({b} * {member.L(last)} + (1.0 - {b}) * ({lipReflection}) * {member.R(last)}) * {loss};");
         }
 
-        var outputs = string.Join(", ", members.Select(member => member.R(member.Cells - 1)));
+        // Outputs: every path's lip wave, then the first-cell pressure R0 + L0 of each path that ends at a glottis (a branch path's first
+        // cell is the junction, not a glottis).
+        var glottal = members.Where(member => !targets.ContainsKey(member)).ToArray();
+        var outputs = string.Join(", ", members.Select(member => member.R(member.Cells - 1)).Concat(glottal.Select(member => $"({member.R(0)} + {member.L(0)})")));
+        var outputCount = members.Count + glottal.Length;
         var ladder = $"{name}_primitive_ladder";
         source.AppendLine($"    {ladder} = ({outputs}) letrec {{");
         source.Append(equations);
         source.AppendLine("    };");
 
         var lips = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        for (var m = 0; m < members.Count; m++)
+        var glottalPressures = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (var m = 0; m < outputCount; m++)
         {
-            var lip = $"{members[m].Prefix}_lip";
-            source.AppendLine(members.Count == 1
-                ? $"    {lip} = {ladder};"
-                : $"    {lip} = {ladder} : ba.selector({m}, {members.Count});");
-            lips[members[m].Path.Name] = lip;
+            var isLip = m < members.Count;
+            var owner = isLip ? members[m] : glottal[m - members.Count];
+            var tap = $"{owner.Prefix}_{(isLip ? "lip" : "glottal_pressure")}";
+            source.AppendLine(outputCount == 1
+                ? $"    {tap} = {ladder};"
+                : $"    {tap} = {ladder} : ba.selector({m}, {outputCount});");
+            (isLip ? lips : glottalPressures)[owner.Path.Name] = tap;
         }
 
-        return lips;
+        return (lips, glottalPressures);
     }
 }

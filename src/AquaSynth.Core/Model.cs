@@ -443,11 +443,15 @@ public sealed record AcousticPortNetwork(
     public IReadOnlyList<string> Connections { get; init; } = Connections ?? Array.Empty<string>();
 }
 
+/// <summary>A named measured tract shape: areas in cm^2 from the glottis to the lips, any number of sections.</summary>
+public sealed record VowelAreaShape(string Name, IReadOnlyList<float> Areas);
+
 public sealed record AreaFunction(
     string Name,
     TractAreaFunction Shape,
     AcousticAreaControl? Deformation = null,
-    int EmitSections = 8);
+    int EmitSections = 8,
+    IReadOnlyList<VowelAreaShape>? Vowels = null);
 
 public sealed record WaveguidePath(
     string Name,
@@ -469,7 +473,8 @@ public sealed record SourcePort(
     float Noise = 0.08f,
     float Impedance = 0.35f,
     float FlowScale = 0.02f,
-    float Tilt = 0.5f);
+    float Tilt = 0.5f,
+    float PitchRatio = 1f);
 
 public sealed record ConstrictionContact(
     string Name,

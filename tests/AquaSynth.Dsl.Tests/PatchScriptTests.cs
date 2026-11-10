@@ -582,6 +582,7 @@ public sealed class PatchScriptTests
     {
         var patch = PatchScript.Parse("""
             morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.5
+            vowel_set area_function=oral source=story2008
             morphology name=nasal length_cm=12 diameters=.05,.35,.6,.8
             waveguide_path name=oral_path morphology=oral loss=.998
             waveguide_path name=nasal_path morphology=nasal loss=.997
@@ -602,7 +603,9 @@ public sealed class PatchScriptTests
         Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("ma_contact", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/contacts/0/opening");
         Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("hw_source_noise", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/sources/0/noise");
         Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("hw_constriction_index", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/areas/0/area/constriction_index");
-        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("vowel_tongue_index", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/areas/0/area/tongue_index");
+        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("vowel_vowel_ah", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/areas/0/area/vowel_ah" && spline.Points.All(point => point.Value == 1));
+        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("vowel_vowel_i", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/areas/0/area/vowel_i" && spline.Points.All(point => point.Value == 0));
+        Assert.DoesNotContain(patch.ControlSplines, spline => spline.SurfacePath == "/vocal/areas/0/area/tongue_index" && spline.Name.StartsWith("vowel_", StringComparison.Ordinal));
 
         var catalog = ControlSurfaceCatalog.FromPatch(patch);
         var timeline = catalog.CreateTimeline();

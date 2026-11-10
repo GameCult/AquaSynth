@@ -14,24 +14,25 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     private const int Rate = 48000;
     private const float Pitch = 10f;
 
-    private static string Script(float tongueIndex, float tongueDiameter, float lipOpening, float velum = .01f) => $$"""
+    private static string Script(float tongueIndex, float tongueDiameter, float lipOpening, float velum = 0f) => $$"""
         morphology name=oral length_cm=17 diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index={{tongueIndex}} tongue_diameter={{tongueDiameter}} constriction_index=4 constriction_diameter=4 lip_opening={{lipOpening}}
         morphology name=nasal length_cm=12 diameters=.04,.28,.52,.72
         waveguide_path name=oral_path morphology=oral loss=.998
         waveguide_path name=nasal_path morphology=nasal loss=.997
         source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.5 noise=0 impedance=.3 flow_scale=.12 tilt=0
         branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening={{velum}} coupling=1
-        radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
-        radiation_load name=nostril path=nasal_path aperture=.8 reflection=-.82 impedance=.28
+        radiation_load name=mouth path=oral_path aperture=.8 reflection=-1 impedance=.28
+        radiation_load name=nostril path=nasal_path aperture=.8 reflection=-1 impedance=.28
         vocal_network name=voice paths=oral_path,nasal_path sources=folds branches=velopharynx radiation=mouth,nostril
         vocal network=voice freq={{Pitch}} min_freq=5 gain=.5 sustain=1.5
         """;
 
     // Three seconds of the 10 Hz source would be wasteful: one second after the attack is ten whole periods, so every
     // harmonic of Pitch sits exactly on a DFT bin.
-    private float[]? Render(string script)
+    private float[]? Render(string script, Func<SynthPatch, SynthPatch>? edit = null)
     {
-        var source = FaustEmitter.Emit(PatchScript.Parse(script), new FaustExportOptions("vocal_formants", SampleRate: Rate)).Source;
+        var parsed = PatchScript.Parse(script);
+        var source = FaustEmitter.Emit(edit is null ? parsed : edit(parsed), new FaustExportOptions("vocal_formants", SampleRate: Rate)).Source;
         using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(SampleRate: Rate));
         if (!compiler.TryCompileSource(new AquaSynthCompileIdentity("vocal_formants", "vocal_formants", ""), source, 1.4f, out var patch, out var error))
         {
@@ -163,7 +164,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     [Fact]
     public void LadderStaysBoundedForASecondWithTheVelumOpen()
     {
-        foreach (var (ti, td, lo, velum) in new[] { (3f, .15f, 2.2f, .01f), (1.5f, .5f, 2.2f, 1f), (2f, 1.2f, .6f, 1f) })
+        foreach (var (ti, td, lo, velum) in new[] { (3f, .15f, 2.2f, 0f), (1.5f, .5f, 2.2f, 1f), (2f, 1.2f, .6f, 1f) })
         {
             var window = Render(Script(ti, td, lo, velum));
             if (window is null) return;
@@ -178,22 +179,79 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
 
     private static double Rms(float[] window) => Math.Sqrt(window.Sum(x => (double)x * x) / window.Length);
 
+    // Rms of the part of the window above a frequency (Parseval over the bins of a zero-padded transform). The tract wall radiates a voice bar
+    // below about 300 Hz with the mouth shut and the velum shut, so "the nose is the only door" is read where the wall barely reaches.
+    private static double RmsAbove(float[] window, double hz) => RmsBetween(window, hz, Rate / 2.0);
+
+    private static double RmsBetween(float[] window, double lowHz, double highHz)
+    {
+        var n = 1 << 17;
+        var re = new double[n];
+        var im = new double[n];
+        for (var i = 0; i < window.Length; i++) re[i] = window[i] * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / window.Length));
+        Fft(re, im);
+        double power = 0;
+        for (var k = (int)(lowHz * n / Rate); k < Math.Min(n / 2, (int)(highHz * n / Rate)); k++) power += re[k] * re[k] + im[k] * im[k];
+        var windowPower = Enumerable.Range(0, window.Length).Sum(i => Math.Pow(0.5 - 0.5 * Math.Cos(2 * Math.PI * i / window.Length), 2));
+        return Math.Sqrt(2 * power / n / windowPower);
+    }
+
+    // The wall term's band, read from the render of a shut mouth and a shut velum (the wall is then the only path out). Behaviour, not
+    // brick walls: the 300 Hz low-pass is a second-order roll-off and the 90 Hz high-pass a second-order shelf, so these compare band levels.
+    private float[]? ShutMouthShutVelum() => Render(MouthShutScript(0f));
+
+    private static string MouthShutScript(float velum) => Script(1.5f, .5f, 2.2f, velum)
+        .Replace("constriction_diameter=4", "constriction_diameter=.001", StringComparison.Ordinal)
+        .Replace("diameters=.04,.28,.52,.72", "diameters=.9,1.3,1.5,1.2", StringComparison.Ordinal);
+
+    // The velum-open junction's nasal coefficient, (2 Yv - sum Y) / sum Y: with the mouth shut the first resonance the nose lets out sits at
+    // 520 Hz (400 Hz when the coefficient is (Yv - sum Y) / sum Y, and output above 600 Hz falls from 39 to 24 times the shut-velum level).
+    [Fact]
+    public void TheNasalReflectionCoefficientPlacesTheFirstResonanceOfAShutMouthWithTheVelumOpen()
+    {
+        var open = Render(MouthShutScript(1f));
+        if (open is null) return;
+
+        var first = Peaks(open)[0];
+        output.WriteLine($"mouth shut, velum open: first peak {first:F0} Hz");
+        Assert.InRange(first, 460, 580);
+    }
+
+    [Fact]
+    public void TheWallBarRollsOffBetweenItsTwoCornersAndOpensAboveTheSlowDrift()
+    {
+        var shut = ShutMouthShutVelum();
+        if (shut is null) return;
+
+        var drift = RmsBetween(shut, 5, 40);
+        var bar = RmsBetween(shut, 90, 200);
+        var upper = RmsBetween(shut, 230, 300);
+        var above = RmsAbove(shut, 600);
+        output.WriteLine($"wall bar band levels: 5-40 Hz {drift:E2}, 90-200 Hz {bar:E2}, 230-300 Hz {upper:E2}, above 600 Hz {above:E2}");
+
+        // The high-pass keeps the slow pressure drift out: measured 5-40 Hz at 0.4 of the bar, and 3.2 of it with the corner at 20 Hz.
+        Assert.True(drift < bar, $"sub-90 Hz drift {drift:E2} vs the 90-200 Hz bar {bar:E2}");
+        // The low-pass at 300 Hz still passes the 230-300 Hz harmonics: measured 0.14 of the bar, and 0.07 of it with the corner at 150 Hz.
+        Assert.True(upper > bar / 10, $"230-300 Hz {upper:E2} vs the 90-200 Hz bar {bar:E2}");
+        // The bar is not a brick wall but it is a bar: the low end stands well over what leaks above 600 Hz.
+        Assert.True(bar > 10 * above, $"bar {bar:E2} vs above 600 Hz {above:E2}");
+    }
+
     [Fact]
     public void WithTheMouthClosedOnlyAnOpenVelumLetsSoundOutThroughTheNose()
     {
-        // constriction_diameter .001 at tract index 4 shuts the oral ladder; the only way out is the junction into the nasal ladder.
-        string Closed(float velum) => Script(1.5f, .5f, 2.2f, velum)
-            .Replace("constriction_diameter=4", "constriction_diameter=.001", StringComparison.Ordinal)
-            .Replace("diameters=.04,.28,.52,.72", "diameters=.9,1.3,1.5,1.2", StringComparison.Ordinal);
-        var shut = Render(Closed(.01f));
-        var open = Render(Closed(1f));
+        // constriction_diameter .001 at tract index 4 shuts the oral ladder; the only way out is the junction into the nasal ladder. A shut
+        // velum is opening 0: the port area is linear in the opening, and a flow source into a nearly lossless closed tract leaves through even
+        // a 0.008 cm^2 port (opening .01 measured rms 1.0e-2 against 2.1e-2 open).
+        var shut = Render(MouthShutScript(0f));
+        var open = Render(MouthShutScript(1f));
         if (shut is null || open is null) return;
 
-        output.WriteLine($"mouth shut: velum closed rms {Rms(shut):E2}, velum open rms {Rms(open):E2}; open peaks {string.Join(" ", Peaks(open).Select(p => p.ToString("F0")))}");
-        Assert.True(Rms(open) > 5 * Rms(shut), $"nasal output rms {Rms(open):E2} vs velum-closed {Rms(shut):E2}");
+        output.WriteLine($"mouth shut, above 600 Hz: velum closed rms {RmsAbove(shut, 600):E2}, velum open rms {RmsAbove(open, 600):E2}; open peaks {string.Join(" ", Peaks(open).Select(p => p.ToString("F0")))}");
+        Assert.True(RmsAbove(open, 600) > 5 * RmsAbove(shut, 600), $"nasal output rms {RmsAbove(open, 600):E2} vs velum-closed {RmsAbove(shut, 600):E2}");
     }
 
-    // The authored vowel gestures (PatchScript's VowelShapes, reached through the IPA word script) rendered end to end through the
+    // The authored vowel gestures (the Story vowel weights, reached through the IPA word script) rendered end to end through the
     // exporter, merged splines and the ladder; the source is a bright 10 Hz saw so the tract's response is sampled densely.
     private float[]? GestureWindow(string ipa)
     {
@@ -270,17 +328,17 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         return peaks.ToArray();
     }
 
-    // Measured through the exported ladder on 2026-11-08 (impulse peaks i 271/2313, u 292/876, a 703/1084; the textbook values are
-    // i 270/2290, u 300/870, a 730/1090). The envelope of the 10 Hz render reads i 270/2380 and a 690/1060.
+    // Tube-chain F1/F2 of the Story 2008 area functions at 17.52 cm (tools/formant-check/tube_formants.py, an independent frequency-domain
+    // transfer-matrix estimate: i 251/2063, ɑ 650/913, u 271/761). The envelope of the 10 Hz render is read against those with 10% bands.
     public static TheoryData<string, double, double> GestureVowels => new()
     {
-        { "i", 271, 2313 },
-        { "a", 703, 1084 },
+        { "i", 251, 2063 },
+        { "a", 650, 913 },
     };
 
     [Theory]
     [MemberData(nameof(GestureVowels))]
-    public void AuthoredVowelGesturesPlaceF1AndF2NearTheTextbook(string ipa, double f1, double f2)
+    public void AuthoredVowelGesturesPlaceF1AndF2NearTheStoryTubeChain(string ipa, double f1, double f2)
     {
         var peaks = GesturePeaks(ipa);
         if (peaks is null) return;
@@ -290,14 +348,14 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void AuthoredRoundedBackVowelPlacesF1AndF2NearTheTextbook()
+    public void AuthoredRoundedBackVowelPlacesF1AndF2NearTheStoryTubeChain()
     {
         // With a radiating highpass that rose with aperture (540 Hz at aperture 1) the envelope read u's F1 at 450 Hz.
         var peaks = GesturePeaks("u");
         if (peaks is null) return;
 
-        Assert.InRange(peaks[0], 292 * .85, 350);
-        Assert.InRange(peaks[1], 876 * .9, 876 * 1.1);
+        Assert.InRange(peaks[0], 271 * .85, 350);
+        Assert.InRange(peaks[1], 761 * .9, 761 * 1.1);
     }
 
     [Fact]
@@ -309,7 +367,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         if (i is null || u is null || a is null) return;
 
         Assert.True(a[0] > i[0] + 250, $"F1 i {i[0]} a {a[0]}");
-        // F2: i 2380 > a 1060 > u 880.
+        // F2 (tube chain): i 2063 > a 913 > u 761.
         Assert.True(i[1] > a[1] + 800 && a[1] > u[1] + 100, $"F2 i {i[1]} a {a[1]} u {u[1]}");
     }
 
@@ -317,7 +375,7 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
     public void RoundedBackVowelIsAudibleNextToTheCloseFrontVowel()
     {
         // The rendered /ˈnibu/ had /u/ 29 dB under /i/: the gesture scaled the radiating aperture (an output gain) by the lip area
-        // the ladder already carries. Measured here: -4.3 dB; with the old aperture scale -22.7 dB.
+        // the ladder already carries. Measured with the earlier grid-searched shapes: -4.3 dB; with the old aperture scale -22.7 dB.
         var i = GestureWindow("i");
         var u = GestureWindow("u");
         if (i is null || u is null) return;
@@ -329,5 +387,207 @@ public sealed class VocalTractFormantTests(ITestOutputHelper output)
         output.WriteLine($"u rms {Rms(u):E2} i rms {Rms(i):E2} gap {gap:F1} dB; u peaks {string.Join(" ", uPeaks.Select(p => p.ToString("F0")))}");
         Assert.InRange(gap, -10, 3);
         Assert.True(uPeaks[1] < 1000, $"u F2 {uPeaks[1]}");
+    }
+
+    // ---- Story 2008 measured vowel shapes, set through the vowel_* weight surfaces ----
+
+    private static string StoryScript(IReadOnlyDictionary<string, float> weights, float lipOpening = 4f) => $$"""
+        morphology name=oral length_cm=17.52 diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=4 lip_opening={{lipOpening}}
+        vowel_set area_function=oral source=story2008
+        morphology name=nasal length_cm=12 diameters=.04,.28,.52,.72
+        waveguide_path name=oral_path morphology=oral speed=350 loss=.998
+        waveguide_path name=nasal_path morphology=nasal speed=350 loss=.997
+        source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.5 noise=0 impedance=.3 flow_scale=.12 tilt=0
+        branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=0 coupling=1
+        radiation_load name=mouth path=oral_path aperture=1 reflection=-1 impedance=.28
+        radiation_load name=nostril path=nasal_path aperture=.8 reflection=-1 impedance=.28
+        vocal_network name=voice paths=oral_path,nasal_path sources=folds branches=velopharynx radiation=mouth,nostril
+        {{string.Join("\n", weights.Select(w => $"control_spline name=w_{w.Key} surface=/vocal/areas/0/area/vowel_{w.Key} interp=linear points=0:{w.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)},4:{w.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)}"))}}
+        vocal network=voice freq={{Pitch}} min_freq=5 gain=.5 sustain=1.5
+        """;
+
+    private double[]? StoryPeaks(string id, float lipOpening = 4f)
+    {
+        var window = Render(StoryScript(new Dictionary<string, float> { [id] = 1f }, lipOpening));
+        if (window is null) return null;
+        var peaks = Peaks(window);
+        output.WriteLine($"story {id}: peaks " + string.Join(" ", peaks.Select(p => p.ToString("F0"))) + " lpc " + string.Join(" ", LpcPeaks(window).Select(p => p.ToString("F0"))));
+        Assert.True(peaks.Length >= 2, $"{id}: fewer than two spectral peaks");
+        return peaks;
+    }
+
+    // F1/F2 (F3) of the Story 2008 area functions at 17.52 cm from tools/formant-check/tube_formants.py (an independent
+    // transfer-matrix estimate in the frequency domain):  python3 tools/formant-check/tube_formants.py docs/research/data/story2008-area-functions.csv --length-cm 17.52
+    //
+    // Bands: the front vowels (i ih e eh ae) are held to 6% on F1 and F2. The back and rounded vowels (uh ah aw o oo_short u) are held to 10%:
+    // the measured disagreement between two lip radiation models (the ladder's one-pole Levine-Schwinger-form reflectance with g = 1, the tube
+    // chain's baffled piston R||L) plus the ladder's cell quantisation. The nasal junction used to take the reflection coefficients of the
+    // interface one cell further on (sum over cells 11 and 12 instead of 10 and 11), which put the wrong step in the pharynx and read the
+    // back vowels' F1 12 to 26% high (uh +14.8%, ah +10.8%, aw +12.4%, o +25.8%, oo_short +13.0% against this table, five tests skipped on those
+    // numbers); the ladder now agrees with the numpy copy (tools/formant-check/ladder_formants.py --filtered --lip-reflection -1) to 10 Hz.
+    public static TheoryData<string, double, double, double> StoryTubeChain => new()
+    {
+        { "i", 251, 2063, .06 }, { "ih", 346, 1987, .06 }, { "e", 432, 1827, .06 }, { "eh", 527, 1571, .06 }, { "ae", 729, 1523, .06 },
+        { "uh", 549, 809, .10 }, { "ah", 650, 913, .10 }, { "aw", 516, 692, .10 }, { "o", 477, 787, .10 }, { "oo_short", 478, 850, .10 },
+        { "u", 271, 761, .10 },
+    };
+
+    [Theory]
+    [MemberData(nameof(StoryTubeChain))]
+    public void LadderReproducesTheTubeChainFormantsOfEachStoryVowel(string id, double f1, double f2, double band)
+    {
+        var peaks = StoryPeaks(id);
+        if (peaks is null) return;
+
+        Assert.InRange(peaks[0], f1 * (1 - band), f1 * (1 + band));
+        Assert.InRange(peaks[1], f2 * (1 - band), f2 * (1 + band));
+    }
+
+    [Fact]
+    public void NearCloseVowelsSitApartFromTheCloseVowelsInF1()
+    {
+        var i = StoryPeaks("i");
+        var ih = StoryPeaks("ih");
+        var u = StoryPeaks("u");
+        var oo = StoryPeaks("oo_short");
+        if (i is null || ih is null || u is null || oo is null) return;
+
+        Assert.True(ih[0] >= i[0] + 60, $"F1 i {i[0]} ih {ih[0]}");
+        Assert.True(oo[0] >= u[0] + 60, $"F1 u {u[0]} oo_short {oo[0]}");
+    }
+
+    [Fact]
+    public void BlendingTwoVowelsHalfAndHalfIsTheCellwiseGeometricMeanOfTheirAreas()
+    {
+        var blend = Render(StoryScript(new Dictionary<string, float> { ["i"] = .5f, ["u"] = .5f }));
+        if (blend is null) return;
+
+        // Reference: one custom shape on the 24-cell grid (round(17.52e-2 * 48000 / 350)), the geometric mean of i and u at each cell
+        // centre, selected by its default weight 0 (a lone shape at zero weight is itself). The blend must render the same lines.
+        const int Cells = 24;
+        var i = StoryVowelAreas.All.Single(v => v.Id == "i").Areas;
+        var u = StoryVowelAreas.All.Single(v => v.Id == "u").Areas;
+        var mean = Enumerable.Range(0, Cells).Select(c => (float)Math.Sqrt(StoryVowelAreas.AreaAt(i, (c + .5f) / Cells) * (double)StoryVowelAreas.AreaAt(u, (c + .5f) / Cells))).ToArray();
+        var reference = Render(StoryScript(new Dictionary<string, float>()), patch => patch with
+        {
+            AreaFunctions = patch.AreaFunctions.Select(a => a.Name == "oral" ? a with { Vowels = [new VowelAreaShape("mean", mean)] } : a).ToArray()
+        });
+        if (reference is null) return;
+
+        var blendPeaks = Peaks(blend);
+        var referencePeaks = Peaks(reference);
+        output.WriteLine($"blend peaks {string.Join(" ", blendPeaks.Select(p => p.ToString("F0")))}; reference {string.Join(" ", referencePeaks.Select(p => p.ToString("F0")))}");
+        Assert.Equal(referencePeaks.Take(3), blendPeaks.Take(3));
+        var iPeaks = StoryPeaks("i")!;
+        Assert.True(blendPeaks[1] < iPeaks[1] - 100, $"blend F2 {blendPeaks[1]} against i {iPeaks[1]}");
+    }
+
+    [Fact]
+    public void WeightsThatSumToZeroGiveTheGeometricMeanShapeNotNaN()
+    {
+        var zero = Render(StoryScript(new Dictionary<string, float>()));
+        if (zero is null) return;
+
+        Assert.All(zero, sample => Assert.True(float.IsFinite(sample)));
+        Assert.True(Rms(zero) > 1e-4, $"silent: {Rms(zero)}");
+        // Independent route to the same shape: all eleven weights at 1 take the normalised-blend branch, whose result is the geometric mean.
+        var reference = Render(StoryScript(StoryVowelAreas.All.ToDictionary(v => v.Id, _ => 1f)));
+        if (reference is null) return;
+
+        Assert.Equal(Peaks(reference).Take(3), Peaks(zero).Take(3));
+    }
+
+    [Fact]
+    public void LipOpeningCapsTheLipCellOfAStoryVowel()
+    {
+        var open = StoryPeaks("ah", 4f);
+        var capped = StoryPeaks("ah", .4f);
+        if (open is null || capped is null) return;
+
+        output.WriteLine($"ah lip cap 4 cm F1 {open[0]}; 0.4 cm F1 {capped[0]}");
+        Assert.True(capped[0] < open[0] - 80, $"lip cap .4 cm F1 {capped[0]} vs open {open[0]}");
+    }
+
+    // ---- Nasal coupling: the murmur of /m/ and /n/ against the nostril transfer of tools/formant-check/tube_formants.py --nasal ----
+
+    // The independent tube chain (Story 2008 geometric-mean oral shape, port after section 22 of 44, A_vp 0.56 cm^2 = the gesture's 0.7 opening,
+    // the 19-section nasal table, rigid closed oral end after section 44 for /m/ and section 37 for /n/, 17.52 cm): N1 325 / 352 Hz, transfer
+    // zeros (short circuit of the oral side branch) 882 / 1136 Hz; the quarter-wave c / 4L of the uniform branch would say 999 / 1465 Hz.
+    private const double TubeM1 = 325, TubeN1 = 352, TubeMZero = 882, TubeNZero = 1136;
+
+    // Smoothed line spectrum in dB (flattened by the saw's 1/f) of a steady 10 Hz render, indexed by line number k (k * Pitch Hz).
+    private static double[] SmoothedDb(float[] window)
+    {
+        var lines = Lines(window);
+        var db = lines.Select(line => 20 * Math.Log10(Math.Max(1e-12, line))).ToArray();
+        return db.Select((_, k) => k < 2 || k > db.Length - 3 ? db[k] : db.Skip(k - 2).Take(5).Average()).ToArray();
+    }
+
+    // First dip above the first peak: the first local minimum of the smoothed spectrum, 200-2000 Hz, at least 3 dB under the lower of the
+    // maxima on either side of it.
+    private static double FirstDip(double[] db)
+    {
+        for (var k = (int)(200 / Pitch); k < (int)(2000 / Pitch); k++)
+        {
+            if (!(db[k] < db[k - 1] && db[k] <= db[k + 1])) continue;
+            var left = db[k]; for (var j = k; j > 0 && db[j] >= left; j--) left = db[j];
+            var right = db[k]; for (var j = k; j < db.Length - 1 && db[j] >= right; j++) right = db[j];
+            if (Math.Min(left, right) - db[k] >= 3) return k * Pitch;
+        }
+
+        return double.NaN;
+    }
+
+    private (double N1, double Dip)? Murmur(string ipa)
+    {
+        var window = GestureWindow(ipa);
+        if (window is null) return null;
+        var n1 = Peaks(window)[0];
+        var dip = FirstDip(SmoothedDb(window));
+        output.WriteLine($"/{ipa}/ murmur: N1 {n1:F0} Hz, first dip {dip:F0} Hz");
+        return (n1, dip);
+    }
+
+    [Fact]
+    public void TheMurmurOfMAndNHasItsFirstPeakBelow400HzNearTheTubeChain()
+    {
+        var m = Murmur("m");
+        var n = Murmur("n");
+        if (m is null || n is null) return;
+
+        Assert.InRange(m.Value.N1, 250, 400);
+        Assert.InRange(n.Value.N1, 250, 400);
+        Assert.InRange(m.Value.N1, TubeM1 * .85, TubeM1 * 1.15);
+        Assert.InRange(n.Value.N1, TubeN1 * .85, TubeN1 * 1.15);
+    }
+
+    [Fact]
+    public void TheFirstZeroOfTheNasalMurmurSitsWhereTheOralSideBranchPutsItAndRisesWhenTheBranchIsShorter()
+    {
+        var m = Murmur("m");
+        var n = Murmur("n");
+        if (m is null || n is null) return;
+
+        Assert.InRange(m.Value.Dip, TubeMZero * .85, TubeMZero * 1.15);
+        Assert.InRange(n.Value.Dip, TubeNZero * .85, TubeNZero * 1.15);
+        // /n/ closes the mouth 2.6 cm from the lips, /m/ at the lips: a shorter branch beyond the port, a higher zero.
+        Assert.True(n.Value.Dip >= 1.15 * m.Value.Dip, $"/n/ dip {n.Value.Dip} Hz against /m/ dip {m.Value.Dip} Hz");
+    }
+
+    [Fact]
+    public void AnOralClosureWithTheVelumShutLeavesTheMurmurSilentAndOpeningTheVelumLetsItOut()
+    {
+        var open = GestureWindow("m");
+        if (open is null) return;
+
+        // The same /m/ with the velum spline held shut: the gesture's own velum control is the only door, so remove it.
+        var shut = Render(IpaGestureExperiment.BuildWordScript([(new IpaGestureExperimentTarget("v_m", "m", "", 1.5f), 1f)], Pitch, 0.1f)
+            .Replace("noise=.04", "noise=0 tilt=1", StringComparison.Ordinal)
+            .Replace($"freq={Pitch}", $"freq={Pitch} min_freq=5", StringComparison.Ordinal),
+            patch => patch with { ControlSplines = patch.ControlSplines.Where(spline => spline.SurfacePath != "/vocal/branches/0/opening").ToArray() });
+        if (shut is null) return;
+
+        output.WriteLine($"/m/ above 600 Hz: velum open rms {RmsAbove(open, 600):E2}, velum shut rms {RmsAbove(shut, 600):E2}");
+        Assert.True(RmsAbove(open, 600) > 10 * RmsAbove(shut, 600), $"open {RmsAbove(open, 600):E2} shut {RmsAbove(shut, 600):E2}");
     }
 }

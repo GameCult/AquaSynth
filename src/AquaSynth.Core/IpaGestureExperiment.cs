@@ -8,7 +8,8 @@ public sealed record IpaGestureExperimentTarget(
     string Ipa,
     string Descriptor,
     float DurationSeconds = 0.18f,
-    string Notes = "");
+    string Notes = "",
+    float PitchRatio = 1f);
 
 public sealed record IpaGestureExperimentVariant(
     string Id,
@@ -91,7 +92,8 @@ public static class IpaGestureExperiment
         string roundId,
         IEnumerable<IpaGestureExperimentTarget> targets,
         IEnumerable<IpaGestureExperimentVariant> variants,
-        int timelineBlocks = 12)
+        int timelineBlocks = 12,
+        float sampleRate = 48000)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rootDirectory);
         ArgumentException.ThrowIfNullOrWhiteSpace(roundId);
@@ -128,7 +130,7 @@ public static class IpaGestureExperiment
                 File.WriteAllText(scriptPath, script, Encoding.UTF8);
 
                 var patch = PatchScript.Parse(script);
-                var timeline = ProbeTimelineReport.Build(patch, NetworkName, Math.Max(1, timelineBlocks));
+                var timeline = ProbeTimelineReport.Build(patch, NetworkName, Math.Max(1, timelineBlocks), sampleRate);
                 var timelinePath = Path.Combine(timelineDirectory, $"{candidateId}.csv");
                 File.WriteAllText(timelinePath, ProbeTimelineReport.ToCsv(timeline), Encoding.UTF8);
 
@@ -224,19 +226,29 @@ public static class IpaGestureExperiment
     }
 
     private static string GestureLine(IpaGestureExperimentTarget target, float start, float duration, float intensity) =>
-        $"phoneme_gesture name={SafeDslName(target.Id)} ipa={target.Ipa} {(target.Descriptor.Length == 0 ? "" : $"descriptor={target.Descriptor.Replace(' ', '_')} ")}start={Format(start)} dur={Format(duration)} intensity={Format(intensity)}";
+        $"phoneme_gesture name={SafeDslName(target.Id)} ipa={target.Ipa} {(target.Descriptor.Length == 0 ? "" : $"descriptor={target.Descriptor.Replace(' ', '_')} ")}start={Format(start)} dur={Format(duration)} intensity={Format(intensity)}{(target.PitchRatio == 1f ? "" : $" pitch_ratio={Format(target.PitchRatio)}")}";
+
+    // One cell per sample at 48 kHz: 17.52 cm * 48000 / 350 m/s = 24.03 cells, a ladder 17.5 cm long (the mean of Story's vocal tract lengths).
+    private const int TractSpeedMetersPerSecond = 350;
+
+    // Per-cell pass factor of the nasal path. The nasal cavity is the most heavily damped part of the tract (soft walls, turbinates, the paranasal
+    // sinuses), so a nasal murmur has broad formants and sits well under its vowels. A factor of .975 per 0.73 cm cell is a bandwidth of about
+    // 380 Hz, a DESIGN VALUE set from the murmur level: with the junction on its own interface and .997 (the oral tract's .998 less a little) the
+    // murmur read -4.2 dB (/m/) and -2.2 dB (/n/) re the flanking vowels; the target is 8 to 16 dB under (no primary level or bandwidth retrieved).
+    private const string NasalPathLoss = ".975";
 
     private static string Scaffold(IReadOnlyList<string> gestureLines, float sustain, float frequency) => $$"""
         patch gain=.45
-        morphology name=oral length_cm=17 diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.2
-        morphology name=nasal length_cm=12 diameters=.04,.28,.52,.72
-        waveguide_path name=oral_path morphology=oral strategy=thiran order=1 max_delay=4096 loss=.998
-        waveguide_path name=nasal_path morphology=nasal strategy=thiran order=1 max_delay=4096 loss=.997
+        morphology name=oral length_cm={{Format(StoryVowelAreas.MeanLengthCentimeters)}} diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 constriction_width=.03 lip_opening=4
+        vowel_set area_function=oral source={{StoryVowelAreas.Source}}
+        morphology name=nasal length_cm={{Format(NasalTractAreas.LengthCentimeters)}} areas={{NasalTractAreas.AreasList()}}
+        waveguide_path name=oral_path morphology=oral speed={{TractSpeedMetersPerSecond}} strategy=thiran order=1 max_delay=4096 loss=.998
+        waveguide_path name=nasal_path morphology=nasal speed={{TractSpeedMetersPerSecond}} strategy=thiran order=1 max_delay=4096 loss={{NasalPathLoss}}
         source_port name=folds path=oral_path kind=glottal position=0 pressure=.66 tension=.54 opening=.42 noise=.04 impedance=.32 flow_scale=.12
-        branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
+        branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=0 coupling=1
         constriction_contact name=contact path=oral_path position=.92 opening=1 resistance=.45 stored_pressure=.12
-        radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-.82 impedance=.28
-        radiation_load name=nostril path=nasal_path kind=lip position=1 aperture=.8 reflection=-.82 impedance=.28
+        radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-1 impedance=.28
+        radiation_load name=nostril path=nasal_path kind=lip position=1 aperture=.8 reflection=-1 impedance=.28
         probe_timeline name=flow network=voice blocks=12 block_size=64
         vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=contact branches=velopharynx radiation=mouth,nostril probe=flow
         {{string.Join("\n", gestureLines)}}
@@ -286,7 +298,7 @@ public static class IpaGestureExperiment
         IReadOnlyList<ProbeTimelineSample> timeline)
     {
         var tokens = DescriptorTokens(target.Descriptor);
-        var expected = ExpectedSurfaces(tokens);
+        var expected = ExpectedSurfaces(tokens, target.Descriptor);
         var touched = patch.ControlSplines
             .Where(spline => spline.Enabled)
             .Select(spline => spline.SurfacePath)
@@ -295,7 +307,7 @@ public static class IpaGestureExperiment
         var coverage = expected.Length == 0
             ? 1
             : expected.Count(surface => touched.Contains(surface)) / (float)expected.Length;
-        var direction = DirectionScore(tokens, patch.ControlSplines);
+        var direction = DirectionScore(tokens, target.Descriptor, patch.ControlSplines);
         var contour = ContourTimingScore(patch.ControlSplines);
         var primitive = PrimitiveTimelineScore(tokens, timeline);
         var score = 0.25f * coverage + 0.25f * direction + 0.20f * contour + 0.20f * primitive;
@@ -313,7 +325,7 @@ public static class IpaGestureExperiment
             new(candidate.Id, target.Id, "gesture", name, Math.Clamp(value, 0, 1));
     }
 
-    private static string[] ExpectedSurfaces(HashSet<string> tokens)
+    private static string[] ExpectedSurfaces(HashSet<string> tokens, string descriptor)
     {
         var surfaces = new List<string>
         {
@@ -326,11 +338,13 @@ public static class IpaGestureExperiment
         {
             surfaces.AddRange(
             [
-                "/vocal/areas/0/area/tongue_index",
-                "/vocal/areas/0/area/tongue_diameter",
                 "/vocal/areas/0/area/lip_opening",
                 "/vocal/radiation/0/aperture"
             ]);
+            if (StoryVowelAreas.IdForDescriptor(descriptor) is { } vowelId)
+            {
+                surfaces.Add($"/vocal/areas/0/area/{StoryVowelAreas.SurfaceField(vowelId)}");
+            }
         }
         else
         {
@@ -367,7 +381,7 @@ public static class IpaGestureExperiment
         return surfaces.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
-    private static float DirectionScore(HashSet<string> tokens, IReadOnlyList<ControlSpline> splines)
+    private static float DirectionScore(HashSet<string> tokens, string descriptor, IReadOnlyList<ControlSpline> splines)
     {
         var checks = new List<float>();
         if (tokens.Contains("nasal"))
@@ -390,8 +404,11 @@ public static class IpaGestureExperiment
 
         if (tokens.Contains("vowel"))
         {
-            checks.Add(Exists(splines, "/vocal/areas/0/area/tongue_index"));
-            checks.Add(Exists(splines, "/vocal/areas/0/area/tongue_diameter"));
+            if (StoryVowelAreas.IdForDescriptor(descriptor) is { } vowelId)
+            {
+                checks.Add(Exists(splines, $"/vocal/areas/0/area/{StoryVowelAreas.SurfaceField(vowelId)}"));
+            }
+
             checks.Add(Exists(splines, "/vocal/radiation/0/aperture"));
         }
 

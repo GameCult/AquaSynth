@@ -647,8 +647,8 @@ public static partial class FaustEmitter
             }
         }
 
-        var lips = members.Count == 0
-            ? new Dictionary<string, string>()
+        var (lips, glottalPressures) = members.Count == 0
+            ? (new Dictionary<string, string>(), new Dictionary<string, string>())
             : EmitVocalLadder(source, patch, network, name, members, inputs, admittances, parameters, warnings);
 
         foreach (var member in members)
@@ -684,6 +684,17 @@ public static partial class FaustEmitter
                     radiated.Add(PrimitiveRadiationExpression(source, patch, name, load, wave, parameters, options, keepAlive));
                 }
             }
+
+            if (glottalPressures.TryGetValue(path.Name, out var glottalPressure))
+            {
+                // Tract wall radiation: the pressure inside the tract, low-passed, leaves through the cheeks and neck whether or not the mouth
+                // is open. It is the only sound a closed mouth makes (the voice bar of a voiced stop) and sits far under the mouth's output
+                // in a vowel.
+                var wall = $"{member.Prefix}_wall_radiation";
+                source.AppendLine($"    {wall} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/wall_radiation", $"(({glottalPressure}) : fi.highpass(2, {WallRadiationHighpassHz}) : fi.lowpass(2, {WallRadiationLowpassHz})) * {WallRadiationGain}", -4, 4)};");
+                keepAlive.Add(wall);
+                radiated.Add(wall);
+            }
         }
 
         var output = radiated.Count == 0 ? "0.0" : string.Join(" + ", radiated);
@@ -714,6 +725,8 @@ public static partial class FaustEmitter
         var opening = parameters.Expression(OwnerField(owner, "opening"), port.Opening);
         var impedance = parameters.Expression(OwnerField(owner, "impedance"), port.Impedance);
         var flowScale = parameters.Expression(OwnerField(owner, "flow_scale"), port.FlowScale);
+        // f0 is the voice frequency times the source's ratio (the stress cue), smoothed over 10 ms so a step in the ratio is a glide.
+        var pitchRatio = $"({parameters.Expression(OwnerField(owner, "pitch_ratio"), port.PitchRatio)} : si.smooth(ba.tau2pole(0.01)))";
         var load = $"{voiceName}_primitive_source_{safe}_load_pressure";
         var voiced = $"{voiceName}_primitive_source_{safe}_voiced";
         var flow = $"{voiceName}_primitive_source_{safe}_flow";
@@ -721,7 +734,7 @@ public static partial class FaustEmitter
         // Harmonic glottal source: a band-limited saw through a one-pole lowpass. Tilt 0 is the brightest source and 1 the
         // steepest rolloff; the cutoff sweeps five octaves, 6400 Hz down to 200 Hz, and sits below Nyquist.
         var cutoff = $"min(0.45 * ma.SR, 200.0 * pow(2.0, (1.0 - clip01({parameters.Expression(OwnerField(owner, "tilt"), port.Tilt)})) * 5.0))";
-        source.AppendLine($"    {voiced} = (os.sawtooth({frequency}) : fi.lowpass(1, {cutoff})) * clip01({opening}) * clip01(0.25 + {tension});");
+        source.AppendLine($"    {voiced} = (os.sawtooth(({frequency}) * {pitchRatio}) : fi.lowpass(1, {cutoff})) * clip01({opening}) * clip01(0.25 + {tension});");
         source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * (({voiced}) * ma.tanh((({pressure}) * (0.5 + {tension})) / max(0.05, {impedance})) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)})", -2, 2)};");
         keepAlive.Add(load);
         keepAlive.Add(voiced);
@@ -744,13 +757,19 @@ public static partial class FaustEmitter
         var opening = $"clip01({parameters.Expression(OwnerField(owner, "opening"), contact.Opening)})";
         var resistance = parameters.Expression(OwnerField(owner, "resistance"), contact.Resistance);
         var stored = parameters.Expression(OwnerField(owner, "stored_pressure"), contact.StoredPressure);
+        var releaseGain = parameters.Expression(OwnerField(owner, "release_flow"), contact.ReleaseFlow);
         var released = $"{voiceName}_primitive_contact_{safe}_released_flow";
         var reservoir = $"{voiceName}_primitive_contact_{safe}_reservoir";
+        var burst = $"{voiceName}_primitive_contact_{safe}_burst";
         source.AppendLine($"    {reservoir} = {ProbeSignal(options, $"/debug/{voiceName}/contact/{contact.Name}/reservoir", $"(({stored}) + (1.0 - {opening}) * {resistance})", 0, 2)};");
         source.AppendLine($"    {released} = {ProbeSignal(options, $"/debug/{voiceName}/contact/{contact.Name}/released_flow", $"({reservoir}) * {opening} * (1.0 - min(0.95, {resistance} * 0.5))", -2, 2)};");
+        // Release burst: noise whose amplitude is the stored pressure through the opening area as it passes between shut and open
+        // (4 * o * (1 - o) peaks at half open and vanishes at both ends), so a shut or fully open contact is silent.
+        source.AppendLine($"    {burst} = {ProbeSignal(options, $"/debug/{voiceName}/contact/{contact.Name}/burst", $"no.noise * ({releaseGain}) * ({stored}) * 4.0 * {opening} * (1.0 - {opening})", -2, 2)};");
         keepAlive.Add(reservoir);
+        keepAlive.Add(burst);
         keepAlive.Add(released);
-        return released;
+        return $"({released} + {burst})";
     }
 
     // Open fraction of a branch port: the ladder reads it as the velum area when the branch joins two paths of the network,
@@ -791,6 +810,16 @@ public static partial class FaustEmitter
     // aperture: the ladder's lip cell already carries the lip area, and a corner that rose with aperture (40 + 500 Hz) sat above
     // /u/'s F1 and put a 450 Hz hump in its envelope. The aperture stays the gain consonant closures use.
     private const string RadiationHighpassHz = "200.0";
+
+    // Tract wall radiation (the voice bar). Corners: skin and soft tissue pass only the low end of the voice (below about 200-300 Hz), and
+    // a second-order highpass at 90 Hz keeps the slow pressure drift of a shutting tract out (a 40 Hz first-order corner left it in). The gain
+    // is a DESIGN VALUE set so a word-initial voiced closure reads 30 dB under the following vowel (/p/ 41 dB); the wall term moves a
+    // vowel's f0 line by under 1 dB and its 200 and 300 Hz harmonics by up to 1.5 dB on one open vowel (no primary level retrieved;
+    // docs/research/articulatory-vocal-tract-sources.md). Both corners are second-order sections: the closed-tract bar is about 25 dB down
+    // above 300 Hz, not cut off there.
+    private const string WallRadiationHighpassHz = "90.0";
+    private const string WallRadiationLowpassHz = "300.0";
+    private const string WallRadiationGain = "0.7";
 
     private static string PrimitiveRadiationExpression(
         StringBuilder source,
@@ -1671,16 +1700,20 @@ public static partial class FaustEmitter
             (segment.StartPosition + segment.EndPosition) * 0.5f);
 
     /// <summary>
-    /// The one owner of the Gaussian tongue/constriction/lip area deformation: cross-section area (cm^2) of a tract at a
-    /// normalized position, as a Faust expression over the control surfaces under <paramref name="areaPath"/>. Acoustic
-    /// graph terminals and segments and the vocal ladder's cells all read their area here.
+    /// The one owner of the tract area model: cross-section area (cm^2) of a tract at a normalized position, as a Faust
+    /// expression over the control surfaces under <paramref name="areaPath"/>. Acoustic graph terminals and segments and the
+    /// vocal ladder's cells all read their area here. The base diameter is either the rest shape deformed by the Gaussian
+    /// tongue and lip terms, or, when <paramref name="vowels"/> are given, the log-area blend of the measured vowel shapes
+    /// weighted by the vowel_* surfaces (no tongue term; lip_opening is then a cap on the lip cells). The constriction term
+    /// applies to either base.
     /// </summary>
     private static string DeformedAreaExpression(
         ParameterMap parameters,
         TractAreaFunction shape,
         AcousticAreaControl? area,
         string areaPath,
-        float position)
+        float position,
+        IReadOnlyList<VowelAreaShape>? vowels = null)
     {
         var restDiameter = shape.DiameterAt(position);
         if (area is null)
@@ -1690,22 +1723,47 @@ public static partial class FaustEmitter
 
         var sections = Math.Max(2, shape.Sections);
         var index = F(position * (sections - 1));
-        var tongueIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "tongue_index"), area.TongueIndex), area.IndexScale);
-        var tongueDiameter = parameters.Expression(OwnerField(areaPath, "tongue_diameter"), area.TongueDiameter);
-        var tongueWidth = $"max(0.001, {F(area.TongueWidth)} * {F(sections)})";
         var constrictionIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "constriction_index"), area.ConstrictionIndex), area.IndexScale);
         var constrictionDiameter = parameters.Expression(OwnerField(areaPath, "constriction_diameter"), area.ConstrictionDiameter);
         var constrictionWidth = $"max(0.001, {F(area.ConstrictionWidth)} * {F(sections)})";
         var lipOpening = parameters.Expression(OwnerField(areaPath, "lip_opening"), area.LipOpening);
         var lipWeight = MathF.Exp(0 - MathF.Pow((1 - position) / Math.Max(0.001f, area.LipWidth), 2));
-        var tongueWeight = $"exp(0.0 - pow(({index} - ({tongueIndex})) / ({tongueWidth}), 2.0))";
         var constrictionWeight = $"exp(0.0 - pow(({index} - ({constrictionIndex})) / ({constrictionWidth}), 2.0))";
-        var baseDiameter = $"({F(restDiameter)} + (({tongueDiameter}) - {F(restDiameter)}) * ({tongueWeight}) + (({lipOpening}) - {F(restDiameter)}) * {F(lipWeight)})";
+        string baseDiameter;
+        if (vowels is { Count: > 0 })
+        {
+            // The cap applies to the cells inside the lip Gaussian's half-power region; elsewhere it is unbounded.
+            var blended = VowelBlendDiameter(parameters, vowels, areaPath, position);
+            baseDiameter = lipWeight >= 0.5f ? $"min({blended}, ({lipOpening}))" : blended;
+            baseDiameter = $"({baseDiameter})";
+        }
+        else
+        {
+            var tongueIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "tongue_index"), area.TongueIndex), area.IndexScale);
+            var tongueDiameter = parameters.Expression(OwnerField(areaPath, "tongue_diameter"), area.TongueDiameter);
+            var tongueWidth = $"max(0.001, {F(area.TongueWidth)} * {F(sections)})";
+            var tongueWeight = $"exp(0.0 - pow(({index} - ({tongueIndex})) / ({tongueWidth}), 2.0))";
+            baseDiameter = $"({F(restDiameter)} + (({tongueDiameter}) - {F(restDiameter)}) * ({tongueWeight}) + (({lipOpening}) - {F(restDiameter)}) * {F(lipWeight)})";
+        }
+
         var diameter = $"max(0.0, min({baseDiameter}, ({constrictionDiameter}) + max(0.0, ({baseDiameter}) - ({constrictionDiameter})) * (1.0 - ({constrictionWeight}))))";
         return $"(({diameter}) * ({diameter}))";
 
         static string ScaledAreaIndex(string expression, float scale) =>
             scale == 1 ? expression : $"(({expression}) * {F(scale)})";
+    }
+
+    // Diameter of the blend exp(sum_k w_k ln A_k / max(1e-3, sum_k w_k)) of the vowel shapes at one position, A_k read at that position
+    // by linear interpolation in area. Weights below zero count as zero; when they sum to under 1e-3 the blend is the geometric mean of
+    // the shapes (select2 picks it), so zero weights are a defined shape rather than NaN.
+    private static string VowelBlendDiameter(ParameterMap parameters, IReadOnlyList<VowelAreaShape> vowels, string areaPath, float position)
+    {
+        var logs = vowels.Select(vowel => MathF.Log(Math.Max(0.000001f, StoryVowelAreas.AreaAt(vowel.Areas, position)))).ToArray();
+        var weights = vowels.Select(vowel => $"max(0.0, {parameters.Expression(OwnerField(areaPath, StoryVowelAreas.SurfaceField(vowel.Name)), 0)})").ToArray();
+        var total = $"({string.Join(" + ", weights)})";
+        var numerator = $"({string.Join(" + ", weights.Select((weight, k) => $"{weight} * ({F(logs[k])})"))})";
+        var geometricMean = F(MathF.Exp(logs.Average()));
+        return $"sqrt(select2({total} < 0.001, exp({numerator} / max(0.001, {total})), {geometricMean}))";
     }
 
     private static WaveClockPolicy ResolveWaveClock(
