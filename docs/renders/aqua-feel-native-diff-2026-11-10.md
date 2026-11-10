@@ -42,16 +42,77 @@ Evidence that the library text, not `-vec`, `-lv`, `-double` or contraction, dec
 
 The earlier version of this report said the cause was the float32 rounding of the smoother on a native path that "does not stall for an unisolated reason" and suggested `-vec`; that was wrong. The `wander` term is not the cause (removing it leaves rpm300 2.62e-2, rpm4800 2.89e-1).
 
-The isolation probes are scratch scripts in `/var/lib/mind-aqua-self/soul-nd-1` (not committed); the numbers above are not in the `.json`, which holds only the seven main rows.
+The isolation probes are scratch scripts in `/var/lib/mind-aqua-self/soul-nd-1` (not committed); the numbers above are not in the `.json`, which holds the seven main rows plus the tract.
 
 ### What this does and does not invalidate
 
 - Level, true-peak, centroid, crest and hiss claims for the thruster hold on both libraries within the numbers above. The rpm600 hiss cap (8 dB) has 1.95 dB of headroom with the native library, not the 2.96 dB the threshold note assumes; still passes.
 - Sample- or phase-level comparisons of the thruster (null tests, exact waveform diffs, sub-ms timing of the rotor tone) are specific to the library that rendered them.
-- Which library a given daemon uses depends on its `share/faust`. A daemon shipping a release stdlib with the old `si.smooth` would stall like wasm; this sandbox's would not. The report cannot say what the production daemon does.
-- Other sources that import `si.smooth` or `si.smoo` are expected to show the same skew and were **not tested**: 11 sources by count (7 patches, 3 Ding instruments, plus `advanced-human-larynx-graph`), which puts most of the 36 Ding items (27 or more) on the divergent library.
-- **Not tested:** the other 75 of the 81 aqua-feel items, the sfxr-family patches beyond the two here, Ding mixes, block sizes other than 512, and any live (non-offline) host.
+- Which library a given daemon uses depends on its `share/faust`. A daemon shipping a release stdlib with the old `si.smooth` would stall like wasm; this sandbox's would not. The only Windows Faust install found (Starfire, 2.85.5) has the old form; see the section on the production stdlib below.
+- **Not tested:** the other aqua-feel items that do not call `si.smooth`/`si.smoo` (the 81 items are 45 patch renders and 36 Ding event mixes; this report covers 12 sources plus the tract), the Ding event mixes (only one note per instrument is rendered below), block sizes other than 512, and any live (non-offline) host.
 
 ## Toolchain
 
 dotnet 10.0.403 builds `FaustNativeRender` with `/var/lib/mind-aqua-self/env-review.sh`. Re-running the script reproduces the JSON byte for byte.
+
+## Which stdlib the production daemon compiles against (2026-11-10)
+
+The repo neither vendors nor pins faustlibraries (`.gitmodules` holds only zynaddsubfx and pink-trombone-mod). `NativeFaustRuntime.cs:530` passes `-I <home>/share/faust`, and `AquaSynthFaustToolchain.Find` (`NativeFaustRuntime.cs:651`) takes `home` from `AQUASYNTH_FAUST_HOME`, then `AQUARIUM_FAUST_HOME`, then `Tools/Faust` beside the app, then `C:\Program Files\Faust` (Windows) or `/usr/local`, `/usr`. So the daemon compiles against whatever Faust install the host has.
+
+| host | Faust | `si.smooth` in its `signals.lib` | stalls (float32)? |
+|---|---|---|---|
+| Starfire `C:\Program Files\Faust` (read over ssh; faust.exe 2.85.5, `signals.lib` 2026-03-20, `smooth = smooth_imp(0)`, line 382) | 2.85.5 | `(1.0 - s) * x + s * y`, the same recursion as wasm's | yes, by the same mechanism |
+| aqua-feel's wasm bundle (faustwasm 0.20.0, libfaust 2.90.19; embedded `signals.lib`) | 2.90.19 | `smooth(s) = *(1.0 - s) : + ~ *(s)` | yes: 4796.632 |
+| this sandbox (`faustlibraries-20261031`, master 3d8c6ef, a one-commit shallow clone) | 2.90.20 | `smooth = imp(3)` with a comment on the stall | no |
+
+I read only that Starfire file's `smooth` definition; I did not render on Starfire. On the evidence, the Windows daemon uses the old form, so **aqua-feel's wasm numbers are the closer model of that host than this sandbox's native render is**; the sandbox's imp(3) library is not what any shipped host has. Whether the daemon runs on Starfire in production is not established here; it is the only Windows Faust install found.
+
+## The twelve sources that call `si.smooth` / `si.smoo`
+
+The earlier "eleven" was seven patches, three Ding instruments and the larynx graph; the catalog has seven patches besides the thruster **including** the larynx graph, and **four** Ding instruments (`muted-pluck` was missed). Rendered: the thruster at rpm 1200, those seven patches, and one note per instrument (261.6256 Hz, 1.5 s, not the mixed event). Three conditions, each the same Faust text on both sides: as shipped (each side's own stdlib), the old smoother pinned (`nd_smooth(s) = *(1.0 - s) : + ~ *(s)`), and imp(3) pinned. Pinning rewrites `si.smooth` and `si.smoo` in the source text; a smoother called inside another library function is not rewritten, which may account for the `dx7-algorithm-32` residual below. The tract voice rides along as a thirteenth row. Columns are native minus wasm. Raw rows: `aqua-feel-native-diff-smoother-{library,old,imp3}-2026-11-10.json`.
+
+| source | stdlib as shipped (wasm bundle vs sandbox): max err / rel RMS dB | old smoother pinned | imp3 pinned | ΔLUFS lib / old / imp3 | Δ true peak dB lib / old / imp3 | Δ centroid % lib / old / imp3 |
+|---|---|---|---|---|---|---|
+| thruster@rpm1200 | 9.0e-2 / -16.6 | 4.5e-2 / -21.2 | 7.1e-6 / -99.9 | 0.000 / 0.001 / -0.000 | -0.081 / -0.152 / 0.000 | 0.07 / -0.08 / 0.00 | | ; | ; |
+| advanced-alien-multivalve-graph | 2.9e-5 / -68.4 | 1.0e-5 / -72.5 | 7.9e-7 / -97.9 | -0.000 / -0.000 / -0.000 | -0.001 / -0.000 / -0.000 | -0.00 / 0.00 / 0.00 | | ; | ; |
+| advanced-bird-syrinx | 2.8e-3 / -27.3 | 1.6e-3 / -31.7 | 3.2e-6 / -88.3 | -0.001 / -0.001 / -0.000 | -0.000 / -0.000 / -0.000 | -0.00 / -0.00 / 0.00 | | ; | ; |
+| advanced-bird-syrinx-graph | 9.4e-4 / -38.4 | 2.7e-4 / -47.1 | 1.5e-5 / -75.4 | 0.000 / -0.000 / 0.000 | 0.000 / 0.000 / -0.000 | -0.01 / 0.00 / -0.00 | | ; | ; |
+| advanced-syrinx-voice | 1.3e-3 / -23.9 | 3.6e-4 / -34.6 | 2.3e-6 / -86.3 | 0.001 / 0.000 / 0.000 | 0.003 / 0.003 / -0.000 | -0.00 / -0.00 / 0.00 | | ; | ; |
+| advanced-human-larynx-graph | 9.6e-5 / -38.1 | 3.3e-5 / -46.6 | 7.6e-7 / -94.2 | 0.002 / 0.001 / -0.000 | 0.002 / 0.001 / -0.000 | 0.05 / 0.05 / 0.04 | | ; | ; |
+| dx7-algorithm-32-additive-organ | 1.7e-4 / -79.3 | 1.6e-4 / -79.5 | 1.6e-4 / -79.5 | 0.000 / -0.000 / 0.000 | -0.000 / -0.000 / -0.000 | -0.00 / -0.00 / -0.00 | | ; | ; |
+| dx7-algorithm-8-bright-pair | 4.1e-6 / -94.5 | 4.2e-6 / -94.2 | 3.9e-6 / -94.7 | 0.000 / 0.000 / 0.000 | -0.000 / -0.000 / -0.000 | 0.00 / 0.00 / -0.00 | | ; | ; |
+| ding-instrument/glass-chime | 3.8e-2 / -18.4 | 2.5e-2 / -21.9 | 3.3e-7 / -130.0 | 0.000 / 0.000 / 0.000 | -0.000 / 0.000 / -0.000 | 0.02 / 0.01 / -0.00 | | ; | ; |
+| ding-instrument/muted-pluck | 6.6e-4 / -49.8 | 6.1e-4 / -50.2 | 3.0e-8 / -141.7 | -0.000 / -0.000 / -0.000 | -0.000 / -0.000 / -0.000 | 0.00 / -0.01 / -0.00 | | ; | ; |
+| ding-instrument/soft-triangle | 4.3e-3 / -30.3 | 2.4e-3 / -35.2 | 4.5e-8 / -142.0 | 0.000 / -0.000 / -0.000 | -0.000 / -0.000 / 0.000 | 0.16 / 0.12 / -0.00 | | ; | ; |
+| ding-instrument/warm-bell | 5.4e-2 / -18.3 | 3.2e-2 / -22.9 | 2.3e-7 / -134.2 | 0.000 / 0.000 / -0.000 | -0.000 / 0.000 / -0.000 | 0.01 / 0.00 / -0.00 | | ; | ; |
+| tract/vowel-a | 1.9e-4 / -52.6 | 6.7e-5 / -61.2 | 3.1e-7 / -109.3 | 0.017 / 0.006 / -0.000 | 0.013 / 0.004 / -0.000 | 0.01 / 0.01 / -0.00 | FAIL onsetMs|FAIL onsetMs ; FAIL onsetMs|FAIL onsetMs ; FAIL onsetMs|
+
+Largest metric deltas over all sources and the three conditions: |LUFS| 0.017 dB (tract), |true peak| 0.152 dB (thruster, old pinned), |centroid| 0.16 % (soft-triangle; the earlier core run has 0.3 % at thruster rpm600). **No gate flag differs on any source in any condition**; the tract's patch-group `FAIL onsetMs` is on both sides (see above).
+
+What the data says:
+
+- With imp(3) pinned on both sides all 13 rows agree to -75 dB or better (Ding instruments -130 to -142 dB, thruster -99.9 dB, tract -109 dB; worst: `advanced-bird-syrinx-graph` -75.4 dB). `dx7-algorithm-32-additive-organ` sits at -79.5 dB under all three conditions, so its residual is not the pinned smoother (a smoother inside a library function, or float rounding; not isolated).
+- With the old smoother pinned the thruster still differs (-21.2 dB): native's LLVM contracts the recursion to FMA and stalls at 4797.657 instead of wasm's 4796.632. The old form's stall point depends on the arithmetic; the imp(3) form does not.
+- As shipped, nine of the 13 rows differ at waveform level by -16 to -50 dB (thruster, the three syrinx patches, the larynx graph, all four Ding instruments); `advanced-alien-multivalve-graph` (-68 dB), the tract (-52.6 dB) and the two dx7 patches are closer.
+
+## Tolerance in `native-diff.mjs`
+
+Added, because the data shows a gap. Across all 13 sources and the 3 conditions the metric deltas stay under |LUFS| 0.017 dB, |true peak| 0.152 dB, centroid 0.3 %. A deliberate +1 dB gain on the native buffer moves LUFS and true peak by 1.0 dB. The limits sit between: 0.1 dB, 0.5 dB, 1 %. Sample-level error has no limit with the library smoother (the waveforms legitimately diverge), but with `--smoother imp3` it has one at -60 dB (the worst row is -75.4 dB; a one-sample shift reads about -4 dB).
+
+Mutation check on the tool, `--items smoother --smoother imp3`: unmutated, 12 of 12 clean, exit 0; +1 dB native gain, 12 of 12 flagged (`loudnessLufs`, `truePeakDb`, `relRmsErrDb`), exit 1; one-sample native shift, 12 of 12 flagged (`relRmsErrDb`), exit 1. A one-sample shift is not detectable with the library smoother; `loudnessLufs`, `truePeakDb` and centroid also cannot see it. The limits are tripwires fit to these 13 sources, not taste.
+
+## What changes in aqua-feel's conclusions
+
+- Nothing in the gate changes: no flag differs on any tested source, and every metric delta is far below any threshold in `thresholds.json` that I looked at except the rpm600 thruster hiss cap noted above (1.0 dB, still under the cap).
+- aqua-feel's WAVs are a fair rendering of what a host with the old `si.smooth` produces (the only Windows install found). They are **not** sample-identical to this sandbox's native render, and no sample-level claim about the thruster, the syrinx patches or the Ding instruments should be carried across them.
+- The listening trial heard wasm renders; for a Windows daemon that is the closer path. For a daemon built on the sandbox's library, the same sources have the same level and spectrum and a different phase trajectory.
+- Nothing was heard.
+
+## Proposed faustlibraries pin (not made)
+
+The cause is that `si.smooth` is whatever the host's `share/faust` says. Options, in order of my preference (confidence moderate; none of this is Soul-checked):
+1. Vendor a pinned faustlibraries tree under the daemon's `Tools/Faust/share/faust` at build, record its commit in the compile manifest next to `faustLibrary`, and have `AquaSynthNativeOptions` prefer it over the system install. This makes the wasm bundle, Starfire and the sandbox agree only if aqua-feel's wasm path pins the same text too (faustwasm takes a library via its virtual FS), so pin both.
+2. Decide the smoother once, in AquaSynth's emitted source: lowering emits a local smoother definition instead of calling `si.smooth`, so no host's stdlib decides it. Smaller, but changes every lowered patch and does not cover library functions that smooth internally.
+3. Leave unpinned and record the host library identity in each compile manifest, accepting skew.
+
+Which smoother is the right one is a sound decision, not a measurement: imp(3) cannot stall (the library's own comment), the old form lands 0.07 % short of an rpm target at 4800. That is the owner's call.

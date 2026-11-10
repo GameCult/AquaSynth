@@ -27,7 +27,9 @@ foreach (var spec in args.Skip(3))
 {
     var eq = spec.IndexOf('=');
     var key = spec[..eq];
-    var path = patch.ControlPaths.Single(p => p == key || p == "/" + key || p.EndsWith("/" + key));
+    var hits = patch.ControlPaths.Where(p => p.TrimStart('/') == key.TrimStart('/') || p.EndsWith("/" + key.TrimStart('/'))).ToList();
+    if (hits.Count != 1) { Console.Error.WriteLine($"control \"{key}\" matches {hits.Count} of: {string.Join(", ", patch.ControlPaths)}"); return 1; }
+    var path = hits[0];
     ctl[path] = float.Parse(spec[(eq + 1)..], System.Globalization.CultureInfo.InvariantCulture);
 }
 

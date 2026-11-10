@@ -1,6 +1,8 @@
 {
  "libfaustWasm": "2.90.19",
  "sampleRate": 48000,
+ "items": "core",
+ "smoother": "library",
  "rows": [
   {
    "id": "thruster@rpm300",
@@ -35,7 +37,8 @@
     "lowMotion": false
    },
    "flagsWasm": [],
-   "flagsNative": []
+   "flagsNative": [],
+   "violations": []
   },
   {
    "id": "thruster@rpm600",
@@ -70,7 +73,8 @@
     "lowMotion": false
    },
    "flagsWasm": [],
-   "flagsNative": []
+   "flagsNative": [],
+   "violations": []
   },
   {
    "id": "thruster@rpm1200",
@@ -105,7 +109,8 @@
     "lowMotion": false
    },
    "flagsWasm": [],
-   "flagsNative": []
+   "flagsNative": [],
+   "violations": []
   },
   {
    "id": "thruster@rpm4800",
@@ -140,7 +145,8 @@
     "lowMotion": false
    },
    "flagsWasm": [],
-   "flagsNative": []
+   "flagsNative": [],
+   "violations": []
   },
   {
    "id": "sfxr-classic-classic-sfxr-abstract-golf",
@@ -185,7 +191,8 @@
     "waived lowMotion",
     "waived loudnessLufs",
     "warn truePeakDb"
-   ]
+   ],
+   "violations": []
   },
   {
    "id": "sfxr-explosion",
@@ -224,7 +231,8 @@
    ],
    "flagsNative": [
     "waived lowMotion"
-   ]
+   ],
+   "violations": []
   },
   {
    "id": "tract/vowel-a",
@@ -263,7 +271,8 @@
    ],
    "flagsNative": [
     "FAIL onsetMs"
-   ]
+   ],
+   "violations": []
   }
  ]
 }
