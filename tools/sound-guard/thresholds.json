@@ -1,0 +1,187 @@
+{
+  "format": "aquasynth.sound-guard-thresholds.v1",
+  "about": "Every number the guard compares against lives in this file and nowhere else (guard.py has none). Each entry has a `why`. test_guard.py fails if one lacks it. Detector boundaries that belong to tools/aqua-ear are pinned, not copied: see aqua_ear_pins.",
+  "thresholds": {
+    "pad_ms": {
+      "value": 20,
+      "why": "Digital silence prepended before onset analysis. aqua-ear cannot see an onset that is already at full level at sample 0 (Kiko, Void, Aqua, Weksa start inside the first millisecond: their first note was missing from aqua-ear's own onset list). The pad also makes a clip that starts on a non-zero sample a step the click detector sees. Padding is not used for DC or the end checks."
+    },
+    "hold_ms": {
+      "value": 10,
+      "why": "Peak-hold applied to aqua-ear's 1 ms envelope before the onset detector (rising edges are untouched, only valleys are filled). A low harmonic tone's envelope ripples at its fundamental and aqua-ear reads each ripple as an onset (Heimdall's 196 Hz horn gave 50 to 90 'onsets' per clip; Earcon Workshop warm-bell 20 to 75). 10 ms is one period of 100 Hz, below every fundamental in the shipped sets (lowest: Heimdall 196 Hz, Earcon fail -4 semitones from 262 Hz)."
+    },
+    "window_pre_ms": {
+      "value": 20,
+      "why": "An onset up to this many ms before an intended note start belongs to that note. Measured on the decoded shipped clips: Vorbis pre-echo puts rises 12 to 15 ms ahead of an attack (Aqua message 215 ms for a note at 230, 15 ms early; Aqua dm 228 for 240, 12 early) at -14 to -30 dB re the attack; there is nothing else in a clip that early."
+    },
+    "window_post_ms": {
+      "value": 20,
+      "why": "An onset up to this many ms after an intended note start belongs to that note. Measured: first-hit attacks land 0 to 5 ms late and high-band onsets from the attack (Aqua glide, Nibu 8 kHz grain, Void 9 ms attack) land up to +14 ms (Aqua invite 214 for 200). Must stay well below 95 ms, where the v3 Void knock sat, and below the 70 ms spacing of the Earcon message pair (pre 20 + post 20 = 40 ms, no windows overlap)."
+    },
+    "main_timing_ms": {
+      "value": 8,
+      "why": "The loudest onset in a note's window must start within this many ms of the intended time. Measured worst offset of a main onset over all strict clips is 5 ms (Void dm second note, 235 for 240); Earcon first notes are 1 to 3 ms early. 8 leaves 3 ms margin; a note 10 ms off is a timing bug."
+    },
+    "precursor_db": {
+      "value": 10,
+      "why": "An onset that starts before the main onset of its note (pre-echo, a rise lead-in) is not a second hit if its peak is at least this far under the main onset's peak. Measured pre-echo is 13.7 to 27 dB under (Aqua invite 195 ms: 13.7 dB under). aqua-ear's own 'comparable' limit is 20 dB, which would call Vorbis pre-echo a double hit; 10 dB is lower than any measured pre-echo and still lets any equal-level second hit fail. An onset AFTER the main onset inside the window has no such allowance and always fails on the full-band channel."
+    },
+    "hf_floor_dbfs": {
+      "value": -80.0,
+      "why": "High-band (above 2 kHz) onset floor, absolute; aqua-ear uses -75. The detector needs a 4 dB rise above its trough, which is clamped at this floor, so a high-band onset is only seen when it peaks above floor + 4 dB = -76 dBFS. The v3 Void knock measured -53 dBFS in this band at a -9 dBFS clip. Measured on synthetic copies of the v4 Void clips: caught down to a knock 20 dB below the v3 level on all three motifs tried, 22 dB below on the loudest only. -80 is as low as the shipped set allows: at -84 Aqua mention (hf -79 dBFS at 30 ms, glide leakage) and Heimdall (hf rises at -76 under its swell) show strays, so a lower floor would make the guard red on clips nobody can hear differ."
+    },
+    "ceiling_dings_dbtp": {
+      "value": -8.0,
+      "why": "True-peak ceiling for the 32 sender clips, measured on the decoded Ogg. finish.py equalises exposure and places the loudest clip at -9.0 dBTP (-8.94 measured after the encode), so no clip should exceed that; -8.0 leaves 1 dB for encoder variation and still fails a spiky clip (a knock or a click raises peak at constant exposure). The delivery convention of -1 dBTP (verify.py) would let a clip 7 dB hotter than designed through."
+    },
+    "ceiling_earcon_dbtp": {
+      "value": -2.5,
+      "why": "True-peak ceiling for Earcon Workshop clips and the neutral fallbacks (which are Earcon Workshop warm-bell renders). The default render sets level 0.7 = -3.1 dBFS; measured true peak is -3.09 to -2.66 dBTP over all 24 earcons and 4 neutral clips (the neutral invite is -2.66). -2.5 keeps 0.16 dB margin over the worst, and stays 1.5 dB inside the -1 dBTP delivery convention."
+    },
+    "flat_top_rel": {
+      "value": 0.98,
+      "why": "Flat-top (limiter or hard clip) detector for exact sample plateaus: a run of aqua-ear's clip_run equal samples at or above this fraction of the clip's OWN peak. aqua-ear only calls plateaus at >= 0.99 of full scale clipped, and a -9 dBFS clip clipped at -9 dBFS slips past it. Only WAV can show this (a Vorbis decode smooths plateaus away), so on decoded Ogg this check is blind: see README."
+    },
+    "flat_top_eps": {
+      "value": 1e-06,
+      "why": "Two samples are 'equal' for the flat-top detector when they differ by less than this (aqua-ear's own equality test in clipping_true_peak)."
+    },
+    "loudness_dev_db": {
+      "value": 0.5,
+      "why": "Every sender clip's A-weighted exposure (LAE, metriclib.lae on the decoded file, the quantity finish.py equalises) must lie within this many dB of the median of the 32 shipped sender clips. Measured after the Vorbis encode: spread 0.36 dB, largest deviation from the median 0.33 dB (Aqua invite). 0.5 dB is also the limit tools/dings-voices/src/verify.py already enforces on spread, and is under the ~1 dB a listener notices as a level difference between two tones. Neutral fallbacks are held to the same band against the same median (see known_failures)."
+    }
+  },
+  "voice_policy": {
+    "swell_voices": {
+      "value": [
+        "eureka",
+        "heimdall"
+      ],
+      "why": "Voices whose attack is a slow swell by design (voices.mjs: Eureka 70 ms raised-cosine attack, Heimdall a swell over 45% of a 300 ms note). aqua-ear's rise detector turns a swell into a staircase of 'onsets' (Heimdall: 5 to 7 onsets inside one swell) and sees no onset at all when a legato note changes pitch under a held tone (Heimdall invite shows only note 1; Eureka invite shows notes 1 and 2, the second 21 ms late). For these voices the full-band onset count is NOT asserted; the high band still is (a knock or tick is plain there and these voices have no energy above 2 kHz)."
+    },
+    "settle_before_next_voices": {
+      "value": [
+        "kiko",
+        "libby",
+        "void",
+        "nibu"
+      ],
+      "why": "Voices whose notes are built to end by the next onset (voices.mjs v4: Kiko and Libby 'a note something follows is shortened to settle before the next one lands'; Void ends by the next onset; Nibu heldLen). For these the previous tail must be below aqua-ear's overlapping_tails limit at each following note. Aqua, Eureka, Heimdall and Weksa notes ring over the next note by design (their length is the motif cap, not the gap) and Earcon Workshop identities decay 0.25 to 0.55 s over note gaps of 70 to 450 ms by design, so overlap is not asserted for them."
+    },
+    "neutral_events": {
+      "value": {
+        "mention": "success",
+        "dm": "waiting",
+        "message": "message",
+        "invite": "done"
+      },
+      "why": "The neutral fallback clips carry no machine-readable intent. They are the Earcon Workshop warm-bell renders: durations (770, 1450, 455, 1170 ms) and onset lists equal warm-bell success, waiting, message and done. Note times for the onset check come from that mapping. This is inferred from the audio, not recorded anywhere."
+    }
+  },
+  "aqua_ear_pins": {
+    "dc_abs": {
+      "value": 0.005,
+      "why": "DC limit in aqua-ear's click_step_dc (-46 dBFS). The guard uses aqua-ear's detector; pinned so a loosening in aqua_ear.py fails the guard instead of silently loosening it."
+    },
+    "step_abs": {
+      "value": 0.02,
+      "why": "Minimum second difference for a click or step in aqua-ear's click_step_dc."
+    },
+    "step_ratio": {
+      "value": 25.0,
+      "why": "Discontinuity must be this many times its local mean second difference."
+    },
+    "clip_run": {
+      "value": 3,
+      "why": "Equal samples at the ceiling that make a clipped plateau."
+    },
+    "clip_level": {
+      "value": 0.99,
+      "why": "A plateau counts as clipping at or above this fraction of full scale."
+    },
+    "tp_limit_dbtp": {
+      "value": 0.0,
+      "why": "aqua-ear flags a true peak above 0 dBTP (an inter-sample over); the guard's own ceilings are tighter."
+    },
+    "end_decay_db": {
+      "value": 6.0,
+      "why": "abrupt_end: the last 3 ms must have fallen this far since 9 ms earlier or it counts as cut."
+    },
+    "end_tail_db": {
+      "value": -40.0,
+      "why": "abrupt_end: last 3 ms louder than this re the file peak counts as a cut candidate."
+    },
+    "end_abs_dbfs": {
+      "value": -70.0,
+      "why": "abrupt_end: and the last 3 ms must also be louder than this absolute level, so digital silence at the end is never a cut."
+    },
+    "overlap_gap_ms": {
+      "value": 80.0,
+      "why": "overlapping_tails: onsets at least this far apart are separate notes."
+    },
+    "overlap_tail_db": {
+      "value": -40.0,
+      "why": "overlapping_tails: the previous note's tail must be below this re its peak at the next onset."
+    },
+    "onset_rise_db": {
+      "value": 4.0,
+      "why": "Onset detector: rise above the recent trough that counts as an onset."
+    },
+    "trough_window_ms": {
+      "value": 20,
+      "why": "Onset detector: how far back the trough is looked for."
+    },
+    "floor_dbfs": {
+      "value": -60.0,
+      "why": "Onset detector: absolute floor of the full-band channel."
+    },
+    "rel_floor_db": {
+      "value": -45.0,
+      "why": "Onset detector: floor relative to the clip's (held) peak, so a quiet tail wobble far under the note is not an onset."
+    },
+    "hf_cut_hz": {
+      "value": 2000.0,
+      "why": "High-band channel cut-off; the v3 Void knock was visible only above this."
+    }
+  },
+  "config": {
+    "neutral_source": {
+      "value": "/opt/commons/handoff/aqua-dings-ratatoskr-b3eb9d01/out/neutral",
+      "why": "Not a threshold: where the neutral fallback clips come from when the guard renders the Dings itself. finish.py needs out/neutral/*.ogg and the generator does not make them; this is the staged copy tools/dings-voices/README.md names. Override with --neutral."
+    }
+  },
+  "known_failures": [
+    {
+      "clip": "dings/neutral/mention",
+      "assertion": "loudness",
+      "value": 11.74,
+      "slack": 0.05,
+      "measured": "LAE +11.74 dB from the sender median (-31.80 dB LAE), band +-0.5",
+      "reason": "the fallback clips are (inferred from durations and onsets, see voice_policy.neutral_events) Earcon Workshop warm-bell renders, shipped unmodified: finish.py measures it ('measured as shipped, not modified') and never loudness-matches it, so it sits above the equalised sender clips. Whether to equalise it is the owner's call, not the guard's."
+    },
+    {
+      "clip": "dings/neutral/dm",
+      "assertion": "loudness",
+      "value": 7.12,
+      "slack": 0.05,
+      "measured": "LAE +7.12 dB from the sender median (-31.80 dB LAE), band +-0.5",
+      "reason": "the fallback clips are (inferred from durations and onsets, see voice_policy.neutral_events) Earcon Workshop warm-bell renders, shipped unmodified: finish.py measures it ('measured as shipped, not modified') and never loudness-matches it, so it sits above the equalised sender clips. Whether to equalise it is the owner's call, not the guard's."
+    },
+    {
+      "clip": "dings/neutral/message",
+      "assertion": "loudness",
+      "value": 4.29,
+      "slack": 0.05,
+      "measured": "LAE +4.29 dB from the sender median (-31.80 dB LAE), band +-0.5",
+      "reason": "the fallback clips are (inferred from durations and onsets, see voice_policy.neutral_events) Earcon Workshop warm-bell renders, shipped unmodified: finish.py measures it ('measured as shipped, not modified') and never loudness-matches it, so it sits above the equalised sender clips. Whether to equalise it is the owner's call, not the guard's."
+    },
+    {
+      "clip": "dings/neutral/invite",
+      "assertion": "loudness",
+      "value": 13.73,
+      "slack": 0.05,
+      "measured": "LAE +13.73 dB from the sender median (-31.80 dB LAE), band +-0.5",
+      "reason": "the fallback clips are (inferred from durations and onsets, see voice_policy.neutral_events) Earcon Workshop warm-bell renders, shipped unmodified: finish.py measures it ('measured as shipped, not modified') and never loudness-matches it, so it sits above the equalised sender clips. Whether to equalise it is the owner's call, not the guard's."
+    }
+  ]
+}

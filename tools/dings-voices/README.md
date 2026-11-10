@@ -11,6 +11,8 @@ Generates eight sender voices (aqua, eureka, heimdall, kiko, libby, nibu, void, 
 - v4: Void has no tick (it was a second hit 95 ms into every note) and a note something follows ends by the next onset; `polyphony.test.mjs` fails if a Void clip has more onsets than notes. Nibu's voice is proposal 3 (the 8 kHz 5-bit sine) for all four events; proposals 1 and 2 stay as alternates under `out/proposals/`, not in the manifest.
 - Not here: the rendered clips and the listening page. A staged copy, with the README of its measurements, is at `/opt/commons/handoff/aqua-dings-voices-20261110` on Yggdrasil; the neutral fallback files come from `/opt/commons/handoff/aqua-dings-ratatoskr-b3eb9d01/out/neutral`.
 
+Sound regression guard over every clip this generator and the Earcon Workshop ship (onsets per note, clicks, clipping, true peak, tails, loudness): `python3 tools/sound-guard/guard.py` (see `../sound-guard/README.md`).
+
 Run: `node src/polyphony.test.mjs && node src/build.mjs raw && python src/finish.py raw out && python src/verify.py .` (`finish.py` expects `out/neutral/*.ogg` to exist for the neutral comparison).
 
 ## Publishing (one place)
