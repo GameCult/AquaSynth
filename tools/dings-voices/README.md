@@ -18,8 +18,8 @@ Run: `node src/polyphony.test.mjs && node src/build.mjs raw && python src/finish
 One dev, one URL: the listening page is **https://minds.gamecult.org/aqua/dings/** (`/srv/minds-web/aqua/dings/`), always the latest version, overwritten in place. Do not publish per-hash pages any more. After building a publish dir (the `Run` line, then `gen_page.py`), run
 
 ```
-python3 tools/publish-stable/publish_stable.py dings <publishDir>    # idempotent; replaces the stable dir by renaming a finished staging copy
+python3 tools/publish-stable/publish_stable.py dings <publishDir>    # idempotent; swaps the stable dir with a finished staging copy in one atomic exchange (renameat2, Linux): the URL is never missing or half-written, even if the run is killed; stale staging is removed by the next run
 python3 tools/publish-stable/publish_stable.py banners               # old per-version pages get a pointer banner; deletes nothing
 ```
 
-The script stamps a banner and a `VERSION` file (publish dir name and AquaSynth revision) into the stable copy. The aqua-ear examples are published the same way to `/srv/minds-web/aqua/ear/` (`publish_stable.py ear <dir of runs>`). Tests: `python3 tools/publish-stable/test_publish_stable.py`. Nobody has opened these pages in a browser; every link and audio file on them was checked with curl over https.
+The script stamps a banner and a `VERSION` file (publish dir name and AquaSynth revision) into the stable copy. The aqua-ear examples are published the same way to `/srv/minds-web/aqua/ear/` (`publish_stable.py ear <dir of runs>`). Tests: `python3 tools/publish-stable/test_publish_stable.py` and `test_interruption.py` (kill at every mutation, concurrent reader). Nobody has opened these pages in a browser; every link and audio file on them was checked with curl over https.

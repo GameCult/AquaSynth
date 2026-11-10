@@ -15,7 +15,7 @@ class T(unittest.TestCase):
         self.assertEqual(first, tree(self.root + "/dings"))
         page = open(self.root + "/dings/index.html").read(); self.assertEqual(page.count('<div class="aqua-stable-banner"'), 1)
         self.assertTrue(os.path.exists(self.root + "/dings/out/senders/a.ogg")); self.assertIn("dings-voices-abc1234", open(self.root + "/dings/VERSION").read())
-        self.assertEqual(sorted(os.listdir(self.root)), ["dings"])          # no staging or .old leftovers
+        self.assertEqual(sorted(f for f in os.listdir(self.root) if not f.endswith(".lock")), ["dings"])   # no staging leftovers
     def test_new_version_replaces_old_files(self):
         run("dings", self.src, "--root", self.root); os.remove(self.src + "/out/senders/a.ogg"); open(self.src + "/out/senders/b.ogg", "wb").write(b"OggS")
         run("dings", self.src, "--root", self.root); self.assertEqual(os.listdir(self.root + "/dings/out/senders"), ["b.ogg"])

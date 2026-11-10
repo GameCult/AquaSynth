@@ -7,11 +7,11 @@
 
 SRC_DIR for `dings` is a built publish dir (index.html, out/, findings/, metrics.json; see tools/dings-voices/README.md);
 for `ear` a dir of aqua-ear outputs (one subdir per run, each with report.txt/png files, as `aqua_ear.py --out` writes).
-Stdlib only. Idempotent: running it again with the same input leaves the same tree; the stable dir is replaced by renaming
-a fully written staging dir, so a reader never sees a half-copied page. Deletes nothing outside the stable dir it owns.
+Stdlib only. Idempotent: running it again with the same input leaves the same tree; the stable dir is swapped with a fully
+written staging dir in one atomic exchange (renameat2), so it is never missing or half-copied, even if the process is killed. Deletes nothing outside the stable dir it owns.
 --root and --base are for tests. Nothing here listens to anything: it moves files and stamps a header.
 """
-import argparse, html, os, re, shutil, subprocess, sys, tempfile
+import argparse, ctypes, fcntl, glob, html, os, re, shutil, subprocess, sys, tempfile
 
 ROOT = "/srv/minds-web/aqua"
 BASE = "https://minds.gamecult.org/aqua"
@@ -41,24 +41,44 @@ def put_banner(path, inner):
     open(path, "w", encoding="utf-8").write(s)
 
 
+def _exchange(a, b):
+    """Atomically swap two directories (renameat2 RENAME_EXCHANGE). There is no instant at which either path is absent."""
+    libc = ctypes.CDLL(None, use_errno=True)
+    fn = getattr(libc, "renameat2", None)
+    if fn is None:
+        raise OSError("renameat2 is not available; refusing a non-atomic swap")
+    AT_FDCWD, RENAME_EXCHANGE = -100, 2
+    if fn(AT_FDCWD, os.fsencode(a), AT_FDCWD, os.fsencode(b), RENAME_EXCHANGE) != 0:
+        e = ctypes.get_errno()
+        raise OSError(e, f"renameat2(RENAME_EXCHANGE) {a} <-> {b}: {os.strerror(e)}")
+
+
 def swap_in(src, dest, prepare):
-    """Copy src to a staging dir beside dest, let prepare(stage) stamp it, then replace dest by rename."""
-    parent = os.path.dirname(dest)
+    """Make dest a complete copy of src (stamped by prepare) without a moment when dest is missing or half-written.
+
+    The copy is built in a staging dir beside dest; then dest and the staging dir are EXCHANGED in one syscall (a plain rename
+    when dest does not exist yet) and the staging dir, now holding the old tree, is deleted. An interrupted run leaves dest as
+    the old complete tree or the new complete tree, plus at most a staging dir, which the next run removes under a lock
+    that serialises publishers of the same target."""
+    parent, name = os.path.dirname(dest), os.path.basename(dest)
     os.makedirs(parent, exist_ok=True)
-    stage = tempfile.mkdtemp(prefix=".stage-", dir=parent)
-    try:
-        shutil.copytree(src, stage, dirs_exist_ok=True)
-        prepare(stage)
-        os.chmod(stage, 0o755)
-        old = dest + ".old"
-        if os.path.exists(dest):
-            shutil.rmtree(old, ignore_errors=True)
-            os.rename(dest, old)
-        os.rename(stage, dest)
-        shutil.rmtree(old, ignore_errors=True)
-    except BaseException:
-        shutil.rmtree(stage, ignore_errors=True)
-        raise
+    with open(os.path.join(parent, f".{name}.lock"), "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        for leftover in glob.glob(os.path.join(parent, f".stage-{name}-*")):
+            shutil.rmtree(leftover, ignore_errors=True)
+        stage = tempfile.mkdtemp(prefix=f".stage-{name}-", dir=parent)
+        try:
+            shutil.copytree(src, stage, dirs_exist_ok=True)
+            prepare(stage)
+            os.chmod(stage, 0o755)
+            if os.path.isdir(dest):
+                _exchange(stage, dest)       # stage now holds the old tree
+            else:
+                os.rename(stage, dest)
+                stage = None
+        finally:
+            if stage:
+                shutil.rmtree(stage, ignore_errors=True)
 
 
 def publish_dings(src, root, base):
