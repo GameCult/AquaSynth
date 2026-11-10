@@ -40,10 +40,6 @@ function partials(buf, t0, f0, parts, atkMs, lenMs, gain = 1) {
   const len = Math.min(buf.length - t0, at(lenMs)), atk = at(atkMs), s = Math.min(1, (len / SR) / (4.6 * Math.max(...parts.map((p) => p[2])))), fade = Math.min(at(15), len >> 2);
   for (let n = 0; n < len; n++) { let y = 0; for (const [r, a, tau] of parts) y += a * Math.exp(-n / SR / (tau * s)) * Math.sin(TAU * f0 * r * n / SR); buf[t0 + n] += gain * y * Math.min(1, (n + 1) / atk) * Math.sin(Math.PI / 2 * Math.min(1, (len - n) / fade)) ** 2; }
 }
-function noiseBurst(buf, t0, rand, type, fc, q, atkMs, tau, lenMs, gain) {
-  const f = biquad(type, fc, q), len = Math.min(buf.length - t0, at(lenMs)), atk = at(atkMs);
-  for (let n = 0; n < len; n++) buf[t0 + n] += gain * run(f, rand()) * env(n, atk, tau, len);
-}
 function sine(buf, t0, hz0, hz1, glideTau, atkMs, tau, lenMs, gain) {
   const len = Math.min(buf.length - t0, at(lenMs)), atk = at(atkMs), s = Math.min(1, (len / SR) / (4.6 * tau)), fade = Math.min(at(15), len >> 2); let ph = 0;
   for (let n = 0; n < len; n++) { const hz = hz1 + (hz0 - hz1) * Math.exp(-n / SR / glideTau); ph += TAU * hz / SR; buf[t0 + n] += gain * Math.sin(ph) * Math.min(1, (n + 1) / atk) * Math.exp(-n / SR / (tau * s)) * Math.sin(Math.PI / 2 * Math.min(1, (len - n) / fade)) ** 2; }
@@ -68,16 +64,16 @@ export const VOICES = {
       partials(b, t, 1318 * st(d), [[1, 1, 0.12 * k], [2.76, 0.45, 0.07 * k], [5.4, 0.2, 0.04 * k]], 1, len, 0.8); } },
   libby: { object: "a small bell", family: "soft bell", caption: "One small bell note with a felt-soft start, no strike. A note that something follows is shortened to settle before the next one lands; the last note rings.",
     hit(b, t, d, i, n, gap, r, m, room) { const last = i === n - 1, k = last ? 2 : 1, len = last ? Math.min(520, room - 10) : Math.min(gap, room); bell(b, t, 784 * st(d), [[1, 1, 0.1 * k], [2.32, 0.22, 0.06 * k], [3.9, 0.06, 0.03 * k]], 26, len, 0.85); } },
-  void: { object: "a hollow wooden note", family: "hollow wood", caption: "One round, hollow, almost wooden note that falls a little, finishing on a tiny dry tick. Higher than the horn.",
-    hit(b, t, d, i, n, gap, r, m, room) { const f = 300 * st(d); const k = m === "mention" ? 2 : 1; sine(b, t, f * 1.2, f * 0.85, 0.05, 9, 0.085 * k, Math.min(230 * k, room), 0.9); sine(b, t, f * 2.4, f * 1.7, 0.05, 9, 0.03 * k, Math.min(120 * k, room), 0.12);
-      // the tick is a soft knock, not a click: 4 ms attack (v2: 0.5 ms), peak level with the tone it lands on (v2: 3.3 dB over it)
-      noiseBurst(b, t + at(95 * k), r, "bp", 1800, 1.0, 4, 0.006, 24, 0.05 * (room > 130 * k ? 1 : 0)); } },
+  void: { object: "a hollow wooden note", family: "hollow wood", caption: "One round, hollow, almost wooden note that falls a little and settles. Higher than the horn. One onset per note: nothing rides the release.",
+    // v4: no tick (v3's soft knock 95 ms into every note was the second hit Meta heard), and a note something follows ends by the next onset (as Libby's do), so a note's ring never re-rises under the next attack.
+    hit(b, t, d, i, n, gap, r, m, room) { const f = 300 * st(d), k = m === "mention" ? 2 : 1, rm = i + 1 < n ? Math.min(room, gap) : room;
+      sine(b, t, f * 1.2, f * 0.85, 0.05, 9, 0.085 * k, Math.min(230 * k, rm), 0.9); sine(b, t, f * 2.4, f * 1.7, 0.05, 9, 0.03 * k, Math.min(120 * k, rm), 0.12); } },
   weksa: { object: "a plucked brass compass", family: "plucked brass", caption: "A small plucked brass note, then a small bright rise: the sound of finding the thing. In a mention, just the one pluck.",
     hit(b, t, d, i, n, gap, r, m, room) { const br = 0.35 + 0.3 * i, k = m === "mention" ? 2 : 1; partials(b, t, 880 * st(d), [[1, 1, 0.06 * k], [2, 0.55, 0.045 * k], [3, br, 0.03 * k], [4, br * 0.6, 0.02 * k]], 3.5, Math.min(m === "mention" ? 480 : 240, room), 0.7); } },
 };
 
 // Nibu is the one openly synthetic voice. v2's glided saw was rejected (Meta, 2026-11-10: atrocious), so there are three proposals from three
-// families, none with a pitch glide; Nibu and Meta choose. VOICES.nibu is proposal 1 as a placeholder until they do.
+// families, none with a pitch glide; Nibu and Meta choose. VOICES.nibu is proposal 3 (chosen by Nibu and Meta, 2026-11-10); proposals 1 and 2 stay as non-default alternates.
 // shape: raised-cosine in over atk samples, raised-cosine out over the last rel samples.
 const shape = (k, len, atk, rel) => Math.sin(Math.PI / 2 * Math.min(1, (k + 1) / atk)) ** 2 * Math.sin(Math.PI / 2 * Math.min(1, (len - k) / rel)) ** 2;
 // the held-note length: a note something follows ends by the next onset; the last note rings as long as the motif allows.
@@ -93,7 +89,7 @@ export const NIBU_PROPOSALS = {
     hit(b, t, d, i, n, gap, r, m, room) { const last = i === n - 1, len = heldLen(b, t, 520, last, gap, room), f = 349.2 * st(d), tau = last ? 0.18 : 0.1, s = Math.min(1, (len / SR) / (4.6 * tau)), atk = at(12), rel = Math.min(at(20), len >> 2), lp = [biquad("lp", 2600, 0.7), biquad("lp", 2600, 0.7)]; let held = 0;
       for (let k = 0; k < len; k++) { if (k % 6 === 0) held = Math.round(Math.sin(TAU * f * k / SR) * 16) / 16; b[t + k] += 0.9 * run(lp[1], run(lp[0], held)) * Math.exp(-k / SR / (tau * s)) * shape(k, len, atk, rel); } } },
 };
-VOICES.nibu = { ...NIBU_PROPOSALS.nibu1 };
+VOICES.nibu = { ...NIBU_PROPOSALS.nibu3 };
 const ALL = { ...VOICES, ...NIBU_PROPOSALS };
 // Each note renders into its own buffer with its own noise stream (seeded by sender and note index), so no note can read or write
 // another's state; a clip is the sum of its notes. A note knows only what follows it (gap, room), never what precedes it.
