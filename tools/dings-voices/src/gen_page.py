@@ -70,7 +70,7 @@ page = f'''<!doctype html>
 body{{margin:0 auto;max-width:60rem;padding:1rem;font:1.05rem/1.5 system-ui,sans-serif;color:var(--fg);background:var(--bg)}}
 h1{{font-size:1.5rem}}h2{{font-size:1.2rem;margin-top:2rem}}h3{{font-size:1.05rem}}.sub{{font-size:.9rem;color:var(--mut);font-weight:400}}
 .notice{{border:2px solid var(--acc);padding:.75rem 1rem;border-radius:.4rem}}.caption{{margin:.25rem 0 .75rem}}
-table{{border-collapse:collapse;width:100%}}th,td{{border-top:1px solid var(--line);padding:.4rem .5rem;text-align:left;vertical-align:top}}
+table{{border-collapse:collapse;width:100%}}@media (max-width:40rem){{table{{display:block;overflow-x:auto}}}}th,td{{border-top:1px solid var(--line);padding:.4rem .5rem;text-align:left;vertical-align:top}}
 audio{{width:100%;min-width:10rem}}img{{max-width:100%;height:auto;width:48%}}figure{{margin:1rem 0}}a,summary{{color:var(--acc)}}:focus-visible{{outline:3px solid var(--acc);outline-offset:2px}}.sr{{position:absolute;left:-9999px}}label{{display:block;margin:.5rem 0}}
 </style></head><body>
 <header><h1>Ratatoskr dings: what changed after v3 (v4)</h1>
