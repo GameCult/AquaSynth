@@ -1,0 +1,269 @@
+{
+ "libfaustWasm": "2.90.19",
+ "sampleRate": 48000,
+ "rows": [
+  {
+   "id": "thruster@rpm300",
+   "lenWasm": 144000,
+   "lenNative": 144000,
+   "maxErr": 0.026072267442941666,
+   "maxErrAt": 142707,
+   "rmsErr": 0.002385837227503057,
+   "relRmsErrDb": -28.770505442344437,
+   "wasm": {
+    "samplePeak": 0.14264661073684692,
+    "truePeakDb": -16.90120405295226,
+    "loudnessLufs": -30.226833288468896,
+    "centroidMedianHz": 751.9185607592701,
+    "overSamples": 0,
+    "rmsDb": -23.676437109698263,
+    "crestDb": 6.761666256511239,
+    "noiseToToneDb": -6.937988717513285,
+    "noiseToToneADb": 13.092512355240387,
+    "lowMotion": false
+   },
+   "native": {
+    "samplePeak": 0.14242461323738098,
+    "truePeakDb": -16.915261179402926,
+    "loudnessLufs": -30.216031113774466,
+    "centroidMedianHz": 751.528437557621,
+    "overSamples": 0,
+    "rmsDb": -23.670746205832152,
+    "crestDb": 6.74244718138185,
+    "noiseToToneDb": -6.888378522251635,
+    "noiseToToneADb": 13.056342933565631,
+    "lowMotion": false
+   },
+   "flagsWasm": [],
+   "flagsNative": []
+  },
+  {
+   "id": "thruster@rpm600",
+   "lenWasm": 144000,
+   "lenNative": 144000,
+   "maxErr": 0.049423644319176674,
+   "maxErrAt": 142945,
+   "rmsErr": 0.004812282166272209,
+   "relRmsErrDb": -23.51217894411906,
+   "wasm": {
+    "samplePeak": 0.15958738327026367,
+    "truePeakDb": -15.926835268189564,
+    "loudnessLufs": -28.69474712970973,
+    "centroidMedianHz": 1227.9568144573402,
+    "overSamples": 0,
+    "rmsDb": -22.840558133782523,
+    "crestDb": 6.900529208325618,
+    "noiseToToneDb": -0.7035305515542589,
+    "noiseToToneADb": 5.044756311984671,
+    "lowMotion": false
+   },
+   "native": {
+    "samplePeak": 0.1601162701845169,
+    "truePeakDb": -15.90057398970821,
+    "loudnessLufs": -28.709339901369557,
+    "centroidMedianHz": 1224.4350816353904,
+    "overSamples": 0,
+    "rmsDb": -22.846021449137904,
+    "crestDb": 6.934730747403392,
+    "noiseToToneDb": -0.6166079485198495,
+    "noiseToToneADb": 6.053873560512358,
+    "lowMotion": false
+   },
+   "flagsWasm": [],
+   "flagsNative": []
+  },
+  {
+   "id": "thruster@rpm1200",
+   "lenWasm": 144000,
+   "lenNative": 144000,
+   "maxErr": 0.08972565084695816,
+   "maxErrAt": 143228,
+   "rmsErr": 0.012448641233006897,
+   "relRmsErrDb": -16.610480431926955,
+   "wasm": {
+    "samplePeak": 0.19161102175712585,
+    "truePeakDb": -14.343339234769212,
+    "loudnessLufs": -26.051033400616078,
+    "centroidMedianHz": 2114.222071076734,
+    "overSamples": 0,
+    "rmsDb": -21.48680915202533,
+    "crestDb": 7.1352188868162605,
+    "noiseToToneDb": -4.949059402813134,
+    "noiseToToneADb": 12.652391835948997,
+    "lowMotion": false
+   },
+   "native": {
+    "samplePeak": 0.1893547624349594,
+    "truePeakDb": -14.423961460001248,
+    "loudnessLufs": -26.05070520432609,
+    "centroidMedianHz": 2115.6363534197994,
+    "overSamples": 0,
+    "rmsDb": -21.484457233344667,
+    "crestDb": 7.029981882815694,
+    "noiseToToneDb": -4.965083035181173,
+    "noiseToToneADb": 12.716143920958068,
+    "lowMotion": false
+   },
+   "flagsWasm": [],
+   "flagsNative": []
+  },
+  {
+   "id": "thruster@rpm4800",
+   "lenWasm": 144000,
+   "lenNative": 144000,
+   "maxErr": 0.2870774045586586,
+   "maxErrAt": 142979,
+   "rmsErr": 0.054912511748541046,
+   "relRmsErrDb": -8.246006212467824,
+   "wasm": {
+    "samplePeak": 0.36383503675460815,
+    "truePeakDb": -8.715719927350808,
+    "loudnessLufs": -17.418922989049733,
+    "centroidMedianHz": 4914.23686401765,
+    "overSamples": 0,
+    "rmsDb": -16.959964506391177,
+    "crestDb": 8.17805487903365,
+    "noiseToToneDb": -2.834032055202698,
+    "noiseToToneADb": 9.67560044209106,
+    "lowMotion": false
+   },
+   "native": {
+    "samplePeak": 0.3622153401374817,
+    "truePeakDb": -8.742560302886037,
+    "loudnessLufs": -17.424886445264,
+    "centroidMedianHz": 4908.148280531137,
+    "overSamples": 0,
+    "rmsDb": -16.961323502311725,
+    "crestDb": 8.140660284709858,
+    "noiseToToneDb": -2.9540607279645457,
+    "noiseToToneADb": 9.40924191267517,
+    "lowMotion": false
+   },
+   "flagsWasm": [],
+   "flagsNative": []
+  },
+  {
+   "id": "sfxr-classic-classic-sfxr-abstract-golf",
+   "lenWasm": 144000,
+   "lenNative": 144000,
+   "maxErr": 0.000002171844244003296,
+   "maxErrAt": 117685,
+   "rmsErr": 9.912912629276112e-8,
+   "relRmsErrDb": -134.45251378934543,
+   "wasm": {
+    "samplePeak": 0.9895820021629333,
+    "truePeakDb": 0.9076630707842905,
+    "loudnessLufs": -5.327743141800993,
+    "centroidMedianHz": 8147.614236982103,
+    "overSamples": 0,
+    "rmsDb": -5.623460642702886,
+    "crestDb": 5.532496403571967,
+    "noiseToToneDb": -0.9960950126656059,
+    "noiseToToneADb": 7.586387572827178,
+    "lowMotion": true
+   },
+   "native": {
+    "samplePeak": 0.9895820021629333,
+    "truePeakDb": 0.9076628030277624,
+    "loudnessLufs": -5.327743184793801,
+    "centroidMedianHz": 8147.614175634302,
+    "overSamples": 0,
+    "rmsDb": -5.623460696287697,
+    "crestDb": 5.5324964571567765,
+    "noiseToToneDb": -0.9960947920917818,
+    "noiseToToneADb": 7.5863877077205615,
+    "lowMotion": true
+   },
+   "flagsWasm": [
+    "waived truePeakDb",
+    "waived lowMotion",
+    "waived loudnessLufs",
+    "warn truePeakDb"
+   ],
+   "flagsNative": [
+    "waived truePeakDb",
+    "waived lowMotion",
+    "waived loudnessLufs",
+    "warn truePeakDb"
+   ]
+  },
+  {
+   "id": "sfxr-explosion",
+   "lenWasm": 144000,
+   "lenNative": 144000,
+   "maxErr": 0.000002158805727958679,
+   "maxErrAt": 129292,
+   "rmsErr": 1.1522412234189382e-7,
+   "relRmsErrDb": -127.13848106038596,
+   "wasm": {
+    "samplePeak": 0.6732206344604492,
+    "truePeakDb": -3.0561513953602306,
+    "loudnessLufs": -8.634121016036506,
+    "centroidMedianHz": 9795.322296183533,
+    "overSamples": 0,
+    "rmsDb": -11.630620604104497,
+    "crestDb": 8.193768979977403,
+    "noiseToToneDb": 60,
+    "noiseToToneADb": 60,
+    "lowMotion": true
+   },
+   "native": {
+    "samplePeak": 0.6732206344604492,
+    "truePeakDb": -3.0561512376276347,
+    "loudnessLufs": -8.634121064908708,
+    "centroidMedianHz": 9795.322310734966,
+    "overSamples": 0,
+    "rmsDb": -11.630620652864625,
+    "crestDb": 8.193769028737531,
+    "noiseToToneDb": 60,
+    "noiseToToneADb": 60,
+    "lowMotion": true
+   },
+   "flagsWasm": [
+    "waived lowMotion"
+   ],
+   "flagsNative": [
+    "waived lowMotion"
+   ]
+  },
+  {
+   "id": "tract/vowel-a",
+   "lenWasm": 34560,
+   "lenNative": 34560,
+   "maxErr": 0.0001921914517879486,
+   "maxErrAt": 28187,
+   "rmsErr": 0.000046111049670587934,
+   "relRmsErrDb": -52.60441410619507,
+   "wasm": {
+    "samplePeak": 0.08378415554761887,
+    "truePeakDb": -21.518327105526673,
+    "loudnessLufs": -34.251568232392565,
+    "centroidMedianHz": 1937.1220888731689,
+    "overSamples": 0,
+    "rmsDb": -33.80275018649363,
+    "crestDb": 12.265988122620389,
+    "noiseToToneDb": -10.436050344670264,
+    "noiseToToneADb": -12.885220061403881,
+    "lowMotion": false
+   },
+   "native": {
+    "samplePeak": 0.08390921354293823,
+    "truePeakDb": -21.50539262673788,
+    "loudnessLufs": -34.23471535099468,
+    "centroidMedianHz": 1937.2296872141594,
+    "overSamples": 0,
+    "rmsDb": -33.78684837329708,
+    "crestDb": 12.263041385142849,
+    "noiseToToneDb": -10.447393994101596,
+    "noiseToToneADb": -12.89873810612136,
+    "lowMotion": false
+   },
+   "flagsWasm": [
+    "FAIL onsetMs"
+   ],
+   "flagsNative": [
+    "FAIL onsetMs"
+   ]
+  }
+ ]
+}
