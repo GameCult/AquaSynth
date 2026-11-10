@@ -6,7 +6,7 @@
 - native side: `tools/FaustNativeRender` over `AquaSynthPatchCompiler` (`NativeFaustRuntime.cs:530`: `-single -ftz 2 -vec -lv 1`), libfaust 2.90.20 + LLVM built in the Linux sandbox 2026-10-31, with the stdlib `faustlibraries-20261031` (master 3d8c6ef) from `AQUASYNTH_FAUST_HOME`. **The two sides compile against different standard-library text**, and that decides the thruster result below; "native" here means this sandbox's library, which the repo does not pin (`docs/faust-toolchain-boundary.md`: the host's `share/faust`).
 - driver: `node tools/aqua-feel/native-diff.mjs <FaustNativeRender dir> --tract <source.dsp>`; raw numbers in `aqua-feel-native-diff-2026-11-10.json`.
 - tract voice: `vowel-a` Faust source from the 2026-11-08 render kit (0.72 s, default controls). Not in the repo (`--tract` takes a path), not an aqua-feel catalog item, so its `FAIL onsetMs` is the patch-group rule applied by this script, not a repo gate result.
-- the script has no tolerance and exits 1 only on a render error or a length mismatch; every other judgement is the reader's.
+- the script exits 1 on a render error, a length mismatch, or a violation of its `LIMITS` (see "Tolerance in `native-diff.mjs`" below); the verdicts here are the reader's.
 - Nothing here was heard.
 
 Columns are wasm / native.
@@ -73,25 +73,25 @@ The earlier "eleven" was seven patches, three Ding instruments and the larynx gr
 
 | source | stdlib as shipped (wasm bundle vs sandbox): max err / rel RMS dB | old smoother pinned | imp3 pinned | ΔLUFS lib / old / imp3 | Δ true peak dB lib / old / imp3 | Δ centroid % lib / old / imp3 |
 |---|---|---|---|---|---|---|
-| thruster@rpm1200 | 9.0e-2 / -16.6 | 4.5e-2 / -21.2 | 7.1e-6 / -99.9 | 0.000 / 0.001 / -0.000 | -0.081 / -0.152 / 0.000 | 0.07 / -0.08 / 0.00 | | ; | ; |
-| advanced-alien-multivalve-graph | 2.9e-5 / -68.4 | 1.0e-5 / -72.5 | 7.9e-7 / -97.9 | -0.000 / -0.000 / -0.000 | -0.001 / -0.000 / -0.000 | -0.00 / 0.00 / 0.00 | | ; | ; |
-| advanced-bird-syrinx | 2.8e-3 / -27.3 | 1.6e-3 / -31.7 | 3.2e-6 / -88.3 | -0.001 / -0.001 / -0.000 | -0.000 / -0.000 / -0.000 | -0.00 / -0.00 / 0.00 | | ; | ; |
-| advanced-bird-syrinx-graph | 9.4e-4 / -38.4 | 2.7e-4 / -47.1 | 1.5e-5 / -75.4 | 0.000 / -0.000 / 0.000 | 0.000 / 0.000 / -0.000 | -0.01 / 0.00 / -0.00 | | ; | ; |
-| advanced-syrinx-voice | 1.3e-3 / -23.9 | 3.6e-4 / -34.6 | 2.3e-6 / -86.3 | 0.001 / 0.000 / 0.000 | 0.003 / 0.003 / -0.000 | -0.00 / -0.00 / 0.00 | | ; | ; |
-| advanced-human-larynx-graph | 9.6e-5 / -38.1 | 3.3e-5 / -46.6 | 7.6e-7 / -94.2 | 0.002 / 0.001 / -0.000 | 0.002 / 0.001 / -0.000 | 0.05 / 0.05 / 0.04 | | ; | ; |
-| dx7-algorithm-32-additive-organ | 1.7e-4 / -79.3 | 1.6e-4 / -79.5 | 1.6e-4 / -79.5 | 0.000 / -0.000 / 0.000 | -0.000 / -0.000 / -0.000 | -0.00 / -0.00 / -0.00 | | ; | ; |
-| dx7-algorithm-8-bright-pair | 4.1e-6 / -94.5 | 4.2e-6 / -94.2 | 3.9e-6 / -94.7 | 0.000 / 0.000 / 0.000 | -0.000 / -0.000 / -0.000 | 0.00 / 0.00 / -0.00 | | ; | ; |
-| ding-instrument/glass-chime | 3.8e-2 / -18.4 | 2.5e-2 / -21.9 | 3.3e-7 / -130.0 | 0.000 / 0.000 / 0.000 | -0.000 / 0.000 / -0.000 | 0.02 / 0.01 / -0.00 | | ; | ; |
-| ding-instrument/muted-pluck | 6.6e-4 / -49.8 | 6.1e-4 / -50.2 | 3.0e-8 / -141.7 | -0.000 / -0.000 / -0.000 | -0.000 / -0.000 / -0.000 | 0.00 / -0.01 / -0.00 | | ; | ; |
-| ding-instrument/soft-triangle | 4.3e-3 / -30.3 | 2.4e-3 / -35.2 | 4.5e-8 / -142.0 | 0.000 / -0.000 / -0.000 | -0.000 / -0.000 / 0.000 | 0.16 / 0.12 / -0.00 | | ; | ; |
-| ding-instrument/warm-bell | 5.4e-2 / -18.3 | 3.2e-2 / -22.9 | 2.3e-7 / -134.2 | 0.000 / 0.000 / -0.000 | -0.000 / 0.000 / -0.000 | 0.01 / 0.00 / -0.00 | | ; | ; |
-| tract/vowel-a | 1.9e-4 / -52.6 | 6.7e-5 / -61.2 | 3.1e-7 / -109.3 | 0.017 / 0.006 / -0.000 | 0.013 / 0.004 / -0.000 | 0.01 / 0.01 / -0.00 | FAIL onsetMs|FAIL onsetMs ; FAIL onsetMs|FAIL onsetMs ; FAIL onsetMs|
+| thruster@rpm1200 | 9.0e-2 / -16.6 | 4.5e-2 / -21.2 | 7.1e-6 / -99.9 | 0.000 / 0.001 / -0.000 | -0.081 / -0.152 / 0.000 | 0.07 / -0.08 / 0.00 |
+| advanced-alien-multivalve-graph | 2.9e-5 / -68.4 | 1.0e-5 / -72.5 | 7.9e-7 / -97.9 | -0.000 / -0.000 / -0.000 | -0.001 / -0.000 / -0.000 | -0.00 / 0.00 / 0.00 |
+| advanced-bird-syrinx | 2.8e-3 / -27.3 | 1.6e-3 / -31.7 | 3.2e-6 / -88.3 | -0.001 / -0.001 / -0.000 | -0.000 / -0.000 / -0.000 | -0.00 / -0.00 / 0.00 |
+| advanced-bird-syrinx-graph | 9.4e-4 / -38.4 | 2.7e-4 / -47.1 | 1.5e-5 / -75.4 | 0.000 / -0.000 / 0.000 | 0.000 / 0.000 / -0.000 | -0.01 / 0.00 / -0.00 |
+| advanced-syrinx-voice | 1.3e-3 / -23.9 | 3.6e-4 / -34.6 | 2.3e-6 / -86.3 | 0.001 / 0.000 / 0.000 | 0.003 / 0.003 / -0.000 | -0.00 / -0.00 / 0.00 |
+| advanced-human-larynx-graph | 9.6e-5 / -38.1 | 3.3e-5 / -46.6 | 7.6e-7 / -94.2 | 0.002 / 0.001 / -0.000 | 0.002 / 0.001 / -0.000 | 0.05 / 0.05 / 0.04 |
+| dx7-algorithm-32-additive-organ | 1.7e-4 / -79.3 | 1.6e-4 / -79.5 | 1.6e-4 / -79.5 | 0.000 / -0.000 / 0.000 | -0.000 / -0.000 / -0.000 | -0.00 / -0.00 / -0.00 |
+| dx7-algorithm-8-bright-pair | 4.1e-6 / -94.5 | 4.2e-6 / -94.2 | 3.9e-6 / -94.7 | 0.000 / 0.000 / 0.000 | -0.000 / -0.000 / -0.000 | 0.00 / 0.00 / -0.00 |
+| ding-instrument/glass-chime | 3.8e-2 / -18.4 | 2.5e-2 / -21.9 | 3.3e-7 / -130.0 | 0.000 / 0.000 / 0.000 | -0.000 / 0.000 / -0.000 | 0.02 / 0.01 / -0.00 |
+| ding-instrument/muted-pluck | 6.6e-4 / -49.8 | 6.1e-4 / -50.2 | 3.0e-8 / -141.7 | -0.000 / -0.000 / -0.000 | -0.000 / -0.000 / -0.000 | 0.00 / -0.01 / -0.00 |
+| ding-instrument/soft-triangle | 4.3e-3 / -30.3 | 2.4e-3 / -35.2 | 4.5e-8 / -142.0 | 0.000 / -0.000 / -0.000 | -0.000 / -0.000 / 0.000 | 0.16 / 0.12 / -0.00 |
+| ding-instrument/warm-bell | 5.4e-2 / -18.3 | 3.2e-2 / -22.9 | 2.3e-7 / -134.2 | 0.000 / 0.000 / -0.000 | -0.000 / 0.000 / -0.000 | 0.01 / 0.00 / -0.00 |
+| tract/vowel-a | 1.9e-4 / -52.6 | 6.7e-5 / -61.2 | 3.1e-7 / -109.3 | 0.017 / 0.006 / -0.000 | 0.013 / 0.004 / -0.000 | 0.01 / 0.01 / -0.00 |
 
 Largest metric deltas over all sources and the three conditions: |LUFS| 0.017 dB (tract), |true peak| 0.152 dB (thruster, old pinned), |centroid| 0.16 % (soft-triangle; the earlier core run has 0.3 % at thruster rpm600). **No gate flag differs on any source in any condition**; the tract's patch-group `FAIL onsetMs` is on both sides (see above).
 
 What the data says:
 
-- With imp(3) pinned on both sides all 13 rows agree to -75 dB or better (Ding instruments -130 to -142 dB, thruster -99.9 dB, tract -109 dB; worst: `advanced-bird-syrinx-graph` -75.4 dB). `dx7-algorithm-32-additive-organ` sits at -79.5 dB under all three conditions, so its residual is not the pinned smoother (a smoother inside a library function, or float rounding; not isolated).
+- With imp(3) pinned on both sides all 13 rows agree to -75 dB or better (Ding instruments -130 to -142 dB, thruster -99.9 dB, tract -109 dB; worst: `advanced-bird-syrinx-graph` -75.4 dB). `dx7-algorithm-32-additive-organ` sits at -79.3 (library), -79.5 (old) and -79.5 dB (imp3), so its residual is not the pinned smoother (a smoother inside a library function, or float rounding; not isolated).
 - With the old smoother pinned the thruster still differs (-21.2 dB): native's LLVM contracts the recursion to FMA and stalls at 4797.657 instead of wasm's 4796.632. The old form's stall point depends on the arithmetic; the imp(3) form does not.
 - As shipped, nine of the 13 rows differ at waveform level by -16 to -50 dB (thruster, the three syrinx patches, the larynx graph, all four Ding instruments); `advanced-alien-multivalve-graph` (-68 dB), the tract (-52.6 dB) and the two dx7 patches are closer.
 

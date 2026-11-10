@@ -1,10 +1,10 @@
 // Diff aqua-feel's faustwasm render against the daemon's native libfaust render (tools/FaustNativeRender) of the same
 // Faust source, at the same params, 48 kHz and length. Nothing here was heard.
 // Both sides compile against their own stdlib (faustwasm bundles libfaust's; native reads AQUASYNTH_FAUST_HOME's share/faust), so a
-// difference here can be library text, not the host: the report records the identities. There is no tolerance: the script exits 1
-// on a render error, a length mismatch, or a LIMITS violation. LIMITS sit between the largest deltas seen across 19 sources and
+// difference here can be library text, not the host: the report records the identities. The script exits 1
+// on a render error, a length mismatch, or a LIMITS violation. LIMITS sit between the largest deltas seen across 13 sources and
 // three conditions (|LUFS| 0.017, |true peak| 0.152 dB, centroid 0.3 %) and a deliberate +1 dB gain (LUFS and true peak 1.0 dB);
-// the sample-level bound applies only with --smoother imp3, where the largest error seen is -75.4 dB (dx7-32 -79.5 aside) and a one-sample
+// the sample-level bound applies only with --smoother imp3, where the largest error seen is -75.4 dB (dx7-32, unexplained, is -79.5) and a one-sample
 // shift reads about -4 dB. With the library smoother the waveforms legitimately diverge (thruster -8 to -29 dB), so no sample bound.
 // usage: node native-diff.mjs <FaustNativeRender dir|dll> [--tract PATH.dsp] [--out DIR] [--items core|smoother] [--smoother library|old|imp3]
 //   --items smoother: the 12 catalog sources that call si.smooth/si.smoo (thruster at rpm 1200, 7 patches, 4 Ding instruments, one note at 261.6256 Hz for 1.5 s)
