@@ -246,15 +246,11 @@ def earcon_clips(d, want):
     return out
 
 
-def render_all(tmp, neutral_dir):
+def render_all(tmp):
     tmp = Path(tmp)
     dv = TOOLS / "dings-voices" / "src"
     steps = [(["node", str(dv / "build.mjs"), str(tmp / "dings" / "raw")], None)]
     (tmp / "dings" / "out").mkdir(parents=True)
-    nd = Path(neutral_dir)
-    if not nd.is_dir():
-        raise GuardError(f"neutral fallback clips not found at {nd} (finish.py needs out/neutral/*.ogg); pass --neutral DIR")
-    shutil.copytree(nd, tmp / "dings" / "out" / "neutral")
     steps.append(([sys.executable, str(dv / "finish.py"), str(tmp / "dings" / "raw"), str(tmp / "dings" / "out")], None))
     for ident in intended()["identities"]:
         steps.append((["node", str(TOOLS / "earcon-workshop" / "cli.mjs"), ident, str(tmp / "earcon" / ident)], None))
@@ -323,7 +319,6 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Check every shipped Dings clip and every Earcon Workshop clip with aqua-ear. Exit 1 on any failed assertion. With no directory it renders both itself into a temp dir.")
     ap.add_argument("--dings", help="out dir of tools/dings-voices (manifest.json, senders/, neutral/)")
     ap.add_argument("--earcon", help="dir with one cli.mjs pack per identity (<dir>/<identity>/pack.json)")
-    ap.add_argument("--neutral", help="neutral fallback dir used when rendering Dings (default: thresholds.json config.neutral_source)")
     ap.add_argument("--thresholds", help="thresholds file (default: next to guard.py)")
     ap.add_argument("--keep", action="store_true", help="keep the temp render dir and print it")
     a = ap.parse_args(argv)
@@ -336,7 +331,7 @@ def main(argv=None):
         if not dd or not ed:
             tmp = tempfile.mkdtemp(prefix="sound-guard-")
             print(f"rendering into {tmp} ...", flush=True)
-            rd, re_ = render_all(tmp, a.neutral or th["config"]["neutral_source"]["value"])
+            rd, re_ = render_all(tmp)
             dd, ed = dd or rd, ed or re_
         clips = dings_clips(dd, th, want) + earcon_clips(ed, want)
         res = run(clips, th)

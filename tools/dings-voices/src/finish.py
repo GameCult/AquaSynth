@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""finish.py <rawDir> <outDir>: loudness-match, encode ogg (Vorbis, 48 kHz mono), decode back, measure, write manifest + metrics.
+"""finish.py <rawDir> <outDir>: loudness-match, encode ogg (Vorbis, 48 kHz mono; senders and the neutral fallbacks), decode back, measure, write manifest + metrics.
 Needs numpy and soundfile (libsndfile has Vorbis); no oggenc/ffmpeg on the host. Metrics are not verdicts; nothing here was heard."""
 import sys, os, json, itertools
 import numpy as np, soundfile as sf
@@ -42,11 +42,17 @@ for p in PROPOSALS:
         sf.write(path, y.astype(np.float32), SR, format="OGG", subtype="VORBIS"); z, _ = sf.read(path); dec[(p, m)] = z; cen, flat = spectral(z)
         prop_rows.append(dict(sender=p, motif=m, file=f"proposals/{p}/{m}.ogg", bytes=os.path.getsize(path), durationMs=round(1000 * len(z) / SR, 1), laeDb=round(lae(z), 2), lafmaxDb=round(lafmax(z), 2),
             samplePeakDb=round(20 * np.log10(np.max(np.abs(z))), 2), truePeakDbTP=round(true_peak_db(z), 2), onsetRiseMs=round(onset_rise_ms(z), 2) if m == "mention" else None, onsetMs=round(onset_time_ms(z), 1), **end_metrics(z), centroidHz=round(cen), flatnessDb=round(10 * np.log10(flat), 1)))
-# neutral fallback, measured as shipped (not modified)
+# neutral fallback: warm-bell renders (build.mjs), equalised to the same A-weighted exposure as the senders. The sender target is not
+# touched by them (a bell peaking higher than the voices must not make every sender quieter), so they must fit under the peak limit at it.
 neutral = []
 for m in MOTIFS:
-    z, sr3 = sf.read(os.path.join(out, "neutral", f"{m}.ogg")); z = z if z.ndim == 1 else z[:, 0]
-    neutral.append(dict(motif=m, durationMs=round(1000 * len(z) / sr3, 1), laeDb=round(lae(z), 2), truePeakDbTP=round(true_peak_db(z), 2), onsetRiseMs=round(onset_rise_ms(z), 2) if m == "mention" else None, centroidHz=round(spectral(z)[0]), flatnessDb=round(10 * np.log10(spectral(z)[1]), 1)))
+    x, sr = sf.read(os.path.join(raw, f"neutral-{m}.wav")); assert sr == SR and x.ndim == 1
+    y = x * 10 ** ((target - lae(x)) / 20)
+    d = os.path.join(out, "neutral"); os.makedirs(d, exist_ok=True); path = os.path.join(d, f"{m}.ogg")
+    sf.write(path, y.astype(np.float32), SR, format="OGG", subtype="VORBIS"); z, sr3 = sf.read(path); assert sr3 == SR and z.ndim == 1
+    assert true_peak_db(z) < PEAK_LIMIT_DBTP, f"neutral {m} peaks over the limit at the sender target"
+    cen, flat = spectral(z)
+    neutral.append(dict(motif=m, file=f"neutral/{m}.ogg", bytes=os.path.getsize(path), durationMs=round(1000 * len(z) / sr3, 1), laeDb=round(lae(z), 2), truePeakDbTP=round(true_peak_db(z), 2), onsetRiseMs=round(onset_rise_ms(z), 2) if m == "mention" else None, centroidHz=round(cen), flatnessDb=round(10 * np.log10(flat), 1)))
 # pair distinctness, per motif, over decoded clips
 pairs = []
 for m in MOTIFS:

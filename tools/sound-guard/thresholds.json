@@ -144,44 +144,5 @@
       "why": "High-band channel cut-off; the v3 Void knock was visible only above this."
     }
   },
-  "config": {
-    "neutral_source": {
-      "value": "/opt/commons/handoff/aqua-dings-ratatoskr-b3eb9d01/out/neutral",
-      "why": "Not a threshold: where the neutral fallback clips come from when the guard renders the Dings itself. finish.py needs out/neutral/*.ogg and the generator does not make them; this is the staged copy tools/dings-voices/README.md names. Override with --neutral."
-    }
-  },
-  "known_failures": [
-    {
-      "clip": "dings/neutral/mention",
-      "assertion": "loudness",
-      "value": 11.74,
-      "slack": 0.05,
-      "measured": "LAE +11.74 dB from the sender median (-31.80 dB LAE), band +-0.5",
-      "reason": "the fallback clips are (inferred from durations and onsets, see voice_policy.neutral_events) Earcon Workshop warm-bell renders, shipped unmodified: finish.py measures it ('measured as shipped, not modified') and never loudness-matches it, so it sits above the equalised sender clips. Whether to equalise it is the owner's call, not the guard's."
-    },
-    {
-      "clip": "dings/neutral/dm",
-      "assertion": "loudness",
-      "value": 7.12,
-      "slack": 0.05,
-      "measured": "LAE +7.12 dB from the sender median (-31.80 dB LAE), band +-0.5",
-      "reason": "the fallback clips are (inferred from durations and onsets, see voice_policy.neutral_events) Earcon Workshop warm-bell renders, shipped unmodified: finish.py measures it ('measured as shipped, not modified') and never loudness-matches it, so it sits above the equalised sender clips. Whether to equalise it is the owner's call, not the guard's."
-    },
-    {
-      "clip": "dings/neutral/message",
-      "assertion": "loudness",
-      "value": 4.29,
-      "slack": 0.05,
-      "measured": "LAE +4.29 dB from the sender median (-31.80 dB LAE), band +-0.5",
-      "reason": "the fallback clips are (inferred from durations and onsets, see voice_policy.neutral_events) Earcon Workshop warm-bell renders, shipped unmodified: finish.py measures it ('measured as shipped, not modified') and never loudness-matches it, so it sits above the equalised sender clips. Whether to equalise it is the owner's call, not the guard's."
-    },
-    {
-      "clip": "dings/neutral/invite",
-      "assertion": "loudness",
-      "value": 13.73,
-      "slack": 0.05,
-      "measured": "LAE +13.73 dB from the sender median (-31.80 dB LAE), band +-0.5",
-      "reason": "the fallback clips are (inferred from durations and onsets, see voice_policy.neutral_events) Earcon Workshop warm-bell renders, shipped unmodified: finish.py measures it ('measured as shipped, not modified') and never loudness-matches it, so it sits above the equalised sender clips. Whether to equalise it is the owner's call, not the guard's."
-    }
-  ]
+  "known_failures": []
 }

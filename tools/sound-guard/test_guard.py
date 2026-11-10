@@ -170,7 +170,7 @@ class Contract(unittest.TestCase):
                 if isinstance(v, dict): yield from self.leaves(v, path + (k,))
 
     def test_every_threshold_has_a_reason(self):
-        found = list(self.leaves(TH["thresholds"])) + list(self.leaves(TH["voice_policy"])) + list(self.leaves(TH["aqua_ear_pins"])) + list(self.leaves(TH["config"]))
+        found = list(self.leaves(TH["thresholds"])) + list(self.leaves(TH["voice_policy"])) + list(self.leaves(TH["aqua_ear_pins"]))
         self.assertGreaterEqual(len(found), 20)
         for path, leaf in found:
             self.assertTrue(isinstance(leaf.get("why"), str) and len(leaf["why"].split()) >= 8, f"{path} needs a real `why`")
