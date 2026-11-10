@@ -196,26 +196,51 @@ public static class IpaGestureExperiment
 
         var duration = Math.Clamp(target.DurationSeconds * variant.DurationScale, 0.03f, 1.5f);
         var intensity = Math.Clamp(variant.IntensityScale, 0.05f, 2f);
-        var sustain = Math.Clamp(duration + 0.12f, 0.15f, 2f);
-        var descriptor = target.Descriptor.Replace(' ', '_');
-        var frequency = DescriptorTokens(target.Descriptor).Contains("vowel") ? 150 : 135;
-
-        return $$"""
-            patch gain=.45
-            morphology name=oral length_cm=17 diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.2
-            morphology name=nasal length_cm=12 diameters=.04,.28,.52,.72
-            waveguide_path name=oral_path morphology=oral strategy=thiran order=1 max_delay=4096 loss=.998
-            waveguide_path name=nasal_path morphology=nasal strategy=thiran order=1 max_delay=4096 loss=.997
-            source_port name=folds path=oral_path kind=glottal position=0 pressure=.66 tension=.54 opening=.42 noise=.04 impedance=.32 flow_scale=.12
-            branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
-            constriction_contact name=contact path=oral_path position=.92 opening=.5 resistance=.45 stored_pressure=.12
-            radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-.82 impedance=.28
-            probe_timeline name=flow network=voice blocks=12 block_size=64
-            vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=contact branches=velopharynx radiation=mouth probe=flow
-            phoneme_gesture name={{SafeDslName(target.Id)}} ipa={{target.Ipa}} descriptor={{descriptor}} start=0 dur={{Format(duration)}} intensity={{Format(intensity)}}
-            vocal network=voice freq={{Format(frequency)}} gain=.7 sustain={{Format(sustain)}}
-            """;
+        return Scaffold(
+            [GestureLine(target, 0, duration, intensity)],
+            Math.Clamp(duration + 0.12f, 0.15f, 2f),
+            DescriptorTokens(target.Descriptor).Contains("vowel") ? 150 : 135);
     }
+
+    /// <summary>
+    /// One word on the same scaffold: the targets run back to back, each at its own intensity (a stress mark is a higher
+    /// intensity on the stressed vowel). An empty descriptor leaves it to the DSL's own IPA table. Pitch stays flat at <paramref name="frequency"/>; no contour is authored.
+    /// </summary>
+    public static string BuildWordScript(IReadOnlyList<(IpaGestureExperimentTarget Target, float Intensity)> phones, float frequency = 140, float tailSeconds = 0.12f)
+    {
+        if (phones.Count == 0) throw new ArgumentException("a word needs at least one phone", nameof(phones));
+        var lines = new List<string>();
+        var start = 0f;
+        foreach (var (target, intensity) in phones)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(target.Id);
+            ArgumentException.ThrowIfNullOrWhiteSpace(target.Ipa);
+            var duration = Math.Clamp(target.DurationSeconds, 0.03f, 1.5f);
+            lines.Add(GestureLine(target, start, duration, Math.Clamp(intensity, 0.05f, 2f)));
+            start += duration;
+        }
+
+        return Scaffold(lines, Math.Clamp(start + tailSeconds, 0.15f, 4f), frequency);
+    }
+
+    private static string GestureLine(IpaGestureExperimentTarget target, float start, float duration, float intensity) =>
+        $"phoneme_gesture name={SafeDslName(target.Id)} ipa={target.Ipa} {(target.Descriptor.Length == 0 ? "" : $"descriptor={target.Descriptor.Replace(' ', '_')} ")}start={Format(start)} dur={Format(duration)} intensity={Format(intensity)}";
+
+    private static string Scaffold(IReadOnlyList<string> gestureLines, float sustain, float frequency) => $$"""
+        patch gain=.45
+        morphology name=oral length_cm=17 diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.2
+        morphology name=nasal length_cm=12 diameters=.04,.28,.52,.72
+        waveguide_path name=oral_path morphology=oral strategy=thiran order=1 max_delay=4096 loss=.998
+        waveguide_path name=nasal_path morphology=nasal strategy=thiran order=1 max_delay=4096 loss=.997
+        source_port name=folds path=oral_path kind=glottal position=0 pressure=.66 tension=.54 opening=.42 noise=.04 impedance=.32 flow_scale=.12
+        branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
+        constriction_contact name=contact path=oral_path position=.92 opening=.5 resistance=.45 stored_pressure=.12
+        radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-.82 impedance=.28
+        probe_timeline name=flow network=voice blocks=12 block_size=64
+        vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=contact branches=velopharynx radiation=mouth probe=flow
+        {{string.Join("\n", gestureLines)}}
+        vocal network=voice freq={{Format(frequency)}} gain=.7 sustain={{Format(sustain)}}
+        """;
 
     private static IReadOnlyList<IpaGestureMetricSummary> SummarizeMetrics(IReadOnlyList<IpaGestureExperimentMetric> metrics) =>
         metrics

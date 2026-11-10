@@ -614,6 +614,47 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void BareNIsAnAlveolarNasalNotTheApproximantFallback()
+    {
+        var patch = PatchScript.Parse("""
+            morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.5
+            morphology name=nasal length_cm=12 diameters=.05,.35,.6,.8
+            waveguide_path name=oral_path morphology=oral loss=.998
+            waveguide_path name=nasal_path morphology=nasal loss=.997
+            source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.45 noise=.05 impedance=.3
+            branch_port name=velopharynx from=oral_path from_position=.45 to=nasal_path opening=.01 coupling=1
+            constriction_contact name=contact path=oral_path position=.92 opening=.5 resistance=.4 stored_pressure=.1
+            radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
+            vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=contact branches=velopharynx radiation=mouth
+            phoneme_gesture name=en ipa=n start=0 dur=.1
+            vocal network=voice freq=140 gain=.2 sustain=.3
+            """);
+
+        Assert.Equal("voiced_alveolar_nasal", patch.PhonemeGestures.Single().Descriptor);
+        Assert.Contains(patch.ControlSplines, spline => spline.Name.StartsWith("en_velum", StringComparison.Ordinal) && spline.SurfacePath == "/vocal/branches/0/opening");
+        var catalog = ControlSurfaceCatalog.FromPatch(patch);
+        Assert.True(catalog.CreateTimeline().ControlValuesAt(.03f)["/vocal/branches/0/opening"] > .5f, "the velum opens for n");
+    }
+
+    [Fact]
+    public void WordScriptRunsGesturesBackToBackAndLeavesDescriptorsToTheDslTable()
+    {
+        var script = IpaGestureExperiment.BuildWordScript(
+        [
+            (new IpaGestureExperimentTarget("w_n", "n", "", .1f), 1f),
+            (new IpaGestureExperimentTarget("w_i", "i", "", .2f), 1.2f),
+            (new IpaGestureExperimentTarget("w_b", "b", "", .1f), 1f)
+        ], frequency: 140);
+
+        var patch = PatchScript.Parse(script);
+        Assert.Equal(["n", "i", "b"], patch.PhonemeGestures.Select(gesture => gesture.Ipa));
+        Assert.Equal([0f, .1f, .3f], patch.PhonemeGestures.Select(gesture => gesture.StartSeconds));
+        Assert.Equal(["voiced_alveolar_nasal", "voiced_close_front_unrounded_vowel", "voiced_bilabial_plosive"], patch.PhonemeGestures.Select(gesture => gesture.Descriptor));
+        Assert.Equal(1.2f, patch.PhonemeGestures[1].Intensity);
+        Assert.Throws<ArgumentException>(() => IpaGestureExperiment.BuildWordScript([]));
+    }
+
+    [Fact]
     public void IpaGestureExperimentWritesFrozenRoundBundle()
     {
         var root = Path.Combine(Path.GetTempPath(), $"aquasynth-ipa-round-{Guid.NewGuid():N}");
