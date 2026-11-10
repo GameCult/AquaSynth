@@ -81,3 +81,5 @@ clips, not taste.
 
 Live: everything above. Not built: per-onset spectral-flux detector for noise-on-noise, an audibility model, batch mode over a directory, `--strict`
 per-detector selection. None of these is needed by a current consumer.
+
+Examples are published to one place, https://minds.gamecult.org/aqua/ear/, with `python3 tools/publish-stable/publish_stable.py ear <dir of runs>` (see tools/dings-voices/README.md, Publishing).

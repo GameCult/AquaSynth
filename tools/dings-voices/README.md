@@ -12,3 +12,14 @@ Generates eight sender voices (aqua, eureka, heimdall, kiko, libby, nibu, void, 
 - Not here: the rendered clips and the listening page. A staged copy, with the README of its measurements, is at `/opt/commons/handoff/aqua-dings-voices-20261110` on Yggdrasil; the neutral fallback files come from `/opt/commons/handoff/aqua-dings-ratatoskr-b3eb9d01/out/neutral`.
 
 Run: `node src/polyphony.test.mjs && node src/build.mjs raw && python src/finish.py raw out && python src/verify.py .` (`finish.py` expects `out/neutral/*.ogg` to exist for the neutral comparison).
+
+## Publishing (one place)
+
+One dev, one URL: the listening page is **https://minds.gamecult.org/aqua/dings/** (`/srv/minds-web/aqua/dings/`), always the latest version, overwritten in place. Do not publish per-hash pages any more. After building a publish dir (the `Run` line, then `gen_page.py`), run
+
+```
+python3 tools/publish-stable/publish_stable.py dings <publishDir>    # idempotent; replaces the stable dir by renaming a finished staging copy
+python3 tools/publish-stable/publish_stable.py banners               # old per-version pages get a pointer banner; deletes nothing
+```
+
+The script stamps a banner and a `VERSION` file (publish dir name and AquaSynth revision) into the stable copy. The aqua-ear examples are published the same way to `/srv/minds-web/aqua/ear/` (`publish_stable.py ear <dir of runs>`). Tests: `python3 tools/publish-stable/test_publish_stable.py`. Nobody has opened these pages in a browser; every link and audio file on them was checked with curl over https.
