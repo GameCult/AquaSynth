@@ -259,7 +259,7 @@ def render_all(tmp, neutral_dir):
     for ident in intended()["identities"]:
         steps.append((["node", str(TOOLS / "earcon-workshop" / "cli.mjs"), ident, str(tmp / "earcon" / ident)], None))
     for cmd, _ in steps:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=RENDER_TIMEOUT_S)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=RENDER_TIMEOUT_S, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
         if r.returncode:
             raise GuardError(f"render step failed: {' '.join(cmd[:2])}\n{r.stderr[-STDERR_TAIL:]}")
     return tmp / "dings" / "out", tmp / "earcon"
