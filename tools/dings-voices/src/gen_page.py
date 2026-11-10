@@ -8,7 +8,7 @@ J = lambda *p: json.load(open(os.path.join(root, *p)))
 M = J("metrics.json"); V = J("voices.json")["voices"]; OB = J("findings", "onsets-before.json"); OA = J("findings", "onsets-after.json"); NB = J("findings", "nibu-after.json")
 MOTIFS = ["mention", "dm", "message", "invite"]
 RHY = {"mention": "one note", "dm": "two slower notes, rising", "message": "two quick notes, rising", "invite": "a long pause, then a short one: three notes"}
-clip = {(r["sender"], r["motif"]): r for r in M["clips"] + M["proposals"]}; neu = {n["motif"]: n for n in M["neutral"]}; S = M["summary"]
+clip = {(r["sender"], r["motif"]): r for r in M["clips"] + M["proposals"]}; S = M["summary"]
 e = html.escape
 def aud(src, label, role="voice"):
     return f'<audio controls preload="none" src="{src}" aria-label="{e(label)}" data-role="{role}"></audio>'
@@ -59,7 +59,7 @@ def nibu_section():
 <p><a href="findings/nibu-spectrum-after.png">spectrum, invite against mention</a> · <a href="findings/nibu-invite-after.png">invite spectrogram</a> · <a href="findings/nibu-message-after.png">message</a> · <a href="findings/nibu-dm-after.png">dm</a></p></section>'''
 unchanged = ["aqua", "eureka", "heimdall", "kiko", "libby", "weksa"]
 def plain(s):
-    rows = "".join(f'<tr><th scope="row">{m}<br><span class="sub">{e(RHY[m])}</span></th><td>{aud(f"out/senders/{s}/{m}.ogg", f"{s} {m}")}{ms(s, m)}</td><td>{aud(f"out/neutral/{m}.ogg", f"neutral {m}", "neutral", min(1.0, 10 ** ((clip[(s, m)]["laeDb"] - neu[m]["laeDb"]) / 20)))}</td></tr>' for m in MOTIFS)
+    rows = "".join(f'<tr><th scope="row">{m}<br><span class="sub">{e(RHY[m])}</span></th><td>{aud(f"out/senders/{s}/{m}.ogg", f"{s} {m}")}{ms(s, m)}</td><td>{aud(f"out/neutral/{m}.ogg", f"neutral {m}", "neutral")}</td></tr>' for m in MOTIFS)
     return f'<section aria-labelledby="h-{s}"><h2 id="h-{s}">{s.capitalize()} <span class="sub">{e(V[s]["object"])} · unchanged since v3</span></h2><p class="caption">{e(V[s]["caption"])}</p><table><caption class="sr">{s}: voice beside the neutral fallback</caption><thead><tr><th scope="col">Notification</th><th scope="col">Voice</th><th scope="col">Neutral fallback</th></tr></thead><tbody>{rows}</tbody></table></section>'
 page = f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
