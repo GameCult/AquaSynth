@@ -1,5 +1,5 @@
 // Offline render through the same faustwasm runtime the playground and the listening trial load (not the daemon's
-// native libfaust path: same Faust source, same compiler version family, but a different host; see README).
+// native libfaust path: same Faust source text but a different compiler build and standard library, so not the same arithmetic; see docs/renders/aqua-feel-native-diff-2026-11-10.md).
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
