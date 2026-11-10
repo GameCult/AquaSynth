@@ -56,4 +56,9 @@ for (const m of ["dm", "message", "invite"]) for (let i = 0; i < RHYTHM[m].lengt
   const x = renderNote("nibu", m, i), nextAt = Math.round(RHYTHM[m][i + 1][0] * 48), after = x.subarray(nextAt).reduce((a, v) => Math.max(a, Math.abs(v)), 0);
   assert.ok(after < 1e-6 * peak(x), `nibu ${m} note ${i} still sounds at ${after / peak(x)} of its peak after note ${i + 1} starts`);
 }
+// 6. Void: a note something follows is silent (under -120 dB re its own peak) once the next note starts, so a ring never swells under the next attack.
+for (const m of MOTIFS) for (let i = 0; i < RHYTHM[m].length - 1; i++) {
+  const x = renderNote("void", m, i), nextAt = Math.round(RHYTHM[m][i + 1][0] * 48), after = x.subarray(nextAt).reduce((a, v) => Math.max(a, Math.abs(v)), 0);
+  assert.ok(after < 1e-6 * peak(x), `void ${m} note ${i} still sounds at ${(20 * Math.log10(after / peak(x))).toFixed(1)} dB re its peak after note ${i + 1} starts`);
+}
 console.log(`ok: ${names.length * MOTIFS.length} clips are the sum of per-note renders; notes are independent of each other's pitch and noise; Void has one onset per note; Nibu notes do not overlap`);
