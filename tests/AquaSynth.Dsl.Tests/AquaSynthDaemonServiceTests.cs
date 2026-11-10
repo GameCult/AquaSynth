@@ -52,7 +52,7 @@ public sealed class AquaSynthDaemonServiceTests
         Assert.True(File.Exists(UriToPath(result.RenderReceipt.Float32Uri)));
         Assert.True(File.Exists(UriToPath(result.RenderReceipt.WavUri)));
         Assert.Equal(result.RenderReceipt.SampleCount * sizeof(float), new FileInfo(UriToPath(result.RenderReceipt.Float32Uri)).Length);
-        Assert.True(File.Exists(Path.Combine(storeRoot, "sessions", $"{result.CompileReceipt.SessionId}.cc")));
+        Assert.True(File.Exists(Path.Combine(storeRoot, "sessions", $"{StoreFileName.From(result.CompileReceipt.SessionId)}.cc")));
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public sealed class AquaSynthDaemonServiceTests
         Assert.True(File.Exists(UriToPath(quiet.Float32Uri)));
         Assert.True(File.Exists(UriToPath(loud.Float32Uri)));
         Assert.Equal(128 * sizeof(float), new FileInfo(UriToPath(loud.Float32Uri)).Length);
-        Assert.True(File.Exists(Path.Combine(storeRoot, "live", $"{close.ReceiptId}.cc")));
+        Assert.True(File.Exists(Path.Combine(storeRoot, "live", $"{StoreFileName.From(close.ReceiptId)}.cc")));
         var liveState = await ReadLiveSessionStateAsync(storeRoot, open.SessionId);
         Assert.Equal(open.SessionId, liveState.SessionId);
         Assert.Equal("closed", liveState.Status);
@@ -210,7 +210,7 @@ public sealed class AquaSynthDaemonServiceTests
     private static async Task<AquaSynthLiveInstrumentSessionState> ReadLiveSessionStateAsync(string storeRoot, string sessionId)
     {
         using var cache = await CultCacheMessagePack.OpenAsync(
-            Path.Combine(storeRoot, "live-sessions", $"{sessionId}.cc")).ConfigureAwait(false);
+            Path.Combine(storeRoot, "live-sessions", $"{StoreFileName.From(sessionId)}.cc")).ConfigureAwait(false);
         return Assert.Single(cache.GetAll<AquaSynthLiveInstrumentSessionState>());
     }
 }

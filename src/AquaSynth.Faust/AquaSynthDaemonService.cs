@@ -1132,7 +1132,12 @@ public sealed class AquaSynthDaemonService : IDisposable
 
     private static string SessionId(string patchId, string compileKey) => $"{StoreFileName.From(patchId)}-{compileKey[..Math.Min(12, compileKey.Length)]}";
 
-    private static string ToArtifactUri(string path) => $"file:///{Path.GetFullPath(path).Replace('\\', '/')}";
+    // `C:\a\b` -> file:///C:/a/b and `/a/b` -> file:///a/b; a bare "file:///" prefix made POSIX paths file:////a/b, which Uri reads as a UNC host.
+    private static string ToArtifactUri(string path)
+    {
+        var full = Path.GetFullPath(path).Replace('\\', '/');
+        return full.StartsWith('/') ? $"file://{full}" : $"file:///{full}";
+    }
 
     private static string Now() => DateTimeOffset.UtcNow.ToString("O");
 
