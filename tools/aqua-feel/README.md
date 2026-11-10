@@ -9,6 +9,8 @@ The WAVs and the gallery exist so a person can press play.
 
 To look at a finished audio file (wav/ogg/flac: spectrogram, onsets at 1 ms, level envelope, click/clip/double-hit/overlap/abrupt-end detectors, two-file compare) rather than a rendered patch, use `../aqua-ear`.
 
+To check that sound and picture of a capture line up (video or WAV plus a frame-diff track), use `node feel.mjs sync`: see `SYNC.md`.
+
 ## Run
 
 ```
