@@ -8,6 +8,34 @@ public sealed class PatchScriptException(int line, string message) : Exception($
 }
 public static class PatchScript
 {
+    /// <summary>
+    /// The DSL's own IPA table: the phones a phoneme_gesture knows without an explicit descriptor. A hand-written script
+    /// that names another phone falls back to an alveolar approximant; a caller that must not be approximated asks here first.
+    /// </summary>
+    public static bool TryIpaDescriptor(string ipa, out string descriptor)
+    {
+        var known = ipa switch
+        {
+            "p" => "voiceless_bilabial_plosive",
+            "b" => "voiced_bilabial_plosive",
+            "m" => "voiced_bilabial_nasal",
+            "n" => "voiced_alveolar_nasal",
+            "s" => "voiceless_alveolar_fricative",
+            "z" => "voiced_alveolar_fricative",
+            "ʃ" => "voiceless_postalveolar_fricative",
+            "ʒ" => "voiced_postalveolar_fricative",
+            "ʍ" => "voiceless_labial_velar_fricative",
+            "w" => "voiced_labial_velar_approximant",
+            "i" => "voiced_close_front_unrounded_vowel",
+            "u" => "voiced_close_back_rounded_vowel",
+            "a" or "ɑ" => "voiced_open_back_unrounded_vowel",
+            "æ" => "voiced_open_front_unrounded_vowel",
+            "ə" => "voiced_mid_central_unrounded_vowel",
+            _ => null
+        };
+        descriptor = known ?? "";
+        return known is not null;
+    }
 
     public static SynthPatch Parse(string script)
     {
@@ -866,7 +894,8 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.5f, $"/vocal/sources/{_sourcePorts.Count}/opening", "opening", "open"),
                 GetBoundFloat(fields, line, 0.08f, $"/vocal/sources/{_sourcePorts.Count}/noise", "noise", "aspiration"),
                 GetBoundFloat(fields, line, 0.35f, $"/vocal/sources/{_sourcePorts.Count}/impedance", "impedance", "load", "source_impedance"),
-                GetBoundFloat(fields, line, 0.02f, $"/vocal/sources/{_sourcePorts.Count}/flow_scale", "flow_scale", "scale"));
+                GetBoundFloat(fields, line, 0.02f, $"/vocal/sources/{_sourcePorts.Count}/flow_scale", "flow_scale", "scale"),
+                GetBoundFloat(fields, line, 0.5f, $"/vocal/sources/{_sourcePorts.Count}/tilt", "tilt", "spectral_tilt"));
             _sourcePorts.Add(port);
             _sourcePortsByName[name] = port;
             RegisterSourcePortSurfaces(_sourcePorts.Count - 1, port);
@@ -1312,6 +1341,7 @@ public static class PatchScript
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "noise"), port.Name, "noise", port.Noise);
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "impedance"), port.Name, "impedance", port.Impedance, 0.05f, 2);
             RegisterNormalizedPrimitiveSurface(OwnerField(owner, "flow_scale"), port.Name, "flow_scale", port.FlowScale, 0, 0.2f);
+            RegisterNormalizedPrimitiveSurface(OwnerField(owner, "tilt"), port.Name, "tilt", port.Tilt);
         }
 
         private void RegisterAreaFunctionSurfaces(int index, AreaFunction area)
@@ -1448,7 +1478,7 @@ public static class PatchScript
 
             if (tokens.Contains("vowel"))
             {
-                EmitVowelGesture(name, tokens, start, duration, intensity);
+                EmitVowelGesture(name, tokens, start, duration);
                 return;
             }
 
@@ -1485,16 +1515,52 @@ public static class PatchScript
             }
         }
 
-        private void EmitVowelGesture(string name, HashSet<string> tokens, float start, float duration, float intensity)
+        // Vowel tract shapes for the Kelly-Lochbaum ladder on the experiment scaffold (six rest diameters, 17 cm, 48 kHz): tongue
+        // section index (0..5), tongue and lip diameters in cm. Each was found by grid search over the exported ladder's impulse
+        // response (peak picking) toward textbook F1/F2, not by hand: measured F1/F2 in Hz in the trailing comment.
+        // Features are (front 0..1, openness 0..1, rounded 0/1); a descriptor selects the nearest anchor, there is no interpolation
+        // because the shapes are not monotone in formant space.
+        private static readonly (float Front, float Open, float Round, float TongueIndex, float TongueCm, float LipCm)[] VowelShapes =
+        [
+            (1.0f, 0.0f, 0, 3.00f, 0.15f, 2.20f), // i  271/2313
+            (0.0f, 0.0f, 1, 2.25f, 0.45f, 0.05f), // u  292/876
+            (0.0f, 1.0f, 0, 1.50f, 0.35f, 1.00f), // a  703/1084
+            (1.0f, 1.0f, 0, 0.50f, 0.30f, 1.00f), // ae 665/1755
+            (1.0f, 0.5f, 0, 2.50f, 1.80f, 2.20f), // e  535/1799
+            (0.0f, 0.5f, 1, 1.50f, 0.10f, 1.60f), // o  454/962
+            (0.5f, 0.5f, 0, 2.00f, 1.20f, 0.60f), // schwa 497/1503
+        ];
+
+        private void EmitVowelGesture(string name, HashSet<string> tokens, float start, float duration)
         {
-            var frontness = tokens.Contains("front") ? 0.70f : tokens.Contains("back") ? 0.30f : 0.50f;
-            var openness = tokens.Contains("close") ? 0.30f : tokens.Contains("mid") ? 0.50f : tokens.Contains("open") ? 0.78f : 0.55f;
-            var rounding = tokens.Contains("rounded") ? 0.35f : tokens.Contains("unrounded") ? 0.72f : 0.60f;
-            AddAuthoredSpline($"{name}_tongue_index", "/vocal/areas/0/area/tongue_index", start, duration, (0, frontness), (1, frontness));
-            AddAuthoredSpline($"{name}_tongue_diameter", "/vocal/areas/0/area/tongue_diameter", start, duration, (0, openness), (1, openness));
-            AddAuthoredSpline($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, (0, rounding), (1, rounding));
-            AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, Math.Clamp(rounding + 0.1f * intensity, 0, 1)), (1, Math.Clamp(rounding + 0.1f * intensity, 0, 1)));
+            var front = tokens.Contains("front") ? 1f : tokens.Contains("back") ? 0f : 0.5f;
+            var open = tokens.Contains("close") ? 0f : tokens.Contains("mid") ? 0.5f : tokens.Contains("open") ? 1f : 0.5f;
+            var round = tokens.Contains("rounded") && !tokens.Contains("unrounded") ? 1f : 0f;
+            var shape = VowelShapes
+                .OrderBy(candidate => MathF.Abs(candidate.Front - front) + MathF.Abs(candidate.Open - open) + MathF.Abs(candidate.Round - round))
+                .First();
+            HoldOnSurface($"{name}_tongue_index", "/vocal/areas/0/area/tongue_index", start, duration, shape.TongueIndex);
+            HoldOnSurface($"{name}_tongue_diameter", "/vocal/areas/0/area/tongue_diameter", start, duration, shape.TongueCm);
+            HoldOnSurface($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, shape.LipCm);
+            // A vowel leaves the tract unconstricted: hold the constriction at the surface maximum.
+            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, 1), (1, 1));
+            // The ladder's lip cell already carries the lip area into the resonance and the level. Aperture is the radiating
+            // gain the consonant closures use (the lip cell cannot shut), so a vowel keeps it fully open; scaling it by the lip
+            // area as well counted the rounding twice and left /u/ 30 dB under /i/.
+            AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, 1), (1, 1));
             AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, 0.01f), (1, 0.01f));
+        }
+
+        // Holds a surface at a value in its own unit (cm, section index); splines carry the surface's normalized range.
+        private void HoldOnSurface(string name, string surfacePath, float start, float duration, float value)
+        {
+            if (!_controlSurfacesByPath.TryGetValue(surfacePath, out var surface) || surface.MaxValue <= surface.MinValue)
+            {
+                return;
+            }
+
+            var normalized = Math.Clamp((value - surface.MinValue) / (surface.MaxValue - surface.MinValue), 0, 1);
+            AddAuthoredSpline(name, surfacePath, start, duration, (0, normalized), (1, normalized));
         }
 
         private static string GestureDescriptor(string ipa, IReadOnlyDictionary<string, string> fields)
@@ -1513,25 +1579,7 @@ public static class PatchScript
                 return $"{phonation}_{place}_{manner}";
             }
 
-            return ipa switch
-            {
-                "p" => "voiceless_bilabial_plosive",
-                "b" => "voiced_bilabial_plosive",
-                "m" => "voiced_bilabial_nasal",
-                "n" => "voiced_alveolar_nasal",
-                "s" => "voiceless_alveolar_fricative",
-                "z" => "voiced_alveolar_fricative",
-                "ʃ" => "voiceless_postalveolar_fricative",
-                "ʒ" => "voiced_postalveolar_fricative",
-                "ʍ" => "voiceless_labial_velar_fricative",
-                "w" => "voiced_labial_velar_approximant",
-                "i" => "voiced_close_front_unrounded_vowel",
-                "u" => "voiced_close_back_rounded_vowel",
-                "a" or "ɑ" => "voiced_open_back_unrounded_vowel",
-                "æ" => "voiced_open_front_unrounded_vowel",
-                "ə" => "voiced_mid_central_unrounded_vowel",
-                _ => "voiced_alveolar_approximant"
-            };
+            return TryIpaDescriptor(ipa, out var known) ? known : "voiced_alveolar_approximant";
         }
 
         private static HashSet<string> DescriptorTokens(string descriptor) =>

@@ -511,7 +511,7 @@ public sealed class AquaSynthNativeCompiler : IDisposable
         ObjectDisposedException.ThrowIf(disposed, this);
         var patch = PatchScript.Parse(identity.Script);
         var faustName = SafeFaustName(identity.FaustName);
-        var export = FaustEmitter.Emit(patch, new FaustExportOptions(faustName));
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions(faustName, SampleRate: options.SampleRate));
         var duration = EstimateDuration(patch, options);
         var sourcePath = WriteDspSource(identity.Id, export.Source, options.DspSourceDirectory);
         return CompileSource(identity, faustName, export.Source, duration, sourcePath, ControlSurfaceCatalog.FromPatch(patch));

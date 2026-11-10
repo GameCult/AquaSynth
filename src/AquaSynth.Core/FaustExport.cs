@@ -4,11 +4,11 @@ using System.Text;
 
 namespace AquaSynth.Dsl;
 
-public sealed record FaustExportOptions(string Name = "aquasynth_patch", bool Stereo = false, bool DebugProbeUi = false);
+public sealed record FaustExportOptions(string Name = "aquasynth_patch", bool Stereo = false, bool DebugProbeUi = false, int SampleRate = 48000);
 
 public sealed record FaustExport(string Source, IReadOnlyList<string> Warnings);
 
-public static class FaustEmitter
+public static partial class FaustEmitter
 {
     public static FaustExport EmitScript(string script, FaustExportOptions? options = null) =>
         Emit(PatchScript.Parse(script), options ?? new FaustExportOptions());
@@ -160,9 +160,7 @@ public static class FaustEmitter
                 : publicControl;
             source.AppendLine($"{baseId} = {boundControl};");
 
-            var splines = patch.ControlSplines
-                .Where(spline => spline.Enabled && spline.SurfacePath.Equals(surface.Path, StringComparison.OrdinalIgnoreCase))
-                .ToArray();
+            var splines = ControlSplineTimeline.SurfaceSplines(patch.ControlSplines, surface.Path);
             if (splines.Length == 0)
             {
                 source.AppendLine($"{normalized} = clip01({baseId});");
@@ -577,6 +575,7 @@ public static class FaustEmitter
         var radiated = new List<string>();
 
         source.AppendLine($"{name}_primitive_drive = 1.0;");
+        var members = new List<LadderPath>();
         foreach (var pathName in network.Paths)
         {
             if (!paths.TryGetValue(pathName, out var path))
@@ -590,24 +589,27 @@ public static class FaustEmitter
                 continue;
             }
 
-            var safePath = SafeIdentifier(path.Name);
-            var areaIndex = AreaFunctionIndex(patch, area);
-            var pathIndex = WaveguidePathIndex(patch, path);
-            var pathField = $"/vocal/paths/{pathIndex}";
-            var representativeArea = $"{name}_primitive_path_{safePath}_area";
-            var delay = $"{name}_primitive_path_{safePath}_delay";
-            var input = $"{name}_primitive_path_{safePath}_input";
-            var incoming = $"{name}_primitive_path_{safePath}_incoming_wave";
-            var wave = $"{name}_primitive_path_{safePath}_wave";
-            var energyIn = $"{name}_primitive_path_{safePath}_energy_in";
-            var energyOut = $"{name}_primitive_path_{safePath}_energy_out";
-            var passivity = $"{name}_primitive_path_{safePath}_passivity_ratio";
-            var loss = $"clip01({parameters.Expression(OwnerField(pathField, "loss"), path.Loss)})";
-            source.AppendLine($"    {representativeArea} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/area", PrimitiveAreaExpression(patch, parameters, area, areaIndex), 0, 8)};");
-            source.AppendLine($"    {delay} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/delay", $"({F(area.Shape.LengthMeters)} / max(1.0, {parameters.Expression(OwnerField(pathField, "speed"), path.PropagationSpeedMetersPerSecond)})) * ma.SR", 0, path.MaxDelaySamples)};");
-            keepAlive.Add(representativeArea);
-            keepAlive.Add(delay);
+            var load = network.Radiation
+                .Select(loadName => radiation.TryGetValue(loadName, out var candidate) && candidate.Path.Equals(path.Name, StringComparison.OrdinalIgnoreCase) ? candidate : null)
+                .FirstOrDefault(candidate => candidate is not null);
+            members.Add(new LadderPath(
+                path,
+                area,
+                AreaFunctionIndex(patch, area),
+                WaveguidePathIndex(patch, path),
+                $"{name}_primitive_path_{SafeIdentifier(path.Name)}",
+                LadderCells(path, area.Shape, options),
+                load,
+                load is null ? 0 : RadiationLoadIndex(patch, load)));
+        }
 
+        // Per-path drive: sources, contact release and branch exchange sum into the path input. A branch whose two paths
+        // are both in this network is a ladder junction instead and exchanges no flow term.
+        var memberNames = members.Select(member => member.Path.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var member in members)
+        {
+            var path = member.Path;
             var sourceTerms = network.Sources
                 .Select(sourceName => sourcePorts.TryGetValue(sourceName, out var port) && port.Path.Equals(path.Name, StringComparison.OrdinalIgnoreCase)
                     ? PrimitiveSourceExpression(source, patch, name, port, frequency, parameters, options, keepAlive)
@@ -623,20 +625,52 @@ public static class FaustEmitter
                 .Cast<string>()
                 .ToList();
             var branchTerms = network.Branches
-                .Select(branchName => branches.TryGetValue(branchName, out var branch) && branch.FromPath.Equals(path.Name, StringComparison.OrdinalIgnoreCase)
+                .Select(branchName => branches.TryGetValue(branchName, out var branch) && branch.FromPath.Equals(path.Name, StringComparison.OrdinalIgnoreCase) && !memberNames.Contains(branch.ToPath)
                     ? PrimitiveBranchExpression(source, patch, name, branch, parameters, options, keepAlive)
                     : null)
                 .Where(term => term is not null)
                 .Cast<string>()
                 .ToList();
             var pathInputs = sourceTerms.Concat(contactTerms).Concat(branchTerms).ToList();
+            var input = $"{member.Prefix}_input";
             source.AppendLine($"    {input} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/input_flow", pathInputs.Count == 0 ? "0.0" : string.Join(" + ", pathInputs), -4, 4)};");
-            source.AppendLine($"    {incoming} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/incoming_wave", input, -4, 4)};");
-            source.AppendLine($"    {wave} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/outgoing_wave", $"({incoming}) : {PrimitiveDelayExpression(path, path.MaxDelaySamples, delay)} * {loss}", -4, 4)};");
+            inputs[path.Name] = input;
+            keepAlive.Add(input);
+        }
+
+        var admittances = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var branchName in network.Branches)
+        {
+            if (branches.TryGetValue(branchName, out var branch) && memberNames.Contains(branch.FromPath) && memberNames.Contains(branch.ToPath))
+            {
+                admittances[branch.Name] = PrimitiveBranchAdmittance(source, patch, name, branch, parameters, options, keepAlive);
+            }
+        }
+
+        var lips = members.Count == 0
+            ? new Dictionary<string, string>()
+            : EmitVocalLadder(source, patch, network, name, members, inputs, admittances, parameters, warnings);
+
+        foreach (var member in members)
+        {
+            var path = member.Path;
+            var representativeArea = $"{member.Prefix}_area";
+            var delay = $"{member.Prefix}_delay";
+            var incoming = $"{member.Prefix}_incoming_wave";
+            var wave = $"{member.Prefix}_wave";
+            var energyIn = $"{member.Prefix}_energy_in";
+            var energyOut = $"{member.Prefix}_energy_out";
+            var passivity = $"{member.Prefix}_passivity_ratio";
+            var meanArea = $"({string.Join(" + ", Enumerable.Range(0, member.Cells).Select(member.A))}) / {member.Cells}.0";
+            source.AppendLine($"    {representativeArea} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/area", meanArea, 0, 8)};");
+            source.AppendLine($"    {delay} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/delay", $"{member.Cells}.0", 0, member.Cells)};");
+            source.AppendLine($"    {incoming} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/incoming_wave", inputs[path.Name], -4, 4)};");
+            source.AppendLine($"    {wave} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/outgoing_wave", lips[path.Name], -4, 4)};");
             source.AppendLine($"    {energyIn} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/energy_in", $"{representativeArea} * pow({incoming}, 2.0)", 0, 8)};");
             source.AppendLine($"    {energyOut} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/energy_out", $"{representativeArea} * pow({wave}, 2.0)", 0, 8)};");
             source.AppendLine($"    {passivity} = {ProbeSignal(options, $"/debug/{name}/path/{path.Name}/passivity_ratio", $"{energyOut} / max(0.000001, {energyIn})", 0, 2)};");
-            keepAlive.Add(input);
+            keepAlive.Add(representativeArea);
+            keepAlive.Add(delay);
             keepAlive.Add(incoming);
             keepAlive.Add(wave);
             keepAlive.Add(energyIn);
@@ -662,32 +696,6 @@ public static class FaustEmitter
         return $"{name}_primitive_radiated";
     }
 
-    private static string PrimitiveAreaExpression(SynthPatch patch, ParameterMap parameters, AreaFunction area, int areaIndex)
-    {
-        var baseDiameter = area.Shape.AverageDiameter(0, 1);
-        if (area.Deformation is null)
-        {
-            return F(baseDiameter * baseDiameter);
-        }
-
-        var areaPath = $"/vocal/areas/{areaIndex}";
-        var tongue = parameters.Expression(OwnerField(areaPath, "area/tongue_diameter"), area.Deformation.TongueDiameter);
-        var constriction = parameters.Expression(OwnerField(areaPath, "area/constriction_diameter"), area.Deformation.ConstrictionDiameter);
-        var lip = parameters.Expression(OwnerField(areaPath, "area/lip_opening"), area.Deformation.LipOpening);
-        return $"pow(max(0.0001, ({F(baseDiameter)} + ({tongue}) * 0.10 + ({lip}) * 0.08 + min(0.0, ({constriction}) - 1.0) * 0.35)), 2.0)";
-    }
-
-    private static string PrimitiveDelayExpression(WaveguidePath path, int maxDelay, string delay) =>
-        path.DelayStrategy switch
-        {
-            WaveClockDelayStrategy.UnitGrid => $"de.delay({maxDelay}, int(max(1.0, {delay})))",
-            WaveClockDelayStrategy.HalfSampleGrid => $"de.fdelay({maxDelay}, round(max(0.5, {delay}) * 2.0) * 0.5)",
-            WaveClockDelayStrategy.FractionalLagrange => $"de.fdelayltv({Math.Clamp(path.DelayOrder, 1, 5)}, {maxDelay}, max({F((Math.Clamp(path.DelayOrder, 1, 5) - 1) * 0.5f)}, {delay}))",
-            WaveClockDelayStrategy.FractionalThiran => $"de.fdelay{Math.Clamp(path.DelayOrder, 1, 4)}a({maxDelay}, max({F(Math.Clamp(path.DelayOrder, 1, 4) - 0.5f)}, {delay}))",
-            WaveClockDelayStrategy.CrossfadedVariable => $"de.fdelayltv({Math.Clamp(path.DelayOrder, 1, 5)}, {maxDelay}, max({F((Math.Clamp(path.DelayOrder, 1, 5) - 1) * 0.5f)}, {delay}))",
-            _ => $"de.fdelay({maxDelay}, max(0.5, {delay}))"
-        };
-
     private static string PrimitiveSourceExpression(
         StringBuilder source,
         SynthPatch patch,
@@ -710,7 +718,10 @@ public static class FaustEmitter
         var voiced = $"{voiceName}_primitive_source_{safe}_voiced";
         var flow = $"{voiceName}_primitive_source_{safe}_flow";
         source.AppendLine($"    {load} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/load_pressure", $"({impedance}) * ({pressure})", 0, 2)};");
-        source.AppendLine($"    {voiced} = os.osc({frequency}) * clip01({opening}) * clip01(0.25 + {tension});");
+        // Harmonic glottal source: a band-limited saw through a one-pole lowpass. Tilt 0 is the brightest source and 1 the
+        // steepest rolloff; the cutoff sweeps five octaves, 6400 Hz down to 200 Hz, and sits below Nyquist.
+        var cutoff = $"min(0.45 * ma.SR, 200.0 * pow(2.0, (1.0 - clip01({parameters.Expression(OwnerField(owner, "tilt"), port.Tilt)})) * 5.0))";
+        source.AppendLine($"    {voiced} = (os.sawtooth({frequency}) : fi.lowpass(1, {cutoff})) * clip01({opening}) * clip01(0.25 + {tension});");
         source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * (({voiced}) * ma.tanh((({pressure}) * (0.5 + {tension})) / max(0.05, {impedance})) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)})", -2, 2)};");
         keepAlive.Add(load);
         keepAlive.Add(voiced);
@@ -742,6 +753,24 @@ public static class FaustEmitter
         return released;
     }
 
+    // Open fraction of a branch port: the ladder reads it as the velum area when the branch joins two paths of the network,
+    // otherwise it scales the flow term PrimitiveBranchExpression exchanges.
+    private static string PrimitiveBranchAdmittance(
+        StringBuilder source,
+        SynthPatch patch,
+        string voiceName,
+        BranchPort branch,
+        ParameterMap parameters,
+        FaustExportOptions options,
+        List<string> keepAlive)
+    {
+        var owner = $"/vocal/branches/{BranchPortIndex(patch, branch)}";
+        var admittance = $"{voiceName}_primitive_branch_{SafeIdentifier(branch.Name)}_admittance";
+        source.AppendLine($"    {admittance} = {ProbeSignal(options, $"/debug/{voiceName}/branch/{branch.Name}/admittance", $"clip01({parameters.Expression(OwnerField(owner, "opening"), branch.Opening)}) * clip01({parameters.Expression(OwnerField(owner, "coupling"), branch.Coupling)})", 0, 1)};");
+        keepAlive.Add(admittance);
+        return admittance;
+    }
+
     private static string PrimitiveBranchExpression(
         StringBuilder source,
         SynthPatch patch,
@@ -751,17 +780,17 @@ public static class FaustEmitter
         FaustExportOptions options,
         List<string> keepAlive)
     {
-        var index = BranchPortIndex(patch, branch);
-        var owner = $"/vocal/branches/{index}";
-        var safe = SafeIdentifier(branch.Name);
-        var admittance = $"{voiceName}_primitive_branch_{safe}_admittance";
-        var exchanged = $"{voiceName}_primitive_branch_{safe}_exchanged_flow";
-        source.AppendLine($"    {admittance} = {ProbeSignal(options, $"/debug/{voiceName}/branch/{branch.Name}/admittance", $"clip01({parameters.Expression(OwnerField(owner, "opening"), branch.Opening)}) * clip01({parameters.Expression(OwnerField(owner, "coupling"), branch.Coupling)})", 0, 1)};");
+        var admittance = PrimitiveBranchAdmittance(source, patch, voiceName, branch, parameters, options, keepAlive);
+        var exchanged = $"{voiceName}_primitive_branch_{SafeIdentifier(branch.Name)}_exchanged_flow";
         source.AppendLine($"    {exchanged} = {ProbeSignal(options, $"/debug/{voiceName}/branch/{branch.Name}/exchanged_flow", $"0.0 - {admittance} * 0.05", -1, 1)};");
-        keepAlive.Add(admittance);
         keepAlive.Add(exchanged);
         return exchanged;
     }
+
+    // DC and rumble block on the ladder's lip flow, below the lowest authored vowel F1 (about 270 Hz). It does not depend on the
+    // aperture: the ladder's lip cell already carries the lip area, and a corner that rose with aperture (40 + 500 Hz) sat above
+    // /u/'s F1 and put a 450 Hz hump in its envelope. The aperture stays the gain consonant closures use.
+    private const string RadiationHighpassHz = "200.0";
 
     private static string PrimitiveRadiationExpression(
         StringBuilder source,
@@ -785,7 +814,7 @@ public static class FaustEmitter
         source.AppendLine($"    {voiceName}_primitive_radiation_{safe}_reflection = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/reflection", reflection, -1, 1)};");
         source.AppendLine($"    {boundary} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/boundary_flow", $"({wave}) * {aperture} / max(0.05, {impedance})", -4, 4)};");
         source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/flow", boundary, -4, 4)};");
-        source.AppendLine($"    {output} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/output", $"{flow} : fi.highpass(1, 40.0 + 500.0 * {aperture})", -4, 4)};");
+        source.AppendLine($"    {output} = {ProbeSignal(options, $"/debug/{voiceName}/radiation/{load.Name}/output", $"{flow} : fi.highpass(1, {RadiationHighpassHz})", -4, 4)};");
         keepAlive.Add($"{voiceName}_primitive_radiation_{safe}_reflection");
         keepAlive.Add(boundary);
         keepAlive.Add(flow);
@@ -1622,50 +1651,44 @@ public static class FaustEmitter
             return "1.0";
         }
 
-        var position = Math.Clamp(terminal.Position, 0, 1);
-        var restDiameter = path.AreaFunction.DiameterAt(position);
-        if (path.AreaControl is not { } area)
-        {
-            return F(Math.Max(0.000001f, restDiameter * restDiameter));
-        }
-
-        var pathIndex = AcousticPathIndex(patch, path);
-        var areaPath = $"/acoustic/paths/{pathIndex}/area";
-        var sections = Math.Max(2, path.AreaFunction.Sections);
-        var index = F(position * (sections - 1));
-        var tongueIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "tongue_index"), area.TongueIndex), area.IndexScale);
-        var tongueDiameter = parameters.Expression(OwnerField(areaPath, "tongue_diameter"), area.TongueDiameter);
-        var tongueWidth = $"max(0.001, {F(area.TongueWidth)} * {F(sections)})";
-        var constrictionIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "constriction_index"), area.ConstrictionIndex), area.IndexScale);
-        var constrictionDiameter = parameters.Expression(OwnerField(areaPath, "constriction_diameter"), area.ConstrictionDiameter);
-        var constrictionWidth = $"max(0.001, {F(area.ConstrictionWidth)} * {F(sections)})";
-        var lipOpening = parameters.Expression(OwnerField(areaPath, "lip_opening"), area.LipOpening);
-        var lipWeight = MathF.Exp(0 - MathF.Pow((1 - position) / Math.Max(0.001f, area.LipWidth), 2));
-        var tongueWeight = $"exp(0.0 - pow(({index} - ({tongueIndex})) / ({tongueWidth}), 2.0))";
-        var constrictionWeight = $"exp(0.0 - pow(({index} - ({constrictionIndex})) / ({constrictionWidth}), 2.0))";
-        var baseDiameter = $"({F(restDiameter)} + (({tongueDiameter}) - {F(restDiameter)}) * ({tongueWeight}) + (({lipOpening}) - {F(restDiameter)}) * {F(lipWeight)})";
-        var diameter = $"max(0.0, min({baseDiameter}, ({constrictionDiameter}) + max(0.0, ({baseDiameter}) - ({constrictionDiameter})) * (1.0 - ({constrictionWeight}))))";
-        return $"(({diameter}) * ({diameter}))";
-
-        static string ScaledAreaIndex(string expression, float scale) =>
-            scale == 1 ? expression : $"(({expression}) * {F(scale)})";
+        return DeformedAreaExpression(
+            parameters,
+            path.AreaFunction,
+            path.AreaControl,
+            $"/acoustic/paths/{AcousticPathIndex(patch, path)}/area",
+            Math.Clamp(terminal.Position, 0, 1));
     }
 
     private static string SegmentAreaExpression(
         SynthPatch patch,
         ParameterMap parameters,
-        AcousticGraphSegment segment)
+        AcousticGraphSegment segment) =>
+        DeformedAreaExpression(
+            parameters,
+            segment.Path.AreaFunction,
+            segment.Path.AreaControl,
+            $"/acoustic/paths/{AcousticPathIndex(patch, segment.Path)}/area",
+            (segment.StartPosition + segment.EndPosition) * 0.5f);
+
+    /// <summary>
+    /// The one owner of the Gaussian tongue/constriction/lip area deformation: cross-section area (cm^2) of a tract at a
+    /// normalized position, as a Faust expression over the control surfaces under <paramref name="areaPath"/>. Acoustic
+    /// graph terminals and segments and the vocal ladder's cells all read their area here.
+    /// </summary>
+    private static string DeformedAreaExpression(
+        ParameterMap parameters,
+        TractAreaFunction shape,
+        AcousticAreaControl? area,
+        string areaPath,
+        float position)
     {
-        var position = (segment.StartPosition + segment.EndPosition) * 0.5f;
-        var restDiameter = segment.Path.AreaFunction.DiameterAt(position);
-        if (segment.Path.AreaControl is not { } area)
+        var restDiameter = shape.DiameterAt(position);
+        if (area is null)
         {
             return F(Math.Max(0.000001f, restDiameter * restDiameter));
         }
 
-        var pathIndex = AcousticPathIndex(patch, segment.Path);
-        var areaPath = $"/acoustic/paths/{pathIndex}/area";
-        var sections = Math.Max(2, segment.Path.AreaFunction.Sections);
+        var sections = Math.Max(2, shape.Sections);
         var index = F(position * (sections - 1));
         var tongueIndex = ScaledAreaIndex(parameters.Expression(OwnerField(areaPath, "tongue_index"), area.TongueIndex), area.IndexScale);
         var tongueDiameter = parameters.Expression(OwnerField(areaPath, "tongue_diameter"), area.TongueDiameter);

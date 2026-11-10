@@ -68,6 +68,21 @@ public sealed class ControlSplineTimeline
                     .ToList(),
                 StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// The splines that decide one surface. The timeline merges every enabled spline of a surface into one bezier curve over
+    /// the union of their points, so two or more splines become one merged spline; a single spline keeps its own shape.
+    /// The Faust exporter and the probe report take this instead of summing per-spline offsets.
+    /// </summary>
+    public static ControlSpline[] SurfaceSplines(IEnumerable<ControlSpline> all, string surfacePath)
+    {
+        var splines = all
+            .Where(spline => spline.Enabled && spline.SurfacePath.Equals(surfacePath, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (splines.Length < 2) return splines;
+        var points = splines.SelectMany(spline => spline.Points).OrderBy(point => point.TimeSeconds).ToArray();
+        return [new ControlSpline(string.Join("_", splines.Select(spline => spline.Name)), surfacePath, points)];
+    }
+
     public IReadOnlyList<string> SurfacePaths => _pointsBySurface.Keys.ToArray();
 
     public void SetFuturePoint(string surfacePath, float timeSeconds, float normalizedValue, float nowSeconds) =>

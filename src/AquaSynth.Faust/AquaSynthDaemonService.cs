@@ -906,7 +906,7 @@ public sealed class AquaSynthDaemonService : IDisposable
         try
         {
             var faustName = AquaSynthNativeCompiler.SafeFaustName(identity.FaustName);
-            var source = FaustEmitter.EmitScript(identity.Script, new FaustExportOptions(faustName)).Source;
+            var source = FaustEmitter.EmitScript(identity.Script, new FaustExportOptions(faustName, SampleRate: options.SampleRate)).Source;
             return compiler.TryCompileSource(identity, source, durationSeconds, out patch, out error);
         }
         catch (Exception ex)

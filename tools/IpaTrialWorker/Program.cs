@@ -267,7 +267,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
                 : ProbeTimelineReport.Build(patch, timelineNetwork.Name, 12);
             await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv(timeline), Encoding.UTF8);
             timelineFacts = PrimitiveTimelineFactExtractor.Extract(timeline).ToArray();
-            var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId)).Source;
+            var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId, SampleRate: challenge.SampleRate)).Source;
             await File.WriteAllTextAsync(dspPath, source, Encoding.UTF8);
             artifacts.Add(Artifact("candidate-dsp", dspPath));
 

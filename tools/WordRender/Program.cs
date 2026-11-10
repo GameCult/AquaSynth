@@ -5,23 +5,32 @@ using System.Text.Json;
 using AquaSynth.Dsl;
 using AquaSynth.Faust;
 
-// Offline probe: one word as a run of IPA gestures on the IpaGestureExperiment scaffold, rendered through the native
-// libfaust path to a mono 16-bit WAV plus script.aqua, source.dsp and manifest.json. It measures peak, rms and NaN;
-// it cannot say how the word sounds.
-// usage: WordRender <outDir> <label> <freq-hz> <ipa>:<ms>:<intensity> ...      e.g. WordRender out nibu 140 n:95:1 i:180:1.2 b:95:1 u:180:.9
+// Offline probe: one word, segmented by Weksa (the phones line of `weksa lower --phones`), as a run of IPA gestures on the
+// IpaGestureExperiment scaffold, rendered through the native libfaust path to a mono 16-bit WAV plus script.aqua, source.dsp
+// and manifest.json. It measures peak, rms and NaN; it cannot say how the word sounds.
+// usage: WordRender <outDir> <label> <freq-hz> <phones.json>
+// exit: 0 rendered, 1 compile or non-finite output, 2 usage, 3 phones file refused, 4 phones the tract cannot make (listed, nothing rendered)
 const int Rate = 48000, Frames = 512;
-if (args.Length < 4) { Console.Error.WriteLine("usage: WordRender <outDir> <label> <freq-hz> <ipa>:<ms>:<intensity> ..."); return 2; }
+if (args.Length != 4) { Console.Error.WriteLine("usage: WordRender <outDir> <label> <freq-hz> <phones.json>"); return 2; }
 var outDir = Path.GetFullPath(args[0]);
 var label = args[1];
 var freq = float.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
-var phones = args.Skip(3).Select((spec, i) =>
+WeksaPhones word;
+try { word = WeksaPhonesReader.Parse(File.ReadAllText(args[3])); }
+catch (Exception ex) when (ex is WeksaPhonesException or IOException)
 {
-    var p = spec.Split(':');
-    var ipa = p[0];
-    var ms = float.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture);
-    var intensity = float.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture);
-    return (new IpaGestureExperimentTarget($"{label}_{i}_{ipa}", ipa, "", ms / 1000f), intensity);
-}).ToArray();
+    Console.Error.WriteLine($"REFUSED {args[3]}: {ex.Message}");
+    return 3;
+}
+
+var plan = WeksaWordPlan.From(word, label);
+if (!plan.Renderable)
+{
+    Console.Error.WriteLine("UNSUPPORTED PHONES (the tract has no gesture for them; nothing rendered): " + string.Join(" ", plan.Unsupported.Select(p => p.Ipa)));
+    return 4;
+}
+
+var phones = plan.Phones.ToArray();
 Directory.CreateDirectory(outDir);
 
 var script = IpaGestureExperiment.BuildWordScript(phones, freq);
@@ -30,12 +39,9 @@ var seconds = phones.Sum(p => p.Item1.DurationSeconds) + 0.12f;
 var home = AquaSynthFaustToolchain.Find();
 Console.WriteLine($"faust home: {home ?? "(not found)"}");
 using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(SampleRate: Rate));
-// The exporter bakes splines in as offsets summed per surface; the engine's ControlSplineTimeline merges them per surface
-// into one absolute curve. Back-to-back gestures only sequence under the timeline, so the DSP is emitted without splines
-// (surface sliders only) and the timeline drives the sliders block by block, as NativeFaustRuntime.ControlValuesAt does.
-var scripted = PatchScript.Parse(script);
-var timeline = ControlSurfaceCatalog.FromPatch(scripted).CreateTimeline();
-var source = FaustEmitter.Emit(scripted with { ControlSplines = [] }, new FaustExportOptions(label)).Source;
+// The exporter emits one merged spline per surface (the ControlSplineTimeline curve), so the DSP carries the word's motion
+// itself and no slider is driven from outside.
+var source = FaustEmitter.Emit(PatchScript.Parse(script), new FaustExportOptions(label)).Source;
 File.WriteAllText(Path.Combine(outDir, "source.dsp"), source);
 if (!compiler.TryCompileSource(new AquaSynthCompileIdentity(label, label, ""), source, seconds, out var patch0, out var cerr))
 {
@@ -54,8 +60,7 @@ var pcm = new short[blocks * Frames];
 double sum = 0; float peak = 0; var nan = false;
 for (var blk = 0; blk < blocks; blk++)
 {
-    var ctl = patch.ControlValuesAt(timeline, blk * Frames / (float)Rate);
-    stream.ProcessBlock(Frames, IntPtr.Zero, outP, ctl);
+    stream.ProcessBlock(Frames, IntPtr.Zero, outP);
     for (var i = 0; i < Frames; i++)
     {
         var v = buf[i];
@@ -78,7 +83,7 @@ using (var w = new BinaryWriter(File.Create(wav)))
 var rms = Math.Sqrt(sum / pcm.Length);
 File.WriteAllText(Path.Combine(outDir, "manifest.json"), JsonSerializer.Serialize(new
 {
-    label, freq, phones = args.Skip(3), seconds, sampleRate = Rate, frames = pcm.Length, peak, rms, nonFinite = nan,
+    label, freq, weksa = new { word.Language, word.Source, Phones = word.Phones.Select(p => new { p.Ipa, Stress = p.Stress.ToString() }) }, seconds, sampleRate = Rate, frames = pcm.Length, peak, rms, nonFinite = nan,
     wavSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(wav))).ToLowerInvariant(),
     scriptSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(outDir, "script.aqua")))).ToLowerInvariant(),
     os = RuntimeInformation.OSDescription, faustHome = home

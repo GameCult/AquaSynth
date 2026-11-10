@@ -1,0 +1,1 @@
+nibu-en-US.phones.json is data/phonology/fixtures/nibu-en-US.phones.json from GameCult/Weksa PR 16 (branch weksa-lowering/phones-line), commit a7bc2478e53623ce572ac6d997ba058aa7707e44, byte for byte.

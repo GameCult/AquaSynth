@@ -4,6 +4,7 @@ using System.Text;
 
 namespace AquaSynth.Dsl.Tests;
 
+[Collection("NativeFaust")]
 public sealed class PinkTromboneLogMelParityTests
 {
     private const float SmokeCosineFloor = 0.08f;

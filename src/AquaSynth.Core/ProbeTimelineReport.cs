@@ -19,8 +19,9 @@ public static class ProbeTimelineReport
         var surfacesByField = patch.ControlSurfaces.ToDictionary(surface => surface.FieldPath, StringComparer.OrdinalIgnoreCase);
         var splinesBySurface = patch.ControlSplines
             .Where(spline => spline.Enabled)
-            .GroupBy(spline => spline.SurfacePath, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.OrdinalIgnoreCase);
+            .Select(spline => spline.SurfacePath)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(surfacePath => surfacePath, surfacePath => ControlSplineTimeline.SurfaceSplines(patch.ControlSplines, surfacePath), StringComparer.OrdinalIgnoreCase);
         var samples = new List<ProbeTimelineSample>();
         var blockSize = patch.ProbeTimelines.FirstOrDefault(probe => probe.Name.Equals(network.ProbeTimeline, StringComparison.OrdinalIgnoreCase))?.BlockSize ?? 64;
 
