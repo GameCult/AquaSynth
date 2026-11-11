@@ -84,6 +84,7 @@ public sealed class ElementIdTests
             var receipt = reloaded.GetAll<AquaSynthAutomationStreamReceipt>().Single();
             Assert.Equal(["7", "9"], receipt.Packets.Select(packet => packet.ElementId));
             Assert.Equal("audio-9", receipt.Streams.Single().StreamId);
+            Assert.Equal("audio-9", receipt.Streams.Single().ElementId);
         }
         finally
         {
