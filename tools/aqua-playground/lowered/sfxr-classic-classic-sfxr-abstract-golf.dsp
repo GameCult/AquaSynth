@@ -3,7 +3,7 @@ declare name "sfxr-classic-classic-sfxr-abstract-golf";
 declare options "[nvoices:1]";
 
 time = ba.time / ma.SR;
-age = time - floor(time / 0.11315) * 0.11315;
+age = time;
 clip01(x) = min(1.0, max(0.0, x));
 wrap01(x) = x - floor(x);
 slew(rate,x) = x : *(1.0 - exp((0.0 - max(0.0001, rate)) / ma.SR)) : + ~ *(exp((0.0 - max(0.0001, rate)) / ma.SR));
@@ -117,4 +117,4 @@ voice_6_phased = voice_6_filtered;
 voice_6_formants = voice_6_phased;
 voice_6 = ((voice_6_phased * (1.0 - clip01(0 + patch_mod_formant_mix + 0.0)) + voice_6_formants * clip01(0 + patch_mod_formant_mix + 0.0)) * oneshot_adsr_at(voice_6_age, 0, 0, 1, 0.01451247, 0.03832199) * max(0.0, 1.0 + patch_mod_gain + 0.0) * 0.22);
 
-process = softclip((voice_0 + voice_1 + voice_2 + voice_3 + voice_4 + voice_5 + voice_6) * 1);
+process = softclip((voice_0 + voice_1 + voice_2 + voice_3 + voice_4 + voice_5 + voice_6) * 0.5);

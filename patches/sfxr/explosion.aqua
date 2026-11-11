@@ -3,7 +3,6 @@
 # Source: BuiltInScripts.ReferenceScripts
 # Notes: Stock reference patch exported from the in-code catalog.
 
-patch repeat=0.174744
 voice
     wave=noise
     freq=20

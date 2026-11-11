@@ -89,7 +89,6 @@ public static class BuiltInScripts
                 drive=0.12
             """),
         ("explosion", """
-            patch repeat=0.174744
             voice
                 wave=noise
                 freq=20
@@ -188,7 +187,7 @@ public static class BuiltInScripts
             phaser=0.0001458
             phaser_ramp=-0.000504
 
-        patch repeat=0.174744
+        patch gain=0.5
         voice
             use=Noise
             freq=20
@@ -205,7 +204,6 @@ public static class BuiltInScripts
             tremolo=0.0264
             tremolo_hz=13.04
 
-        patch repeat=0.11315
         voice
             wave=sine
             freq=57.5946
