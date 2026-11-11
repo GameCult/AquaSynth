@@ -100,7 +100,7 @@ export function sourceFrames(showinfo) {
 // Stream start_time offsets are applied so both clocks are the container's clock; video is resampled to constant frame rate by pts.
 export function readVideo(path, { ffmpeg = process.env.FFMPEG ?? "ffmpeg", targetFps } = {}) {
   // ffmpeg only (no ffprobe: static builds ship without it). `ffmpeg -i` lists the streams; the first decoded frame of each stream says when it starts.
-  const run = (a) => { const r = spawnSync(ffmpeg, a, { encoding: "utf8", maxBuffer: 1 << 26 }); if (r.error?.code === "ENOENT") throw new Error("ffmpeg is not on PATH (set FFMPEG=/path/to/ffmpeg); give --wav and --track instead"); return String(r.stderr ?? ""); };
+  const run = (a) => { const r = spawnSync(ffmpeg, a, { encoding: "utf8", maxBuffer: 1 << 26 }); if (r.error?.code === "ENOENT") throw new Error("ffmpeg is not on PATH (set FFMPEG=/path/to/ffmpeg); give --wav and --track instead"); if (r.error) throw new Error(`ffmpeg failed (${r.error.code}): its frame list may be truncated, so the capture's stalls would be under-measured`); return String(r.stderr ?? ""); };
   const lines = run(["-hide_banner", "-i", path]).split("\n"), find = (kind) => lines.find((l) => new RegExp(`Stream #\\d+:\\d+.*: ${kind}:`).test(l));
   const vl = find("Video"), al = find("Audio");
   if (!vl || !al) throw new Error("file needs one video and one audio stream");

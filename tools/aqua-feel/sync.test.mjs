@@ -212,7 +212,7 @@ t("sourceFrames: the rate is the median frame gap, the stale-frame bound is the 
 
 // The video path needs ffmpeg (FFMPEG=/path or on PATH); skipped, and said so, when there is none.
 {
-  const { readVideo } = await import("./sync.mjs"), { execFileSync } = await import("node:child_process");
+  const { readVideo } = await import("./sync.mjs"), { execFileSync } = await import("node:child_process"), require_fs = await import("node:fs"), { tmpdir } = await import("node:os"), { join } = await import("node:path");
   const ff = process.env.FFMPEG ?? "ffmpeg";
   let have = true; try { execFileSync(ff, ["-version"], { stdio: "ignore" }); } catch { have = false; }
   if (!have) console.log("skip video path: no ffmpeg (set FFMPEG)");
@@ -251,6 +251,17 @@ t("sourceFrames: the rate is the median frame gap, the stale-frame bound is the 
     assert.ok(r.pairs.length >= 3);
     for (const p of r.pairs) assert.ok(p.lagHighMs - p.lagLowMs >= v.sourceGapMs * 1.5, `interval ${p.lagHighMs - p.lagLowMs} ms narrower than the capture's own stalls`);
     assert.match(formatSync(r), /source frames are up to that far apart/);
+  });
+  if (have) t("the CLI carries the capture's frame gaps into its report (feel.mjs plumbing)", () => {
+    const { mkdtempSync, readFileSync: rf } = require_fs, out = join(mkdtempSync(join(tmpdir(), "sync-cli-")), "r.json");
+    execFileSync("node", [new URL("./feel.mjs", import.meta.url).pathname, "sync", "--video", new URL("./fixtures/perlines-aurora-vfr.webm", import.meta.url).pathname, "--allow-unpaired", "--no-gate", "--json", out], { env: { ...process.env, FFMPEG: ff }, stdio: "ignore" });
+    const r = JSON.parse(rf(out, "utf8"));
+    assert.ok(r.visualGapMs > 1000 / 59 * 1.5, `visualGapMs ${r.visualGapMs}`); assert.equal(r.framePeriodMs, r.visualGapMs);
+  });
+  if (have) t("a failed ffmpeg read (e.g. output buffer overflow) is an error, not a quietly shorter frame list", () => {
+    const { mkdtempSync, writeFileSync: wf, chmodSync } = require_fs, d = mkdtempSync(join(tmpdir(), "sync-stub-")), stub = join(d, "ffmpeg");
+    wf(stub, "#!/bin/sh\nhead -c 70000000 /dev/zero | tr '\\0' 'x' >&2\n"); chmodSync(stub, 0o755);
+    assert.throws(() => readVideo(new URL("./fixtures/perlines-aurora-vfr.webm", import.meta.url).pathname, { ffmpeg: stub }), /ffmpeg failed \(ENOBUFS\)/);
   });
 }
 
