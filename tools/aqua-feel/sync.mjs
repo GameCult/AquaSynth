@@ -200,10 +200,11 @@ export function visualOnsets(track, { kind = "luma", k = 8, minGapS = 0.1 } = {}
 // [valley - (valley to 20% time) - one frame, crossing20S]: a ramp has no first frame, so the onset carries that span and the verdict is read off it, not off the foot.
 export function visualRampOnsets(track, { minGapS = 0.5, riseS = 0.3, k = 6 } = {}) {
   const { t, v } = track, n = v.length, dts = []; for (let i = 1; i < n; i++) dts.push(t[i] - t[i - 1]);
-  const period = median(dts), w = Math.max(1, Math.round(0.06 / period));
-  const sm = new Float64Array(n); for (let i = 0; i < n; i++) { let a = 0, c = 0; for (let q = Math.max(0, i - w); q <= Math.min(n - 1, i + w); q++) { a += v[q]; c++; } sm[i] = a / c; }
+  const period = median(dts), at = (x) => { let lo = 0, hi = n - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (t[m] < x) lo = m + 1; else hi = m; } return lo; };
+  // Moving average over +-60 ms of TIME (not of samples: a variable-frame-rate track must not stretch it), by prefix sums.
+  const cs = new Float64Array(n + 1); for (let i = 0; i < n; i++) cs[i + 1] = cs[i] + v[i];
+  const sm = new Float64Array(n); for (let i = 0; i < n; i++) { const a = at(t[i] - 0.06), b = at(t[i] + 0.06 + 1e-9); const hi = t[b] <= t[i] + 0.06 + 1e-9 ? b : b - 1; sm[i] = (cs[Math.max(hi, i) + 1] - cs[a]) / (Math.max(hi, i) + 1 - a); }
   const range = Math.max(...v) - Math.min(...v), d1 = Float64Array.from(v.slice(1), (x, i) => Math.abs(x - v[i])), sigma = 1.4826 * median(d1) / Math.SQRT2 + 1e-12;
-  const at = (x) => { let lo = 0, hi = n - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (t[m] < x) lo = m + 1; else hi = m; } return lo; };
   const nov = new Float64Array(n); for (let i = 0; i < n; i++) nov[i] = Math.max(0, sm[Math.min(n - 1, at(t[i] + riseS))] - sm[i]);
   const r = pickOnsets(nov, t, { k, floor: Math.max(0.15 * range, k * sigma), minGapS, riseFrac: 1 });
   r.framePeriodMs = 1000 * period;
@@ -212,9 +213,14 @@ export function visualRampOnsets(track, { minGapS = 0.5, riseS = 0.3, k = 6 } = 
     let m = p; while (m > b0 && sm[m] > mn + 2 * sigma) m--;
     let top = m; for (let i = m; i < Math.min(n, at(o.peakT + riseS + 0.3)); i++) if (sm[i] > sm[top]) top = i;
     const A = sm[top] - sm[m], cross = (f) => { let i = m; while (i < top && sm[i] < sm[m] + f * A) i++; return i; };
-    const i20 = cross(0.2), i80 = cross(0.8), foot = Math.min(t[i20], Math.max(t[m], t[i20] - (t[i80] - t[i20]) / 3));
-    // Over a decaying tail the minimum of the sum lands after the true start (a slow ramp cancels the decay before it turns the curve): back off by the valley-to-20% time.
-    return { t: foot, loS: t[m] - (t[i20] - t[m]) - period, hiS: t[i20], peakT: t[top], strength: A };
+    const i20 = cross(0.2), i80 = cross(0.8), foot0 = t[i20] - (t[i80] - t[i20]) / 3;
+    // The upper bound on the start comes from the raw samples, not the smoothed ones (a centred average crosses before the picture does): the first raw
+    // frame at or above the quiet level plus 20% of the rise, and no less than 4 noise sigmas, was stamped after the change began.
+    let hi = m; while (hi < n - 1 && v[hi] < sm[m] + Math.max(0.2 * A, 4 * sigma)) hi++;
+    const foot = Math.min(t[hi], Math.max(t[m], foot0));
+    // Over a decaying tail the minimum of the sum lands after the true start (a slow ramp cancels the decay before it turns the curve): the lower bound backs off
+    // by the valley-to-crossing time. It is a heuristic, not a bound (a slow start can begin much earlier), and the verdict does not lean on it.
+    return { t: foot, loS: t[m] - (t[hi] - t[m]) - period, hiS: t[hi], peakT: t[top], strength: A };
   });
   return r;
 }
@@ -247,7 +253,9 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   const a = audioOnsets(audio, sampleRate, { startS: audioStartS, ...gap }), v = visualShape === "ramp" ? visualRampOnsets(visual, gap.minGapS === undefined ? {} : { minGapS: gap.minGapS }) : visualOnsets(visual, { kind: visualKind, ...gap });
   // A video resampled to constant frame rate by `fps` snaps each frame to the nearest source frame: half a period more slack on each side.
   const hopMs = a.resolutionMs, periodMs = Math.max(v.framePeriodMs, visualGapMs), win = pairWindowMs / 1000, snapMs = visualResampled ? periodMs / 2 : 0;
-  const classify = (lo, hi) => {
+  const classify = (lo, hi, ramp) => {
+    // A ramp's start cannot be bounded below by looking at it (a slow start is under the noise), so a ramp is only ever shown late, never early or inside the window.
+    if (ramp) return lo > prof.lagMs ? "audio-late-detectable" : "borderline";
     if (lo >= -prof.leadMs && hi <= prof.lagMs) return "inside-window";
     if (lo > prof.lagMs) return "audio-late-detectable";
     if (hi < -prof.leadMs) return "audio-early-detectable";
@@ -261,7 +269,7 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
       const hiT = vo.hiS ?? vo.t, loT = vo.loS ?? vo.t - periodMs / 1000;
       r.lagLowMs = (ao.t - hiT) * 1e3 - hopMs / 2 - snapMs; r.lagHighMs = (ao.t - loT) * 1e3 + hopMs / 2 + snapMs;
     }
-    r.verdict = r.lagMs === null ? (ao ? "no-visual-onset" : vo ? "no-audio-onset" : "no-onsets") : ambiguous ? "ambiguous-pairing" : classify(r.lagLowMs, r.lagHighMs);
+    r.verdict = r.lagMs === null ? (ao ? "no-visual-onset" : vo ? "no-audio-onset" : "no-onsets") : ambiguous ? "ambiguous-pairing" : classify(r.lagLowMs, r.lagHighMs, vo.hiS !== undefined);
     return r;
   };
   if (events) {

@@ -76,15 +76,17 @@ Some visuals answer a sound with a slow swell (a scene brightening over a few hu
 (`step` found 0 of 5 hits on `fixtures/perlines-trails-ramp.webm`; `ramp` paired 3). `--shape ramp` takes the track's rise over 300 ms as the novelty and picks its peaks (at least 15% of the track's range, 6 noise sigmas,
 at least 500 ms apart). For each it finds the quiet level before the rise (the last sample within 2 noise sigmas of the minimum of the 0.6 s before) and the 20% and 80% crossings of the rise to its top.
 
-**What it claims.** The response started somewhere between the quiet level, backed off by the time from there to the 20% crossing and one frame, and the 20% crossing. The lag interval is that whole range against the audio onset,
-so it is far wider than a step's (100 ms and more) and most verdicts are `borderline`. `audio-late-detectable` is sound whatever the ramp's shape (the picture started to move at the latest at the 20% crossing and the sound
-still came later than the window); `audio-early-detectable` only if even the widest start estimate lies after the sound. The point value (`visual s`, `lag ms`) is the foot of the line through the 20% and 80% crossings, a
-convention that fits a linear ramp and reads early for exponential approach and late for slow-start (smoothstep) shapes; it is not the instant anyone perceives.
+**What it claims.** Only this, and only in one direction. The picture had started to change by the first frame whose raw value stood above the quiet level by 20% of the rise (and at least 4 noise sigmas): `hiS`. If the sound still came
+later than the window after that frame, the verdict is `audio-late-detectable`; that claim does not depend on the ramp's shape. Everything else is `borderline`, always: **a ramp is never reported `inside-window` or `audio-early-detectable`,**
+because the start of a swell cannot be bounded from below by looking at it (a slow start sits under the noise; the same sound can sit 0 to 300 ms after the real start). The report still prints a lag interval, from `hiS` back to the quiet
+minimum backed off by the valley-to-crossing time and one frame; the back-off is a heuristic that held on the synthetic sweep, not a bound, and no verdict leans on it. The point value (`visual s`, `lag ms`) is the foot of the line through
+the 20% and 80% crossings: it fits a linear ramp, reads early for exponential approach and late for slow-start shapes, and is not the instant anyone perceives. The synthetic sweep (`sync.test.mjs`, 120 shapes x rises 40..800 ms x decays x 24..120 fps x
+noise x offsets) never produces a wrong ramp verdict; a Soul pass found two earlier versions that did (a centred 60 ms average crossing before the picture; the lower bound taken as a bound).
 
-**What it cannot claim.** When the viewer sees the swell begin (that is later than the physical start and depends on contrast, size and attention). That the swell was caused by this sound: pairing is by nearness, and a bed that
-swells on its own, a scene change or a second sound inside 500 ms gives a false pair. The back-off for a decaying tail is checked on linear, exponential and smoothstep ramps (250 to 450 ms to peak, decay over about a second), not proved:
-a response that starts more than one valley-to-20% time before the quiet minimum would escape the interval. Ramps closer than 500 ms merge; ramps under 15% of the track's range, or on a steady drift that rises over the whole clip, are not found.
-The 0.15 floor (0.25 missed 7 of 10 Vector trails hits and 0.10 admitted one false onset) and the other constants were set on that one clip.
+**What it cannot claim.** That the sound is in sync with a swell (only that it is not detectably late). When the viewer sees the swell begin (later than the physical start; depends on contrast, size and attention). That the swell was caused by this sound: pairing
+is by nearness to the foot, and a bed that swells on its own, a scene change or a second sound within 500 ms gives a false pair. Ramps closer than 500 ms merge (so the ambiguity guard, which fires on neighbours closer than twice the pairing window, cannot fire at the default 200 ms
+window; the merged hits show up as unpaired audio). Ramps under 15% of the track's range, or on a steady drift that rises over the whole clip, are not found. `--kind flux` with `--shape ramp` means a swell of motion energy; it has not been tried on anything
+but one fixture. The constants (300 ms rise window, 15% floor, 6 sigmas, 500 ms gap) were set on Perlines v2's Vector trails and the synthetic shapes only.
 
 ## Uncertainty
 
