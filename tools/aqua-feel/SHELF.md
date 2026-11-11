@@ -102,8 +102,8 @@ Sustained patches such as the thruster keep sounding until stopped; the render c
 | `patch/fm-bell-coin` | start | none | decays | 3 s | unheard |
 | `patch/fm-bell-gong` | start | none | decays | 3 s | unheard |
 | `patch/sfxr-blip` | start | none | decays | 3 s | unheard |
-| `patch/sfxr-classic-classic-sfxr-abstract-golf` | start | none | sustained | 3 s | unheard |
-| `patch/sfxr-explosion` | start | none | sustained | 3 s | unheard |
+| `patch/sfxr-classic-classic-sfxr-abstract-golf` | start | none | decays | 3 s | unheard |
+| `patch/sfxr-explosion` | start | none | decays | 3 s | unheard |
 | `patch/sfxr-hit` | start | none | decays | 3 s | unheard |
 | `patch/sfxr-jump` | start | none | decays | 3 s | unheard |
 | `patch/sfxr-laser` | start | none | decays | 3 s | unheard |

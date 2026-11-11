@@ -3,7 +3,7 @@ declare name "sfxr-explosion";
 declare options "[nvoices:1]";
 
 time = ba.time / ma.SR;
-age = time - floor(time / 0.174744) * 0.174744;
+age = time;
 clip01(x) = min(1.0, max(0.0, x));
 wrap01(x) = x - floor(x);
 slew(rate,x) = x : *(1.0 - exp((0.0 - max(0.0001, rate)) / ma.SR)) : + ~ *(exp((0.0 - max(0.0001, rate)) / ma.SR));

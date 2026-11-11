@@ -61,8 +61,7 @@ public sealed record SfxrParams
         PhaOffset = -0.22f,
         PhaRamp = -0.1f,
         VibStrength = 0.22f,
-        VibSpeed = 0.28f,
-        RepeatSpeed = 0.42f
+        VibSpeed = 0.28f
     };
 
     public static SfxrParams Powerup() => new()

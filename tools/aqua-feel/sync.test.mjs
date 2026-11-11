@@ -1,6 +1,6 @@
 // Checks of `aqua-feel sync` on synthetic fixtures with known offsets. No real capture is used. Usage: node sync.test.mjs
 import assert from "node:assert/strict";
-import { formatSync, syncAnalyze, readWav, readTrack, readEvents, audioOnsets, visualOnsets, sourceFrames, PROFILES } from "./sync.mjs";
+import { formatSync, syncAnalyze, readWav, readTrack, readEvents, audioOnsets, visualOnsets, visualRampOnsets, sourceFrames, PROFILES } from "./sync.mjs";
 import { readFileSync } from "node:fs";
 import { wavFloat32 } from "./render.js";
 import { makeFixture, FIXTURE_EVENTS_S } from "./sync-fixture.mjs";
@@ -210,6 +210,83 @@ t("sourceFrames: the rate is the median frame gap, the stale-frame bound is the 
   assert.equal(sourceFrames(si([0, 1, 2])).fps, 24); assert.equal(sourceFrames(si([0, 0.001, 0.002])).fps, 120);
 });
 
+// Ramp-shaped responses: a brightening that starts at the event and takes hundreds of ms to peak, then decays over about a second; a drifting bed and noise.
+// shapes: linear ramp, exponential approach (steepest at the start), smoothstep (slowest at the start). Truth is the instant the change begins.
+const SHAPES = { linear: (u) => Math.min(1, u), exponential: (u) => 1 - Math.exp(-4 * Math.min(1, u)), smoothstep: (u) => { const x = Math.min(1, u); return x * x * (3 - 2 * x); }, quadratic: (u) => Math.min(1, u) ** 2 };
+const rampFixture = ({ shape, rampS, fps, offsetMs = 40, events = [0.5042, 1.9117, 3.2209, 4.6033, 5.9161, 7.2087, 8.5], noise = 0.002, decayS = 0.8 }) => {
+  const fx = makeFixture({ offsetMs, fps, seconds: 10, events }), nf = Math.round(fps * 10), tt = new Float64Array(nf), vv = new Float64Array(nf); let s = 11;
+  const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 2 ** 32 - 0.5; };
+  for (let f = 0; f < nf; f++) {
+    const x = f / fps; let y = 0.1 + 0.005 * Math.sin(x * 0.7) + noise * 2 * rand();
+    for (const e of events) if (x >= e) { const u = (x - e) / rampS; y += 0.3 * (u < 1 ? SHAPES[shape](u) : Math.exp(-(u - 1) * rampS / decayS)); }
+    tt[f] = x; vv[f] = y;
+  }
+  return { ...fx, visual: { t: tt, v: vv }, events: events.map((e, i) => ({ t: e, label: `r${i}` })) };
+};
+for (const shape of Object.keys(SHAPES)) for (const [rampS, fps] of [[0.25, 60], [0.45, 60], [0.35, 30]]) {
+  t(`ramp (${shape}, ${rampS * 1000} ms to peak, ${fps} fps): every response is found, and the true start lies in each pair's interval`, () => {
+    const fx = rampFixture({ shape, rampS, fps }), r = syncAnalyze({ audio: fx.audio, sampleRate: fx.sampleRate, visual: fx.visual, visualShape: "ramp", events: fx.events });
+    assert.equal(r.pairs.length, fx.events.length); assert.equal(r.summary.unpairedVisual, 0);
+    for (const p of r.pairs) assert.ok(inInterval(p, fx.offsetMs), `${shape}/${rampS}/${fps} ${p.label}: [${p.lagLowMs}, ${p.lagHighMs}] vs ${fx.offsetMs}`);
+    for (const p of r.pairs) assert.ok(Math.abs(p.visualVsEventMs) <= 0.45 * rampS * 1000 + 1e3 / fps, `${p.label}: foot ${p.visualVsEventMs} ms from the true start`);
+  });
+}
+for (const offsetMs of [-60, 0, 150]) t(`ramp: a known ${offsetMs} ms offset stays inside the interval for every shape (30 and 60 fps)`, () => {
+  for (const shape of Object.keys(SHAPES)) for (const fps of [30, 60]) {
+    const fx = rampFixture({ shape, rampS: 0.3, fps, offsetMs }), r = syncAnalyze({ audio: fx.audio, sampleRate: fx.sampleRate, visual: fx.visual, visualShape: "ramp", events: fx.events });
+    assert.equal(r.pairs.length, fx.events.length, `${shape}/${fps}`);
+    for (const p of r.pairs) assert.ok(inInterval(p, offsetMs), `${shape}/${fps}/${offsetMs} ${p.label}: [${p.lagLowMs}, ${p.lagHighMs}]`);
+  }
+});
+t("ramp: the interval is wide and says so (a ramp has no first frame); it is judged on the whole interval", () => {
+  const fx = rampFixture({ shape: "smoothstep", rampS: 0.45, fps: 60, offsetMs: 0 }), r = syncAnalyze({ audio: fx.audio, sampleRate: fx.sampleRate, visual: fx.visual, visualShape: "ramp", events: fx.events });
+  for (const p of r.pairs) { assert.ok(p.lagHighMs - p.lagLowMs > 100, `interval ${p.lagHighMs - p.lagLowMs} ms`); assert.equal(p.verdict, "borderline"); }
+  const late = rampFixture({ shape: "linear", rampS: 0.3, fps: 60, offsetMs: 400 }), rl = syncAnalyze({ audio: late.audio, sampleRate: late.sampleRate, visual: late.visual, visualShape: "ramp", pairWindowMs: 450, events: late.events });
+  assert.ok(rl.pairs.every((p) => p.verdict === "borderline" && p.lagMs > 300), "a ramp 400 ms ahead of the sound is measured but never given a verdict that fails the gate");
+});
+// A ramp verdict may be silent but not wrong. Soul found (a) a centred 60 ms average crosses before a fast picture does, so 'late' was claimed at true lags inside the window,
+// and (b) slow-start shapes begin far before they look like they do, so 'early' or 'inside' was claimed at true lags of 0 to 40 ms. Truth is known in every case.
+t("ramp: a fast rise or a step is never called detectably late", () => {
+  for (const [rampS, off] of [[0.04, 98], [0.04, 60], [0.001, 60], [0.08, 90]]) for (const fps of [30, 60]) {
+    const fx = rampFixture({ shape: "linear", rampS, fps, offsetMs: off, events: [0.5042, 1.9117, 3.2209, 4.6033, 5.9161, 7.2087, 8.5] });
+    const r = syncAnalyze({ audio: fx.audio, sampleRate: fx.sampleRate, visual: fx.visual, visualShape: "ramp", events: fx.events });
+    for (const p of r.pairs) assert.notEqual(p.verdict, "audio-late-detectable", `${rampS * 1000} ms rise, ${fps} fps, true lag ${off}: [${p.lagLowMs}, ${p.lagHighMs}]`);
+  }
+});
+t("ramp: a variable-frame-rate track does not stretch the smoothing or the bound (gaps up to 100 ms)", () => {
+  const fx = rampFixture({ shape: "linear", rampS: 0.1, fps: 60, offsetMs: 40 }); let s = 3; const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 2 ** 32; };
+  const keep = []; let next = 0; for (let i = 0; i < fx.visual.t.length; i++) if (fx.visual.t[i] >= next) { keep.push(i); next = fx.visual.t[i] + (rand() < 0.3 ? 0.1 * rand() : 0.017); }
+  const visual = { t: Float64Array.from(keep, (i) => fx.visual.t[i]), v: Float64Array.from(keep, (i) => fx.visual.v[i]) };
+  const r = syncAnalyze({ audio: fx.audio, sampleRate: fx.sampleRate, visual, visualShape: "ramp", events: fx.events, allowUnpaired: true });
+  assert.ok(r.pairs.length >= 5);
+  for (const p of r.pairs) assert.ok(p.verdict !== "audio-late-detectable", `[${p.lagLowMs}, ${p.lagHighMs}] verdict ${p.verdict} at true lag 40`);
+});
+t("ramp: sweep of 120 shapes, rises (40-800 ms), decays, frame rates, noise and offsets: a ramp is never given a claim", () => {
+  let s = 19; const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 2 ** 32; }, pick = (a) => a[Math.floor(rand() * a.length)];
+  for (let k = 0; k < 120; k++) {
+    const shape = pick(Object.keys(SHAPES)), rampS = pick([0.04, 0.08, 0.15, 0.3, 0.5, 0.8]), fps = pick([24, 30, 60, 120]), off = pick([-80, -40, 0, 20, 40, 98, 130, 200]), decayS = pick([0.3, 0.8, 2]), noise = pick([0.001, 0.004, 0.01]);
+    const fx = rampFixture({ shape, rampS, fps, offsetMs: off, decayS, noise, events: [0.5042, 2.1117, 3.7209, 5.3033, 6.9161, 8.5087] });
+    const r = syncAnalyze({ audio: fx.audio, sampleRate: fx.sampleRate, visual: fx.visual, visualShape: "ramp", pairWindowMs: 250, allowUnpaired: true, events: fx.events });
+    for (const p of r.pairs) {
+      assert.ok(["borderline", "ambiguous-pairing", "no-visual-onset"].includes(p.verdict), `${shape}/${rampS}/${fps}fps/${off}: a ramp gets no gate-failing or inside verdict, got ${p.verdict} [${p.lagLowMs}, ${p.lagHighMs}]`);
+    }
+  }
+});
+// The two cases the second Soul pass broke (a raw outlier frame before the true start, and a bed that swells near a hit): the detector may be fooled, the verdict may not follow.
+t("ramp: one outlier frame before a hit, or a swelling bed near it, cannot produce a gate-failing verdict", () => {
+  const fx = rampFixture({ shape: "linear", rampS: 0.02, fps: 60, offsetMs: 80 }), v = Float64Array.from(fx.visual.v), tt = fx.visual.t;
+  for (const e of fx.events) { const i = Math.round((e.t - 0.2) * 60); v[i] += 0.07; } // one bright frame 200 ms before each hit
+  const spiked = syncAnalyze({ audio: fx.audio, sampleRate: fx.sampleRate, visual: { t: tt, v }, visualShape: "ramp", events: fx.events, allowUnpaired: true });
+  const bed = Float64Array.from(fx.visual.v, (x, i) => x + 0.2 * Math.max(0, Math.sin(2 * Math.PI * tt[i]))); // a 1 Hz swell under the hits
+  const swelling = syncAnalyze({ audio: fx.audio, sampleRate: fx.sampleRate, visual: { t: tt, v: bed }, visualShape: "ramp", events: fx.events, allowUnpaired: true });
+  for (const r of [spiked, swelling]) { assert.ok(r.pairs.length > 0); assert.ok(r.pairs.every((p) => !/detectable$/.test(p.verdict)), JSON.stringify(r.pairs.map((p) => p.verdict))); assert.equal(r.summary.outsideWindow, 0); }
+});
+t("ramp: noise, a steady drift and a lone step give no ramp onsets from noise or drift", () => {
+  const nf = 600, tt = Float64Array.from({ length: nf }, (_, i) => i / 60); let s = 5; const rand = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 2 ** 32 - 0.5; };
+  assert.equal(visualRampOnsets({ t: tt, v: Float64Array.from(tt, () => 0.2 + 0.01 * rand()) }).onsets.length, 0, "noise");
+  assert.equal(visualRampOnsets({ t: tt, v: Float64Array.from(tt, (x) => 0.1 + 0.03 * x + 0.004 * rand()) }).onsets.length, 0, "a drift over the whole clip is not a response");
+});
+
 // The video path needs ffmpeg (FFMPEG=/path or on PATH); skipped, and said so, when there is none.
 {
   const { readVideo } = await import("./sync.mjs"), { execFileSync } = await import("node:child_process"), require_fs = await import("node:fs"), { tmpdir } = await import("node:os"), { join } = await import("node:path");
@@ -251,6 +328,13 @@ t("sourceFrames: the rate is the median frame gap, the stale-frame bound is the 
     assert.ok(r.pairs.length >= 3);
     for (const p of r.pairs) assert.ok(p.lagHighMs - p.lagLowMs >= v.sourceGapMs * 1.5, `interval ${p.lagHighMs - p.lagLowMs} ms narrower than the capture's own stalls`);
     assert.match(formatSync(r), /source frames are up to that far apart/);
+  });
+  if (have) t("a real ramp-shaped response (Perlines v2 Vector trails, off-grid hits): the step detector finds none, the ramp detector pairs at least 3 of 5, each with a wide interval", () => {
+    const v = readVideo(new URL("./fixtures/perlines-trails-ramp.webm", import.meta.url).pathname, { ffmpeg: ff });
+    const go = (visualShape) => syncAnalyze({ audio: v.audio.samples, sampleRate: v.audio.sampleRate, audioStartS: v.audio.startS, visual: v.luma, visualShape, allowUnpaired: true, visualResampled: true, visualGapMs: v.sourceGapMs });
+    assert.equal(go("step").pairs.length, 0);
+    const r = go("ramp"); assert.ok(r.pairs.length >= 3, `${r.pairs.length} paired`);
+    for (const p of r.pairs) assert.ok(p.lagHighMs - p.lagLowMs > 100, `interval ${p.lagHighMs - p.lagLowMs} ms`);
   });
   if (have) t("the CLI carries the capture's frame gaps into its report (feel.mjs plumbing)", () => {
     const { mkdtempSync, readFileSync: rf } = require_fs, out = join(mkdtempSync(join(tmpdir(), "sync-cli-")), "r.json");

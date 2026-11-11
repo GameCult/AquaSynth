@@ -15,7 +15,7 @@ node feel.mjs sync --wav capture.wav --track frames.csv [--events hits.txt] [--f
 # a video with one audio and one video stream (needs ffmpeg on PATH, or FFMPEG=/path/to/ffmpeg)
 node feel.mjs sync --video capture.mp4 [--events hits.txt] [--kind luma|flux]
 # options: --profile default|bt1359|ebu-r37|atsc-is191   --lead-ms N --lag-ms N   --pair-window-ms N (default 200)
-#          --min-gap-ms N   --allow-unpaired   --json out.json   --no-gate
+#          --min-gap-ms N   --allow-unpaired   --json out.json   --no-gate   --shape step|ramp (ramp: slow swells, see below)
 node sync.test.mjs                   # 37 checks on synthetic fixtures; 46 with FFMPEG=/path/to/ffmpeg (also builds clips with known stream offsets and runs a real browser capture)
 node sync-fixture.mjs DIR 80 60      # write a fixture (audio 80 ms late, 60 fps) to try the CLI on
 ```
@@ -69,6 +69,23 @@ fragmentary in the search; figures confirmed against secondary summaries), and t
 [AV synchronization, how bad is bad](https://www.tvtechnology.com/opinions/av-synchronization-how-bad-is-bad) and
 [ATSC recommends AV sync rules](https://tvtechnology.com/opinions/atsc-recommends-av-sync-rules). Windows depend on content (speech
 lip-sync is more sensitive than a game impact) and on the viewer; they are population thresholds, not a property of your capture.
+
+## Ramp-shaped visuals (`--shape ramp`)
+
+Some visuals answer a sound with a slow swell (a scene brightening over a few hundred ms), not a step. The default detector looks for a peak in the frame-to-frame step, finds none, and says no visual onset
+(`step` found 0 of 5 hits on `fixtures/perlines-trails-ramp.webm`; `ramp` paired 3). `--shape ramp` takes the track's rise over 300 ms as the novelty and picks its peaks (at least 15% of the track's range, 6 noise sigmas,
+at least 500 ms apart). For each it finds the quiet level before the rise (the last sample within 2 noise sigmas of the minimum of the 0.6 s before) and the 20% and 80% crossings of the rise to its top.
+
+**What it claims.** That a swell-shaped response was found near each sound, and where: a point estimate (`visual s`, `lag ms`: the foot of the line through the 20% and 80% crossings of the rise) and a printed interval (from the quiet minimum, backed off by
+the valley-to-crossing time, to the first raw frame 20% of the rise above the quiet level). **It makes no claim about sync: every ramp pair is `borderline`, and a ramp can never fail the gate.** Two separate-context Soul passes falsified every stronger claim
+the first versions made. The start of a swell cannot be bounded from below by looking at it (a slow start sits under the noise), so "inside the window" and "audio early" were wrong on slow-start shapes; the upper bound is moved earlier by one outlier frame
+(a compression spike, a heavy-tailed noise frame), so "audio late" was wrong at true lags of 4 to 97 ms on realistic noise; and a bed that swells near a hit takes over the pairing. The numbers are for a person to read next to the capture, not a verdict.
+The synthetic sweep and the outlier-frame and swelling-bed cases are tests that no ramp gets a verdict other than `borderline`.
+
+**What it cannot claim.** That the sound is in sync with a swell (only that it is not detectably late). When the viewer sees the swell begin (later than the physical start; depends on contrast, size and attention). That the swell was caused by this sound: pairing
+is by nearness to the foot, and a bed that swells on its own, a scene change or a second sound within 500 ms gives a false pair. Ramps closer than 500 ms merge (so the ambiguity guard, which fires on neighbours closer than twice the pairing window, cannot fire at the default 200 ms
+window; the merged hits show up as unpaired audio). Ramps under 15% of the track's range, or on a steady drift that rises over the whole clip, are not found. `--kind flux` with `--shape ramp` means a swell of motion energy; it has not been tried on anything
+but one fixture. The constants (300 ms rise window, 15% floor, 6 sigmas, 500 ms gap) were set on Perlines v2's Vector trails and the synthetic shapes only.
 
 ## Uncertainty
 
