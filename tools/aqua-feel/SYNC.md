@@ -15,7 +15,7 @@ node feel.mjs sync --wav capture.wav --track frames.csv [--events hits.txt] [--f
 # a video with one audio and one video stream (needs ffmpeg on PATH, or FFMPEG=/path/to/ffmpeg)
 node feel.mjs sync --video capture.mp4 [--events hits.txt] [--kind luma|flux]
 # options: --profile default|bt1359|ebu-r37|atsc-is191   --lead-ms N --lag-ms N   --pair-window-ms N (default 200)
-#          --min-gap-ms N   --allow-unpaired   --json out.json   --no-gate
+#          --min-gap-ms N   --allow-unpaired   --json out.json   --no-gate   --shape step|ramp (ramp: slow swells, see below)
 node sync.test.mjs                   # 37 checks on synthetic fixtures; 46 with FFMPEG=/path/to/ffmpeg (also builds clips with known stream offsets and runs a real browser capture)
 node sync-fixture.mjs DIR 80 60      # write a fixture (audio 80 ms late, 60 fps) to try the CLI on
 ```
@@ -69,6 +69,22 @@ fragmentary in the search; figures confirmed against secondary summaries), and t
 [AV synchronization, how bad is bad](https://www.tvtechnology.com/opinions/av-synchronization-how-bad-is-bad) and
 [ATSC recommends AV sync rules](https://tvtechnology.com/opinions/atsc-recommends-av-sync-rules). Windows depend on content (speech
 lip-sync is more sensitive than a game impact) and on the viewer; they are population thresholds, not a property of your capture.
+
+## Ramp-shaped visuals (`--shape ramp`)
+
+Some visuals answer a sound with a slow swell (a scene brightening over a few hundred ms), not a step. The default detector looks for a peak in the frame-to-frame step, finds none, and says no visual onset
+(`step` found 0 of 5 hits on `fixtures/perlines-trails-ramp.webm`; `ramp` paired 3). `--shape ramp` takes the track's rise over 300 ms as the novelty and picks its peaks (at least 15% of the track's range, 6 noise sigmas,
+at least 500 ms apart). For each it finds the quiet level before the rise (the last sample within 2 noise sigmas of the minimum of the 0.6 s before) and the 20% and 80% crossings of the rise to its top.
+
+**What it claims.** The response started somewhere between the quiet level, backed off by the time from there to the 20% crossing and one frame, and the 20% crossing. The lag interval is that whole range against the audio onset,
+so it is far wider than a step's (100 ms and more) and most verdicts are `borderline`. `audio-late-detectable` is sound whatever the ramp's shape (the picture started to move at the latest at the 20% crossing and the sound
+still came later than the window); `audio-early-detectable` only if even the widest start estimate lies after the sound. The point value (`visual s`, `lag ms`) is the foot of the line through the 20% and 80% crossings, a
+convention that fits a linear ramp and reads early for exponential approach and late for slow-start (smoothstep) shapes; it is not the instant anyone perceives.
+
+**What it cannot claim.** When the viewer sees the swell begin (that is later than the physical start and depends on contrast, size and attention). That the swell was caused by this sound: pairing is by nearness, and a bed that
+swells on its own, a scene change or a second sound inside 500 ms gives a false pair. The back-off for a decaying tail is checked on linear, exponential and smoothstep ramps (250 to 450 ms to peak, decay over about a second), not proved:
+a response that starts more than one valley-to-20% time before the quiet minimum would escape the interval. Ramps closer than 500 ms merge; ramps under 15% of the track's range, or on a steady drift that rises over the whole clip, are not found.
+The 0.15 floor (0.25 missed 7 of 10 Vector trails hits and 0.10 admitted one false onset) and the other constants were set on that one clip.
 
 ## Uncertainty
 

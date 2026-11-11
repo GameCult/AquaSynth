@@ -194,6 +194,31 @@ export function visualOnsets(track, { kind = "luma", k = 8, minGapS = 0.1 } = {}
   return r;
 }
 
+// Visual, ramp-shaped response (a slow brightening or swell over hundreds of ms, no step): the track's rise over `riseS` is the novelty; each peak of it
+// is one response. From the quiet level before it (the last sample within 2 noise sigmas of the minimum of the 0.6 s before the peak) to the top, the
+// onset is the foot of the line through the 20% and 80% crossings, clamped to [valley, 20% crossing]. The start is only known to lie in
+// [valley - (valley to 20% time) - one frame, crossing20S]: a ramp has no first frame, so the onset carries that span and the verdict is read off it, not off the foot.
+export function visualRampOnsets(track, { minGapS = 0.5, riseS = 0.3, k = 6 } = {}) {
+  const { t, v } = track, n = v.length, dts = []; for (let i = 1; i < n; i++) dts.push(t[i] - t[i - 1]);
+  const period = median(dts), w = Math.max(1, Math.round(0.06 / period));
+  const sm = new Float64Array(n); for (let i = 0; i < n; i++) { let a = 0, c = 0; for (let q = Math.max(0, i - w); q <= Math.min(n - 1, i + w); q++) { a += v[q]; c++; } sm[i] = a / c; }
+  const range = Math.max(...v) - Math.min(...v), d1 = Float64Array.from(v.slice(1), (x, i) => Math.abs(x - v[i])), sigma = 1.4826 * median(d1) / Math.SQRT2 + 1e-12;
+  const at = (x) => { let lo = 0, hi = n - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (t[m] < x) lo = m + 1; else hi = m; } return lo; };
+  const nov = new Float64Array(n); for (let i = 0; i < n; i++) nov[i] = Math.max(0, sm[Math.min(n - 1, at(t[i] + riseS))] - sm[i]);
+  const r = pickOnsets(nov, t, { k, floor: Math.max(0.15 * range, k * sigma), minGapS, riseFrac: 1 });
+  r.framePeriodMs = 1000 * period;
+  r.onsets = r.onsets.map((o) => {
+    const p = at(o.peakT), b0 = at(o.peakT - 0.6); let mn = Infinity; for (let i = b0; i <= p; i++) mn = Math.min(mn, sm[i]);
+    let m = p; while (m > b0 && sm[m] > mn + 2 * sigma) m--;
+    let top = m; for (let i = m; i < Math.min(n, at(o.peakT + riseS + 0.3)); i++) if (sm[i] > sm[top]) top = i;
+    const A = sm[top] - sm[m], cross = (f) => { let i = m; while (i < top && sm[i] < sm[m] + f * A) i++; return i; };
+    const i20 = cross(0.2), i80 = cross(0.8), foot = Math.min(t[i20], Math.max(t[m], t[i20] - (t[i80] - t[i20]) / 3));
+    // Over a decaying tail the minimum of the sum lands after the true start (a slow ramp cancels the decay before it turns the curve): back off by the valley-to-20% time.
+    return { t: foot, loS: t[m] - (t[i20] - t[m]) - period, hiS: t[i20], peakT: t[top], strength: A };
+  });
+  return r;
+}
+
 // ---------- pairing and verdict ----------
 // One-to-one greedy matching of onsets to anchors (events, or audio onsets) by distance, within windowS. Returns Map anchorIndex -> onsetIndex.
 function match(anchors, onsets, windowS) {
@@ -211,7 +236,7 @@ const crowded = (list, o, windowS) => list.some((x) => x !== o && Math.abs(x.t -
 // Frame quantisation: a visual change at time tau first shows in the frame stamped at or after tau, so visual - tau is in [0, framePeriod) and the
 // measured lag (audio - visual) is biased LOW by up to a frame period. The truth therefore lies in [lag - audioHop/2, lag + framePeriod + audioHop/2];
 // a pair is judged on that interval, not on a point.
-export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visualKind = "luma", events, profile = "default", leadMs, lagMs, pairWindowMs = 200, minGapMs, allowUnpaired = false, visualResampled = false, visualGapMs = 0 }) {
+export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visualKind = "luma", visualShape = "step", events, profile = "default", leadMs, lagMs, pairWindowMs = 200, minGapMs, allowUnpaired = false, visualResampled = false, visualGapMs = 0 }) {
   if (!PROFILES[profile]) throw new Error(`unknown profile ${profile}`);
   const prof = { ...PROFILES[profile] }, custom = leadMs !== undefined || lagMs !== undefined;
   if (leadMs !== undefined) prof.leadMs = leadMs;
@@ -219,11 +244,10 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   if (custom) { prof.note = `profile ${profile} with the window overridden on the command line`; }
   for (const [n, x] of [["leadMs", prof.leadMs], ["lagMs", prof.lagMs], ["pairWindowMs", pairWindowMs]]) if (!Number.isFinite(x) || x < 0 || (n === "pairWindowMs" && x === 0)) throw new Error(`${n} must be a ${n === "pairWindowMs" ? "positive" : "non-negative"} number`);
   const gap = minGapMs === undefined ? {} : { minGapS: minGapMs / 1000 };
-  const a = audioOnsets(audio, sampleRate, { startS: audioStartS, ...gap }), v = visualOnsets(visual, { kind: visualKind, ...gap });
+  const a = audioOnsets(audio, sampleRate, { startS: audioStartS, ...gap }), v = visualShape === "ramp" ? visualRampOnsets(visual, gap.minGapS === undefined ? {} : { minGapS: gap.minGapS }) : visualOnsets(visual, { kind: visualKind, ...gap });
   // A video resampled to constant frame rate by `fps` snaps each frame to the nearest source frame: half a period more slack on each side.
   const hopMs = a.resolutionMs, periodMs = Math.max(v.framePeriodMs, visualGapMs), win = pairWindowMs / 1000, snapMs = visualResampled ? periodMs / 2 : 0;
-  const classify = (lag) => {
-    const lo = lag - hopMs / 2 - snapMs, hi = lag + periodMs + hopMs / 2 + snapMs; // truth interval, ms
+  const classify = (lo, hi) => {
     if (lo >= -prof.leadMs && hi <= prof.lagMs) return "inside-window";
     if (lo > prof.lagMs) return "audio-late-detectable";
     if (hi < -prof.leadMs) return "audio-early-detectable";
@@ -232,8 +256,12 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   const pairs = [], usedA = new Set(), usedV = new Set();
   const row = (label, eventS, ao, vo, ambiguous) => {
     const r = { label, eventS, audioS: ao?.t ?? null, visualS: vo?.t ?? null, audioVsEventMs: ao && eventS !== null ? (ao.t - eventS) * 1e3 : null, visualVsEventMs: vo && eventS !== null ? (vo.t - eventS) * 1e3 : null, lagMs: ao && vo ? (ao.t - vo.t) * 1e3 : null };
-    if (r.lagMs !== null) { r.lagLowMs = r.lagMs - hopMs / 2 - snapMs; r.lagHighMs = r.lagMs + periodMs + hopMs / 2 + snapMs; }
-    r.verdict = r.lagMs === null ? (ao ? "no-visual-onset" : vo ? "no-audio-onset" : "no-onsets") : ambiguous ? "ambiguous-pairing" : classify(r.lagMs);
+    if (r.lagMs !== null) {
+      // A step has its change in (visual - period, visual]. A ramp's start lies anywhere in [loS, hiS] (its quiet level to its 20% crossing).
+      const hiT = vo.hiS ?? vo.t, loT = vo.loS ?? vo.t - periodMs / 1000;
+      r.lagLowMs = (ao.t - hiT) * 1e3 - hopMs / 2 - snapMs; r.lagHighMs = (ao.t - loT) * 1e3 + hopMs / 2 + snapMs;
+    }
+    r.verdict = r.lagMs === null ? (ao ? "no-visual-onset" : vo ? "no-audio-onset" : "no-onsets") : ambiguous ? "ambiguous-pairing" : classify(r.lagLowMs, r.lagHighMs);
     return r;
   };
   if (events) {
@@ -266,7 +294,7 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   summary.pass = summary.pairs > 0 && summary.outsideWindow === 0 && summary.missing === 0 && summary.ambiguous === 0 && (allowUnpaired || unpaired === 0);
   return {
     schema: "aqua-feel.sync.v1", lagConvention: "lagMs = audio onset - visual onset; positive = audio late, negative = audio early. Truth lies in [lagLowMs, lagHighMs] (visual onsets are quantised up to the next frame)",
-    profile: { name: custom ? `${profile}+override` : profile, ...prof }, allowUnpaired, pairWindowMs, visualResampled, visualKind, audioResolutionMs: hopMs, framePeriodMs: periodMs, visualGapMs,
+    profile: { name: custom ? `${profile}+override` : profile, ...prof }, allowUnpaired, pairWindowMs, visualResampled, visualKind, visualShape, audioResolutionMs: hopMs, framePeriodMs: periodMs, visualGapMs,
     audioOnsets: a.onsets, visualOnsets: v.onsets, pairs, summary,
   };
 }
@@ -275,6 +303,7 @@ export function formatSync(r) {
   const f = (x, d = 1) => (x === null || x === undefined ? "   -  " : x.toFixed(d).padStart(7));
   const L = [`profile ${r.profile.name}: audio may lead by ${r.profile.leadMs} ms, lag by ${r.profile.lagMs} ms (${r.profile.note})`,
     `lag = audio - visual (+ = audio late). The visual onset is quantised up to the next frame (period ${r.framePeriodMs.toFixed(1)} ms${r.visualGapMs > 0 && r.framePeriodMs === r.visualGapMs ? ": the capture\'s source frames are up to that far apart" : ""}), so the true lag lies in [lag - ${(r.audioResolutionMs / 2 + (r.visualResampled ? r.framePeriodMs / 2 : 0)).toFixed(1)}, lag + ${(r.framePeriodMs * (r.visualResampled ? 1.5 : 1) + r.audioResolutionMs / 2).toFixed(1)}] ms${r.visualResampled ? " (video resampled to constant frame rate)" : ""}`,
+    ...(r.visualShape === "ramp" ? ["--shape ramp: the visual column is the foot of the line through the 20% and 80% crossings of each rise. A ramp has no first frame, so each interval runs from before the quiet minimum to the 20% crossing and is far wider than a step's."] : []),
     "", "label        event s   audio s  visual s  a-ev ms  v-ev ms   lag ms  verdict"];
   for (const p of r.pairs) L.push(`${String(p.label).padEnd(10).slice(0, 10)} ${f(p.eventS, 3)}  ${f(p.audioS, 3)}  ${f(p.visualS, 3)}  ${f(p.audioVsEventMs)}  ${f(p.visualVsEventMs)}  ${f(p.lagMs)}  ${p.verdict}`);
   const s = r.summary, rng = s.minLagMs === null ? "-" : `${s.minLagMs.toFixed(1)}..${s.maxLagMs.toFixed(1)}`;
