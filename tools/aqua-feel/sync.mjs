@@ -254,8 +254,9 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   // A video resampled to constant frame rate by `fps` snaps each frame to the nearest source frame: half a period more slack on each side.
   const hopMs = a.resolutionMs, periodMs = Math.max(v.framePeriodMs, visualGapMs), win = pairWindowMs / 1000, snapMs = visualResampled ? periodMs / 2 : 0;
   const classify = (lo, hi, ramp) => {
-    // A ramp's start cannot be bounded below by looking at it (a slow start is under the noise), so a ramp is only ever shown late, never early or inside the window.
-    if (ramp) return lo > prof.lagMs ? "audio-late-detectable" : "borderline";
+    // A ramp is never given a gate-failing verdict. Two Soul passes falsified every claim a ramp could make: its start cannot be bounded below (a slow start sits under the noise),
+    // and any upper bound read from the raw frames is moved earlier by one outlier frame, and the pairing by a bed that swells near the hit. The intervals are printed as estimates.
+    if (ramp) return "borderline";
     if (lo >= -prof.leadMs && hi <= prof.lagMs) return "inside-window";
     if (lo > prof.lagMs) return "audio-late-detectable";
     if (hi < -prof.leadMs) return "audio-early-detectable";
