@@ -1,6 +1,6 @@
 // Checks of `aqua-feel sync` on synthetic fixtures with known offsets. No real capture is used. Usage: node sync.test.mjs
 import assert from "node:assert/strict";
-import { formatSync, syncAnalyze, readWav, readTrack, readEvents, audioOnsets, visualOnsets, PROFILES } from "./sync.mjs";
+import { formatSync, syncAnalyze, readWav, readTrack, readEvents, audioOnsets, visualOnsets, sourceFrames, PROFILES } from "./sync.mjs";
 import { readFileSync } from "node:fs";
 import { wavFloat32 } from "./render.js";
 import { makeFixture, FIXTURE_EVENTS_S } from "./sync-fixture.mjs";
@@ -200,9 +200,19 @@ t("readTrack takes header + t,value rows or a single column with fps; readEvents
   assert.deepEqual(readEvents('[{"t":2,"label":"x"},3]').map((e) => e.label), ["x", "e1"]);
 });
 
+t("sourceFrames: the rate is the median frame gap, the stale-frame bound is the 95th-percentile gap", () => {
+  const si = (ts) => ts.map((x, i) => `[Parsed_showinfo_0 @ 0x1] n:${i} pts:${x * 1000} pts_time:${x} duration:1`).join("\n");
+  const cfr = Array.from({ length: 40 }, (_, i) => i / 50);
+  { const c = sourceFrames(si(cfr)); assert.equal(c.fps, 50); assert.ok(Math.abs(c.gapMs - 20) < 1e-6); }
+  const vfr = []; let x = 0; for (let i = 0; i < 100; i++) { vfr.push(x); x += i % 10 === 9 ? 0.1 : 0.0167; }  // mostly 60 fps, one 100 ms stall in ten
+  const r = sourceFrames(si(vfr)); assert.equal(r.fps, 60); assert.ok(Math.abs(r.gapMs - 100) < 1, `gap ${r.gapMs}`);
+  assert.deepEqual(sourceFrames(si([0])), { fps: 30, gapMs: 0 });
+  assert.equal(sourceFrames(si([0, 1, 2])).fps, 24); assert.equal(sourceFrames(si([0, 0.001, 0.002])).fps, 120);
+});
+
 // The video path needs ffmpeg (FFMPEG=/path or on PATH); skipped, and said so, when there is none.
 {
-  const { readVideo } = await import("./sync.mjs"), { execFileSync } = await import("node:child_process");
+  const { readVideo } = await import("./sync.mjs"), { execFileSync } = await import("node:child_process"), require_fs = await import("node:fs"), { tmpdir } = await import("node:os"), { join } = await import("node:path");
   const ff = process.env.FFMPEG ?? "ffmpeg";
   let have = true; try { execFileSync(ff, ["-version"], { stdio: "ignore" }); } catch { have = false; }
   if (!have) console.log("skip video path: no ffmpeg (set FFMPEG)");
@@ -232,6 +242,26 @@ t("readTrack takes header + t,value rows or a single column with fps; readEvents
     assert.ok(r.summary.spreadMs < 1000 / v.fps, `spread ${r.summary.spreadMs}`);
     assert.equal(r.summary.unpairedAudio + r.summary.unpairedVisual, 0);
     for (const p of r.pairs) assert.ok(p.visualVsEventMs >= 0 && p.visualVsEventMs <= 1000 / v.fps, `flash ${p.visualVsEventMs} ms off its logged instant`);
+  });
+  if (have) t("a Perlines v2 capture declares no frame rate (1k tbr): the rate comes from its frame times, and the interval is no narrower than its worst frame gaps", () => {
+    const v = readVideo(new URL("./fixtures/perlines-aurora-vfr.webm", import.meta.url).pathname, { ffmpeg: ff });
+    assert.ok(v.fps >= 50, `resampled at ${v.fps} fps, not the 30 fps fallback`);
+    assert.ok(v.sourceGapMs > 1000 / v.fps * 1.5, `source gap ${v.sourceGapMs} ms is a stalled capture, wider than one frame`);
+    const r = syncAnalyze({ audio: v.audio.samples, sampleRate: v.audio.sampleRate, audioStartS: v.audio.startS, visual: v.luma, allowUnpaired: true, visualResampled: true, visualGapMs: v.sourceGapMs });
+    assert.ok(r.pairs.length >= 3);
+    for (const p of r.pairs) assert.ok(p.lagHighMs - p.lagLowMs >= v.sourceGapMs * 1.5, `interval ${p.lagHighMs - p.lagLowMs} ms narrower than the capture's own stalls`);
+    assert.match(formatSync(r), /source frames are up to that far apart/);
+  });
+  if (have) t("the CLI carries the capture's frame gaps into its report (feel.mjs plumbing)", () => {
+    const { mkdtempSync, readFileSync: rf } = require_fs, out = join(mkdtempSync(join(tmpdir(), "sync-cli-")), "r.json");
+    execFileSync("node", [new URL("./feel.mjs", import.meta.url).pathname, "sync", "--video", new URL("./fixtures/perlines-aurora-vfr.webm", import.meta.url).pathname, "--allow-unpaired", "--no-gate", "--json", out], { env: { ...process.env, FFMPEG: ff }, stdio: "ignore" });
+    const r = JSON.parse(rf(out, "utf8"));
+    assert.ok(r.visualGapMs > 1000 / 59 * 1.5, `visualGapMs ${r.visualGapMs}`); assert.equal(r.framePeriodMs, r.visualGapMs);
+  });
+  if (have) t("a failed ffmpeg read (e.g. output buffer overflow) is an error, not a quietly shorter frame list", () => {
+    const { mkdtempSync, writeFileSync: wf, chmodSync } = require_fs, d = mkdtempSync(join(tmpdir(), "sync-stub-")), stub = join(d, "ffmpeg");
+    wf(stub, "#!/bin/sh\nhead -c 70000000 /dev/zero | tr '\\0' 'x' >&2\n"); chmodSync(stub, 0o755);
+    assert.throws(() => readVideo(new URL("./fixtures/perlines-aurora-vfr.webm", import.meta.url).pathname, { ffmpeg: stub }), /ffmpeg failed \(ENOBUFS\)/);
   });
 }
 

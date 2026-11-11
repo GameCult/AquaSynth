@@ -87,16 +87,28 @@ export function readEvents(text) {
   return out;
 }
 
+// From the presentation times in ffmpeg's showinfo output: the frame rate (median gap, rounded, within [24, 120]; 30 when fewer than two frames)
+// and the 95th-percentile gap between source frames, which bounds how stale a displayed frame can be in a variable-frame-rate capture.
+export function sourceFrames(showinfo) {
+  const pts = [...String(showinfo).matchAll(/pts_time:\s*(-?\d+(?:\.\d+)?)/g)].map((m) => Number(m[1]));
+  const gaps = pts.slice(1).map((x, i) => x - pts[i]).filter((g) => g > 0).sort((a, b) => a - b);
+  if (!gaps.length) return { fps: 30, gapMs: 0 };
+  return { fps: Math.min(120, Math.max(24, Math.round(1 / median(gaps)))), gapMs: 1000 * gaps[Math.min(gaps.length - 1, Math.floor(gaps.length * 0.95))] };
+}
+
 // Video via ffmpeg: audio as mono f32 at 48 kHz, video as 64x36 gray frames; per-frame mean luminance and mean |frame diff| (motion flux).
 // Stream start_time offsets are applied so both clocks are the container's clock; video is resampled to constant frame rate by pts.
 export function readVideo(path, { ffmpeg = process.env.FFMPEG ?? "ffmpeg", targetFps } = {}) {
   // ffmpeg only (no ffprobe: static builds ship without it). `ffmpeg -i` lists the streams; the first decoded frame of each stream says when it starts.
-  const run = (a) => { const r = spawnSync(ffmpeg, a, { encoding: "utf8", maxBuffer: 1 << 26 }); if (r.error?.code === "ENOENT") throw new Error("ffmpeg is not on PATH (set FFMPEG=/path/to/ffmpeg); give --wav and --track instead"); return String(r.stderr ?? ""); };
+  const run = (a) => { const r = spawnSync(ffmpeg, a, { encoding: "utf8", maxBuffer: 1 << 26 }); if (r.error?.code === "ENOENT") throw new Error("ffmpeg is not on PATH (set FFMPEG=/path/to/ffmpeg); give --wav and --track instead"); if (r.error) throw new Error(`ffmpeg failed (${r.error.code}): its frame list may be truncated, so the capture's stalls would be under-measured`); return String(r.stderr ?? ""); };
   const lines = run(["-hide_banner", "-i", path]).split("\n"), find = (kind) => lines.find((l) => new RegExp(`Stream #\\d+:\\d+.*: ${kind}:`).test(l));
   const vl = find("Video"), al = find("Audio");
   if (!vl || !al) throw new Error("file needs one video and one audio stream");
   const idx = (l) => Number(l.match(/Stream #\d+:(\d+)/)[1]), fpsm = vl.match(/(\d+(?:\.\d+)?) fps/) ?? vl.match(/(\d+(?:\.\d+)?) tbr/);
-  const fps = targetFps ?? Number(fpsm?.[1] ?? 30), W = 64, H = 36, vi = idx(vl), ai = idx(al);
+  const W = 64, H = 36, vi = idx(vl), ai = idx(al);
+  // A browser capture declares no frame rate (`1k tbr`). The stream's own frame times then say what rate to resample at; guessing 30 fps widened every interval to 51 ms.
+  const src = sourceFrames(run(["-hide_banner", "-i", path, "-map", `0:${vi}`, "-an", "-vf", "showinfo", "-f", "null", "-"]));
+  const fps = targetFps ?? (fpsm ? Number(fpsm[1]) : src.fps);
   // Time of a stream's first frame on the container clock (ffmpeg shifts every stream by the earliest start, so these are relative to that).
   const first = (flags) => { const m = run(["-hide_banner", "-i", path, ...flags, "-f", "null", "-"]).match(/pts_time:\s*(-?\d+(?:\.\d+)?)/); if (!m) throw new Error("could not read a stream start time from ffmpeg"); return Number(m[1]); };
   const _vStart = first(["-map", `0:${vi}`, "-an", "-frames:v", "1", "-vf", "showinfo"]), aStart = first(["-map", `0:${ai}`, "-vn", "-frames:a", "1", "-af", "ashowinfo"]);
@@ -112,7 +124,7 @@ export function readVideo(path, { ffmpeg = process.env.FFMPEG ?? "ffmpeg", targe
     t[f] = f / fps; lum[f] = s / (W * H) / 255; flux[f] = f ? df / (W * H) / 255 : 0;
   }
   const a = new Float32Array(audioRaw.buffer.slice(audioRaw.byteOffset, audioRaw.byteOffset + audioRaw.length - (audioRaw.length % 4)));
-  return { audio: { samples: a, sampleRate: 48000, startS: aStart }, luma: { t, v: lum }, flux: { t, v: flux }, fps, resampled: true, videoStartS: _vStart };
+  return { audio: { samples: a, sampleRate: 48000, startS: aStart }, luma: { t, v: lum }, flux: { t, v: flux }, fps, sourceGapMs: src.gapMs, resampled: true, videoStartS: _vStart };
 }
 
 // ---------- onset detection ----------
@@ -199,7 +211,7 @@ const crowded = (list, o, windowS) => list.some((x) => x !== o && Math.abs(x.t -
 // Frame quantisation: a visual change at time tau first shows in the frame stamped at or after tau, so visual - tau is in [0, framePeriod) and the
 // measured lag (audio - visual) is biased LOW by up to a frame period. The truth therefore lies in [lag - audioHop/2, lag + framePeriod + audioHop/2];
 // a pair is judged on that interval, not on a point.
-export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visualKind = "luma", events, profile = "default", leadMs, lagMs, pairWindowMs = 200, minGapMs, allowUnpaired = false, visualResampled = false }) {
+export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visualKind = "luma", events, profile = "default", leadMs, lagMs, pairWindowMs = 200, minGapMs, allowUnpaired = false, visualResampled = false, visualGapMs = 0 }) {
   if (!PROFILES[profile]) throw new Error(`unknown profile ${profile}`);
   const prof = { ...PROFILES[profile] }, custom = leadMs !== undefined || lagMs !== undefined;
   if (leadMs !== undefined) prof.leadMs = leadMs;
@@ -209,7 +221,7 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   const gap = minGapMs === undefined ? {} : { minGapS: minGapMs / 1000 };
   const a = audioOnsets(audio, sampleRate, { startS: audioStartS, ...gap }), v = visualOnsets(visual, { kind: visualKind, ...gap });
   // A video resampled to constant frame rate by `fps` snaps each frame to the nearest source frame: half a period more slack on each side.
-  const hopMs = a.resolutionMs, periodMs = v.framePeriodMs, win = pairWindowMs / 1000, snapMs = visualResampled ? periodMs / 2 : 0;
+  const hopMs = a.resolutionMs, periodMs = Math.max(v.framePeriodMs, visualGapMs), win = pairWindowMs / 1000, snapMs = visualResampled ? periodMs / 2 : 0;
   const classify = (lag) => {
     const lo = lag - hopMs / 2 - snapMs, hi = lag + periodMs + hopMs / 2 + snapMs; // truth interval, ms
     if (lo >= -prof.leadMs && hi <= prof.lagMs) return "inside-window";
@@ -254,7 +266,7 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
   summary.pass = summary.pairs > 0 && summary.outsideWindow === 0 && summary.missing === 0 && summary.ambiguous === 0 && (allowUnpaired || unpaired === 0);
   return {
     schema: "aqua-feel.sync.v1", lagConvention: "lagMs = audio onset - visual onset; positive = audio late, negative = audio early. Truth lies in [lagLowMs, lagHighMs] (visual onsets are quantised up to the next frame)",
-    profile: { name: custom ? `${profile}+override` : profile, ...prof }, allowUnpaired, pairWindowMs, visualResampled, visualKind, audioResolutionMs: hopMs, framePeriodMs: periodMs,
+    profile: { name: custom ? `${profile}+override` : profile, ...prof }, allowUnpaired, pairWindowMs, visualResampled, visualKind, audioResolutionMs: hopMs, framePeriodMs: periodMs, visualGapMs,
     audioOnsets: a.onsets, visualOnsets: v.onsets, pairs, summary,
   };
 }
@@ -262,7 +274,7 @@ export function syncAnalyze({ audio, sampleRate, audioStartS = 0, visual, visual
 export function formatSync(r) {
   const f = (x, d = 1) => (x === null || x === undefined ? "   -  " : x.toFixed(d).padStart(7));
   const L = [`profile ${r.profile.name}: audio may lead by ${r.profile.leadMs} ms, lag by ${r.profile.lagMs} ms (${r.profile.note})`,
-    `lag = audio - visual (+ = audio late). The visual onset is quantised up to the next frame (period ${r.framePeriodMs.toFixed(1)} ms), so the true lag lies in [lag - ${(r.audioResolutionMs / 2 + (r.visualResampled ? r.framePeriodMs / 2 : 0)).toFixed(1)}, lag + ${(r.framePeriodMs * (r.visualResampled ? 1.5 : 1) + r.audioResolutionMs / 2).toFixed(1)}] ms${r.visualResampled ? " (video resampled to constant frame rate)" : ""}`,
+    `lag = audio - visual (+ = audio late). The visual onset is quantised up to the next frame (period ${r.framePeriodMs.toFixed(1)} ms${r.visualGapMs > 0 && r.framePeriodMs === r.visualGapMs ? ": the capture\'s source frames are up to that far apart" : ""}), so the true lag lies in [lag - ${(r.audioResolutionMs / 2 + (r.visualResampled ? r.framePeriodMs / 2 : 0)).toFixed(1)}, lag + ${(r.framePeriodMs * (r.visualResampled ? 1.5 : 1) + r.audioResolutionMs / 2).toFixed(1)}] ms${r.visualResampled ? " (video resampled to constant frame rate)" : ""}`,
     "", "label        event s   audio s  visual s  a-ev ms  v-ev ms   lag ms  verdict"];
   for (const p of r.pairs) L.push(`${String(p.label).padEnd(10).slice(0, 10)} ${f(p.eventS, 3)}  ${f(p.audioS, 3)}  ${f(p.visualS, 3)}  ${f(p.audioVsEventMs)}  ${f(p.visualVsEventMs)}  ${f(p.lagMs)}  ${p.verdict}`);
   const s = r.summary, rng = s.minLagMs === null ? "-" : `${s.minLagMs.toFixed(1)}..${s.maxLagMs.toFixed(1)}`;

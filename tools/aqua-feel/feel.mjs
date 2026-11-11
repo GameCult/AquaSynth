@@ -65,12 +65,12 @@ async function sync() {
     if (args.length) throw new Error(`unknown argument ${args[0]}`);
     if (!["luma", "flux"].includes(kind)) throw new Error(`--kind is luma or flux, got "${kind}"`);
     if (!PROFILES[profile]) throw new Error(`--profile is one of ${Object.keys(PROFILES).join(", ")}, got "${profile}"`);
-    let audio, sampleRate, audioStartS = 0, visual, visualResampled = false;
-    if (vid) { const v = readVideo(vid); audio = v.audio.samples; sampleRate = v.audio.sampleRate; audioStartS = v.audio.startS; visual = kind === "flux" ? v.flux : v.luma; visualResampled = true; }
+    let audio, sampleRate, audioStartS = 0, visual, visualResampled = false, visualGapMs = 0;
+    if (vid) { const v = readVideo(vid); audio = v.audio.samples; sampleRate = v.audio.sampleRate; audioStartS = v.audio.startS; visual = kind === "flux" ? v.flux : v.luma; visualResampled = true; visualGapMs = v.sourceGapMs; }
     else if (wav && trk) { const w = readWav(readFileSync(wav)); audio = w.samples; sampleRate = w.sampleRate; visual = readTrack(readFileSync(trk, "utf8"), fps); }
     else throw new Error("give --video FILE, or --wav FILE with --track FILE");
     const r = syncAnalyze({ audio, sampleRate, audioStartS, visual, visualKind: kind, profile, events: evs ? readEvents(readFileSync(evs, "utf8")) : undefined,
-      leadMs: lead, lagMs: lag, pairWindowMs: pw ?? 200, minGapMs: gap, allowUnpaired, visualResampled });
+      leadMs: lead, lagMs: lag, pairWindowMs: pw ?? 200, minGapMs: gap, allowUnpaired, visualResampled, visualGapMs });
     r.caveat = "Nothing here was heard or seen: two onset lists compared. The metric is not the verdict; see SYNC.md.";
     console.log(formatSync(r));
     if (json) writeFileSync(json, JSON.stringify(r, null, 1));
