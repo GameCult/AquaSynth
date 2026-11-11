@@ -123,32 +123,5 @@
       "why": "PRC SYNTH1 peaked at 2.10 before the 2026-11-05 gain trim to 0.67; this holds it under 0.9"
     }
   ],
-  "waivers": [
-    {
-      "id": "sfxr-classic-classic-sfxr-abstract-golf",
-      "metric": "truePeakDb",
-      "reason": "renders 0.99 sample peak and +0.9 dBTP inter-sample",
-      "followUp": "aqua-body:follow_up:sfxr-golf-hot",
-      "max": 1.0
-    },
-    {
-      "id": "sfxr-classic-classic-sfxr-abstract-golf",
-      "metric": "loudnessLufs",
-      "reason": "-5.3 LUFS integrated over the 3 s render",
-      "followUp": "aqua-body:follow_up:sfxr-golf-hot",
-      "max": -5.0
-    },
-    {
-      "id": "sfxr-classic-classic-sfxr-abstract-golf",
-      "metric": "lowMotion",
-      "reason": "3 s of steady bright noise, 4 dB level range; may be longer than the render window",
-      "followUp": "aqua-body:follow_up:sfxr-golf-hot"
-    },
-    {
-      "id": "sfxr-explosion",
-      "metric": "lowMotion",
-      "reason": "3 s of steady noise, 1 dB level range, no decay inside the render window; an explosion that does not decay is worth a listener's check",
-      "followUp": "aqua-body:follow_up:sfxr-explosion-static"
-    }
-  ]
+  "waivers": []
 }

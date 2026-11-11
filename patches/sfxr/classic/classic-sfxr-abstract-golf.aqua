@@ -31,7 +31,7 @@ voice
     phaser=0.0001458
     phaser_ramp=-0.000504
 
-patch repeat=0.174744
+patch gain=0.5
 voice
     use=Noise
     freq=20
@@ -48,7 +48,6 @@ voice
     tremolo=0.0264
     tremolo_hz=13.04
 
-patch repeat=0.11315
 voice
     wave=sine
     freq=57.5946
