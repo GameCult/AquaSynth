@@ -40,7 +40,8 @@ public sealed record PrimitiveTimelineFact(
     [property: Key(4)] string Unit,
     [property: Key(5)] int BlockStart,
     [property: Key(6)] int BlockEnd,
-    [property: Key(7)] string Summary);
+    [property: Key(7)] string Summary,
+    [property: Key(8), CultElementId] string ElementId = "");
 
 [CultDocument("aquasynth.song_challenge_evidence", "aquasynth.song_challenge_evidence.v1")]
 [MessagePackObject]

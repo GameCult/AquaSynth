@@ -27,7 +27,8 @@ public sealed record CultCachePatchDatabaseEntry(
     [property: Key(1)] string Family,
     [property: Key(2)] string Name,
     [property: Key(3)] string Source,
-    [property: Key(4)] string Notes);
+    [property: Key(4)] string Notes,
+    [property: Key(5), CultElementId("Path")] string ElementId = "");
 
 [MessagePackObject]
 public sealed record CultCachePatchClaimCard(
@@ -36,7 +37,8 @@ public sealed record CultCachePatchClaimCard(
     [property: Key(2)] CultCacheReferenceTruth Reference,
     [property: Key(3)] CultCacheIntentTruth Intent,
     [property: Key(4)] string Tier,
-    [property: Key(5)] CultCacheProofTruth Proof);
+    [property: Key(5)] CultCacheProofTruth Proof,
+    [property: Key(6), CultElementId("Id")] string ElementId = "");
 
 [MessagePackObject]
 public sealed record CultCacheSpeechClaimCard(
@@ -45,7 +47,8 @@ public sealed record CultCacheSpeechClaimCard(
     [property: Key(2)] CultCacheSpeechTargetTruth Target,
     [property: Key(3)] CultCacheIntentTruth Intent,
     [property: Key(4)] string Tier,
-    [property: Key(5)] CultCacheProofTruth Proof);
+    [property: Key(5)] CultCacheProofTruth Proof,
+    [property: Key(6), CultElementId("Id")] string ElementId = "");
 
 [MessagePackObject]
 public sealed record CultCacheReferenceTruth(
