@@ -15,7 +15,7 @@ public sealed class PackageBoundaryTests
         {
             var result = await RunAsync(
                 "dotnet",
-                ["pack", Path.Combine(root, "src", "AquaSynth.Core", "AquaSynth.Core.csproj"), "-c", "Release", "--no-restore", "-o", outputDir]);
+                ["pack", Path.Combine(root, "src", "AquaSynth.Core", "AquaSynth.Core.csproj"), "-c", "Release", "--no-restore", "-o", outputDir, .. QuietBuildServers]);
             Assert.Equal(0, result.ExitCode);
 
             var package = Assert.Single(Directory.GetFiles(outputDir, "AquaSynth.Core.*.nupkg"));
@@ -44,7 +44,7 @@ public sealed class PackageBoundaryTests
         {
             var result = await RunAsync(
                 "dotnet",
-                ["pack", Path.Combine(root, "src", "AquaSynth.Faust", "AquaSynth.Faust.csproj"), "-c", "Release", "--no-restore", "-o", outputDir]);
+                ["pack", Path.Combine(root, "src", "AquaSynth.Faust", "AquaSynth.Faust.csproj"), "-c", "Release", "--no-restore", "-o", outputDir, .. QuietBuildServers]);
             Assert.Equal(0, result.ExitCode);
 
             var package = Assert.Single(Directory.GetFiles(outputDir, "AquaSynth.Faust.*.nupkg"));
@@ -97,6 +97,13 @@ public sealed class PackageBoundaryTests
         return directory?.FullName ?? throw new InvalidOperationException("could not find repository root");
     }
 
+    // `dotnet pack` leaves VBCSCompiler and MSBuild node-reuse processes running. They inherit our redirected stdout/stderr pipes, so
+    // ReadToEndAsync never sees EOF and the test hangs after pack has already written the nupkg (the 2026-11-11 hang). Pack without
+    // them, and bound every wait so a regression fails with a message instead of hanging.
+    private static readonly string[] QuietBuildServers = ["-p:UseSharedCompilation=false", "-nodeReuse:false", "--disable-build-servers"];
+    private static readonly TimeSpan ProcessTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan PipeDrainGrace = TimeSpan.FromSeconds(10);
+
     private static async Task<(int ExitCode, string Stdout, string Stderr)> RunAsync(
         string fileName,
         IReadOnlyList<string> arguments)
@@ -108,12 +115,30 @@ public sealed class PackageBoundaryTests
             UseShellExecute = false
         };
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+        start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
 
         using var process = Process.Start(start) ?? throw new InvalidOperationException($"failed to start `{fileName}`");
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
+        using var timeout = new CancellationTokenSource(ProcessTimeout);
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            process.Kill(entireProcessTree: true);
+            throw new TimeoutException($"`{fileName} {string.Join(' ', arguments)}` did not exit within {ProcessTimeout}.");
+        }
+
+        var drained = Task.WhenAll(stdout, stderr);
+        if (await Task.WhenAny(drained, Task.Delay(PipeDrainGrace)) != drained)
+        {
+            throw new TimeoutException(
+                $"`{fileName}` exited but its output pipes stayed open for {PipeDrainGrace}: a child it spawned (build server?) inherited them.");
+        }
+
         return (process.ExitCode, await stdout, await stderr);
     }
 }
-
