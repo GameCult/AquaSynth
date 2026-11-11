@@ -3,7 +3,8 @@ declare name "advanced-ritual-sequence";
 declare options "[nvoices:1]";
 
 time = ba.time / ma.SR;
-age = time - floor(time / 0.42) * 0.42;
+repeat_interval = 0.42;
+age = time;
 clip01(x) = min(1.0, max(0.0, x));
 wrap01(x) = x - floor(x);
 slew(rate,x) = x : *(1.0 - exp((0.0 - max(0.0001, rate)) / ma.SR)) : + ~ *(exp((0.0 - max(0.0001, rate)) / ma.SR));
@@ -41,8 +42,9 @@ patch_mod_formant_mix = 0.0;
 patch_mod_fm_index = 0 + 0.75 * lfo_tri(2.38, 0);
 
 voice_0_age = age;
-voice_0_freq = ((max(20, 196 * pow(2.0, 0 * voice_0_age + 0.5 * 0 * voice_0_age * voice_0_age)))) * select2(voice_0_age < 0.065, 1.4983, 1.0) * pow(2.0, patch_mod_pitch + 0.0);
-voice_0_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 196 * pow(2.0, 0 * voice_0_age + 0.5 * 0 * voice_0_age * voice_0_age)))) * select2(voice_0_age < 0.065, 1.4983, 1.0) * pow(2.0, patch_mod_pitch + 0.0)) + 0 + sin(2.0 * ma.PI * os.phasor(1.0, ((max(20, 196 * pow(2.0, 0 * voice_0_age + 0.5 * 0 * voice_0_age * voice_0_age)))) * select2(voice_0_age < 0.065, 1.4983, 1.0) * pow(2.0, patch_mod_pitch + 0.0) * max(0.0, 2))) * (max(0.0, 1.8 + patch_mod_fm_index + 0.0) * exp(-voice_0_age / max(0.32, 0.0001))) / ma.PI));
+voice_0_pitch_age = voice_0_age - floor(voice_0_age / repeat_interval) * repeat_interval;
+voice_0_freq = ((max(20, 196 * pow(2.0, 0 * voice_0_pitch_age + 0.5 * 0 * voice_0_pitch_age * voice_0_pitch_age)))) * select2(voice_0_pitch_age < 0.065, 1.4983, 1.0) * pow(2.0, patch_mod_pitch + 0.0);
+voice_0_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 196 * pow(2.0, 0 * voice_0_pitch_age + 0.5 * 0 * voice_0_pitch_age * voice_0_pitch_age)))) * select2(voice_0_pitch_age < 0.065, 1.4983, 1.0) * pow(2.0, patch_mod_pitch + 0.0)) + 0 + sin(2.0 * ma.PI * os.phasor(1.0, ((max(20, 196 * pow(2.0, 0 * voice_0_pitch_age + 0.5 * 0 * voice_0_pitch_age * voice_0_pitch_age)))) * select2(voice_0_pitch_age < 0.065, 1.4983, 1.0) * pow(2.0, patch_mod_pitch + 0.0) * max(0.0, 2))) * (max(0.0, 1.8 + patch_mod_fm_index + 0.0) * exp(-voice_0_age / max(0.32, 0.0001))) / ma.PI));
 voice_0_colored = (voice_0_osc * (1.0 - clip01(0 + patch_mod_noise + 0.0)) + no.noise * clip01(0 + patch_mod_noise + 0.0));
 voice_0_driven = ma.tanh(voice_0_colored * (1.0 + clip01(0.1 + patch_mod_drive + 0.0) * 12.0)) / ma.tanh(1.0 + clip01(0.1 + patch_mod_drive + 0.0) * 12.0);
 voice_0_folded = voice_0_driven * (1.0 - clip01(0 + patch_mod_fold + 0.0)) + fold(voice_0_driven * (1.0 + clip01(0 + patch_mod_fold + 0.0) * 3.5)) * clip01(0 + patch_mod_fold + 0.0);
@@ -52,8 +54,9 @@ voice_0_formants = voice_0_phased;
 voice_0 = ((voice_0_phased * (1.0 - clip01(0 + patch_mod_formant_mix + 0.0)) + voice_0_formants * clip01(0 + patch_mod_formant_mix + 0.0)) * oneshot_adsr_at(voice_0_age, 0.001, 0, 0.8474576, 0.5, 0.045) * max(0.0, 1.0 + patch_mod_gain + 0.0) * 0.1534);
 
 voice_1_age = age;
-voice_1_freq = ((max(20, 293.66 * pow(2.0, 0 * voice_1_age + 0.5 * 0 * voice_1_age * voice_1_age)))) * select2(voice_1_age < 0.065, 1.3348, 1.0) * pow(2.0, patch_mod_pitch + 0.0);
-voice_1_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 293.66 * pow(2.0, 0 * voice_1_age + 0.5 * 0 * voice_1_age * voice_1_age)))) * select2(voice_1_age < 0.065, 1.3348, 1.0) * pow(2.0, patch_mod_pitch + 0.0)) + 0 + sin(2.0 * ma.PI * os.phasor(1.0, ((max(20, 293.66 * pow(2.0, 0 * voice_1_age + 0.5 * 0 * voice_1_age * voice_1_age)))) * select2(voice_1_age < 0.065, 1.3348, 1.0) * pow(2.0, patch_mod_pitch + 0.0) * max(0.0, 2))) * (max(0.0, 1.8 + patch_mod_fm_index + 0.0) * exp(-voice_1_age / max(0.32, 0.0001))) / ma.PI));
+voice_1_pitch_age = voice_1_age - floor(voice_1_age / repeat_interval) * repeat_interval;
+voice_1_freq = ((max(20, 293.66 * pow(2.0, 0 * voice_1_pitch_age + 0.5 * 0 * voice_1_pitch_age * voice_1_pitch_age)))) * select2(voice_1_pitch_age < 0.065, 1.3348, 1.0) * pow(2.0, patch_mod_pitch + 0.0);
+voice_1_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 293.66 * pow(2.0, 0 * voice_1_pitch_age + 0.5 * 0 * voice_1_pitch_age * voice_1_pitch_age)))) * select2(voice_1_pitch_age < 0.065, 1.3348, 1.0) * pow(2.0, patch_mod_pitch + 0.0)) + 0 + sin(2.0 * ma.PI * os.phasor(1.0, ((max(20, 293.66 * pow(2.0, 0 * voice_1_pitch_age + 0.5 * 0 * voice_1_pitch_age * voice_1_pitch_age)))) * select2(voice_1_pitch_age < 0.065, 1.3348, 1.0) * pow(2.0, patch_mod_pitch + 0.0) * max(0.0, 2))) * (max(0.0, 1.8 + patch_mod_fm_index + 0.0) * exp(-voice_1_age / max(0.32, 0.0001))) / ma.PI));
 voice_1_colored = (voice_1_osc * (1.0 - clip01(0 + patch_mod_noise + 0.0)) + no.noise * clip01(0 + patch_mod_noise + 0.0));
 voice_1_driven = ma.tanh(voice_1_colored * (1.0 + clip01(0.1 + patch_mod_drive + 0.0) * 12.0)) / ma.tanh(1.0 + clip01(0.1 + patch_mod_drive + 0.0) * 12.0);
 voice_1_folded = voice_1_driven * (1.0 - clip01(0 + patch_mod_fold + 0.0)) + fold(voice_1_driven * (1.0 + clip01(0 + patch_mod_fold + 0.0) * 3.5)) * clip01(0 + patch_mod_fold + 0.0);
@@ -63,8 +66,9 @@ voice_1_formants = voice_1_phased;
 voice_1 = ((voice_1_phased * (1.0 - clip01(0 + patch_mod_formant_mix + 0.0)) + voice_1_formants * clip01(0 + patch_mod_formant_mix + 0.0)) * oneshot_adsr_at(voice_1_age, 0.001, 0, 0.8474576, 0.38, 0.035) * max(0.0, 1.0 + patch_mod_gain + 0.0) * 0.09);
 
 voice_2_age = age;
-voice_2_freq = ((max(20, 392 * pow(2.0, 0 * voice_2_age + 0.5 * 0 * voice_2_age * voice_2_age)))) * select2(voice_2_age < 0.065, 1.2599, 1.0) * pow(2.0, patch_mod_pitch + 0.0);
-voice_2_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 392 * pow(2.0, 0 * voice_2_age + 0.5 * 0 * voice_2_age * voice_2_age)))) * select2(voice_2_age < 0.065, 1.2599, 1.0) * pow(2.0, patch_mod_pitch + 0.0)) + 0 + sin(2.0 * ma.PI * os.phasor(1.0, ((max(20, 392 * pow(2.0, 0 * voice_2_age + 0.5 * 0 * voice_2_age * voice_2_age)))) * select2(voice_2_age < 0.065, 1.2599, 1.0) * pow(2.0, patch_mod_pitch + 0.0) * max(0.0, 2))) * (max(0.0, 1.8 + patch_mod_fm_index + 0.0) * exp(-voice_2_age / max(0.32, 0.0001))) / ma.PI));
+voice_2_pitch_age = voice_2_age - floor(voice_2_age / repeat_interval) * repeat_interval;
+voice_2_freq = ((max(20, 392 * pow(2.0, 0 * voice_2_pitch_age + 0.5 * 0 * voice_2_pitch_age * voice_2_pitch_age)))) * select2(voice_2_pitch_age < 0.065, 1.2599, 1.0) * pow(2.0, patch_mod_pitch + 0.0);
+voice_2_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 392 * pow(2.0, 0 * voice_2_pitch_age + 0.5 * 0 * voice_2_pitch_age * voice_2_pitch_age)))) * select2(voice_2_pitch_age < 0.065, 1.2599, 1.0) * pow(2.0, patch_mod_pitch + 0.0)) + 0 + sin(2.0 * ma.PI * os.phasor(1.0, ((max(20, 392 * pow(2.0, 0 * voice_2_pitch_age + 0.5 * 0 * voice_2_pitch_age * voice_2_pitch_age)))) * select2(voice_2_pitch_age < 0.065, 1.2599, 1.0) * pow(2.0, patch_mod_pitch + 0.0) * max(0.0, 2))) * (max(0.0, 1.8 + patch_mod_fm_index + 0.0) * exp(-voice_2_age / max(0.32, 0.0001))) / ma.PI));
 voice_2_colored = (voice_2_osc * (1.0 - clip01(0 + patch_mod_noise + 0.0)) + no.noise * clip01(0 + patch_mod_noise + 0.0));
 voice_2_driven = ma.tanh(voice_2_colored * (1.0 + clip01(0.1 + patch_mod_drive + 0.0) * 12.0)) / ma.tanh(1.0 + clip01(0.1 + patch_mod_drive + 0.0) * 12.0);
 voice_2_folded = voice_2_driven * (1.0 - clip01(0 + patch_mod_fold + 0.0)) + fold(voice_2_driven * (1.0 + clip01(0 + patch_mod_fold + 0.0) * 3.5)) * clip01(0 + patch_mod_fold + 0.0);
@@ -74,7 +78,8 @@ voice_2_formants = voice_2_phased;
 voice_2 = ((voice_2_phased * (1.0 - clip01(0 + patch_mod_formant_mix + 0.0)) + voice_2_formants * clip01(0 + patch_mod_formant_mix + 0.0)) * oneshot_adsr_at(voice_2_age, 0.001, 0, 0.8474576, 0.32, 0.028) * max(0.0, 1.0 + patch_mod_gain + 0.0) * 0.07);
 
 voice_3_age = age;
-voice_3_freq = ((max(20, 3100 * pow(2.0, 0 * voice_3_age + 0.5 * 0 * voice_3_age * voice_3_age)))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0);
+voice_3_pitch_age = voice_3_age - floor(voice_3_age / repeat_interval) * repeat_interval;
+voice_3_freq = ((max(20, 3100 * pow(2.0, 0 * voice_3_pitch_age + 0.5 * 0 * voice_3_pitch_age * voice_3_pitch_age)))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0);
 voice_3_osc = no.noise;
 voice_3_colored = (voice_3_osc * (1.0 - clip01(1 + patch_mod_noise + 0.0)) + no.noise * clip01(1 + patch_mod_noise + 0.0));
 voice_3_driven = ma.tanh(voice_3_colored * (1.0 + clip01(0.1 + patch_mod_drive + 0.0) * 12.0)) / ma.tanh(1.0 + clip01(0.1 + patch_mod_drive + 0.0) * 12.0);

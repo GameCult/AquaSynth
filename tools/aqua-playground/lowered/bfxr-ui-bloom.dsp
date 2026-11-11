@@ -3,7 +3,8 @@ declare name "bfxr-ui-bloom";
 declare options "[nvoices:1]";
 
 time = ba.time / ma.SR;
-age = time - floor(time / 0.18) * 0.18;
+repeat_interval = 0.18;
+age = time;
 clip01(x) = min(1.0, max(0.0, x));
 wrap01(x) = x - floor(x);
 slew(rate,x) = x : *(1.0 - exp((0.0 - max(0.0001, rate)) / ma.SR)) : + ~ *(exp((0.0 - max(0.0001, rate)) / ma.SR));
@@ -41,8 +42,9 @@ patch_mod_formant_mix = 0.0;
 patch_mod_fm_index = 0.0;
 
 voice_0_age = age;
-voice_0_freq = ((max(20, 392 * pow(2.0, 0.18 * voice_0_age + 0.5 * 0 * voice_0_age * voice_0_age)))) * select2(voice_0_age < 0.08, 1.25, 1.0) * pow(2.0, patch_mod_pitch + 0.0);
-voice_0_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 392 * pow(2.0, 0.18 * voice_0_age + 0.5 * 0 * voice_0_age * voice_0_age)))) * select2(voice_0_age < 0.08, 1.25, 1.0) * pow(2.0, patch_mod_pitch + 0.0)) + 0));
+voice_0_pitch_age = voice_0_age - floor(voice_0_age / repeat_interval) * repeat_interval;
+voice_0_freq = ((max(20, 392 * pow(2.0, 0.18 * voice_0_pitch_age + 0.5 * 0 * voice_0_pitch_age * voice_0_pitch_age)))) * select2(voice_0_pitch_age < 0.08, 1.25, 1.0) * pow(2.0, patch_mod_pitch + 0.0);
+voice_0_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 392 * pow(2.0, 0.18 * voice_0_pitch_age + 0.5 * 0 * voice_0_pitch_age * voice_0_pitch_age)))) * select2(voice_0_pitch_age < 0.08, 1.25, 1.0) * pow(2.0, patch_mod_pitch + 0.0)) + 0));
 voice_0_colored = (voice_0_osc * (1.0 - clip01(0 + patch_mod_noise + 0.0)) + no.noise * clip01(0 + patch_mod_noise + 0.0));
 voice_0_driven = ma.tanh(voice_0_colored * (1.0 + clip01(0.06 + patch_mod_drive + 0.0) * 12.0)) / ma.tanh(1.0 + clip01(0.06 + patch_mod_drive + 0.0) * 12.0);
 voice_0_folded = voice_0_driven * (1.0 - clip01(0 + patch_mod_fold + 0.0)) + fold(voice_0_driven * (1.0 + clip01(0 + patch_mod_fold + 0.0) * 3.5)) * clip01(0 + patch_mod_fold + 0.0);
@@ -52,8 +54,9 @@ voice_0_formants = voice_0_phased;
 voice_0 = ((voice_0_phased * (1.0 - clip01(0 + patch_mod_formant_mix + 0.0)) + voice_0_formants * clip01(0 + patch_mod_formant_mix + 0.0)) * oneshot_adsr_at(voice_0_age, 0, 0, 0.8196721, 0.5, 0.05) * max(0.0, 1.0 + patch_mod_gain + 0.0) * 0.1464);
 
 voice_1_age = age;
-voice_1_freq = ((max(20, 588 * pow(2.0, 0 * voice_1_age + 0.5 * 0 * voice_1_age * voice_1_age)))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0);
-voice_1_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 588 * pow(2.0, 0 * voice_1_age + 0.5 * 0 * voice_1_age * voice_1_age)))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0)) + 0));
+voice_1_pitch_age = voice_1_age - floor(voice_1_age / repeat_interval) * repeat_interval;
+voice_1_freq = ((max(20, 588 * pow(2.0, 0 * voice_1_pitch_age + 0.5 * 0 * voice_1_pitch_age * voice_1_pitch_age)))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0);
+voice_1_osc = sin(2.0 * ma.PI * wrap01(os.phasor(1.0, ((max(20, 588 * pow(2.0, 0 * voice_1_pitch_age + 0.5 * 0 * voice_1_pitch_age * voice_1_pitch_age)))) * 1.0 * pow(2.0, patch_mod_pitch + 0.0)) + 0));
 voice_1_colored = (voice_1_osc * (1.0 - clip01(0 + patch_mod_noise + 0.0)) + no.noise * clip01(0 + patch_mod_noise + 0.0));
 voice_1_driven = ma.tanh(voice_1_colored * (1.0 + clip01(0.06 + patch_mod_drive + 0.0) * 12.0)) / ma.tanh(1.0 + clip01(0.06 + patch_mod_drive + 0.0) * 12.0);
 voice_1_folded = voice_1_driven * (1.0 - clip01(0 + patch_mod_fold + 0.0)) + fold(voice_1_driven * (1.0 + clip01(0 + patch_mod_fold + 0.0) * 3.5)) * clip01(0 + patch_mod_fold + 0.0);

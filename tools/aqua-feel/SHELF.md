@@ -85,18 +85,18 @@ Sustained patches such as the thruster keep sounding until stopped; the render c
 | `patch/advanced-glass-creature` | start | none | decays | 3 s | unheard |
 | `patch/advanced-human-larynx-graph` | start | curves/breath_phrase/depth 0..1 (default 0.9); curves/fold_onset/depth 0..1 (default 0.8); curves/lip_vowel/depth 0..1 (default 0.65); human/constriction/diameter 0.02..3 (default 0.95); human/constriction/index 0..6 (default 4.8); human/fold/opening 0..1 (default 0.16); human/fold/tension 0..1 (default 0.58); human/lip/opening 0..2 (default 1.2); human/subglottal 0..1.5 (default 0.78); human/tongue/diameter 0.05..3 (default 1.25); human/tongue/index 0..6 (default 3.3) | decays | 3 s | unheard |
 | `patch/advanced-machine-breath` | start | none | decays | 3 s | unheard |
-| `patch/advanced-ritual-sequence` | start | none | sustained | 3 s | unheard |
+| `patch/advanced-ritual-sequence` | start | none | decays | 3 s | unheard |
 | `patch/advanced-subtractive-drums` | start | none | decays | 3 s | unheard |
 | `patch/advanced-syrinx-voice` | start | curves/beak_phrase/depth 0..1 (default 0.72); curves/left_phrase_opening/depth 0..1 (default 0.85); curves/left_phrase_pressure/depth 0..1 (default 0.92); curves/right_phrase_opening/depth 0..1 (default 0.85); curves/right_phrase_pressure/depth 0..1 (default 0.92); voice/beak/opening 0..1.5 (default 0.88); voice/left/opening 0..1 (default 0.23); voice/left/pressure 0..1.5 (default 0.78); voice/left/tension 0..1 (default 0.43); voice/right/opening 0..1 (default 0.19); voice/right/pressure 0..1.5 (default 0.66); voice/right/tension 0..1 (default 0.5) | decays | 3 s | unheard |
 | `patch/bfxr-coin-spark` | start | none | decays | 3 s | unheard |
 | `patch/bfxr-portal-chirp` | start | none | decays | 3 s | unheard |
 | `patch/bfxr-shield-pop` | start | none | decays | 3 s | unheard |
-| `patch/bfxr-ui-bloom` | start | none | sustained | 3 s | unheard |
+| `patch/bfxr-ui-bloom` | start | none | decays | 3 s | unheard |
 | `patch/dx7-algorithm-32-additive-organ` | start | macro/drawbar 0..1 (default 0.78); macro/shimmer 0..0.3 (default 0.08) | decays | 3 s | unheard |
 | `patch/dx7-algorithm-8-bright-pair` | start | macro/brightness 0..5 (default 2.6); macro/strike 0.02..0.6 (default 0.18) | decays | 3 s | unheard |
 | `patch/dx7-public-domain-mc-mm-5-3` | start | none | decays | 3 s | unheard |
 | `patch/dx7-public-domain-prc-synth1-calibrated` | start | none | decays | 3 s | unheard |
-| `patch/examples-language-tour` | start | none | sustained | 3 s | unheard |
+| `patch/examples-language-tour` | start | none | decays | 3 s | unheard |
 | `patch/fm-bell-bell` | start | none | decays | 3 s | unheard |
 | `patch/fm-bell-chime` | start | none | decays | 3 s | unheard |
 | `patch/fm-bell-coin` | start | none | decays | 3 s | unheard |
@@ -108,7 +108,7 @@ Sustained patches such as the thruster keep sounding until stopped; the render c
 | `patch/sfxr-jump` | start | none | decays | 3 s | unheard |
 | `patch/sfxr-laser` | start | none | decays | 3 s | unheard |
 | `patch/sfxr-pickup` | start | none | decays | 3 s | unheard |
-| `patch/sfxr-powerup` | start | none | sustained | 3 s | unheard |
+| `patch/sfxr-powerup` | start | none | decays | 3 s | unheard |
 | `patch/wobble-bass-growl` | start | none | decays | 3 s | unheard |
 | `patch/wobble-bass-neuro` | start | none | decays | 3 s | unheard |
 | `patch/wobble-bass-talker` | start | none | decays | 3 s | unheard |

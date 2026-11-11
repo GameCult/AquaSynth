@@ -859,7 +859,7 @@
     "kind": "start",
     "detail": "plays from the moment it is started; no gate, trigger or audio-feature input. Sliders, where listed, are live while it plays."
    },
-   "behaviour": "sustained: still sounding at the end of the render window, runs until stopped",
+   "behaviour": "decays: dies away inside the render window",
    "duration_s": 3,
    "duration_note": "the render window, not the effect's length",
    "render": {
@@ -1106,7 +1106,7 @@
     "kind": "start",
     "detail": "plays from the moment it is started; no gate, trigger or audio-feature input. Sliders, where listed, are live while it plays."
    },
-   "behaviour": "sustained: still sounding at the end of the render window, runs until stopped",
+   "behaviour": "decays: dies away inside the render window",
    "duration_s": 3,
    "duration_note": "the render window, not the effect's length",
    "render": {
@@ -1265,7 +1265,7 @@
     "kind": "start",
     "detail": "plays from the moment it is started; no gate, trigger or audio-feature input. Sliders, where listed, are live while it plays."
    },
-   "behaviour": "sustained: still sounding at the end of the render window, runs until stopped",
+   "behaviour": "decays: dies away inside the render window",
    "duration_s": 3,
    "duration_note": "the render window, not the effect's length",
    "render": {
@@ -1565,7 +1565,7 @@
     "kind": "start",
     "detail": "plays from the moment it is started; no gate, trigger or audio-feature input. Sliders, where listed, are live while it plays."
    },
-   "behaviour": "sustained: still sounding at the end of the render window, runs until stopped",
+   "behaviour": "decays: dies away inside the render window",
    "duration_s": 3,
    "duration_note": "the render window, not the effect's length",
    "render": {

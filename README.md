@@ -164,3 +164,10 @@ dotnet build -p:CultLibRoot=<path>   # or set CULTLIB_ROOT=<path>
 ```
 
 Without an override the sibling `..\CultLib` checkout is used and must itself be at that revision.
+
+**Stores are one-way, and rolling back can lose data.** Since the pin move (#35) list elements carry ids, and a store holding any element id is stamped with a newer header. What an older build does with it depends on the store kind:
+
+- **Single-file stores** (header v3 with ids): the patch catalog (`patches/aquasynth-patch-cultcache.cc`), the speech training store and the daemon store. Pins before `cultlib-unity-v2.0.0` / `caching-unity-v2.0.0`, including NuGet `cultlib-v1.0.32`, read these without complaint, silently drop the ids, and can rewrite elements without them. Only v2.0.0 and later refuse by name.
+- **Directory stores** (header v5 with ids): the IPA trial results store (`ipa-trial-results.cc`, `UseDirectoryStore`). These are refused by name from `cultlib-unity-v1.0.57` / `caching-unity-v1.2.0`.
+
+So: take a copy of any store before the upgrade and restore from it if you roll back, never write with the new pin and then read with an old one, and upgrade every reader before any writer. Stores written before the move still open; ids are minted on load.
