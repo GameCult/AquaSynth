@@ -61,8 +61,7 @@ failing rule, and a rule with an `id` that matches no item (a renamed or dropped
 are deleted when the thing they excuse is fixed and a rename cannot silently disarm a cap. A missing metric fails its rule. The numbers were chosen after looking
 at the shipped renders. They are tripwires, not taste.
 
-Current waivers: `sfxr-classic-classic-sfxr-abstract-golf` (+0.9 dBTP, -5.3 LUFS, held noise) and `sfxr-explosion` (3 s of
-steady noise without decay). Nobody has listened to either to see if the number is the sound.
+Current waivers: none. (The golf and explosion waivers were removed when `patch repeat` stopped cutting their envelopes; nobody has listened to either to see if the numbers are the sound.)
 
 ## Effects shelf
 
