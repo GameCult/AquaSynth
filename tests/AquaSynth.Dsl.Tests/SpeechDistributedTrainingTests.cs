@@ -180,6 +180,8 @@ public sealed class SpeechDistributedTrainingTests
             Assert.True(after < before, $"expected CultMesh worker gradients to reduce loss; before={before}, after={after}");
             Assert.Single(payloads);
             Assert.Equal(SpeechCultMeshRoles.RenderWorker, payloads[0].WorkerRole);
+            // One payload, four receipts: PayloadId is a role (many rows share it), not a unique index (CultLib #90).
+            Assert.Equal(4, admissions.Count(receipt => receipt.PayloadId == "payload-cultmesh-0001"));
             Assert.Equal(2, admissions.Count(receipt => receipt.Status == SpeechWorkerAdmissionStatus.Admitted));
             Assert.Equal(2, admissions.Count(receipt => receipt.Status == SpeechWorkerAdmissionStatus.Rejected));
             Assert.All(admissions.Where(receipt => receipt.Status == SpeechWorkerAdmissionStatus.Admitted), receipt => Assert.NotEmpty(receipt.AssignedRequestIds));
@@ -282,6 +284,30 @@ public sealed class SpeechDistributedTrainingTests
         }
 
         return loss / actual.Count;
+    }
+
+    [Fact]
+    public async Task OneRequestMayHaveAFailedAndAScoredResultInTheSameStore()
+    {
+        var directory = TempDirectory();
+        try
+        {
+            var resultStore = Path.Combine(directory, "speech-results.cc");
+            var request = SpeechDistributedTrainingCoordinator.CreateRenderRequests("batch-roles", Pipeline(), TrainingSet())[0];
+            var scored = SpeechDistributedTrainingCoordinator.ScoreControlVectorRequests([request], "worker-a");
+            var failed = SpeechDistributedTrainingCoordinator.ScoreControlVectorRequests([request with { CandidateControlVector = [] }], "worker-b");
+            await SpeechDistributedTrainingCultCacheStore.UpsertResultsAsync(resultStore, [.. scored, .. failed]);
+
+            // RequestId is a role: a retried request keeps its failed result beside the later scored one (CultLib #90 makes CultIndex unique).
+            var loaded = await SpeechDistributedTrainingCultCacheStore.ReadResultsAsync(resultStore);
+            Assert.Equal(2, loaded.Count(result => result.RequestId == request.RequestId));
+            Assert.Contains(loaded, result => result.Status == SpeechRenderStatus.Failed);
+            Assert.Contains(loaded, result => result.Status == SpeechRenderStatus.Succeeded);
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
     }
 
     private static string TempDirectory()

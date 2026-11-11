@@ -32,7 +32,7 @@ public sealed record SpeechRenderResult(
     [property: CultName]
     string ResultId,
     [property: Key(1)]
-    [property: CultIndex("request")]
+    [property: CultRole("request")]
     string RequestId,
     [property: Key(2)] string WorkerId,
     [property: Key(3)] string RendererToolchain,
@@ -150,7 +150,7 @@ public sealed record SpeechWorkerAdmissionReceipt(
     [property: CultName]
     string ReceiptId,
     [property: Key(1)]
-    [property: CultIndex("payload")]
+    [property: CultRole("payload")]
     string PayloadId,
     [property: Key(2)] string PeerId,
     [property: Key(3)] string LeaseId,

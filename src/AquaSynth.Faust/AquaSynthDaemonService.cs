@@ -95,14 +95,14 @@ public sealed record AquaSynthInstrumentOpenCommand(
 [MessagePackObject]
 public sealed record AquaSynthInstrumentControlCommand(
     [property: Key(0), CultName] string CommandId,
-    [property: Key(1), CultIndex("session")] string SessionId,
+    [property: Key(1), CultRole("session")] string SessionId,
     [property: Key(2)] Dictionary<string, float> Controls);
 
 [CultDocument("aquasynth.command.instrument_block", AquaSynthDaemonSchemas.InstrumentBlockCommand)]
 [MessagePackObject]
 public sealed record AquaSynthInstrumentBlockCommand(
     [property: Key(0), CultName] string CommandId,
-    [property: Key(1), CultIndex("session")] string SessionId,
+    [property: Key(1), CultRole("session")] string SessionId,
     [property: Key(2)] int FrameCount = 128,
     [property: Key(3)] float Gain = 1.0f,
     [property: Key(4)] Dictionary<string, float>? Controls = null);
@@ -111,13 +111,13 @@ public sealed record AquaSynthInstrumentBlockCommand(
 [MessagePackObject]
 public sealed record AquaSynthInstrumentCloseCommand(
     [property: Key(0), CultName] string CommandId,
-    [property: Key(1), CultIndex("session")] string SessionId);
+    [property: Key(1), CultRole("session")] string SessionId);
 
 [CultDocument("aquasynth.compiled_instrument_session", AquaSynthDaemonSchemas.CompiledInstrumentSession)]
 [MessagePackObject]
 public sealed record AquaSynthCompiledInstrumentSession(
     [property: Key(0), CultName] string SessionId,
-    [property: Key(1), CultIndex("patch")] string PatchId,
+    [property: Key(1), CultRole("patch")] string PatchId,
     [property: Key(2)] string CompileKey,
     [property: Key(3)] string FaustName,
     [property: Key(4)] int Revision,
@@ -134,7 +134,7 @@ public sealed record AquaSynthCompiledInstrumentSession(
 [MessagePackObject]
 public sealed record AquaSynthLiveInstrumentSessionState(
     [property: Key(0), CultName] string SessionId,
-    [property: Key(1), CultIndex("patch")] string PatchId,
+    [property: Key(1), CultRole("patch")] string PatchId,
     [property: Key(2)] string Status,
     [property: Key(3)] string OpenedAtUtc,
     [property: Key(4)] string UpdatedAtUtc,
@@ -154,7 +154,7 @@ public sealed record AquaSynthLiveInstrumentSessionState(
 public sealed record AquaSynthPatchCompileReceipt(
     [property: Key(0), CultName] string ReceiptId,
     [property: Key(1), CultIndex("command")] string CommandId,
-    [property: Key(2), CultIndex("patch")] string PatchId,
+    [property: Key(2), CultRole("patch")] string PatchId,
     [property: Key(3)] string SessionId,
     [property: Key(4)] string Status,
     [property: Key(5)] string DecidedAtUtc,
@@ -170,7 +170,7 @@ public sealed record AquaSynthPatchCompileReceipt(
 public sealed record AquaSynthRenderSampleReceipt(
     [property: Key(0), CultName] string RenderId,
     [property: Key(1), CultIndex("command")] string CommandId,
-    [property: Key(2), CultIndex("patch")] string PatchId,
+    [property: Key(2), CultRole("patch")] string PatchId,
     [property: Key(3)] string SessionId,
     [property: Key(4)] string Status,
     [property: Key(5)] string CompletedAtUtc,
@@ -190,7 +190,7 @@ public sealed record AquaSynthRenderSampleReceipt(
 public sealed record AquaSynthAutomationStreamReceipt(
     [property: Key(0), CultName] string StreamRunId,
     [property: Key(1), CultIndex("command")] string CommandId,
-    [property: Key(2), CultIndex("patch")] string PatchId,
+    [property: Key(2), CultRole("patch")] string PatchId,
     [property: Key(3)] string SessionId,
     [property: Key(4)] string Status,
     [property: Key(5)] string CompletedAtUtc,
@@ -210,8 +210,8 @@ public sealed record AquaSynthAutomationStreamReceipt(
 public sealed record AquaSynthInstrumentOpenReceipt(
     [property: Key(0), CultName] string ReceiptId,
     [property: Key(1), CultIndex("command")] string CommandId,
-    [property: Key(2), CultIndex("patch")] string PatchId,
-    [property: Key(3), CultIndex("session")] string SessionId,
+    [property: Key(2), CultRole("patch")] string PatchId,
+    [property: Key(3), CultRole("session")] string SessionId,
     [property: Key(4)] string Status,
     [property: Key(5)] string OpenedAtUtc,
     [property: Key(6)] int SampleRate,
@@ -228,7 +228,7 @@ public sealed record AquaSynthInstrumentOpenReceipt(
 public sealed record AquaSynthInstrumentControlReceipt(
     [property: Key(0), CultName] string ReceiptId,
     [property: Key(1), CultIndex("command")] string CommandId,
-    [property: Key(2), CultIndex("session")] string SessionId,
+    [property: Key(2), CultRole("session")] string SessionId,
     [property: Key(3)] string Status,
     [property: Key(4)] string AppliedAtUtc,
     [property: Key(5)] int ControlCount,
@@ -240,7 +240,7 @@ public sealed record AquaSynthInstrumentControlReceipt(
 public sealed record AquaSynthInstrumentBlockReceipt(
     [property: Key(0), CultName] string BlockId,
     [property: Key(1), CultIndex("command")] string CommandId,
-    [property: Key(2), CultIndex("session")] string SessionId,
+    [property: Key(2), CultRole("session")] string SessionId,
     [property: Key(3)] string Status,
     [property: Key(4)] string CompletedAtUtc,
     [property: Key(5)] ulong Sequence,
@@ -258,7 +258,7 @@ public sealed record AquaSynthInstrumentBlockReceipt(
 public sealed record AquaSynthInstrumentCloseReceipt(
     [property: Key(0), CultName] string ReceiptId,
     [property: Key(1), CultIndex("command")] string CommandId,
-    [property: Key(2), CultIndex("session")] string SessionId,
+    [property: Key(2), CultRole("session")] string SessionId,
     [property: Key(3)] string Status,
     [property: Key(4)] string ClosedAtUtc,
     [property: Key(5)] bool Released,
