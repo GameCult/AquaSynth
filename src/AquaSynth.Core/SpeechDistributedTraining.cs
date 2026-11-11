@@ -67,7 +67,8 @@ public sealed record SpeechTimingReceipt(
     [property: Key(2)] double LatencyMilliseconds,
     [property: Key(3)] double BudgetMilliseconds,
     [property: Key(4)] float Confidence,
-    [property: Key(5)] string Notes);
+    [property: Key(5)] string Notes,
+    [property: Key(6), CultElementId] string ElementId = "");
 
 [MessagePackObject]
 public sealed record SpeechUtteranceEmbeddingInputSnapshot(
@@ -107,13 +108,15 @@ public sealed record SpeechPhoneticEventSnapshot(
 public sealed record SpeechScoreMetric(
     [property: Key(0)] string Name,
     [property: Key(1)] float Value,
-    [property: Key(2)] float Weight);
+    [property: Key(2)] float Weight,
+    [property: Key(3), CultElementId] string ElementId = "");
 
 [MessagePackObject]
 public sealed record SpeechRenderArtifact(
     [property: Key(0)] string Kind,
     [property: Key(1)] string Uri,
-    [property: Key(2)] string ContentHash);
+    [property: Key(2)] string ContentHash,
+    [property: Key(3), CultElementId] string ElementId = "");
 
 public enum SpeechRenderStatus
 {
@@ -141,7 +144,8 @@ public sealed record SpeechWorkerPayloadArtifact(
     [property: Key(0)] string Kind,
     [property: Key(1)] string Uri,
     [property: Key(2)] string ContentHash,
-    [property: Key(3)] string MediaType);
+    [property: Key(3)] string MediaType,
+    [property: Key(4), CultElementId] string ElementId = "");
 
 [CultDocument("aquasynth.speech_worker_admission_receipt", "aquasynth.speech_worker_admission_receipt.v1")]
 [MessagePackObject]

@@ -2,8 +2,8 @@
   <PropertyGroup>
     <CultLibRoot Condition="'$(CultLibRoot)' == '' and '$(CULTLIB_ROOT)' != ''">$(CULTLIB_ROOT)</CultLibRoot>
     <CultLibRoot Condition="'$(CultLibRoot)' == ''">$(MSBuildThisFileDirectory)..\CultLib</CultLibRoot>
-    <!-- CultLib 2.0.0: tag cultlib-unity-v2.0.0. -->
-    <CultLibRevision>42dce3611a81adc5c5fac54cadbaa5637d6022d3</CultLibRevision>
+    <!-- CultLib abd1a92e (#91; floor 7760219b for [CultIndex] uniqueness and [CultElementId]). -->
+    <CultLibRevision>abd1a92eb24e1af3fc7cdd1bf98a88dbdebc2938</CultLibRevision>
     <GitExecutable Condition="'$(GitExecutable)' == '' and Exists('C:\Program Files\Git\cmd\git.exe')">C:\Program Files\Git\cmd\git.exe</GitExecutable>
     <GitExecutable Condition="'$(GitExecutable)' == ''">git</GitExecutable>
   </PropertyGroup>

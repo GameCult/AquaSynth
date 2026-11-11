@@ -77,7 +77,8 @@ public sealed record AquaSynthAutomationStreamCommand(
 [MessagePackObject]
 public sealed record AquaSynthAutomationControlFrame(
     [property: Key(0)] int Block,
-    [property: Key(1)] Dictionary<string, float> Controls);
+    [property: Key(1)] Dictionary<string, float> Controls,
+    [property: Key(2), CultElementId] string ElementId = "");
 
 [CultDocument("aquasynth.command.instrument_open", AquaSynthDaemonSchemas.InstrumentOpenCommand)]
 [MessagePackObject]
@@ -276,7 +277,8 @@ public sealed record AquaSynthCultMeshStreamDescriptor(
     [property: Key(6)] int Channels,
     [property: Key(7)] int FramesPerPacket,
     [property: Key(8)] string[] PreferredTransports,
-    [property: Key(9)] string? MetadataSchemaId);
+    [property: Key(9)] string? MetadataSchemaId,
+    [property: Key(10), CultElementId("StreamId")] string ElementId = "");
 
 [MessagePackObject]
 public sealed record AquaSynthAutomationPacketReceipt(
@@ -289,7 +291,8 @@ public sealed record AquaSynthAutomationPacketReceipt(
     [property: Key(6)] string Float32Uri,
     [property: Key(7)] string ContentHash,
     [property: Key(8)] string PageRef,
-    [property: Key(9)] int ControlCount);
+    [property: Key(9)] int ControlCount,
+    [property: Key(10), CultElementId("Sequence")] string ElementId = "");
 
 [CultDocument("aquasynth.operator_state", AquaSynthDaemonSchemas.OperatorState)]
 [CultGlobal]

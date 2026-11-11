@@ -83,7 +83,8 @@ public sealed class CultCachePatchDocumentTests
             Path.Combine(RepositoryRoot(), "patches", "aquasynth-patch-cultcache.cc"));
         var fromCatalog = CultCachePatchDocumentCatalog.CreateDefault();
 
-        Assert.Equal(fromCatalog.PatchDatabase.Entries, fromFile.PatchDatabase.Entries);
+        // The checked-in file predates element ids; a load mints them (derived from Path), so they are not part of the catalog's content.
+        Assert.Equal(fromCatalog.PatchDatabase.Entries, fromFile.PatchDatabase.Entries.Select(entry => entry with { ElementId = "" }));
         Assert.Equal(fromCatalog.PatchClaims.Select(claim => claim.Id), fromFile.PatchClaims.Select(claim => claim.Id));
         Assert.Equal(fromCatalog.SpeechClaims.Select(claim => claim.Id), fromFile.SpeechClaims.Select(claim => claim.Id));
     }
