@@ -29,12 +29,10 @@ public static partial class FaustEmitter
         if (patch.Repeat is { } repeat)
         {
             var interval = parameters.Expression("/patch/repeat", repeat.IntervalSeconds);
-            source.AppendLine($"age = time - floor(time / {interval}) * {interval};");
+            // sfxr's repeat restarts the pitch slide and the arpeggio, not the envelope: age keeps running, the voices wrap their pitch age.
+            source.AppendLine($"repeat_interval = {interval};");
         }
-        else
-        {
-            source.AppendLine("age = time;");
-        }
+        source.AppendLine("age = time;");
         source.AppendLine("clip01(x) = min(1.0, max(0.0, x));");
         source.AppendLine("wrap01(x) = x - floor(x);");
         source.AppendLine("slew(rate,x) = x : *(1.0 - exp((0.0 - max(0.0001, rate)) / ma.SR)) : + ~ *(exp((0.0 - max(0.0001, rate)) / ma.SR));");
@@ -325,6 +323,9 @@ public static partial class FaustEmitter
             ? $"{voiceAge} = wrap01(age / {F(voice.Note.TriggerIntervalSeconds)}) * {F(voice.Note.TriggerIntervalSeconds)};"
             : $"{voiceAge} = age;");
 
+        var pitchAge = patch.Repeat is null ? voiceAge : $"{name}_pitch_age";
+        if (patch.Repeat is not null) source.AppendLine($"{pitchAge} = {voiceAge} - floor({voiceAge} / repeat_interval) * repeat_interval;");
+
         var minFreq = parameters.Expression(OwnerField(ownerPath, "pitch/min_freq"), voice.Pitch.MinFrequencyHz);
         var noteFreq = NoteFrequencyExpression(source, patch.Playback, voice.Note, name, OwnerField(ownerPath, "note/frequency"), parameters);
         var noteGate = NoteGateExpression(source, patch.Playback, voice.Note, name, OwnerField(ownerPath, "note/gate"), parameters);
@@ -333,7 +334,7 @@ public static partial class FaustEmitter
         var vibratoDepth = parameters.Expression(OwnerField(ownerPath, "pitch/vibrato"), voice.Pitch.VibratoDepth);
         var vibratoHz = parameters.Expression(OwnerField(ownerPath, "pitch/vibrato_hz"), voice.Pitch.VibratoHz);
         var vibratoDelay = parameters.Expression(OwnerField(ownerPath, "pitch/vibrato_delay"), voice.Pitch.VibratoDelaySeconds);
-        var baseFreq = $"max({minFreq}, {noteFreq} * pow(2.0, {pitchRamp} * {voiceAge} + 0.5 * {pitchDelta} * {voiceAge} * {voiceAge}))";
+        var baseFreq = $"max({minFreq}, {noteFreq} * pow(2.0, {pitchRamp} * {pitchAge} + 0.5 * {pitchDelta} * {pitchAge} * {pitchAge}))";
         var hasVibrato = voice.Pitch.VibratoDepth != 0 && voice.Pitch.VibratoHz > 0 ||
                          parameters.IsBound(OwnerField(ownerPath, "pitch/vibrato")) ||
                          parameters.IsBound(OwnerField(ownerPath, "pitch/vibrato_hz"));
@@ -342,7 +343,7 @@ public static partial class FaustEmitter
             : "";
         var arpeggio = voice.Arpeggio is null
             ? "1.0"
-            : $"select2({voiceAge} < {parameters.Expression(OwnerField(ownerPath, "arpeggio/delay"), voice.Arpeggio.DelaySeconds)}, {parameters.Expression(OwnerField(ownerPath, "arpeggio/multiplier"), voice.Arpeggio.Multiplier)}, 1.0)";
+            : $"select2({pitchAge} < {parameters.Expression(OwnerField(ownerPath, "arpeggio/delay"), voice.Arpeggio.DelaySeconds)}, {parameters.Expression(OwnerField(ownerPath, "arpeggio/multiplier"), voice.Arpeggio.Multiplier)}, 1.0)";
         var frequency = $"(({baseFreq}){vibrato}) * {arpeggio} * pow(2.0, patch_mod_pitch + {pitch})";
         var dutyExpression = $"clip01({parameters.Expression(OwnerField(ownerPath, "osc/duty"), voice.Oscillator.Duty)} + {parameters.Expression(OwnerField(ownerPath, "duty/ramp"), voice.Duty.RampPerSecond)} * {voiceAge} + patch_mod_duty + {duty})";
         var fmIndex = $"max(0.0, {parameters.Expression(OwnerField(ownerPath, "fm/index"), voice.Fm.Index)} + patch_mod_fm_index + {fmIndexMod}) * {FmDecay(parameters.Expression(OwnerField(ownerPath, "fm/decay"), voice.Fm.IndexDecaySeconds), voice.Fm.IndexDecaySeconds, parameters.IsBound(OwnerField(ownerPath, "fm/decay")), voiceAge)}";
