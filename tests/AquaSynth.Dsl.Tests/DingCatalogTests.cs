@@ -24,9 +24,17 @@ public sealed class DingCatalogTests
     [Fact]
     public void HostCallsTheGateAndOwnsNoSecondCopy()
     {
-        var host = File.ReadAllText(Path.Combine(RepositoryRoot(), "tools", "AquaSynthDingsHost", "DingsPlaybackHost.cs"));
-        Assert.Contains("DingCatalog.PlayRejection(", host, StringComparison.Ordinal);
+        var raw = File.ReadAllText(Path.Combine(RepositoryRoot(), "tools", "AquaSynthDingsHost", "DingsPlaybackHost.cs"));
+        var host = System.Text.RegularExpressions.Regex.Replace(raw, @"//[^\n]*|/\*.*?\*/", "", System.Text.RegularExpressions.RegexOptions.Singleline);
+        // Source-shape check: the guard must be an unconditional early return of the gate's text.
+        Assert.Matches(@"if \(DingCatalog\.PlayRejection\(command\.EventId, command\.InstrumentId, command\.Value\) is \{ \} (\w+)\) return Response\(false, ""rejected"", \1\);", host);
+        // No second copy of the old inline conditions or texts, however the string is split.
+        Assert.DoesNotContain("Events.TryGetValue", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("Instruments.TryGetValue", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("Gain must", host, StringComparison.Ordinal);
         Assert.DoesNotContain("Unknown event", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unknown instrument", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Unk\"", host, StringComparison.Ordinal);
     }
 
     [Fact]

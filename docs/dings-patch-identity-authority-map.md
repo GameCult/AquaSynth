@@ -31,15 +31,15 @@ code. The grouping above follows who writes the key.
 
 ## A. `DingCatalog` instrument id and script
 
-- Where: `src/AquaSynth.Dings/DingCatalog.cs:29-35` (four instruments), built by the
+- Where: `src/AquaSynth.Dings/DingCatalog.cs:39-45` (four instruments), built by the
   private `Instrument(...)` at `:56-57`, which writes the `Script` string (an AquaSynth patch script, `param path=...; voice wave=...`, that `FaustEmitter.EmitScript` lowers to Faust; not Faust source) and
   fixes `RootFrequency = 261.6256f` for all four.
 - Keys on: the instrument `Id` string (`warm-bell`, `glass-chime`, `soft-triangle`,
   `muted-pluck`), case-insensitive dictionary (`:35`). Events are a separate keyed
   dictionary (`:16-27`, nine ids) and are not voice identity.
 - Lifetime: compiled in. Changing an entry means a new build of every consumer.
-- Writer: whoever edits the file. `ValidateCuration` (`:37-54`) is the only gate.
-- Readers: `Host/DingsPlaybackHost.cs:66-67`, `Mcp/DingService.cs:9-10`,
+- Writer: whoever edits the file. `ValidateCuration` (`:47-64`) is the only gate.
+- Readers: `Host/DingsPlaybackHost.cs:66-68` (via `DingCatalog.PlayRejection`, `DingCatalog.cs:17-24`), `Mcp/DingService.cs:12-13`,
   `Mcp/AgentInstrumentRegistry.cs:11`, `Mcp/DingTools.cs:28,31,49`,
   `tools/AquaLower/Program.cs:17`, and the tests `DingCatalogTests`.
 - Content hash: none. The id is a label; the script is the content. Nothing here says
@@ -114,10 +114,11 @@ builds more keys from them.
   observe a reconnect.)
 - Writer: the agent, through `claim_instrument`, or the hash. Reader: `play_ding`
   (`DingTools.cs:16`) and `get_agent_instrument` (`:19`).
-- Also decides: `DingService.PlayAsync` (`Mcp/DingService.cs:9-11`) re-validates event,
-  instrument and gain, and the Host validates the same three again
-  (`DingsPlaybackHost.cs:66-68`). Two gates on one decision; they agree today because
-  both read `DingCatalog`.
+- Also decides: `DingService.PlayAsync` (`Mcp/DingService.cs:12-14`) validates event,
+  instrument and gain, and the Host validates the same three (`DingsPlaybackHost.cs:66-68`).
+  Post-step-4 state: the Host owns the gate through `DingCatalog.PlayRejection`; the
+  bridge copy is the DEPRECATED fail-fast path (see Migration plan, Step 4). They agree
+  because both read `DingCatalog`.
 
 ## D. `tools/dings-voices` sender voices
 
@@ -147,7 +148,7 @@ builds more keys from them.
   ids; its comment (`:21`) says values "start from the Dings catalog instruments and
   were not tuned by ear". The values have drifted from the catalog:
 
-  | id | catalog root / decay (`DingCatalog.cs:31-34`) | workshop `rootHz` / `decay` |
+  | id | catalog root / decay (`DingCatalog.cs:41-44`) | workshop `rootHz` / `decay` |
   |---|---|---|
   | warm-bell | 261.6256 / 1.15 | 261.6256 / 0.55 |
   | glass-chime | 261.6256 / 0.85 | 329.6276 / 0.45 |
@@ -186,8 +187,9 @@ builds more keys from them.
    test). Now it is in `DingCatalog.Identity`. What remains: the `dings.<id>` patch id appears
    in `StoreFileNameTests` as a literal, and the test pins literals, so a rename of the rule
    fails those tests on purpose rather than silently moving store file names.
-6. **Double validation.** `DingService.cs:9-11` and `DingsPlaybackHost.cs:66-68` each
-   decide whether an id is valid. Safe while both read one dictionary.
+6. **Double validation (step 4 done).** The Host owns the gate (`DingsPlaybackHost.cs:66`
+   calls `DingCatalog.PlayRejection`); `DingService.cs:12-14` is the deprecated bridge
+   fail-fast copy. Still two checks until the bridge copy is removed; safe while both read one dictionary.
 
 ## The Host pipe protocol, as read from source
 
@@ -248,7 +250,7 @@ response `Version` (`:46`). Connect timeout 350 ms; on `TimeoutException` or
 directory the repo root found by walking up to `AquaSynth.sln`) and retries up to 20
 times at 500 ms connect with 100 ms gaps, all inside a 15 s overall timeout. A
 `Succeeded = false` response is turned into `InvalidOperationException(response.Message)`
-by `DingService.EnsureSuccess` (`DingService.cs:22-26`).
+by `DingService.EnsureSuccess` (`DingService.cs:25-29`).
 
 **MCP side, for completeness.** Tools (`Mcp/DingTools.cs`): `play_ding`,
 `get_agent_instrument`, `claim_instrument`, `list_ding_events`, `list_instruments`,
@@ -346,7 +348,7 @@ Rules for every step: deprecate before removing (mark the old path with a pointe
 **Step 3. Content revision** (replace the literal 1 with a catalog hash). Deliberately breaks byte-identity: compile keys, session ids and `sessions/<...>.cc` names all change. Needs its own ruling on what feeds the hash and whether old session files are left or removed. Verify: receipts before and after, with the old keys listed as expected to change. Rollback: revert to literal 1; new session files stay as orphans, harmless.
 
 **Step 4. One validation gate (done in this change).** Finding: both gates already read the same `DingCatalog.Events` / `DingCatalog.Instruments` dictionaries, so the change is the single rule text, not the data. The Host was already the only enforcing gate (every pipe client passes it); the bridge check is a pre-filter that cannot be forwarded away without a visible change (bridge throws `ArgumentException` / `ArgumentOutOfRangeException`, the Host path surfaces as `InvalidOperationException`; the bridge also lets a NaN gain through to the Host's rejection). So: `DingCatalog.PlayRejection(eventId, instrumentId, gain)` is now the one rule and returns the Host's exact rejection text or null; `DingsPlaybackHost.PlayAsync` calls it (same texts, same `rejected` status, same non-finite gain rejection). `DingService.PlayAsync` keeps its own check unchanged, marked DEPRECATED with a pointer comment; remove it only in a separate PR after the window. No protocol change, no identity change, no audible change.
-- Verify (ran): `DingCatalogTests` + `DingsBridgeTests` + all `Ding*`/`StoreFileName*` focused tests (79 passed, includes the step-1 identity pins untouched); `dotnet build tools/AquaSynthDingsHost` clean. New tests pin the gate texts (incl. NaN/Infinity), that the Host calls the gate and carries no second copy of the text, and that the deprecated bridge path keeps its exception types, sends nothing to the Host when it rejects, and agrees with the gate's texts. Each was mutation-checked (text change, gate call removed from Host, bridge exception type/text changed, NaN check dropped): each mutation failed at least one test.
+- Verify (ran): `DingCatalogTests` + `DingsBridgeTests` + all `Ding*`/`StoreFileName*` focused tests (79 passed, includes the step-1 identity pins untouched); `dotnet build tools/AquaSynthDingsHost` clean. New tests pin the gate texts (incl. NaN/Infinity), the exact guard statement in the Host source (`PlayRejection(...) is { } x` followed by `return Response(false, "rejected", x)`, comment-stripped; a source-shape check, not a behaviour check, so it cannot see a bypass built some other way), and that the deprecated bridge path keeps its exception types, sends nothing to the Host when it rejects, and agrees with the gate's texts. Each was mutation-checked (text change, gate call removed from Host, bridge exception type/text changed, NaN check dropped): each mutation failed at least one test.
 - Not verified: the Host rejecting over a live pipe (compile-checked and read; no Host test project exists and none was added); nothing heard.
 - Rollback: revert; both gates read one dictionary, so behaviour is the same either way.
 
