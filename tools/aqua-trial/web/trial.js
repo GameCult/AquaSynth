@@ -3,7 +3,7 @@
 // Nothing here makes a network request after the page assets load, and nothing is written to storage.
 import { instantiateFaustModuleFromFile, LibFaust, FaustCompiler, FaustMonoDspGenerator } from "./vendor/faustwasm/index.js";
 import { controlsOf } from "./ui.js";
-import { variants, makeDesign, renderVariant, cleanWord, validRating, buildExport, PATCH } from "./logic.js";
+import { variants, makeDesign, renderVariant, cleanWord, validRating, buildExport, sha256Hex, PATCH } from "./logic.js";
 
 const $ = (s, root = document) => root.querySelector(s);
 const status = (t) => { $("#status").textContent = t; };
@@ -11,7 +11,7 @@ const seed = crypto.getRandomValues(new Uint32Array(1))[0];
 const design = makeDesign(seed);
 const answers = [];
 const renders = {};   // variant id -> { buffer, peak, rms }
-let ctx, source, current = 0, plays = { A: 0, B: 0 };
+let ctx, source, dspSha256, current = 0, plays = { A: 0, B: 0 };
 
 $("#agree").onchange = () => { $("#start").disabled = !$("#agree").checked; };
 $("#start").onclick = start;
@@ -38,7 +38,9 @@ async function start() {
     status("Loading the Faust compiler…");
     const compiler = new FaustCompiler(new LibFaust(await instantiateFaustModuleFromFile("./vendor/libfaust-wasm/libfaust-wasm.js")));
     const g = new FaustMonoDspGenerator();
-    if (!await g.compile(compiler, "thruster_trial", await (await fetch(`./${PATCH}.dsp`)).text(), "-ftz 2")) throw new Error(compiler.getErrorMessage());
+    const dspText = await (await fetch(`./${PATCH}.dsp`)).text();
+    dspSha256 = await sha256Hex(dspText);   // the exact source compiled, so an export names the DSP that produced it
+    if (!await g.compile(compiler, "thruster_trial", dspText, "-ftz 2")) throw new Error(compiler.getErrorMessage());
     const controls = controlsOf(JSON.parse(g.factory.json));
     for (const v of variants()) {
       status(`Rendering ${Object.keys(renders).length + 1} of ${variants().length}…`);
@@ -100,7 +102,7 @@ function next() {
 
 function exportJson() {
   const doc = buildExport({
-    seed, design, answers, sampleRate: ctx.sampleRate, userAgent: navigator.userAgent, exportedAt: new Date().toISOString(),
+    seed, design, answers, dspSha256, sampleRate: ctx.sampleRate, userAgent: navigator.userAgent, exportedAt: new Date().toISOString(),
     renders: Object.fromEntries(Object.entries(renders).map(([id, r]) => [id, { peak: r.peak, rms: r.rms }])),
   });
   const url = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" }));

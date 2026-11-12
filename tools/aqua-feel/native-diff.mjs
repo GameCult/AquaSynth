@@ -2,8 +2,7 @@
 // Faust source, at the same params, 48 kHz and length. Nothing here was heard.
 // Both sides compile against their own stdlib (faustwasm bundles libfaust's; native reads AQUASYNTH_FAUST_HOME's share/faust), so a
 // difference here can be library text, not the host: the report records the identities. The script exits 1
-// on a render error, a length mismatch, or a LIMITS violation. LIMITS sit between the largest deltas seen across 13 sources and
-// three conditions (|LUFS| 0.017, |true peak| 0.152 dB, centroid 0.3 %) and a deliberate +1 dB gain (LUFS and true peak 1.0 dB);
+// on a render error, a length mismatch, or a LIMITS violation. LIMITS (native-compare.js; the evidence for their values is there, and native-diff.test.mjs trips each) bound the differences;
 // the sample-level bound applies only with --smoother imp3, where the largest error seen is -75.4 dB (dx7-32, unexplained, is -79.5) and a one-sample
 // shift reads about -4 dB. With the library smoother the waveforms legitimately diverge (thruster -8 to -29 dB), so no sample bound.
 // usage: node native-diff.mjs <FaustNativeRender dir|dll> [--tract PATH.dsp] [--out DIR] [--items core|smoother] [--smoother library|old|imp3]
@@ -16,11 +15,11 @@ import { spawnSync } from "node:child_process";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
-import { SR, measure } from "./metrics.js";
+import { SR } from "./metrics.js";
+import { compareRenders, violationsOf } from "./native-compare.js";
 import { gate } from "./gate.js";
 import { loadRuntime, compile, renderOnce, writeWav, readText, playground } from "./render.js";
 
-const LIMITS = { lufsDb: 0.1, truePeakDb: 0.5, centroidPct: 1, relRmsErrDbImp3: -60 };
 const here = dirname(fileURLToPath(import.meta.url)), args = process.argv.slice(2);
 const opt = (k) => { const i = args.indexOf(k); return i < 0 ? null : args[i + 1]; };
 const bin = resolve(args[0]), out = resolve(opt("--out") ?? join(tmpdir(), "aqua-feel-native-diff"));
@@ -60,22 +59,12 @@ for (const it of items) {
   const r = spawnSync("dotnet", [bin.endsWith(".dll") ? bin : join(bin, "FaustNativeRender.dll"), dsp, wav, String(it.seconds), ...Object.entries(it.params).map(([k, v]) => `${k}=${v}`)], { encoding: "utf8" });
   if (r.status !== 0) { rows.push({ id: it.id, error: (r.stderr || r.stdout).slice(0, 400) }); continue; }
   const n = readF32Wav(wav); writeWav(join(out, `${it.id.replace(/[^A-Za-z0-9._@-]+/g, "_")}.wasm.wav`), w);
-  if (w.length !== n.length) { rows.push({ id: it.id, error: `length mismatch: wasm ${w.length}, native ${n.length}` }); continue; }
-  const len = w.length; let maxErr = 0, at = 0, sq = 0, sqRef = 0;
-  for (let i = 0; i < len; i++) { const d = Math.abs(w[i] - n[i]); if (d > maxErr) { maxErr = d; at = i; } sq += d * d; sqRef += w[i] * w[i]; }
-  const mw = measure(w), mn = measure(n);
-  rows.push({ id: it.id, lenWasm: w.length, lenNative: n.length, maxErr, maxErrAt: at, rmsErr: Math.sqrt(sq / len), relRmsErrDb: 10 * Math.log10(sq / Math.max(sqRef, 1e-30)),
-    wasm: pick(mw), native: pick(mn), flagsWasm: flagsOf(it.id, it.group, mw), flagsNative: flagsOf(it.id, it.group, mn) });
+  const row = compareRenders(it.id, w, n);
+  if (row.error) { rows.push({ id: it.id, error: row.error }); continue; }
+  const { measures, ...rest } = row;
+  rows.push({ ...rest, flagsWasm: flagsOf(it.id, it.group, measures.wasm), flagsNative: flagsOf(it.id, it.group, measures.native) });
 }
-function pick(m) { return { samplePeak: m.samplePeak, truePeakDb: m.truePeakDb, loudnessLufs: m.loudnessLufs, centroidMedianHz: m.centroidMedianHz, overSamples: m.overSamples, rmsDb: m.rmsDb, crestDb: m.crestDb, noiseToToneDb: m.noiseToToneDb, noiseToToneADb: m.noiseToToneADb, lowMotion: m.lowMotion }; }
-for (const r of rows) {
-  if (r.error) continue;
-  r.violations = [];
-  if (Math.abs(r.native.loudnessLufs - r.wasm.loudnessLufs) > LIMITS.lufsDb) r.violations.push("loudnessLufs");
-  if (Math.abs(r.native.truePeakDb - r.wasm.truePeakDb) > LIMITS.truePeakDb) r.violations.push("truePeakDb");
-  if (100 * Math.abs(r.native.centroidMedianHz - r.wasm.centroidMedianHz) / r.wasm.centroidMedianHz > LIMITS.centroidPct) r.violations.push("centroidMedianHz");
-  if (mode === "imp3" && r.relRmsErrDb > LIMITS.relRmsErrDbImp3) r.violations.push("relRmsErrDb");
-}
+for (const r of rows) if (!r.error) r.violations = violationsOf(r, mode);
 writeFileSync(join(out, "native-diff.json"), JSON.stringify({ libfaustWasm: rt.version, sampleRate: SR, items: set, smoother: mode, rows }, null, 1));
 if (rows.some((r) => r.error || r.violations.length)) process.exitCode = 1;
 console.log(JSON.stringify({ libfaustWasm: rt.version, items: set, smoother: mode, rows }, null, 1));

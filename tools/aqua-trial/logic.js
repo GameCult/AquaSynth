@@ -67,8 +67,15 @@ export function cleanWord(text) {
 
 export const validRating = (n) => Number.isInteger(n) && n >= 1 && n <= 5;
 
+// sha-256 of a string as lowercase hex (Web Crypto: browsers and node 20+). The page hashes the DSP text it compiles.
+export async function sha256Hex(text) {
+  const d = new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  return [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 // answers: [{ A: {rating, word, time, plays}, B: {...} }] aligned with design.
-export function buildExport({ seed, design, renders, answers, sampleRate, userAgent, exportedAt }) {
+export function buildExport({ seed, design, renders, answers, dspSha256, sampleRate, userAgent, exportedAt }) {
+  if (!/^[0-9a-f]{64}$/.test(dspSha256 ?? "")) throw new Error("export needs the sha-256 of the DSP source that was rendered");
   const records = [];
   design.forEach((trial, t) => {
     for (const pos of ["A", "B"]) {
@@ -82,5 +89,5 @@ export function buildExport({ seed, design, renders, answers, sampleRate, userAg
       });
     }
   });
-  return { schema: SCHEMA, patch: PATCH, seed, sampleRate, userAgent, exportedAt, seconds: SECONDS, records };
+  return { schema: SCHEMA, patch: PATCH, dspSha256, seed, sampleRate, userAgent, exportedAt, seconds: SECONDS, records };
 }

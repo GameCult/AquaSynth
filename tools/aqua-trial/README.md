@@ -4,7 +4,7 @@ Blinded, randomized A/B ratings of a synthesized thruster, to test Deru's "dead 
 thruster's noise layers (rasp, rattle) are what makes it sound dead, and that a tone-forward mix lands better.
 
 **Status: the page has never been run in a browser, and nothing has been heard.** Node covers the logic and
-the patch through the same faustwasm runtime the page loads (`node test.mjs`, 15 checks). The DOM glue
+the patch through the same faustwasm runtime the page loads (`node test.mjs`, 21 checks). The DOM glue
 (`web/trial.js`), AudioContext playback and the download are untested. Follow-up: browser-verify.
 
 ## Entry points
@@ -27,7 +27,7 @@ the patch through the same faustwasm runtime the page loads (`node test.mjs`, 15
 ## Privacy
 
 Answers live in the page's memory only. The page makes no network request after loading its own assets and
-writes nothing to storage. **Export** downloads a JSON file (patch, params, peak, rms, rating, word, time,
+writes nothing to storage. **Export** downloads a JSON file (patch, the sha-256 of the DSP source it compiled, params, peak, rms, rating, word, time,
 user agent, sample rate); sending it is the listener's act.
 
 ## Measured finding before any listening
@@ -40,5 +40,5 @@ already small, so noise 100 vs 0 differs far less than it did in the original mi
 0.189 / 0.161 / 0.148 / 0.140). The v5 mix is now a variant (`v5noise100`), so the noise layers can be compared against the current mix and the old one. The
 v5 variant measured at 48 kHz, rpm 600: rms 0.0734, peak 0.189, against 0.0725 and 0.160 for the current mix at noise 100: a
 level difference of about 0.1 dB rms, so the variants again differ mostly in texture, not level. Adding it makes ten comparisons
-rather than six. `analyze.mjs` prints `mix` beside `noise%`; its `(context) noise%` correlation now pools the v5 variant (noise 100)
-with the current noise-100 variant, so read it with the table. Nothing here was heard, before or after the change.
+rather than six. `analyze.mjs` prints `mix` beside `noise%`; its `(context) noise%` correlation uses the current mix only (the v5 variant shares noise 100 and is left out).
+`analyze.mjs` rejects an export without `dspSha256` (a record from a page build that did not record its DSP could not be told from mix 0) and warns when exports differ from each other or from this checkout's `thruster-trial.dsp`. Nothing here was heard, before or after the change.
