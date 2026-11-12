@@ -32,7 +32,7 @@ code. The grouping above follows who writes the key.
 ## A. `DingCatalog` instrument id and script
 
 - Where: `src/AquaSynth.Dings/DingCatalog.cs:22-28` (four instruments), built by the
-  private `Instrument(...)` at `:48-50`, which writes the Faust-DSL `Script` string and
+  private `Instrument(...)` at `:48-50`, which writes the `Script` string (an AquaSynth patch script, `param path=...; voice wave=...`, that `FaustEmitter.EmitScript` lowers to Faust; not Faust source) and
   fixes `RootFrequency = 261.6256f` for all four.
 - Keys on: the instrument `Id` string (`warm-bell`, `glass-chime`, `soft-triangle`,
   `muted-pluck`), case-insensitive dictionary (`:28`). Events are a separate keyed
@@ -50,7 +50,7 @@ code. The grouping above follows who writes the key.
 The Host does not pass the catalog id through. It builds the daemon's identity fields
 itself, and the daemon builds more keys from them.
 
-- `Host/AquaDaemonClient.cs:126` per note: `patchId = "dings." + instrument.Id`,
+- `Host/AquaDaemonClient.cs:20` per note: `patchId = "dings." + instrument.Id`,
   `faustName = "dings_" + instrument.Id.Replace('-', '_')`, `revision = 1` (a literal),
   `durationSeconds = 1.5f`, `controls["/ding/frequency"]`.
 - `src/AquaSynth.Faust/NativeFaustRuntime.cs:596-599`: the compile key is SHA-256 of
@@ -59,24 +59,38 @@ itself, and the daemon builds more keys from them.
   though `revision` stays 1.
 - `src/AquaSynth.Faust/AquaSynthDaemonService.cs:1136`: session id =
   `StoreFileName.From(patchId) + "-" + compileKey[..12]`. A recompile with the same
-  session id disposes the old session (`:365-372`).
+  session id disposes the old session (`:366-376`).
 - `src/AquaSynth.Core/StoreFileName.cs:26-54`: the mapping from any id to a file name
-  (lowercase ASCII passes unchanged, anything else gets a 16-hex SHA-256 suffix).
+  (ASCII letters, digits, `-`, `_`, `.` pass unchanged unless the id has an uppercase letter, a device stem, a trailing dot, is over 100 characters or already ends in a hash shape; anything else gets a 16-hex SHA-256 suffix, `StoreFileName.cs:37,59-67`).
   `dings.warm-bell` is a fixed point (pinned by `StoreFileNameTests`).
-- What is *not* keyed by patch: render output and receipts. Samples are
-  `<store>/samples/<StoreFileName(commandId + "-render")>.wav` (`:660-667`), where
-  `commandId` is a fresh `ding-<guid>` per note (`AquaDaemonClient.cs:125`). Receipts
-  go through `WriteReceiptAsync` (`:922-937`) under the same command-derived ids. The
-  store therefore keeps one WAV per note played, none addressable by instrument; the
-  patch id only appears inside the receipt body. Whether the store ever gets cleaned
-  I did not find.
-- The `dings_<id>` rule is written twice: `AquaDaemonClient.cs:126` and
-  `tools/AquaLower/Program.cs:19`, plus a third time in
-  `DingCatalogTests.LoweredDingsFedToTheFeelMeterMatchTheCatalog` (the test builds the
+- Keyed by patch: the session document. `WriteReceiptAsync("sessions", sessionId, session)`
+  (`:407`) runs on every compile, and `SampleAsync` compiles on every note
+  (`:417-425`), so the store holds `sessions/<StoreFileName(sessionId)>.cc` for each
+  distinct `(patchId, compile key)`, rewritten on each note. This is the one store
+  artifact addressable by instrument. `NativeFaustRuntime.cs:516,628-636` would also write
+  `<StoreFileName(patchId)>.dsp`, but only when `options.DspSourceDirectory` is set; the
+  daemon builds its native options from sample rate and render limits only
+  (`AquaSynthDaemonService.cs:330-334`) and nothing else in `src` or `tools` sets it, so
+  for the Dings host it is off. (Read from source, not observed.)
+- Not keyed by patch: render output and the render and compile receipts. Samples are
+  `<store>/samples/<StoreFileName(commandId + "-render")>.wav` (`:664-667`), where
+  `commandId` is a fresh `ding-<guid>` per note (`AquaDaemonClient.cs:19`). Receipts go
+  through `WriteReceiptAsync` (`:922-937`) under command-derived ids, with the patch id
+  only in the body. The store therefore keeps one WAV per note played, none addressable
+  by instrument. Whether the store ever gets cleaned I did not find.
+- Faust name, three forms: the Host sends `dings_<id with - as _>`; the daemon applies
+  `SafeFaustName` (`NativeFaustRuntime.cs:602-607`, called at
+  `AquaSynthDaemonService.cs:911` and `NativeFaustRuntime.cs:513`) so the manifest and
+  emitted source carry the rewritten name, while the compile key (`:596-599`) hashes the
+  raw `identity.FaustName`. Two raw names that sanitise alike compile alike but key
+  differently.
+- The `dings_<id>` rule is written three times: `AquaDaemonClient.cs:20` and
+  `tools/AquaLower/Program.cs:19`, and
+  `DingCatalogTests.cs:45` (`LoweredDingsFedToTheFeelMeterMatchTheCatalog` builds the
   name with the same expression). Nothing ties the three together except the test.
 - Writer: the Host (fields) and the daemon (session id, file names). Readers: the
   daemon's compile/render path and receipts; no Dings code reads the patch id back.
-- `Host/AquaDaemonClient.cs:129-134` returns the WAV path from the receipt. The Host
+- `Host/AquaDaemonClient.cs:23-28` returns the WAV path from the receipt. The Host
   never asks the daemon which patch rendered it.
 
 ## C. MCP `AgentInstrumentRegistry`
@@ -84,7 +98,7 @@ itself, and the daemon builds more keys from them.
 - Where: `Mcp/AgentInstrumentRegistry.cs:10` (dictionary), `:13-17` `GetOrAssign`,
   `:19-29` `Claim`, `:31-36` `AssignDeterministically`.
 - Keys on: `agentSessionId`, which is `server.SessionId ?? "stdio:" + ProcessId`
-  (`Mcp/DingTools.cs:45`). That is the MCP transport session, not the agent. In HTTP
+  (`Mcp/DingTools.cs:45`; that `SessionId` is null under stdio is inferred from the `??` fallback, not read from the SDK). That is the MCP transport session, not the agent. In HTTP
   mode (`Mcp/Program.cs:34-54`, `Stateless = false`) it lives as long as that MCP
   session; in stdio mode it is the bridge process id.
 - Value: an instrument id string. Unclaimed sessions get
@@ -125,11 +139,11 @@ itself, and the daemon builds more keys from them.
 
 ## E. Places that echo the identity without deciding it
 
-- Earcon Workshop `IDENTITIES`, `tools/earcon-workshop/web/earcon.js:22-28`. Same four
+- Earcon Workshop `IDENTITIES`, `tools/earcon-workshop/web/earcon.js:22-27`. Same four
   ids; its comment (`:21`) says values "start from the Dings catalog instruments and
   were not tuned by ear". The values have drifted from the catalog:
 
-  | id | catalog root / decay (`DingCatalog.cs:23-26`) | workshop `rootHz` / `decay` |
+  | id | catalog root / decay (`DingCatalog.cs:24-27`) | workshop `rootHz` / `decay` |
   |---|---|---|
   | warm-bell | 261.6256 / 1.15 | 261.6256 / 0.55 |
   | glass-chime | 261.6256 / 0.85 | 329.6276 / 0.45 |
@@ -142,9 +156,9 @@ itself, and the daemon builds more keys from them.
   produced by `AquaLower --dings`. `DingCatalogTests` fails when it falls out of date
   (the test comment at the top of `LoweredDingsFedToTheFeelMeterMatchTheCatalog` names
   the regeneration command). A mirror guarded by a test; not an independent owner.
-  `tools/aqua-feel/shelf.mjs:64,70` and `catalog.js:22-24` read it, and
-  `shelf.mjs:64` picks `warm-bell` as the shelf default (`DEF_INS`), a fifth voice
-  default beyond the registry's hash.
+  `tools/aqua-feel/shelf.mjs:64` and `catalog.js:22-24` read it, and
+  `shelf.mjs:64` defines `warm-bell` as the shelf default (`DEF_INS`, used at
+  `:71,:75,:76`), a fifth voice default beyond the registry's hash.
 
 ## Where owners can disagree
 
@@ -163,7 +177,7 @@ itself, and the daemon builds more keys from them.
 4. **Same id, different sound.** `warm-bell` is a catalog instrument (A), a workshop
    identity (E) and the neutral fallback voice (D). Three definitions, parameter sets
    that have drifted (table above).
-5. **Derivation written three times.** `dings_<id>` in `AquaDaemonClient.cs:126`,
+5. **Derivation written three times.** `dings_<id>` in `AquaDaemonClient.cs:20`,
    `AquaLower/Program.cs:19`, and the test; and the `dings.<id>` patch id appears in
    `StoreFileNameTests` as a literal. A rename rule changed in one place breaks
    store-file naming in another without a compile error.
@@ -251,11 +265,12 @@ asked.
 what a voice is, and also the only place that derives the daemon keys from it. Its
 instrument gains a content revision (a hash of `Script` plus the parameters that matter),
 and one function in that assembly produces `PatchId`, `FaustName` and the revision for
-the daemon. Everything else keys on the catalog id and takes the rest from the catalog.
+the daemon (`AquaLower` and the test need only the faust-name part of it, not
+`patchId` or revision). Everything else keys on the catalog id and takes the rest from the catalog.
 
 **What the others become.**
 - B (Host/daemon): the Host stops composing `patchId`/`faustName`/`revision`; it calls
-  the catalog function. `AquaLower` and the test call the same function. The daemon
+  the catalog function. `AquaLower/Program.cs:19` and `DingCatalogTests.cs:45` call only the faust-name slice of it. The daemon
   keeps its session and file naming; those are daemon-internal and derive from what it
   is given.
 - C (registry): stays in the bridge as a cache of choices, but its assignment function
@@ -276,22 +291,31 @@ definition of the script, and is the only one the host cannot run without. C, D 
 are all consumers or approximations of it by name.
 
 **Migration order** (each step independent and reversible):
-1. Add the catalog function; switch `AquaDaemonClient.cs:126` and `AquaLower` onto it;
-   delete the test's private copy. Pure refactor; the compile key and so the session id
-   stay equal for unchanged scripts, which is checkable by comparing receipts before and
-   after.
+1. Add the catalog function; switch `AquaDaemonClient.cs:20` and `AquaLower` onto it;
+   delete the test's private copy (see the oracle risk below). Pure refactor while
+   `revision` stays the literal 1: the compile key, and so the session id, stay equal
+   for unchanged scripts, which is checkable by comparing receipts before and after.
 2. Decide the agent-identity question (below); change the registry key. Wire-visible:
    existing sessions lose their hashed assignment.
-3. Remove the duplicate gates in `DingService.cs:9-11` or have the Host's gate be the
+3. Content revision: DEFERRED, not scheduled here. Replacing the literal `revision = 1`
+   with a catalog hash changes every compile key and session id (and the
+   `sessions/<...>.cc` file names), so it breaks step 1's equality check by design. It
+   needs its own decision on what feeds the hash and whether old session files are
+   left or removed.
+4. Remove the duplicate gates in `DingService.cs:9-11` or have the Host's gate be the
    single one (the bridge then only forwards). Keep whichever side the tests
    (`DingsBridgeTests`) need for fail-fast, but one of them must be the owner.
-4. Point the neutral fallback and Earcon Workshop at the catalog.
+5. Point the neutral fallback and Earcon Workshop at the catalog.
 
 **Risks.**
 - Step 2 changes what agents hear on first use after deploy; nobody has listened to a
   before/after.
-- A content revision in the key changes session ids, which are visible in receipts but
-  not read by anything I found.
+- The deferred content revision changes session ids and session file names, visible in
+  receipts but not read by anything I found.
+- Oracle loss in step 1: deleting the test's private `"dings_" + id` copy makes
+  `LoweredDingsFedToTheFeelMeterMatchTheCatalog` compare the shared function against
+  itself. The test should keep an independent expected value (a literal per instrument
+  or the checked-in `.dsp` header) so a wrong rule still fails.
 - Collapsing 8 senders onto 4 instruments would lose distinctness; the proposal does not
   do that, and I am recommending against it without having listened to either set.
 - Moving derivation to the catalog assembly makes `AquaSynth.Dings` the home of
