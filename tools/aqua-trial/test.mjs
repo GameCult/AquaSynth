@@ -5,14 +5,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { makeDesign, variants, stats, cleanWord, validRating, buildExport, sha256Hex, renderVariant, rng, shuffle, SCHEMA, PATCH } from "./logic.js";
+import { makeDesign, variants, stats, cleanWord, validRating, buildExport, sha256Hex, dspHash, renderVariant, rng, shuffle, SCHEMA, PATCH } from "./logic.js";
 import { analyze, format, mean, sd, spearman, ranks, pearson } from "./analyze.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const dist = resolve(process.argv[2] ?? join(here, "dist"));
-const DSP_SHA = await sha256Hex(readFileSync(join(here, "thruster-trial.dsp"), "utf8"));
+const DSP_SHA = await dspHash(readFileSync(join(here, "thruster-trial.dsp"), "utf8"));
 let n = 0;
-const t = async (name, fn) => { await fn(); n++; console.log(`ok   ${name}`); };
+const failed = [];
+// A failing test is reported and the run goes on, so a mutation of the patch shows every test it kills, not only the first.
+const t = async (name, fn) => {
+  try { await fn(); n++; console.log(`ok   ${name}`); }
+  catch (e) { failed.push(name); console.log(`FAIL ${name}\n     ${String(e.message).split("\n")[0].slice(0, 200)}`); }
+};
 
 await t("design: every unordered pair once, both positions used, replayable from the seed", () => {
   const d = makeDesign(7);
@@ -159,6 +164,31 @@ await t("analyze CLI: runs on export files and rejects a foreign schema", async 
   assert.equal(spawnSync("node", [join(here, "analyze.mjs")]).status, 2);
 });
 
+await t("dsp hash: CRLF and LF text hash equal, LF text hashes as plain sha-256 (old exports stay valid), other text differs", async () => {
+  const lf = readFileSync(join(here, "thruster-trial.dsp"), "utf8").replace(/\r\n/g, "\n");
+  assert.equal(await dspHash(lf.replace(/\n/g, "\r\n")), await dspHash(lf));
+  assert.equal(await dspHash(lf), await sha256Hex(lf));
+  assert.equal(await dspHash(lf), DSP_SHA);
+  assert.notEqual(await dspHash(lf + " "), await dspHash(lf));
+  assert.notEqual(await dspHash("a\nb"), await dspHash("a b"));
+});
+
+await t("analyze CLI: a CRLF checkout of the same DSP raises no foreign-DSP warning; a changed DSP still does", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, writeFileSync, copyFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const lf = readFileSync(join(here, "thruster-trial.dsp"), "utf8");
+  const run = (dsp) => {
+    const d = mkdtempSync(join(tmpdir(), "trial-crlf-"));
+    for (const f of ["analyze.mjs", "logic.js"]) copyFileSync(join(here, f), join(d, f));
+    writeFileSync(join(d, "thruster-trial.dsp"), dsp);
+    writeFileSync(join(d, "e.json"), JSON.stringify(fakeExport(5, 48000).doc));
+    return execFileSync("node", [join(d, "analyze.mjs"), join(d, "e.json")], { encoding: "utf8" });
+  };
+  assert.doesNotMatch(run(lf.replace(/\n/g, "\r\n")), /WARNING/);
+  assert.match(run(lf + "// edited\n"), /WARNING/);
+});
+
 // --- the patch, through the runtime the page loads ---
 const { instantiateFaustModuleFromFile, LibFaust, FaustCompiler, FaustMonoDspGenerator } =
   await import(pathToFileURL(join(dist, "vendor/faustwasm/index.js")).href);
@@ -261,4 +291,14 @@ await t("patch: the noise knob scales rasp and rattle together at rpm 600 (what 
   assert.ok(Math.abs(half / full - 0.5) < 0.05, `half/full ${half / full}`);
 });
 
+await t("patch: the noise slider is live: noise 20 differs from noise 100 by the rasp-band ratio 0.2 at rpm 4800, while noise 100 stays identical to thruster.dsp", async () => {
+  const at = (noise) => renderVariant(trial.g, trial.controls, { params: { rpm: 4800, noise } }, SR, 1);
+  const [x20, x100, ref] = [await at(20), await at(100), await renderVariant(base.g, base.controls, { params: { rpm: 4800 } }, SR, 1)];
+  assert.ok(maxDiffOf(x100, ref) < 1e-6, `noise 100 vs thruster.dsp: ${maxDiffOf(x100, ref)}`);
+  assert.ok(maxDiffOf(x20, x100) > 1e-2, `noise 20 and noise 100 must render different signals: ${maxDiffOf(x20, x100)}`);
+  const r = Math.sqrt(highBandEnergy(x20.samples) / highBandEnergy(x100.samples));
+  assert.ok(Math.abs(r - 0.2) < 0.03, `rasp band amplitude ratio ${r}, expected 0.2`);
+});
+
+if (failed.length) { console.log(`${n} passed, ${failed.length} FAILED`); process.exit(1); }
 console.log(`${n} passed`);

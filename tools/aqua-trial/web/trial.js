@@ -3,7 +3,7 @@
 // Nothing here makes a network request after the page assets load, and nothing is written to storage.
 import { instantiateFaustModuleFromFile, LibFaust, FaustCompiler, FaustMonoDspGenerator } from "./vendor/faustwasm/index.js";
 import { controlsOf } from "./ui.js";
-import { variants, makeDesign, renderVariant, cleanWord, validRating, buildExport, sha256Hex, PATCH } from "./logic.js";
+import { variants, makeDesign, renderVariant, cleanWord, validRating, buildExport, dspHash, PATCH } from "./logic.js";
 
 const $ = (s, root = document) => root.querySelector(s);
 const status = (t) => { $("#status").textContent = t; };
@@ -39,7 +39,7 @@ async function start() {
     const compiler = new FaustCompiler(new LibFaust(await instantiateFaustModuleFromFile("./vendor/libfaust-wasm/libfaust-wasm.js")));
     const g = new FaustMonoDspGenerator();
     const dspText = await (await fetch(`./${PATCH}.dsp`)).text();
-    dspSha256 = await sha256Hex(dspText);   // the exact source compiled, so an export names the DSP that produced it
+    dspSha256 = await dspHash(dspText);   // the exact source compiled, so an export names the DSP that produced it
     if (!await g.compile(compiler, "thruster_trial", dspText, "-ftz 2")) throw new Error(compiler.getErrorMessage());
     const controls = controlsOf(JSON.parse(g.factory.json));
     for (const v of variants()) {
