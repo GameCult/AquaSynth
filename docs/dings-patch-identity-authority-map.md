@@ -31,14 +31,14 @@ code. The grouping above follows who writes the key.
 
 ## A. `DingCatalog` instrument id and script
 
-- Where: `src/AquaSynth.Dings/DingCatalog.cs:22-28` (four instruments), built by the
-  private `Instrument(...)` at `:48-50`, which writes the `Script` string (an AquaSynth patch script, `param path=...; voice wave=...`, that `FaustEmitter.EmitScript` lowers to Faust; not Faust source) and
+- Where: `src/AquaSynth.Dings/DingCatalog.cs:29-35` (four instruments), built by the
+  private `Instrument(...)` at `:56-57`, which writes the `Script` string (an AquaSynth patch script, `param path=...; voice wave=...`, that `FaustEmitter.EmitScript` lowers to Faust; not Faust source) and
   fixes `RootFrequency = 261.6256f` for all four.
 - Keys on: the instrument `Id` string (`warm-bell`, `glass-chime`, `soft-triangle`,
-  `muted-pluck`), case-insensitive dictionary (`:28`). Events are a separate keyed
-  dictionary (`:9-20`, nine ids) and are not voice identity.
+  `muted-pluck`), case-insensitive dictionary (`:35`). Events are a separate keyed
+  dictionary (`:16-27`, nine ids) and are not voice identity.
 - Lifetime: compiled in. Changing an entry means a new build of every consumer.
-- Writer: whoever edits the file. `ValidateCuration` (`:31-46`) is the only gate.
+- Writer: whoever edits the file. `ValidateCuration` (`:37-54`) is the only gate.
 - Readers: `Host/DingsPlaybackHost.cs:66-67`, `Mcp/DingService.cs:9-10`,
   `Mcp/AgentInstrumentRegistry.cs:11`, `Mcp/DingTools.cs:28,31,49`,
   `tools/AquaLower/Program.cs:17`, and the tests `DingCatalogTests`.
@@ -47,12 +47,15 @@ code. The grouping above follows who writes the key.
 
 ## B. Host and daemon derivation of the patch
 
-The Host does not pass the catalog id through. It builds the daemon's identity fields
-itself, and the daemon builds more keys from them.
+The Host does not pass the catalog id through. It sends the daemon identity fields
+derived from it by `DingCatalog.Identity` (`DingCatalog.cs:12-14`, added in step 1; before
+it, at `965dfe8` (origin/main before this change), `AquaDaemonClient.cs:20` composed the strings inline), and the daemon
+builds more keys from them.
 
-- `Host/AquaDaemonClient.cs:20` per note: `patchId = "dings." + instrument.Id`,
-  `faustName = "dings_" + instrument.Id.Replace('-', '_')`, `revision = 1` (a literal),
-  `durationSeconds = 1.5f`, `controls["/ding/frequency"]`.
+- `Host/AquaDaemonClient.cs:20-21` per note: `var identity = DingCatalog.Identity(instrument)`
+  gives `patchId = "dings." + id`, `faustName = "dings_" + id with - as _`, `revision = 1`
+  (a literal inside `Identity`); the same envelope sets `durationSeconds = 1.5f` and
+  `controls["/ding/frequency"]`.
 - `src/AquaSynth.Faust/NativeFaustRuntime.cs:596-599`: the compile key is SHA-256 of
   `"{revision}\n{faustName}\n{script}"`. `patchId` is not in it. So two ids with the same
   name and script share a compile key; one id with an edited script gets a new key even
@@ -84,13 +87,14 @@ itself, and the daemon builds more keys from them.
   emitted source carry the rewritten name, while the compile key (`:596-599`) hashes the
   raw `identity.FaustName`. Two raw names that sanitise alike compile alike but key
   differently.
-- The `dings_<id>` rule is written three times: `AquaDaemonClient.cs:20` and
-  `tools/AquaLower/Program.cs:19`, and
-  `DingCatalogTests.cs:45` (`LoweredDingsFedToTheFeelMeterMatchTheCatalog` builds the
-  name with the same expression). Nothing ties the three together except the test.
+- The `dings_<id>` rule now lives once, in `DingCatalog.Identity`. `AquaDaemonClient.cs:20`
+  and `tools/AquaLower/Program.cs:19` call it; `LoweredDingsFedToTheFeelMeterMatchTheCatalog`
+  compares against a literal per instrument, and `CallersDeriveIdentityOnlyThroughTheCatalog`
+  fails if either caller stops calling it. (History: at `965dfe8` the rule was written three
+  times, in those two files and in the test at `DingCatalogTests.cs:45`.)
 - Writer: the Host (fields) and the daemon (session id, file names). Readers: the
   daemon's compile/render path and receipts; no Dings code reads the patch id back.
-- `Host/AquaDaemonClient.cs:23-28` returns the WAV path from the receipt. The Host
+- `Host/AquaDaemonClient.cs:24-29` returns the WAV path from the receipt. The Host
   never asks the daemon which patch rendered it.
 
 ## C. MCP `AgentInstrumentRegistry`
@@ -143,7 +147,7 @@ itself, and the daemon builds more keys from them.
   ids; its comment (`:21`) says values "start from the Dings catalog instruments and
   were not tuned by ear". The values have drifted from the catalog:
 
-  | id | catalog root / decay (`DingCatalog.cs:24-27`) | workshop `rootHz` / `decay` |
+  | id | catalog root / decay (`DingCatalog.cs:31-34`) | workshop `rootHz` / `decay` |
   |---|---|---|
   | warm-bell | 261.6256 / 1.15 | 261.6256 / 0.55 |
   | glass-chime | 261.6256 / 0.85 | 329.6276 / 0.45 |
@@ -177,10 +181,11 @@ itself, and the daemon builds more keys from them.
 4. **Same id, different sound.** `warm-bell` is a catalog instrument (A), a workshop
    identity (E) and the neutral fallback voice (D). Three definitions, parameter sets
    that have drifted (table above).
-5. **Derivation written three times.** `dings_<id>` in `AquaDaemonClient.cs:20`,
-   `AquaLower/Program.cs:19`, and the test; and the `dings.<id>` patch id appears in
-   `StoreFileNameTests` as a literal. A rename rule changed in one place breaks
-   store-file naming in another without a compile error.
+5. **Derivation (resolved by step 1 for the code callers).** At `965dfe8` the `dings_<id>`
+   rule was written three times (`AquaDaemonClient.cs:20`, `AquaLower/Program.cs:19`, the
+   test). Now it is in `DingCatalog.Identity`. What remains: the `dings.<id>` patch id appears
+   in `StoreFileNameTests` as a literal, and the test pins literals, so a rename of the rule
+   fails those tests on purpose rather than silently moving store file names.
 6. **Double validation.** `DingService.cs:9-11` and `DingsPlaybackHost.cs:66-68` each
    decide whether an id is valid. Safe while both read one dictionary.
 
@@ -267,14 +272,14 @@ asked.
 what a voice is, and also the only place that derives the daemon keys from it. Its
 instrument gains a content revision (a hash of `Script` plus the parameters that matter),
 and one function in that assembly produces `PatchId`, `FaustName` and the revision for
-the daemon (`AquaLower` and the test need only the faust-name part of it, not
+the daemon (`AquaLower` needs only the faust-name part of it, not
 `patchId` or revision). Everything else keys on the catalog id and takes the rest from the catalog.
 
-End state versus this change: the content revision named above is deferred (step 3 of the migration order). Until it lands, `revision` is the literal 1 and the catalog function returns it; the revision hash is not part of the first consolidation.
+End state versus this change: the content revision named above is deferred (step 3 of the Migration plan below). Until it lands, `revision` is the literal 1 and the catalog function returns it; the revision hash is not part of the first consolidation.
 
 **What the others become.**
 - B (Host/daemon): the Host stops composing `patchId`/`faustName`/`revision`; it calls
-  the catalog function. `AquaLower/Program.cs:19` and `DingCatalogTests.cs:45` call only the faust-name slice of it. The daemon
+  the catalog function. `AquaLower/Program.cs:19` calls only the faust-name slice of it (done in step 1); the test pins literals instead of calling it. The daemon
   keeps its session and file naming; those are daemon-internal and derive from what it
   is given.
 - C (registry): stays in the bridge as a cache of choices, but its assignment function
@@ -294,32 +299,15 @@ End state versus this change: the content revision named above is deferred (step
 definition of the script, and is the only one the host cannot run without. C, D and E
 are all consumers or approximations of it by name.
 
-**Migration order** (each step independent and reversible):
-1. Add the catalog function; switch `AquaDaemonClient.cs:20` and `AquaLower` onto it;
-   delete the test's private copy (see the oracle risk below). Pure refactor while
-   `revision` stays the literal 1: the compile key, and so the session id, stay equal
-   for unchanged scripts, which is checkable by comparing receipts before and after.
-2. Decide the agent-identity question (below); change the registry key. Wire-visible:
-   existing sessions lose their hashed assignment.
-3. Content revision: DEFERRED, not scheduled here. Replacing the literal `revision = 1`
-   with a catalog hash changes every compile key and session id (and the
-   `sessions/<...>.cc` file names), so it breaks step 1's equality check by design. It
-   needs its own decision on what feeds the hash and whether old session files are
-   left or removed.
-4. Remove the duplicate gates in `DingService.cs:9-11` or have the Host's gate be the
-   single one (the bridge then only forwards). Keep whichever side the tests
-   (`DingsBridgeTests`) need for fail-fast, but one of them must be the owner.
-5. Point the neutral fallback and Earcon Workshop at the catalog.
+**Migration order.** One list only: the "Migration plan" section at the end of this note (the original five-item order was merged into it).
 
 **Risks.**
 - Step 2 changes what agents hear on first use after deploy; nobody has listened to a
   before/after.
 - The deferred content revision changes session ids and session file names, visible in
   receipts but not read by anything I found.
-- Oracle loss in step 1: deleting the test's private `"dings_" + id` copy makes
-  `LoweredDingsFedToTheFeelMeterMatchTheCatalog` compare the shared function against
-  itself. The test should keep an independent expected value (a literal per instrument
-  or the checked-in `.dsp` header) so a wrong rule still fails.
+- Oracle loss in step 1 (handled): the guard test uses a literal per instrument, so it does
+  not compare the shared function against itself.
 - Collapsing 8 senders onto 4 instruments would lose distinctness; the proposal does not
   do that, and I am recommending against it without having listened to either set.
 - Moving derivation to the catalog assembly makes `AquaSynth.Dings` the home of
@@ -347,7 +335,7 @@ what the MCP bridge can learn about its caller.
 
 Rules for every step: deprecate before removing (mark the old path with a pointer, keep it working, delete in a later pass after the window); `patchId`, `faustName`, `revision = 1`, session ids, compile keys and `sessions/<...>.cc` names stay byte-identical until step 3; no change to the Host or pipe protocol. Deprecation window: one merged release of the owner path with the old path still working and marked; removal only in a separate PR after the operator hears or reviews nothing regressed.
 
-**Step 1 (done in this change).** `DingCatalog.Identity(instrument)` returns `PatchId`, `FaustName`, `Revision` (literal 1). `AquaDaemonClient` and `AquaLower --dings` call it. The guard test no longer carries a private copy of the rule: it compares against literals per instrument, and `IdentityPinsTheOldDerivedValuesForAllFourInstruments` pins the old derived values for all four.
+**Step 1 (done in this change).** `DingCatalog.Identity(instrument)` returns `PatchId`, `FaustName`, `Revision` (literal 1). `AquaDaemonClient` and `AquaLower --dings` call it. The guard test no longer carries a private copy of the rule: it compares against literals per instrument, and `IdentityPinsTheOldDerivedValuesForAllFourInstruments` pins the old derived values for all four. `CallersDeriveIdentityOnlyThroughTheCatalog` reads `AquaDaemonClient.cs` and `AquaLower/Program.cs` and fails if either lacks the `DingCatalog.Identity(` call or reintroduces a `"dings_"` / `$"dings` literal (a source check, not a behaviour check).
 - Verify: the pin test; `DingCatalogTests` and `StoreFileNameTests`; `AquaLower --dings tools/aqua-feel/lowered-dings` leaves `git status` clean (the checked-in mirror is byte-identical).
 - Not verified: the Host sending the same JSON to the daemon at runtime (compile-checked and read, not run against a daemon).
 - Rollback: revert the commit; no stored state or wire format moved.
@@ -357,6 +345,6 @@ Rules for every step: deprecate before removing (mark the old path with a pointe
 
 **Step 3. Content revision** (replace the literal 1 with a catalog hash). Deliberately breaks byte-identity: compile keys, session ids and `sessions/<...>.cc` names all change. Needs its own ruling on what feeds the hash and whether old session files are left or removed. Verify: receipts before and after, with the old keys listed as expected to change. Rollback: revert to literal 1; new session files stay as orphans, harmless.
 
-**Step 4. One validation gate** (`DingService` versus `DingsPlaybackHost`). Make the Host the owner and let the bridge forward; keep the bridge check as deprecated fail-fast for one window. Verify: `DingsBridgeTests`. Rollback: revert; both gates read one dictionary, so behaviour is the same either way.
+**Step 4. One validation gate** (`DingService.cs:9-11` versus `DingsPlaybackHost.cs:66-68`). Make the Host the owner and let the bridge forward (the bridge's check, which `DingsBridgeTests` may need for fail-fast, stays as the deprecated path); keep the bridge check as deprecated fail-fast for one window. Verify: `DingsBridgeTests`. Rollback: revert; both gates read one dictionary, so behaviour is the same either way.
 
 **Step 5. Echo sites by reference.** (a) Neutral fallback in `tools/dings-voices/build.mjs` names a catalog instrument id. (b) Earcon Workshop `IDENTITIES`: export the shared ids and root frequencies from the catalog into a checked-in file (as `lowered-dings` is), guarded by a test, and have `earcon.js` read it; the voice-model parameters stay workshop-owned and the drifted values (table in section E) need an owner's decision first. Deprecation: `IDENTITIES` keeps its inline values, marked, until the generated file is read in production. Verify: `tools/earcon-workshop/test.mjs`, the guard test, and an ear check, since the workshop values were never tuned to the catalog. Rollback: revert; the inline values still exist.

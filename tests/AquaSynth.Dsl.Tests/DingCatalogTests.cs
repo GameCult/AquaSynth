@@ -84,6 +84,18 @@ public sealed class DingCatalogTests
         }
     }
 
+    // Negative check on callers: reverting either call site to an inline rule leaves the catalog tests green, so read the sources.
+    [Theory]
+    [InlineData("tools/AquaSynthDingsHost/AquaDaemonClient.cs")]
+    [InlineData("tools/AquaLower/Program.cs")]
+    public void CallersDeriveIdentityOnlyThroughTheCatalog(string relativePath)
+    {
+        var source = File.ReadAllText(Path.Combine(RepositoryRoot(), relativePath));
+        Assert.Contains("DingCatalog.Identity(", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"dings_\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("$\"dings", source, StringComparison.Ordinal);
+    }
+
     private static string RepositoryRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
