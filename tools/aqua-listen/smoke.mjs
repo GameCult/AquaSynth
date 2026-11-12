@@ -6,7 +6,12 @@ import { resolve } from "node:path";
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT_CORE ?? "playwright-core");
 const file = resolve(process.argv[2]);
 const browser = await chromium.launch({ executablePath: process.env.CHROME || undefined });
-const ctx = await browser.newContext({ acceptDownloads: true }), page = await ctx.newPage();
+// MOBILE=1 drives an Android-Chrome-shaped context (touch, small viewport, mobile UA) with no downloads accepted.
+const mobile = !!process.env.MOBILE;
+const ctx = await browser.newContext(mobile
+  ? { acceptDownloads: false, viewport: { width: 412, height: 915 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2.6, permissions: ["clipboard-read", "clipboard-write"],
+      userAgent: "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36" }
+  : { acceptDownloads: true, permissions: ["clipboard-read", "clipboard-write"] }), page = await ctx.newPage();
 const requests = [], errors = [];
 page.on("request", (r) => { if (!r.url().startsWith("file:") && !r.url().startsWith("blob:") && !r.url().startsWith("data:")) requests.push(r.url()); });
 page.on("pageerror", (e) => errors.push(e.message));
@@ -24,15 +29,20 @@ await first.locator("input[value=fix]").check(); await first.locator("input[type
 await page.reload();
 check(await page.locator("section.card").first().locator("input[value=fix]").isChecked(), "answers survive a reload (localStorage autosave)");
 check((await page.locator("section.card").first().locator("input[type=text]").inputValue()) === "a bit thin", "reason survives a reload");
-const got = [];
-page.on("download", (d) => got.push(d));
-await page.click("button:has-text('Export')");
-for (let i = 0; i < 50 && got.length < 2; i++) await page.waitForTimeout(100);
-const names = got.map((d) => d.suggestedFilename()).sort();
-check(names.join() === "verdict.json,verdict.md", "export downloads verdict.json and verdict.md");
-const v = JSON.parse(readFileSync(await got.find((d) => d.suggestedFilename() === "verdict.json").path(), "utf8"));
-check(v.listener === "Tester" && v.device === "headphones" && v.clips[0].verdict === "fix" && v.clips[0].landed === 4 && v.clips[0].device === "headphones", "verdict.json carries the answers");
+await page.click("#export");
+const text = await page.inputValue("#export-text");
+check(await page.locator("#export-text").evaluate((e) => e.readOnly), "export textarea is read-only");
+const v = JSON.parse(text);
+check(v.listener === "Tester" && v.device === "headphones" && v.clips[0].verdict === "fix" && v.clips[0].landed === 4 && v.clips[0].device === "headphones", "textarea carries the verdict JSON");
 check(v.consent === true && v.clips.length === total, "consent recorded, every clip present");
+await page.click("#copy-json");
+check((await page.evaluate(() => navigator.clipboard.readText())) === text, "Copy button puts the full JSON on the clipboard");
+await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error("denied")); });
+await page.click("#copy-json");
+check(/Copied|blocked/.test(await page.textContent("#export-msg")), "copy falls back to execCommand without throwing");
+await page.reload();
+await page.click("#export");
+check((await page.inputValue("#export-text")).includes('"verdict": "fix"'), "reload loses nothing: export after reload still has the answers");
 check(requests.length === 0, `no network requests (${requests.join(", ")})`);
 check(errors.length === 0, `no page errors (${errors.join("; ")})`);
 await browser.close();

@@ -2,7 +2,7 @@
 
 A listening-test kit: a folder of sound clips and a manifest become **one HTML file** you can send to a listener. They open it, listen, say keep / fix / drop for each sound, and send back two small files.
 
-**Status:** the page was driven in headless Chromium (consent gate, autosave across reload, export, zero network requests) and `node test.mjs` covers validation, ordering and the export shape. Nobody has listened with it yet, and the headless browser played nothing audibly; real playback on a phone or other browser is untried.
+**Status:** the page was driven in headless Chromium, desktop and a mobile-emulated context (touch, 412 px viewport, Android Chrome user agent; `MOBILE=1 node smoke.mjs`): consent gate, autosave across reload, the export panel with its copy button and read-only textarea, zero network requests. It has not run on a real Android device and `node test.mjs` covers validation, ordering and the export shape. Nobody has listened with it yet, and the headless browser played nothing audibly; real playback on a phone or other browser is untried.
 
 ## For the listener (no technical knowledge needed)
 
@@ -16,7 +16,7 @@ A listening-test kit: a folder of sound clips and a manifest become **one HTML f
 5. Some sounds come as a pair, **A** and **B**. Rate both, then say which you prefer, or that there is no difference.
 6. The sounds are in a random order and their names are hidden on purpose. Please don't hunt for them.
 7. Your answers save themselves in your browser as you go. You can close the tab and come back to the same file later.
-8. When done, press **Export**. Two files land in your downloads: `verdict.json` and `verdict.md`. Send both to whoever gave you the page. That is the only way anything leaves your computer.
+8. When done, press **Export my answers**. Your answers appear in a text box. Press **Copy answers (JSON)** and paste them into a message to whoever gave you the page (or press **Share**, or **Select all** and use your phone's Copy). **Download verdict.json** and **Download verdict.md** are separate buttons, one file per tap, for browsers that allow downloads. Copying or sharing is the only way anything leaves your computer.
 
 Privacy: the page has no network access at all (the browser is told to refuse it), no account, no tracking. "Erase my answers" at the bottom wipes what the page saved.
 
