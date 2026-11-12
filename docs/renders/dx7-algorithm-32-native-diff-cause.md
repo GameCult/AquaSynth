@@ -13,7 +13,7 @@ With both removed the patch reads **-141.2 dB (max 1.8e-7)**, the same float flo
 
 ## Evidence (isolating experiments; each changes one thing)
 
-Baseline reproduced through `native-diff.mjs --items smoother`: 1.65e-4 max, -79.27 dB. The signal is not quiet: RMS 0.193, peak 0.686. The last 2 s are digital silence and contribute zero error (73 % exactly-equal samples is that silence, not agreement). The error is zero at nothing but silence and rises linearly while the voices sound; lag test: lag 0 error 6.3e-5 vs 18.4 at lag +-1, so no shift.
+Baseline reproduced through `native-diff.mjs --items smoother`: 1.65e-4 max, -79.27 dB. The signal is not quiet: RMS 0.193, peak 0.686. The last 2 s are digital silence and contribute zero error (73 % exactly-equal samples is that silence, not agreement). The error is zero at nothing but silence and rises linearly while the voices sound; lag test: lag 0 summed squared error 6.3e-5 vs 18.4 at lag +-1 (sums over 144000 samples), so no shift.
 
 | experiment | rel RMS err dB | max err |
 |---|---|---|
@@ -33,7 +33,7 @@ Baseline reproduced through `native-diff.mjs --items smoother`: 1.65e-4 max, -79
 | age literal + `si.smoo` pinned to old form / imp3 | -114.0 / **-141.2** | 1.3e-6 / 1.8e-7 |
 | `si.smoo` pinned to imp3 only (SR still shared) | -79.5 | 1.65e-4 |
 
-Voices 2 and 4 (588 and 980 Hz) are clean because their increments round the same either way; 196, 392, 784 and 1176 are not. After cause 1 is removed only voice 1 (the one scaled by `patch_param_0`, the smoothed drawbar) stays at -91.5 dB, and voice 5 (shimmer) at -109 dB: cause 2.
+Voices 2 and 4 (588 and 980 Hz) are clean because their increments round the same either way; 196, 392 and 784 are not (1176 Hz rounds the same either way). After cause 1 is removed only voice 1 (the one scaled by `patch_param_0`, the smoothed drawbar) stays at -91.5 dB, and voice 5 (shimmer) at -109 dB: cause 2.
 
 Arithmetic check: `Math.fround(392 * Math.fround(1/48000))` = 0.008166666142642498, matching the measured native increment to 10 digits.
 
