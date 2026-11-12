@@ -3,7 +3,7 @@
 // Both sides compile against their own stdlib (faustwasm bundles libfaust's; native reads AQUASYNTH_FAUST_HOME's share/faust), so a
 // difference here can be library text, not the host: the report records the identities. The script exits 1
 // on a render error, a length mismatch, or a LIMITS violation. LIMITS (native-compare.js; the evidence for their values is there, and native-diff.test.mjs trips each) bound the differences;
-// the sample-level bound applies only with --smoother imp3, where the largest error seen is -75.4 dB (dx7-32, unexplained, is -79.5) and a one-sample
+// the sample-level bound applies only with --smoother imp3, where the largest error seen is -75.4 dB (dx7-32 is -79.5: phasor increment rounding plus si.smoo text, docs/renders/dx7-algorithm-32-native-diff-cause.md) and a one-sample
 // shift reads about -4 dB. With the library smoother the waveforms legitimately diverge (thruster -8 to -29 dB), so no sample bound.
 // usage: node native-diff.mjs <FaustNativeRender dir|dll> [--tract PATH.dsp] [--out DIR] [--items core|smoother] [--smoother library|old|imp3]
 //   --items smoother: the 12 catalog sources that call si.smooth/si.smoo (thruster at rpm 1200, 7 patches, 4 Ding instruments, one note at 261.6256 Hz for 1.5 s)
