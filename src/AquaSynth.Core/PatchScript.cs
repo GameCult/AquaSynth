@@ -39,6 +39,11 @@ public static class PatchScript
         return known is not null;
     }
 
+    /// <summary>The distance in cm from the lip plane at which a descriptor's place closes, or false when the place has no distance
+    /// (fraction only, or no place named): a caller must not invent one.</summary>
+    public static bool TryPlaceDistanceCentimeters(string descriptor, out float centimeters) =>
+        Compiler.TryPlaceDistanceCentimeters(descriptor, out centimeters);
+
     public static SynthPatch Parse(string script)
     {
         var compiler = new Compiler();
@@ -1513,7 +1518,6 @@ public static class PatchScript
                 voiced = false;
             }
 
-            var place = PlaceTarget(tokens);
             var constriction = ConstrictionTarget(tokens);
             var pressure = Math.Clamp(0.45f + 0.30f * intensity, 0, 1);
             AddAuthoredSpline($"{name}_source_pressure", "/vocal/sources/0/pressure", start, duration, (0, 0.4f), (0.2f, pressure), (1, pressure * 0.85f));
@@ -1531,13 +1535,14 @@ public static class PatchScript
                 return;
             }
 
+            var length = _areaFunctions.Count > 0 ? _areaFunctions[0].Shape.LengthCentimeters : StoryVowelAreas.MeanLengthCentimeters;
+            var place = PlaceFraction(tokens, length);
             if (_areaFunctions.Count > 0 && _areaFunctions[0].Vowels is not null && _areaFunctions[0].Deformation is { } control)
             {
                 // Under vowel_set the constriction is placed by distance along the tract: the surface is a section index, so a normalized
                 // place fraction would land at fraction * sections / (sections - 1) of the tract, past the lips for a labial.
                 var sections = Math.Max(2, _areaFunctions[0].Shape.Sections);
-                var position = ConsonantPositionFromGlottis(tokens, place, _areaFunctions[0].Shape.LengthCentimeters);
-                HoldOnSurface($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, position * (sections - 1) / control.IndexScale);
+                HoldOnSurface($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, place * (sections - 1) / control.IndexScale);
             }
             else
             {
@@ -1571,6 +1576,7 @@ public static class PatchScript
                 // a surface holds its last value after its last point (and its first before its first), so a gain left at its level
                 // made noise at every later contact state, the final nasal's closure and the tail included.
                 BurstGainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, PlosiveBurstGain);
+                PlaceBurst(name, tokens, place, start, duration);
                 AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
             else if (tokens.Contains("fricative"))
@@ -1652,6 +1658,40 @@ public static class PatchScript
             _controlSplinesByName[spline.Name] = spline;
         }
 
+        // The place a plosive's burst enters the tract: the contact's position. A labial plosive keeps its burst at the glottal end (position 0)
+        // and writes nothing while no other plosive has driven the position, so a word of labials is unchanged (the position surface does not
+        // exist, and the exporter sends a burst in at the glottal end unless its contact has that surface); once any other plosive
+        // drives it, every labial plosive of the word writes position 0 too, or it would hold that plosive's place.
+        private bool _burstSiteDriven;
+        private readonly List<(string Name, float Start, float Duration)> _labialPlosives = [];
+
+        private void PlaceBurst(string name, HashSet<string> tokens, float place, float start, float duration)
+        {
+            var labial = tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial");
+            if (labial && !_burstSiteDriven)
+            {
+                _labialPlosives.Add((name, start, duration));
+                return;
+            }
+
+            if (!_burstSiteDriven)
+            {
+                _burstSiteDriven = true;
+                if (_constrictionContacts.Count > 0)
+                {
+                    var contact = _constrictionContacts[0];
+                    RegisterNormalizedPrimitiveSurface(OwnerField("/vocal/contacts/0", "position"), contact.Name, "position", contact.Position);
+                }
+
+                foreach (var (labialName, labialStart, labialDuration) in _labialPlosives)
+                {
+                    HoldOnSurface($"{labialName}_burst_site", "/vocal/contacts/0/position", labialStart, labialDuration, 0);
+                }
+            }
+
+            HoldOnSurface($"{name}_burst_site", "/vocal/contacts/0/position", start, duration, labial ? 0 : place);
+        }
+
         private static string GestureDescriptor(string ipa, IReadOnlyDictionary<string, string> fields)
         {
             var explicitDescriptor = GetAny(fields, ["descriptor", "desc", "features"], "");
@@ -1692,29 +1732,52 @@ public static class PatchScript
         // the ladder's counterpart of the tube check's closed end after section 37 of 44 (14.73 cm).
         private const float AlveolarRidgeCentimetersFromLips = 2.555f;
 
-        // Normalized position (0 glottis, 1 lips) of a consonant's constriction in the vowel_set path: labials at the lip plane, alveolars
-        // AlveolarRidgeCentimetersFromLips behind it, every other place at its PlaceTarget fraction of the tract length.
-        private static float ConsonantPositionFromGlottis(HashSet<string> tokens, float placeFraction, float lengthCentimeters)
+        // Where a consonant closes. One entry per place, first token match wins. A place with a distance is placed by it, in cm behind the
+        // lip plane, and its normalized position (0 glottis, 1 lips) is 1 - distance / tract length, for the vowel_set section index and the
+        // hand-written-script fraction alike. A place with no distance is "fraction only": its fraction of the tract length from the glottis,
+        // a hand-set DESIGN VALUE, and no later cut may read a distance from it (TryPlaceDistanceCentimeters says absent).
+        private readonly record struct PlaceEntry(string[] Tokens, float? CentimetersFromLips, float Fraction);
+
+        private static readonly PlaceEntry[] Places =
+        [
+            new(["bilabial", "labiodental", "labial"], 0f, 0f),
+            new(["dental"], null, 0.88f),
+            new(["alveolar"], AlveolarRidgeCentimetersFromLips, 0f),
+            new(["postalveolar", "palatoalveolar"], null, 0.70f),
+            new(["retroflex"], null, 0.64f),
+            new(["palatal"], null, 0.56f),
+            new(["velar"], null, 0.44f),
+            new(["uvular"], null, 0.34f),
+            new(["pharyngeal", "epiglottal"], null, 0.20f),
+            new(["glottal"], null, 0.05f),
+        ];
+
+        private const float PlaceFractionWhenUnnamed = 0.70f;
+
+        private static PlaceEntry? FindPlace(HashSet<string> tokens)
         {
-            if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial")) return 1;
-            if (tokens.Contains("alveolar")) return 1 - AlveolarRidgeCentimetersFromLips / lengthCentimeters;
-            return placeFraction;
+            foreach (var place in Places)
+            {
+                if (place.Tokens.Any(tokens.Contains)) return place;
+            }
+
+            return null;
         }
 
-        private static float PlaceTarget(HashSet<string> tokens)
+        internal static bool TryPlaceDistanceCentimeters(string descriptor, out float centimeters)
         {
-            if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial")) return 0.96f;
-            if (tokens.Contains("dental")) return 0.88f;
-            if (tokens.Contains("alveolar")) return 0.78f;
-            if (tokens.Contains("postalveolar") || tokens.Contains("palatoalveolar")) return 0.70f;
-            if (tokens.Contains("retroflex")) return 0.64f;
-            if (tokens.Contains("palatal")) return 0.56f;
-            if (tokens.Contains("velar")) return 0.44f;
-            if (tokens.Contains("uvular")) return 0.34f;
-            if (tokens.Contains("pharyngeal") || tokens.Contains("epiglottal")) return 0.20f;
-            if (tokens.Contains("glottal")) return 0.05f;
-            return 0.70f;
+            centimeters = FindPlace(DescriptorTokens(descriptor))?.CentimetersFromLips ?? float.NaN;
+            return !float.IsNaN(centimeters);
         }
+
+        // Normalized position of a place along a tract of the given length: 0 glottis, 1 lips.
+        private static float PlaceFraction(HashSet<string> tokens, float lengthCentimeters) =>
+            FindPlace(tokens) switch
+            {
+                { CentimetersFromLips: { } cm } => 1 - cm / lengthCentimeters,
+                { } place => place.Fraction,
+                _ => PlaceFractionWhenUnnamed
+            };
 
         private static float ConstrictionTarget(HashSet<string> tokens)
         {

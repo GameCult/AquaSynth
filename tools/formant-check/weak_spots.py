@@ -77,6 +77,28 @@ def burst(root, name, c0, c1, sub="out"):
             "burst_peak_from_120ms_after_release_to_end": round(peak(d, sr, c1 + .12, n / sr), 4), "burst_diff_samples_nonzero_before_closure_end": int(np.count_nonzero(np.abs(d[:int((c0 + .6 * (c1 - c0)) * sr)]) > 1e-9)),
             "file_end_rms_last_100ms": round(rms(x, sr, len(x) / sr - .1, len(x) / sr), 5), "vowel_rms": round(rms(x, sr, c1 + .06, c1 + .17), 4)}
 
+BURST_BANDS = ((0, 1000), (1000, 2000), (2000, 3500), (3500, 7000), (7000, 24000))
+
+def burst_spectrum(root, word, release_s, window_ms=20, sub="out", smooth_hz=400, min_hz=1000):
+    """The isolated burst's spectrum: the difference of out/<word> and outnb/<word> (renders with and without release_flow), window_ms from
+    release_s, Hann windowed. peak_hz is the maximum of the power spectrum smoothed over smooth_hz and searched from min_hz up (a noise
+    burst has no single line; below 1 kHz the release carries the tract's own low resonance, 430-480 Hz in /ata/ and /apa/, which is not
+    the place cue: DESIGN choice of the floor), peak_hz_all the same without the floor, centroid_hz the power-weighted mean frequency from
+    min_hz up, band_db the power in BURST_BANDS (dB, absolute), window_peak the largest sample in the window, outside_peak the largest
+    sample outside release_s - 5 ms .. release_s + 120 ms (the closure's residue: 0 for a burst that exists only in the window)."""
+    x, sr = load(root, sub, word); nb, _ = load(root, "outnb", word)
+    n = min(len(x), len(nb)); d = x[:n] - nb[:n]
+    a = int(release_s * sr); m = int(window_ms / 1000 * sr); s = d[a:a + m] * np.hanning(m)
+    nfft = 1 << 14
+    P = np.abs(np.fft.rfft(s, nfft)) ** 2; f = np.fft.rfftfreq(nfft, 1 / sr)
+    k = max(1, int(smooth_hz / (sr / nfft))); Ps = np.convolve(P, np.ones(k) / k, mode="same")
+    up = f >= min_hz
+    out_mask = np.ones(n, bool); out_mask[max(0, int((release_s - .005) * sr)):int((release_s + .12) * sr)] = False
+    return {"peak_hz": round(float(f[up][np.argmax(Ps[up])]), 0), "peak_hz_all": round(float(f[int(np.argmax(Ps))]), 0),
+            "centroid_hz": round(float((f[up] * P[up]).sum() / max(P[up].sum(), 1e-30)), 0),
+            "band_db": {f"{lo}_{hi}": round(float(10 * np.log10(P[(f >= lo) & (f < hi)].sum() + 1e-30)), 1) for lo, hi in BURST_BANDS},
+            "window_peak": round(float(np.abs(d[a:a + m]).max()), 5), "outside_peak": float(np.abs(d[out_mask]).max()) if out_mask.any() else 0.0}
+
 def bands(x, sr, a, b, edges=((0, 400), (400, 800), (800, 1600), (1600, 3200))):
     s = x[int(a * sr):int(b * sr)]; s = s * np.hanning(len(s))
     P = np.abs(np.fft.rfft(s, 1 << 15)) ** 2; f = np.fft.rfftfreq(1 << 15, 1 / sr)
