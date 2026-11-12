@@ -578,6 +578,26 @@ public sealed class PatchScriptTests
     }
 
     [Fact]
+    public void VowelGestureWithoutVowelSetFailsLoudly()
+    {
+        const string tract = """
+            morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.5
+            waveguide_path name=oral_path morphology=oral loss=.998
+            source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.45 noise=.05 impedance=.3
+            constriction_contact name=contact path=oral_path position=.92 opening=.5 resistance=.4 stored_pressure=.1
+            radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
+            vocal_network name=voice paths=oral_path sources=folds contacts=contact radiation=mouth
+            phoneme_gesture name=vowel ipa=a start=0 dur=.2 intensity=.7
+            vocal network=voice freq=150 gain=.2 sustain=.3
+            """;
+        var error = Assert.Throws<PatchScriptException>(() => PatchScript.Parse(tract));
+        Assert.StartsWith("line 7:", error.Message);
+        Assert.Contains("vowel_set", error.Message);
+        // With the vowel_set in front of it the same gesture parses.
+        PatchScript.Parse(tract.Replace("waveguide_path name=oral_path", "vowel_set area_function=oral source=story2008\nwaveguide_path name=oral_path"));
+    }
+
+    [Fact]
     public void PhonemeGestureDslEmitsAnatomicalControlSplines()
     {
         var patch = PatchScript.Parse("""
