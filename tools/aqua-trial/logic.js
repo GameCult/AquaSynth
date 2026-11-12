@@ -73,6 +73,10 @@ export async function sha256Hex(text) {
   return [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// The DSP identity an export records and analyze.mjs compares: sha-256 of the source text with CRLF folded to LF, so a CRLF
+// checkout of the same DSP hashes the same. LF text hashes exactly as before, so exports made before this stay valid.
+export const dspHash = (text) => sha256Hex(String(text).replace(/\r\n/g, "\n"));
+
 // answers: [{ A: {rating, word, time, plays}, B: {...} }] aligned with design.
 export function buildExport({ seed, design, renders, answers, dspSha256, sampleRate, userAgent, exportedAt }) {
   if (!/^[0-9a-f]{64}$/.test(dspSha256 ?? "")) throw new Error("export needs the sha-256 of the DSP source that was rendered");

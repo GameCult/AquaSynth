@@ -3,10 +3,9 @@
 // and whether render peak / rms predicted the ratings. Usage: node analyze.mjs export1.json [export2.json ...]
 // Pure functions are exported for test.mjs; the CLI runs only when this file is the entry point.
 import { readFileSync } from "node:fs";
-import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { rng, shuffle, SCHEMA } from "./logic.js";
+import { rng, shuffle, dspHash, SCHEMA } from "./logic.js";
 
 export const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 export const sd = (xs) => (xs.length < 2 ? NaN : Math.sqrt(xs.reduce((a, x) => a + (x - mean(xs)) ** 2, 0) / (xs.length - 1)));
@@ -102,6 +101,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     if (e.schema !== SCHEMA) throw new Error(`${p}: schema ${e.schema}, expected ${SCHEMA}`);
     return e;
   });
-  const expectedDsp = createHash("sha256").update(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "thruster-trial.dsp"))).digest("hex");
+  const expectedDsp = await dspHash(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "thruster-trial.dsp"), "utf8"));
   console.log(format(analyze(exports, { expectedDsp })));
 }
