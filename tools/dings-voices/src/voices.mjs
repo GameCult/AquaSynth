@@ -7,6 +7,8 @@ import { SR } from "../../earcon-workshop/web/earcon.js";
 const TAU = Math.PI * 2;
 export const SENDERS = ["aqua", "eureka", "heimdall", "kiko", "libby", "nibu", "void", "weksa"];
 export const MOTIFS = ["mention", "dm", "message", "invite"];
+// The DingCatalog instrument id whose Earcon Workshop voice build.mjs renders as the neutral fallback; neutral_instrument.test.mjs ties it to the catalog mirror.
+export const NEUTRAL_INSTRUMENT_ID = "warm-bell";
 
 // Shared rhythm family: onset times in ms and a rising scale degree (semitones) per onset. Rhythm tells the event:
 // mention = one note, message = quick pair, dm = slow pair, invite = long gap then short (an opening, then in).
