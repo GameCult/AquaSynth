@@ -8,10 +8,12 @@ using AquaSynth.Faust;
 // Offline probe: one word, segmented by Weksa (the phones line of `weksa lower --phones`), as a run of IPA gestures on the
 // IpaGestureExperiment scaffold, rendered through the native libfaust path to a mono 16-bit WAV plus script.aqua, source.dsp
 // and manifest.json. It measures peak, rms and NaN; it cannot say how the word sounds.
-// usage: WordRender <outDir> <label> <freq-hz> <phones.json>
+// usage: WordRender <outDir> <label> <freq-hz> <phones.json> [--no-burst]
+// --no-burst drops the plosive release_flow splines (the same edit the burst test makes), so a render pair isolates the burst.
 // exit: 0 rendered, 1 compile or non-finite output, 2 usage, 3 phones file refused, 4 phones the tract cannot make (listed, nothing rendered)
 const int Rate = 48000, Frames = 512;
-if (args.Length != 4) { Console.Error.WriteLine("usage: WordRender <outDir> <label> <freq-hz> <phones.json>"); return 2; }
+var noBurst = args.Length == 5 && args[4] == "--no-burst";
+if (args.Length != 4 && !noBurst) { Console.Error.WriteLine("usage: WordRender <outDir> <label> <freq-hz> <phones.json> [--no-burst]"); return 2; }
 var outDir = Path.GetFullPath(args[0]);
 var label = args[1];
 var freq = float.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
@@ -41,7 +43,9 @@ Console.WriteLine($"faust home: {home ?? "(not found)"}");
 using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(SampleRate: Rate));
 // The exporter emits one merged spline per surface (the ControlSplineTimeline curve), so the DSP carries the word's motion
 // itself and no slider is driven from outside.
-var source = FaustEmitter.Emit(PatchScript.Parse(script), new FaustExportOptions(label)).Source;
+var parsed = PatchScript.Parse(script);
+if (noBurst) parsed = parsed with { ControlSplines = parsed.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() };
+var source = FaustEmitter.Emit(parsed, new FaustExportOptions(label)).Source;
 File.WriteAllText(Path.Combine(outDir, "source.dsp"), source);
 if (!compiler.TryCompileSource(new AquaSynthCompileIdentity(label, label, ""), source, seconds, out var patch0, out var cerr))
 {
@@ -83,7 +87,7 @@ using (var w = new BinaryWriter(File.Create(wav)))
 var rms = Math.Sqrt(sum / pcm.Length);
 File.WriteAllText(Path.Combine(outDir, "manifest.json"), JsonSerializer.Serialize(new
 {
-    label, freq, weksa = new { word.Language, word.Source, Phones = word.Phones.Select(p => new { p.Ipa, Stress = p.Stress.ToString() }) }, seconds, sampleRate = Rate, frames = pcm.Length, peak, rms, nonFinite = nan,
+    label, freq, noBurst, weksa = new { word.Language, word.Source, Phones = word.Phones.Select(p => new { p.Ipa, Stress = p.Stress.ToString() }) }, seconds, sampleRate = Rate, frames = pcm.Length, peak, rms, nonFinite = nan,
     wavSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(wav))).ToLowerInvariant(),
     scriptSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(outDir, "script.aqua")))).ToLowerInvariant(),
     os = RuntimeInformation.OSDescription, faustHome = home

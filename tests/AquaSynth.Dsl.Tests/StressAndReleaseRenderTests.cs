@@ -114,6 +114,30 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         Assert.True(burstPeak < vowelPeak / 2, "the burst stays well under the following vowel's peak (the b level fix)");
     }
 
+    // The burst is noise whose amplitude is release_flow times the stored pressure through the opening, and release_flow was held at its
+    // gain from the plosive's gesture on, so it never ended: every later contact state made noise too. In /bin/ the "burst" alone (the
+    // difference of the renders with and without release_flow) peaked at 0.0302 in the final /n/ and the tail, above its 0.0226 at the
+    // release itself, and in /nibu/ the leading /n/ and /i/ carried it backward (a spline holds its first value before its first point).
+    [Fact]
+    public void PlosiveBurstExistsOnlyAroundItsOwnRelease()
+    {
+        IpaGestureExperimentTarget Phone(string label, string ipa, float seconds) => new($"w_{label}", ipa, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone("2_b", "b", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_n", "n", 0.095f), 1f)], 140);
+        var withBurst = Render(script, 0.77f);
+        var withoutBurst = Render(script, 0.77f, p => p with { ControlSplines = p.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() });
+        if (withBurst is null || withoutBurst is null) return;
+        var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
+        const double bFrom = 0.275, bTo = 0.37;
+        var atRelease = Peak(burst, bFrom + 0.095 * 0.6, bTo + 0.02);
+        var leading = Peak(burst, 0, bFrom);
+        var trailing = Peak(burst, bTo + 0.12, 0.77);
+        output.WriteLine($"burst peak {atRelease:F4} at the release, {leading:F4} before the plosive (n, a), {trailing:F4} after it (a, n, tail)");
+        Assert.True(atRelease > 0.004, "the burst is still there at the release");
+        Assert.True(leading < atRelease / 20, "no burst noise before the plosive's own gesture");
+        Assert.True(trailing < atRelease / 10, "no burst noise in the vowel, the nasal and the tail after the plosive");
+    }
+
     // /ɑ C ɑ/ at the scaffold's own durations (vowel 0.18 s, consonant 0.095 s). Returns the render and the consonant's [start, end).
     private (float[]? Samples, double From, double To) VowelConsonantVowel(string ipa, float frequency = 140)
     {

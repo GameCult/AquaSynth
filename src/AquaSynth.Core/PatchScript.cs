@@ -1567,8 +1567,10 @@ public static class PatchScript
                 AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.02f), (0.65f, 0.02f), (1, 0.9f));
                 AddAuthoredSpline($"{name}_stored_pressure", "/vocal/contacts/0/stored_pressure", start, duration, (0, 0.4f), (0.65f, 0.75f), (1, 0.05f));
                 // The release burst is turbulence at the opening constriction: its gain is held for the plosive and the exporter shapes
-                // it by the stored pressure and the opening (see PrimitiveContactExpression).
-                HoldOnSurface($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, PlosiveBurstGain);
+                // it by the stored pressure and the opening (see PrimitiveContactExpression). The gain exists only around this plosive:
+                // a surface holds its last value after its last point (and its first before its first), so a gain left at its level
+                // made noise at every later contact state, the final nasal's closure and the tail included.
+                BurstGainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, PlosiveBurstGain);
                 AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
             else if (tokens.Contains("fricative"))
@@ -1625,6 +1627,29 @@ public static class PatchScript
 
             var normalized = Math.Clamp((value - surface.MinValue) / (surface.MaxValue - surface.MinValue), 0, 1);
             AddAuthoredSpline(name, surfacePath, start, duration, (0, normalized), (1, normalized));
+        }
+
+        // Zero before and after the gesture, the gain through it; the ramps are 0.15 of the gesture long and run into the neighbouring
+        // phones (the leading one is cut where the word begins).
+        private void BurstGainAroundGesture(string name, string surfacePath, float start, float duration, float gain)
+        {
+            if (!_controlSurfacesByPath.TryGetValue(surfacePath, out var surface) || surface.MaxValue <= surface.MinValue)
+            {
+                return;
+            }
+
+            var level = Math.Clamp((gain - surface.MinValue) / (surface.MaxValue - surface.MinValue), 0, 1);
+            var handle = duration * 0.25f;
+            ControlSplinePoint At(float time, float value) => new(time, value, handle, value, handle, value);
+            var ramp = duration * 0.15f;
+            var points = new List<ControlSplinePoint>();
+            if (start > 0) points.Add(At(Math.Max(0, start - ramp), 0));
+            points.Add(At(start, level));
+            points.Add(At(start + duration, level));
+            points.Add(At(start + duration + ramp, 0));
+            var spline = new ControlSpline(UniqueSplineName(name), surfacePath, points.ToArray(), ControlSplineInterpolation.Bezier);
+            _controlSplines.Add(spline);
+            _controlSplinesByName[spline.Name] = spline;
         }
 
         private static string GestureDescriptor(string ipa, IReadOnlyDictionary<string, string> fields)
