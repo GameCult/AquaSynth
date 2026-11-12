@@ -29,7 +29,7 @@
         h("ul", {},
           h("li", {}, "This page works on its own. It talks to no server, has no account and no tracking, and sends nothing anywhere."),
           h("li", {}, "Your answers are saved in this browser only, so you can close the tab and come back. Clearing your browser data erases them."),
-          h("li", {}, "Nothing leaves your computer until you press Export, which saves two files. Sending those files to the person who gave you this page is your choice."),
+          h("li", {}, "Nothing leaves your computer until you press Export, which shows your answers as text to copy, share or save. Sending those files to the person who gave you this page is your choice."),
           h("li", {}, "You can stay anonymous. A name or nickname is optional.")),
         h("p", {}, h("label", {}, box, " I understand, and I'm happy to take part.")),
         h("p", {}, h("label", {}, "Name or nickname (optional) ", h("input", { type: "text", id: "alias", maxlength: "60" }))),
@@ -88,20 +88,38 @@
       h("div", { class: "bar" }, h("div", { class: "row" }, dev, prog)),
       ...cards,
       h("div", { class: "card" }, h("h2", {}, "Finished?"), notes,
-        h("p", { class: "hint" }, "Export saves verdict.json and verdict.md to your downloads. Unanswered sounds are exported as blank."),
-        h("div", { class: "row" }, h("button", { onclick: exportAll }, "Export verdict.json + verdict.md"), h("button", { class: "quiet", onclick: reset }, "Erase my answers"))));
+        h("p", { class: "hint" }, "Export shows your answers as text you can copy, share or download. Unanswered sounds are exported as blank. Your answers stay saved in this browser until you erase them."),
+        h("div", { class: "row" }, h("button", { id: "export", onclick: exportAll }, "Export my answers"), h("button", { class: "quiet", onclick: reset }, "Erase my answers")), h("div", { id: "export-panel" })));
     progress();
   }
 
   function progress() { const e = document.getElementById("progress"); if (e) e.textContent = `${kit.manifest.clips.filter((c) => answered(c.id)).length} of ${kit.manifest.clips.length} answered`; }
+  // Export is a visible panel, not a silent download: Android Chrome blocks the second of two scripted downloads and
+  // gives no sign, so the verdict is also shown in a read-only textarea with copy, share and one-download-per-tap buttons.
+  function verdictNow() { return L.buildVerdict(kit.manifest, order, state, new Date().toISOString()); }
   function download(name, text, type) {
     const a = h("a", { href: URL.createObjectURL(new Blob([text], { type })), download: name });
     document.body.append(a); a.click(); a.remove();
   }
+  async function copyText(text, area) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* no clipboard API or not allowed: fall through */ }
+    try { area.focus(); area.select(); area.setSelectionRange(0, text.length); return document.execCommand("copy"); } catch (e) { return false; }
+  }
   function exportAll() {
-    const v = L.buildVerdict(kit.manifest, order, state, new Date().toISOString());
-    download("verdict.json", JSON.stringify(v, null, 2) + "\n", "application/json");
-    download("verdict.md", L.verdictMarkdown(v), "text/markdown");
+    const v = verdictNow(), json = JSON.stringify(v, null, 2) + "\n", md = L.verdictMarkdown(v);
+    const area = h("textarea", { id: "export-text", rows: "10", readonly: true, "aria-label": "Your answers as verdict.json" }, json);
+    const msg = h("p", { class: "hint", id: "export-msg", role: "status" }, "Your answers are below. Copy them and paste them into a message to whoever sent you this page.");
+    const say = (t) => { msg.textContent = t; };
+    const buttons = [
+      h("button", { id: "copy-json", onclick: async () => say((await copyText(json, area)) ? "Copied verdict.json. Paste it into your message." : "Copy was blocked. The text box is selected: use your phone's Copy.") }, "Copy answers (JSON)"),
+      h("button", { class: "quiet", id: "copy-md", onclick: async () => { const t = h("textarea", {}, md); document.body.append(t); const ok = await copyText(md, t); t.remove(); say(ok ? "Copied the readable table." : "Copy was blocked."); } }, "Copy as table"),
+      h("button", { class: "quiet", onclick: () => { area.focus(); area.select(); area.setSelectionRange(0, json.length); say("Selected. Use your phone's Copy."); } }, "Select all"),
+      h("button", { class: "quiet", onclick: () => download("verdict.json", json, "application/json") }, "Download verdict.json"),
+      h("button", { class: "quiet", onclick: () => download("verdict.md", md, "text/markdown") }, "Download verdict.md")];
+    if (navigator.share) buttons.splice(2, 0, h("button", { class: "quiet", id: "share", onclick: () => navigator.share({ title: "Listening verdict", text: json }).catch(() => say("Sharing was cancelled or unavailable.")) }, "Share"));
+    const panel = document.getElementById("export-panel");
+    panel.replaceChildren(h("h3", {}, "Your answers"), msg, area, h("div", { class: "row" }, buttons));
+    area.focus(); area.select(); panel.scrollIntoView();
   }
   function reset() { if (confirm("Erase every answer you've given in this browser?")) { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); } }
 
