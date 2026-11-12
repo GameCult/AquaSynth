@@ -32,6 +32,20 @@ public sealed class DingsBridgeTests
     }
 
     [Fact]
+    public async Task DeprecatedBridgeFailFastKeepsItsErrorsAndTextsAgreeWithTheHostGate()
+    {
+        var host = new FakeHostClient();
+        var service = new DingService(host);
+
+        var badEvent = await Assert.ThrowsAsync<ArgumentException>(() => service.PlayAsync("nope", "warm-bell", .5f, CancellationToken.None));
+        Assert.Equal(DingCatalog.PlayRejection("nope", "warm-bell", .5f), badEvent.Message);
+        var badInstrument = await Assert.ThrowsAsync<ArgumentException>(() => service.PlayAsync("task.complete", "nope", .5f, CancellationToken.None));
+        Assert.Equal(DingCatalog.PlayRejection("task.complete", "nope", .5f), badInstrument.Message);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => service.PlayAsync("task.complete", "warm-bell", 1.5f, CancellationToken.None));
+        Assert.Empty(host.Commands);
+    }
+
+    [Fact]
     public void BridgeProjectContainsNoAudioOutputOwner()
     {
         var root = RepositoryRoot();

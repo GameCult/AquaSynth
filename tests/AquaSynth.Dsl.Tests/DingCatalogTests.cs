@@ -10,6 +10,26 @@ public sealed class DingCatalogTests
         Assert.Empty(DingCatalog.ValidateCuration());
 
     [Fact]
+    public void PlayRejectionIsTheHostGateWithPinnedTexts()
+    {
+        Assert.Null(DingCatalog.PlayRejection("task.complete", "warm-bell", 0));
+        Assert.Null(DingCatalog.PlayRejection("task.complete", "warm-bell", 1));
+        Assert.Equal("Unknown event 'nope'.", DingCatalog.PlayRejection("nope", "warm-bell", .5f));
+        Assert.Equal("Unknown instrument 'nope'.", DingCatalog.PlayRejection("task.complete", "nope", .5f));
+        Assert.Equal("Unknown event 'nope'.", DingCatalog.PlayRejection("nope", "nope", 2f));
+        foreach (var gain in new[] { -.01f, 1.01f, float.NaN, float.PositiveInfinity })
+            Assert.Equal("Gain must be between 0 and 1.", DingCatalog.PlayRejection("task.complete", "warm-bell", gain));
+    }
+
+    [Fact]
+    public void HostCallsTheGateAndOwnsNoSecondCopy()
+    {
+        var host = File.ReadAllText(Path.Combine(RepositoryRoot(), "tools", "AquaSynthDingsHost", "DingsPlaybackHost.cs"));
+        Assert.Contains("DingCatalog.PlayRejection(", host, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unknown event", host, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void MinimalDingsVocabularyIsComplete()
     {
         string[] expected = ["session.start", "task.acknowledge", "task.complete", "task.error", "input.required", "resource.limit", "user.spam", "session.end", "task.progress"];

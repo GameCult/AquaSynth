@@ -6,6 +6,9 @@ public sealed class DingService(IDingsHostClient host)
 {
     public async Task<object> PlayAsync(string eventId, string instrumentId, float gain, CancellationToken cancellationToken)
     {
+        // DEPRECATED fail-fast path: the Host enforces the real gate (DingCatalog.PlayRejection, called by DingsPlaybackHost.PlayAsync).
+        // Kept for one window because its exception types and the NaN pass-through to the Host's rejection are observable; see
+        // docs/dings-patch-identity-authority-map.md, Migration plan step 4. Remove only in a separate PR.
         if (!DingCatalog.Events.TryGetValue(eventId, out var dingEvent)) throw new ArgumentException($"Unknown event '{eventId}'.");
         if (!DingCatalog.Instruments.TryGetValue(instrumentId, out var instrument)) throw new ArgumentException($"Unknown instrument '{instrumentId}'.");
         if (gain is < 0 or > 1) throw new ArgumentOutOfRangeException(nameof(gain), "Gain must be between 0 and 1.");

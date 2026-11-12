@@ -63,9 +63,9 @@ public sealed class DingsPlaybackHost : IAsyncDisposable
 
     private async Task<DingsResponse> PlayAsync(DingsCommand command, CancellationToken cancellationToken)
     {
-        if (!DingCatalog.Events.TryGetValue(command.EventId, out var dingEvent)) return Response(false, "rejected", $"Unknown event '{command.EventId}'.");
-        if (!DingCatalog.Instruments.TryGetValue(command.InstrumentId, out var instrument)) return Response(false, "rejected", $"Unknown instrument '{command.InstrumentId}'.");
-        if (!float.IsFinite(command.Value) || command.Value is < 0 or > 1) return Response(false, "rejected", "Gain must be between 0 and 1.");
+        if (DingCatalog.PlayRejection(command.EventId, command.InstrumentId, command.Value) is { } rejection) return Response(false, "rejected", rejection);
+        var dingEvent = DingCatalog.Events[command.EventId];
+        var instrument = DingCatalog.Instruments[command.InstrumentId];
         var playbackId = $"ding-{Guid.NewGuid():N}";
         foreach (var note in dingEvent.Notes)
         {

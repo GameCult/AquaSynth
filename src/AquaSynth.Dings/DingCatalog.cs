@@ -13,6 +13,16 @@ public static class DingCatalog
     public static DingPatchIdentity Identity(DingInstrument instrument) =>
         new($"dings.{instrument.Id}", $"dings_{instrument.Id.Replace('-', '_')}", 1);
 
+    /// <summary>The play validation gate. The Host is its enforcing owner (every pipe client passes it); the MCP bridge's
+    /// own check in DingService.PlayAsync is a deprecated fail-fast path. Returns the rejection text, or null when valid.</summary>
+    public static string? PlayRejection(string eventId, string instrumentId, float gain)
+    {
+        if (!Events.ContainsKey(eventId)) return $"Unknown event '{eventId}'.";
+        if (!Instruments.ContainsKey(instrumentId)) return $"Unknown instrument '{instrumentId}'.";
+        if (!float.IsFinite(gain) || gain is < 0 or > 1) return "Gain must be between 0 and 1.";
+        return null;
+    }
+
     public static readonly IReadOnlyDictionary<string, DingEvent> Events = new DingEvent[]
     {
         new("session.start", "Opening welcome", [new(0, 0), new(7, 220)]),
