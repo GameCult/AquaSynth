@@ -1552,8 +1552,13 @@ public static class PatchScript
             // A nasal stop holds its oral closure for as long as the velum and the contact stay put (to 0.8 of the gesture): the murmur is the
             // closed-mouth sound, and an alveolar closure that began to open at 0.5 let the oral tract radiate again over the last third (/n/ read
             // -3.8 dB under its vowels against /m/ -13.2 dB, whose lips hold to 0.7).
-            var closureHold = tokens.Contains("nasal") ? 0.8f : 0.5f;
-            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, constriction), (closureHold, constriction), (1, Math.Min(0.65f, constriction + 0.2f)));
+            var stopsBehindTheLips = (tokens.Contains("plosive") || tokens.Contains("stop")) && !(tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial"));
+            // A stop whose seal is the tongue (not the lips) is closed completely and until the contact opens (0.65): at the nasal's 0.03 cm
+            // aperture a /t/ closure measured -10.4 dB re its vowels against /p/ -19.7 (the lips seal /p/ whatever the tongue does), and
+            // rendered -21.5 dB with the aperture at 0 (area floor 1e-6 cm^2).
+            var closureHold = tokens.Contains("nasal") ? 0.8f : stopsBehindTheLips ? 0.65f : 0.5f;
+            var closed = stopsBehindTheLips ? 0f : constriction;
+            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, closed), (closureHold, closed), (1, Math.Min(0.65f, constriction + 0.2f)));
 
             if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial") || tokens.Contains("rounded"))
             {
@@ -1575,7 +1580,7 @@ public static class PatchScript
                 // it by the stored pressure and the opening (see PrimitiveContactExpression). The gain exists only around this plosive:
                 // a surface holds its last value after its last point (and its first before its first), so a gain left at its level
                 // made noise at every later contact state, the final nasal's closure and the tail included.
-                BurstGainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, PlosiveBurstGain);
+                BurstGainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, stopsBehindTheLips ? TongueStopBurstGain : PlosiveBurstGain);
                 PlaceBurst(name, tokens, place, start, duration);
                 AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
@@ -1725,6 +1730,11 @@ public static class PatchScript
         // Gain of the plosive release burst (contact release_flow, surface range 0..2). A DESIGN VALUE set by measurement against the
         // following vowel; no published burst level was retrieved.
         private const float PlosiveBurstGain = 0.06f;
+
+        // The same for a stop sealed by the tongue, whose burst goes in at the closure (LadderInjection) and reaches the lips almost
+        // unfiltered: at 0.06 the isolated /t/ burst peaked at 0.76 of the following vowel's peak (/b/ 0.19; the rule is under half), at
+        // 0.03 it is about half that. A DESIGN VALUE set by that measurement.
+        private const float TongueStopBurstGain = 0.03f;
 
         // Distance from the lip plane to the alveolar ridge in cm. A DESIGN VALUE; no source for the distance was retrieved. 2.555 cm puts the
         // closure on the centre of ladder cell 20 of 24 of the scaffold tract (17.52 cm at 48 kHz and 350 m/s: (20.5 / 24) * 17.52 = 14.965 cm

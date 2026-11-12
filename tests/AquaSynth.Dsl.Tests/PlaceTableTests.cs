@@ -86,4 +86,18 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
         Assert.All(SitePoints(script, "w_4_p"), v => Assert.Equal(0f, v));
         Assert.All(SitePoints(script, "w_2_t"), v => Assert.True(v > 0.8f));
     }
+
+    [Fact]
+    public void ATongueSealedStopIsClosedCompletelyUntilItsContactOpensAndALabialKeepsItsOldSpline()
+    {
+        float[] Diameter(string script) => PatchScript.Parse(script).ControlSplines
+            .Single(s => s.Name.StartsWith("w_1_c_constriction_diameter", StringComparison.Ordinal)).Points.Select(p => p.Value).ToArray();
+        var t = PatchScript.Parse(Word("t", "voiceless_alveolar_plosive")).ControlSplines
+            .Single(s => s.Name.StartsWith("w_1_c_constriction_diameter", StringComparison.Ordinal)).Points;
+        Assert.Equal(0f, t[0].Value);
+        Assert.Equal(0f, t[1].Value);
+        Assert.Equal(0.65f, (t[1].TimeSeconds - 0.18f) / 0.095f, 3);
+        var b = Diameter(Word("b"));
+        Assert.True(b[0] > 0 && Math.Abs(b[0] - b[1]) < 1e-6f, "the lip-sealed stop keeps the 0.03 aperture spline (its source text is pinned)");
+    }
 }

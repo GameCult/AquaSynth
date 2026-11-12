@@ -139,11 +139,11 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     }
 
     // /ɑ C ɑ/ at the scaffold's own durations (vowel 0.18 s, consonant 0.095 s). Returns the render and the consonant's [start, end).
-    private (float[]? Samples, double From, double To) VowelConsonantVowel(string ipa, float frequency = 140)
+    private (float[]? Samples, double From, double To) VowelConsonantVowel(string ipa, float frequency = 140, string descriptor = "", Func<SynthPatch, SynthPatch>? edit = null)
     {
         var script = IpaGestureExperiment.BuildWordScript(
-            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], frequency);
-        return (Render(script, 0.5f), 0.18, 0.275);
+            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, descriptor, 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], frequency);
+        return (Render(script, 0.5f, edit), 0.18, 0.275);
     }
 
     // Level of the consonant's middle 60 percent against the mean power of the steady parts of the two flanking vowels (the 70 ms before the
@@ -226,5 +226,43 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         var db = 20 * Math.Log10(Math.Max(1e-9, Deviation(x, 0.03, 0.058)) / Deviation(x, 0.15, 0.25));
         output.WriteLine($"/{ipa}/ closure {db:F1} dB re the following vowel");
         Assert.InRange(db, lowDb, highDb);
+    }
+
+    private static SynthPatch WithoutBurst(SynthPatch p) =>
+        p with { ControlSplines = p.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() };
+
+    // The closure of a stop is the part before its contact opens (0.65 of the gesture), 0.2 of the gesture in from its start, without the burst.
+    // A tongue closure at the nasal's 0.03 cm aperture leaked: /t/ read -14.3 dB re the flanking vowels against /p/ -22.1 (the lips seal /p/);
+    // completely closed it reads -24.3.
+    [Fact]
+    public void ATongueSealedStopClosureIsAsQuietAsTheLipSealedOne()
+    {
+        double Closure(string ipa, string descriptor)
+        {
+            var (x, from, to) = VowelConsonantVowel(ipa, descriptor: descriptor, edit: WithoutBurst);
+            if (x is null) return double.NaN;
+            var vowels = Math.Sqrt((Math.Pow(Rms(x, from - 0.08, from - 0.01), 2) + Math.Pow(Rms(x, to + 0.03, to + 0.12), 2)) / 2);
+            return 20 * Math.Log10(Rms(x, from + 0.2 * (to - from), from + 0.65 * (to - from)) / vowels);
+        }
+
+        var p = Closure("p", "voiceless_bilabial_plosive");
+        var t = Closure("t", "voiceless_alveolar_plosive");
+        output.WriteLine($"closure re vowels: /p/ {p:F1} dB, /t/ {t:F1} dB");
+        if (double.IsNaN(p)) return;
+        Assert.True(t <= p + 1, $"the /t/ closure ({t:F1} dB) is as quiet as /p/ ({p:F1} dB)");
+    }
+
+    [Fact]
+    public void ATongueSealedStopBurstStaysUnderHalfTheFollowingVowel()
+    {
+        var (x, from, to) = VowelConsonantVowel("t", descriptor: "voiceless_alveolar_plosive");
+        var (nb, _, _) = VowelConsonantVowel("t", descriptor: "voiceless_alveolar_plosive", edit: WithoutBurst);
+        if (x is null || nb is null) return;
+        var burst = x.Zip(nb, (a, b) => a - b).ToArray();
+        var peak = Peak(burst, from + 0.6 * (to - from), to + 0.01);
+        var vowel = Peak(x, to + 0.06, to + 0.17);
+        output.WriteLine($"/t/ burst peak {peak:F4}, vowel peak {vowel:F4}, ratio {peak / vowel:F2}");
+        Assert.True(peak > 0.004, "audible");
+        Assert.True(peak < vowel / 2, "under half the following vowel's peak, as /b/");
     }
 }
