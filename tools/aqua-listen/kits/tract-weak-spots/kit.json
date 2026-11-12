@@ -1,0 +1,117 @@
+{
+ "kit": {
+  "id": "tract-weak-spots-1",
+  "title": "Articulatory vocal tract: stress, release, nasals, lax vowels",
+  "note": "Short synthetic words from the tract model. Tell us what you hear; there are no wrong answers. Some are pairs: rate both, then say which you prefer."
+ },
+ "clips": [
+  {
+   "id": "stress-nibu-flat",
+   "file": "nibu_flat.wav",
+   "group": "stress",
+   "pair": "stress-nibu",
+   "title": "nibu, no stress marks. Measured: /i/ 150-250 ms rms vs the stressed render +0.21 dB; unstressed vowel 180 ms, f0 139.9 Hz. PREDICTION: reads as an even two-syllable word with no strong first syllable. FALSIFIED if listeners hear it as stressed on a syllable or cannot tell it from the stressed twin.",
+   "feel": "a made-up two-syllable word, 'nee-boo', both syllables even"
+  },
+  {
+   "id": "stress-nibu",
+   "file": "nibu.wav",
+   "group": "stress",
+   "pair": "stress-nibu-flat",
+   "title": "nibu with primary stress on /i/ (NI-bu). Measured: /i/ 247 ms vs 180 ms (+75 ms; design +68), f0 148.1 vs 139.9 Hz (x1.059), amplitude factor 1.30; level of /i/ in the 150-250 ms window only +0.21 dB (five-vowel mean +1.93 dB, per vowel +1.2 to +3.0). PREDICTION: first syllable heard as the prominent one, mostly through length and pitch, little through loudness; B should be picked as 'stressed on the first syllable'. FALSIFIED if it sounds no more prominent than the flat twin, if it sounds like a question or a pitch accent rather than stress, or if the level is what is heard (then the f0-scatter question is wrong).",
+   "feel": "the same made-up word, with the first syllable stronger: 'NEE-boo'"
+  },
+  {
+   "id": "stress-i-flat",
+   "file": "v_i.wav",
+   "group": "stress",
+   "pair": "stress-i",
+   "title": "isolated /i/ 180 ms at 140 Hz, no stress. Measured: level 100-170 ms is the reference. PREDICTION: plain short vowel. FALSIFIED if it already sounds emphasised.",
+   "feel": "a single short 'ee' vowel, plain"
+  },
+  {
+   "id": "stress-i",
+   "file": "v_i_s.wav",
+   "group": "stress",
+   "pair": "stress-i-flat",
+   "title": "isolated /i/ with primary stress: 247 ms, f0 x1.06, amplitude 1.30. Measured against the flat /i/: +1.22 dB total (f0 rise alone -0.80 dB, the amplitude and the rest +2.02 dB). PREDICTION: heard as longer and a little higher; the 1.2 dB louder is under what a listener can judge, so 'longer and higher' is the answer, 'louder' is not. FALSIFIED if it sounds the same length and pitch, or clearly louder.",
+   "feel": "the same 'ee' vowel, held longer and said with emphasis"
+  },
+  {
+   "id": "leak-nibu-flat-before",
+   "file": "nibu_flat_before.wav",
+   "group": "release-leak",
+   "pair": "leak-nibu-flat-after",
+   "title": "nibu (flat) rendered at main c0e6b98, before the release_flow fix. Measured: burst-gain leak vs the fixed render, peak 0.0688 and rms 0.0067 in the leading /n/ (0-95 ms; the /n/ itself is rms 0.0058, so the hiss is louder than the murmur), peak 0.0504 over /i/ onset 95-150 ms, 0.0019 after; whole-render peak 0.487 vs 0.399. PREDICTION: an audible hiss or click as the /n/ opens into the vowel, the first sound of the word being a noisy 'sn'-like or 'tsh' onset instead of a clean nasal hum. FALSIFIED if the two are indistinguishable (then the leak is inaudible and the fix is cosmetic).",
+   "feel": "a made-up word that should start with a clean, smooth hum into the vowel: 'nee-boo'"
+  },
+  {
+   "id": "leak-nibu-flat-after",
+   "file": "nibu_flat_after.wav",
+   "group": "release-leak",
+   "pair": "leak-nibu-flat-before",
+   "title": "nibu (flat) after the fix: release_flow is zero outside its own plosive. Same audio as stress-nibu-flat, kept as its own clip so the before/after pair is one-to-one. Measured: leak 0.0 from 275 ms on, burst of the b itself unchanged (bin 0.0226 at 81 ms before and after). PREDICTION: clean hum into the vowel, no noisy onset; preferred over 'before' if the leak is audible. FALSIFIED if 'before' is preferred or no difference is heard.",
+   "feel": "a made-up word that should start with a clean, smooth hum into the vowel: 'nee-boo'"
+  },
+  {
+   "id": "burst-ba-off",
+   "file": "ba_noburst.wav",
+   "group": "burst",
+   "pair": "burst-ba-on",
+   "title": "ba with the release_flow splines dropped (WordRender --no-burst). Measured: closure peak 0.0078 (voice bar), release (voicing breaking through) peak 0.1087 = -6.3 dB re vowel peak 0.2247, no burst noise. PREDICTION: a soft, voiced 'b' with the vowel starting smoothly; may sound slightly 'w'-like or lack the pop. FALSIFIED if listeners cannot hear any difference from the burst twin (then burst gain 0.06 is inaudible).",
+   "feel": "the syllable 'bah' with a soft start"
+  },
+  {
+   "id": "burst-ba-on",
+   "file": "ba.wav",
+   "group": "burst",
+   "pair": "burst-ba-off",
+   "title": "ba with the plosive burst (gain 0.06, a design value). Measured: burst alone peaks 0.0142 at 85 ms = -24.0 dB re vowel peak, falls to a tenth in 17 ms, burst rms in the 30 ms after its peak -31.0 dB re vowel rms. PREDICTION: a slightly crisper, more 'b'-like onset than B/off; the burst is quiet and short so the difference is small, 'a little pop' at most. FALSIFIED if it sounds like a hiss, a click, or a separate noise after the vowel started, or if no difference is heard.",
+   "feel": "the syllable 'bah' with a clean, crisp 'b' at the start"
+  },
+  {
+   "id": "burst-bun-off",
+   "file": "bun_noburst.wav",
+   "group": "burst",
+   "pair": "burst-bun-on",
+   "title": "bun, /bʊn/, no burst. Measured: closure peak 0.0043, release peak 0.1074 = -5.9 dB re vowel peak 0.2126. PREDICTION: soft 'b' then a short back vowel then a nasal; the final /n/ is a clean hum (no leak since the fix). FALSIFIED as for burst-ba-off.",
+   "feel": "a short word like 'bunn' or 'boon' said quickly, soft start"
+  },
+  {
+   "id": "burst-bun-on",
+   "file": "bun.wav",
+   "group": "burst",
+   "pair": "burst-bun-off",
+   "title": "bun, /bʊn/, with burst. Measured: burst peak 0.0130 at 81 ms = -24.3 dB re vowel peak, tenth in 15 ms; tail leak after the fix 0.0 (was 0.0126 at the end before). PREDICTION: slightly crisper onset than off; final /n/ clean. FALSIFIED as for burst-ba-on.",
+   "feel": "a short word like 'bunn' or 'boon' said quickly, crisp 'b' start"
+  },
+  {
+   "id": "nasal-m",
+   "file": "ama.wav",
+   "group": "nasal",
+   "title": "/ɑmɑ/. Measured: murmur -11.81 dB re the flanking vowels (design band -16..-8), Burg N1 295 Hz, band levels 0-400/400-800/800-1600/1600-3200 Hz of the murmur 36.3/23.6/21.3/2.7 dB. PREDICTION: heard as 'ah-mah', a lip-closed hum between the vowels, clearly softer than the vowels. FALSIFIED if heard as 'abah' or 'awah', if the hum is as loud as the vowels, or if there is a gap or click.",
+   "feel": "'ah-mah': lips close for a soft hum between two open vowels"
+  },
+  {
+   "id": "nasal-n",
+   "file": "ana.wav",
+   "group": "nasal",
+   "title": "/ɑnɑ/. Measured: murmur -9.64 dB re the flanking vowels (2.17 dB above /m/; the gap is 2.01/2.17/2.05/1.61 dB at f0 110/140/170/200 Hz, so not harmonic sampling), Burg N1 332 Hz, bands 38.4/28.2/16.8/0.9 dB. PREDICTION: heard as 'ah-nah', a tongue-tip hum, a shade stronger than the /m/ one; the 2 dB is not expected to be noticed. FALSIFIED if heard as 'ama' or 'anga', if it sounds much louder than the /m/ clip, or if there is hiss.",
+   "feel": "'ah-nah': the tongue touches behind the teeth for a soft hum between two open vowels"
+  },
+  {
+   "id": "lax-ih",
+   "file": "v_ih.wav",
+   "group": "lax",
+   "title": "isolated /ɪ/ 180 ms, 140 Hz. Measured: Burg F1/F2 375/2024 Hz; tube chain 346/1987 (+8.5/+1.8 %); Hillenbrand 1995 male 429/2034 (-12.5/-0.5 %); Peterson & Barney 392/1993 (-4.3/+1.5 %). Present in the DSL table and renderable. PREDICTION: heard as the vowel of 'bit' (or a slightly high, 'ee'-leaning version of it). FALSIFIED if heard as 'ee' of 'beet', as 'eh' of 'bet', or as a different phone.",
+   "feel": "the short vowel in 'bit'"
+  },
+  {
+   "id": "lax-oo-short",
+   "file": "v_oo_short.wav",
+   "group": "lax",
+   "title": "isolated /ʊ/ 180 ms, 140 Hz. Measured: Burg F1/F2 486/894 Hz; tube chain 478/850 (+1.7/+5.2 %); Hillenbrand 469/1123 (+3.7/-20.4 %); Peterson & Barney 437/1023 (+11.3/-12.6 %). Present in the DSL table and renderable. PREDICTION: heard as the vowel of 'book', probably darker or rounder than a natural one (F2 20 % under the population mean, the back-vowel gap). FALSIFIED if heard as 'oo' of 'boot', 'o' of 'boat' or 'uh' of 'but'.",
+   "feel": "the short vowel in 'book'"
+  }
+ ]
+}
