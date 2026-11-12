@@ -265,4 +265,51 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         Assert.True(peak > 0.004, "audible");
         Assert.True(peak < vowel / 2, "under half the following vowel's peak, as /b/");
     }
+
+    // The /b/ test over the alveolar stop, by its table entry (before the entry the phone was unsupported, and a hand script approximated it).
+    [Fact]
+    public void AlveolarStopBurstExistsOnlyAroundItsOwnRelease_t()
+    {
+        IpaGestureExperimentTarget Phone(string label, string ipa, float seconds) => new($"w_{label}", ipa, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone("2_t", "t", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_n", "n", 0.095f), 1f)], 140);
+        var withBurst = Render(script, 0.77f);
+        var withoutBurst = Render(script, 0.77f, WithoutBurst);
+        if (withBurst is null || withoutBurst is null) return;
+        var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
+        const double tFrom = 0.275, tTo = 0.37;
+        var atRelease = Peak(burst, tFrom + 0.095 * 0.6, tTo + 0.02);
+        var leading = Peak(burst, 0, tFrom);
+        var trailing = Peak(burst, tTo + 0.12, 0.77);
+        output.WriteLine($"/t/ burst peak {atRelease:F4} at the release, {leading:F5} before the plosive, {trailing:F5} after it");
+        Assert.True(atRelease > 0.004, "the burst is a transient of audible size");
+        Assert.True(leading < atRelease / 20, "no burst before the plosive's own gesture");
+        Assert.True(trailing < atRelease / 10, "no burst after the plosive");
+    }
+
+    // Chodroff and Wilson 2014: /t/ burst peak 5216 Hz, /k/ 2868. The band 3.5 to 7 kHz is a DESIGN tolerance around the /t/ figure.
+    // Peak of the isolated burst's spectrum from 1 kHz up (the weak_spots.burst_spectrum definition: 20 ms Hann window from the release, 400 Hz smoothing).
+    [Fact]
+    public void StopTBurstSpectrumIsInTheLiteratureBand()
+    {
+        var (x, from, to) = VowelConsonantVowel("t");
+        var (nb, _, _) = VowelConsonantVowel("t", edit: WithoutBurst);
+        if (x is null || nb is null) return;
+        var start = (int)((from + 0.65 * (to - from)) * Rate);
+        const int n = 960;
+        var seg = Enumerable.Range(0, n).Select(i => (x[start + i] - nb[start + i]) * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (n - 1)))).ToArray();
+        double Power(double hz)
+        {
+            double re = 0, im = 0;
+            for (var i = 0; i < n; i++) { var a = 2 * Math.PI * hz * i / Rate; re += seg[i] * Math.Cos(a); im -= seg[i] * Math.Sin(a); }
+            return re * re + im * im;
+        }
+
+        var grid = Enumerable.Range(0, 180).Select(k => 1000.0 + 50 * k).ToArray();
+        var power = grid.Select(Power).ToArray();
+        var smooth = power.Select((_, k) => Enumerable.Range(Math.Max(0, k - 4), Math.Min(9, power.Length - Math.Max(0, k - 4))).Average(j => power[j])).ToArray();
+        var peak = grid[Array.IndexOf(smooth, smooth.Max())];
+        output.WriteLine($"/t/ burst spectral peak {peak:F0} Hz");
+        Assert.InRange(peak, 3500, 7000);
+    }
 }

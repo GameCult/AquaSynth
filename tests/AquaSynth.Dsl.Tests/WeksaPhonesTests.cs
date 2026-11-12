@@ -69,6 +69,20 @@ public sealed class WeksaPhonesTests
     }
 
     [Fact]
+    public void WeksaWordPlanAcceptsT()
+    {
+        var word = WeksaPhonesReader.Parse(Line($"[{Ph("ɑ", "none")},{Ph("t", "none")},{Ph("ɑ", "none")}]"));
+        var plan = WeksaWordPlan.From(word, "ata");
+        Assert.True(plan.Renderable);
+        Assert.Empty(plan.Unsupported);
+        // t names a plosive, not the approximant GestureDescriptor falls back to for a phone the table lacks
+        Assert.True(PatchScript.TryIpaDescriptor("t", out var descriptor));
+        Assert.Equal("voiceless_alveolar_plosive", descriptor);
+        var patch = PatchScript.Parse(IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140));
+        Assert.Contains(patch.ControlSplines, s => s.SurfacePath == "/vocal/contacts/0/release_flow" && s.Name.StartsWith("ata_1_t", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void NearCloseVowelsRenderAsVowelsWithTheirOwnStoryShape()
     {
         var word = WeksaPhonesReader.Parse(Line($"[{Ph("b", "none")},{Ph("ɪ", "primary")},{Ph("n", "none")},{Ph("b", "none")},{Ph("ʊ", "none")}]"));
