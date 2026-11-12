@@ -45,7 +45,7 @@ using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(Sampl
 // itself and no slider is driven from outside.
 var parsed = PatchScript.Parse(script);
 if (noBurst) parsed = parsed with { ControlSplines = parsed.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() };
-var source = FaustEmitter.Emit(parsed, new FaustExportOptions(label)).Source;
+var source = FaustEmitter.Emit(parsed, new FaustExportOptions(label, SampleRate: Rate)).Source;
 File.WriteAllText(Path.Combine(outDir, "source.dsp"), source);
 if (!compiler.TryCompileSource(new AquaSynthCompileIdentity(label, label, ""), source, seconds, out var patch0, out var cerr))
 {

@@ -93,7 +93,7 @@ public sealed class FaustRenderedSpeechLossSurface(FaustRenderedSpeechLossOption
             source.AppendLine(VoiceLine("sine", F(hz), F(gain), target, 0, tract));
         }
 
-        return FaustEmitter.EmitScript(source.ToString(), new FaustExportOptions("aquasynth_speech_loss")).Source;
+        return FaustEmitter.EmitScript(source.ToString(), new FaustExportOptions("aquasynth_speech_loss", SampleRate: options.SampleRate)).Source;
     }
 
     private async Task<float[]> EstimateGradientAsync(

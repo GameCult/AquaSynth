@@ -28,4 +28,14 @@ public sealed class ProbeTimelineSampleRateTests
         Assert.Equal(0.1752f / 325 * 48000, Delay(2, 48000), 3);
         Assert.Equal(0.1752f / 550 * 44100, Delay(2, 44100), 3);
     }
+
+    [Fact]
+    public void EmittedSourceFollowsTheRequestedSampleRate()
+    {
+        // The vocal ladder's delay-line lengths are length / speed * rate samples, so the emitted DSP carries the rate it was asked for.
+        var at48 = FaustEmitter.EmitScript(TimelineScript, new FaustExportOptions("rate_probe", SampleRate: 48000)).Source;
+        var at44 = FaustEmitter.EmitScript(TimelineScript, new FaustExportOptions("rate_probe", SampleRate: 44100)).Source;
+        Assert.NotEqual(at48, at44);
+        Assert.Equal(at48, FaustEmitter.EmitScript(TimelineScript, new FaustExportOptions("rate_probe")).Source);
+    }
 }

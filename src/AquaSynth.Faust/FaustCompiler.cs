@@ -22,7 +22,8 @@ public sealed record FaustValidation(string Command, bool Success, int? StatusCo
 public sealed record FaustWebAssemblyCompileOptions(
     string OutputDirectory,
     string BaseName = "aquasynth_patch",
-    bool Stereo = false);
+    bool Stereo = false,
+    int SampleRate = 48000);
 
 public sealed record FaustWebAssemblyManifest(
     string Name,
@@ -89,7 +90,7 @@ public static class FaustCompiler
         string? faustPath = null,
         CancellationToken cancellationToken = default)
     {
-        var export = FaustEmitter.Emit(patch, new FaustExportOptions(options.BaseName, options.Stereo));
+        var export = FaustEmitter.Emit(patch, new FaustExportOptions(options.BaseName, options.Stereo, SampleRate: options.SampleRate));
         return await CompileWebAssemblySourceAsync(export.Source, options, faustPath, cancellationToken);
     }
 
@@ -99,7 +100,7 @@ public static class FaustCompiler
         string? faustPath = null,
         CancellationToken cancellationToken = default)
     {
-        var export = FaustEmitter.EmitScript(script, new FaustExportOptions(options.BaseName, options.Stereo));
+        var export = FaustEmitter.EmitScript(script, new FaustExportOptions(options.BaseName, options.Stereo, SampleRate: options.SampleRate));
         return await CompileWebAssemblySourceAsync(export.Source, options, faustPath, cancellationToken);
     }
 
