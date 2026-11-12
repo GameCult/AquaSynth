@@ -97,7 +97,7 @@ What the data says:
 
 ## Tolerance in `native-diff.mjs`
 
-Added, because the data shows a gap. Across all 13 sources and the 3 conditions the metric deltas stay under |LUFS| 0.017 dB, |true peak| 0.152 dB, centroid 0.3 %. A deliberate +1 dB gain on the native buffer moves LUFS and true peak by 1.0 dB. The limits sit between: 0.1 dB, 0.5 dB, 1 %. Sample-level error has no limit with the library smoother (the waveforms legitimately diverge), but with `--smoother imp3` it has one at -60 dB (the worst row is -75.4 dB; a one-sample shift reads about -4 dB).
+The limits (`LIMITS`) and the comparison now live in `tools/aqua-feel/native-compare.js`; `native-diff.test.mjs` trips each one. Added, because the data shows a gap. Across all 13 sources and the 3 conditions the metric deltas stay under |LUFS| 0.017 dB, |true peak| 0.152 dB, centroid 0.3 %. A deliberate +1 dB gain on the native buffer moves LUFS and true peak by 1.0 dB. The limits sit between: 0.1 dB, 0.5 dB, 1 %. Sample-level error has no limit with the library smoother (the waveforms legitimately diverge), but with `--smoother imp3` it has one at -60 dB (the worst row is -75.4 dB; a one-sample shift reads about -4 dB).
 
 Mutation check on the tool, `--items smoother --smoother imp3`: unmutated, 12 of 12 clean, exit 0; +1 dB native gain, 12 of 12 flagged (`loudnessLufs`, `truePeakDb`, `relRmsErrDb`), exit 1; one-sample native shift, 12 of 12 flagged (`relRmsErrDb`), exit 1. A one-sample shift is not detectable with the library smoother; `loudnessLufs`, `truePeakDb` and centroid also cannot see it. The limits are tripwires fit to these 13 sources, not taste.
 

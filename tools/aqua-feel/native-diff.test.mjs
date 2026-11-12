@@ -45,6 +45,12 @@ t("a spectral change (a two-point low-pass) trips the centroid limit", () => {
   assert.ok(violationsOf(row, "library").includes("centroidMedianHz"));
 });
 
+t("centroid edge, in literal numbers: 1000 Hz vs 1009 Hz (0.9 %) passes, vs 1011 Hz (1.1 %) trips, in both directions", () => {
+  const base = compareRenders("probe", sig, sig), at = (w, nat) => ({ ...base, wasm: { ...base.wasm, centroidMedianHz: w }, native: { ...base.native, centroidMedianHz: nat } });
+  for (const [w, nat] of [[1000, 1009], [1000, 991], [1000, 1000]]) assert.deepEqual(violationsOf(at(w, nat), "library"), [], `${w} vs ${nat}`);
+  for (const [w, nat] of [[1000, 1011], [1000, 989]]) assert.deepEqual(violationsOf(at(w, nat), "library"), ["centroidMedianHz"], `${w} vs ${nat}`);
+});
+
 t("a one-sample shift trips only the sample bound, and only under imp3 (library mode has no sample bound)", () => {
   const sh = shift(sig, 1), row = compareRenders("probe", sig, sh);
   assert.ok(row.relRmsErrDb > LIMITS.relRmsErrDbImp3, `relRmsErrDb ${row.relRmsErrDb}`);
