@@ -83,6 +83,19 @@ public sealed class WeksaPhonesTests
     }
 
     [Fact]
+    public void WeksaWordPlanAcceptsK()
+    {
+        var word = WeksaPhonesReader.Parse(Line($"[{Ph("ɑ", "none")},{Ph("k", "none")},{Ph("ɑ", "none")}]"));
+        var plan = WeksaWordPlan.From(word, "aka");
+        Assert.True(plan.Renderable, string.Join(",", plan.Unsupported.Select(p => p.Ipa)));
+        Assert.Empty(plan.Unsupported);
+        Assert.True(PatchScript.TryIpaDescriptor("k", out var descriptor));
+        Assert.Equal("voiceless_velar_plosive", descriptor);
+        var patch = PatchScript.Parse(IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140));
+        Assert.Contains(patch.ControlSplines, s => s.SurfacePath == "/vocal/contacts/0/release_flow" && s.Name.StartsWith("aka_1_k", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void NearCloseVowelsRenderAsVowelsWithTheirOwnStoryShape()
     {
         var word = WeksaPhonesReader.Parse(Line($"[{Ph("b", "none")},{Ph("ɪ", "primary")},{Ph("n", "none")},{Ph("b", "none")},{Ph("ʊ", "none")}]"));
