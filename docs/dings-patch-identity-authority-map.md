@@ -65,7 +65,7 @@ itself, and the daemon builds more keys from them.
   `dings.warm-bell` is a fixed point (pinned by `StoreFileNameTests`).
 - Keyed by patch: the session document. `WriteReceiptAsync("sessions", sessionId, session)`
   (`:407`) runs on every compile, and `SampleAsync` compiles on every note
-  (`:417-425`), so the store holds `sessions/<StoreFileName(sessionId)>.cc` for each
+  (`:622-635`), so the store holds `sessions/<StoreFileName(sessionId)>.cc` for each
   distinct `(patchId, compile key)`, rewritten on each note. This is the one store
   artifact addressable by instrument. `NativeFaustRuntime.cs:516,628-636` would also write
   `<StoreFileName(patchId)>.dsp`, but only when `options.DspSourceDirectory` is set; the
