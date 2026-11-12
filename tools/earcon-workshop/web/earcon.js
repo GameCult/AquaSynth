@@ -17,6 +17,8 @@ export const EVENTS = {
   waiting: { label: "Waiting", meaning: "Needs you: quiet, sparse, slow low sway, three soft notes", notes: [[0, 0, 0.55], [5, 450, 0.55], [0, 900, 0.55]] },
 };
 
+// DEPRECATED as an identity owner (ruled 2026-11-12: DingCatalog owns Dings patch identity; see
+// docs/dings-patch-identity-authority-map.md, 'Migration plan'). Kept working; do not add ids or copy catalog values here.
 // Timbre identities. rootHz in the calm mid register; fmRatio/fmIndex/fmDecay shape the bell; harmonics > 0 selects the
 // additive triangle; attack is seconds. Values start from the Dings catalog instruments and were not tuned by ear.
 export const IDENTITIES = {

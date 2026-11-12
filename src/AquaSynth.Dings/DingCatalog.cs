@@ -4,8 +4,15 @@ public sealed record DingNote(double Semitones, int DelayMilliseconds, float Gai
 public sealed record DingEvent(string Id, string Meaning, IReadOnlyList<DingNote> Notes);
 public sealed record DingInstrument(string Id, string Description, string TimbreFamily, string Script, float RootFrequency, float Brightness, float DecaySeconds, bool UsesNoise);
 
+/// <summary>The daemon-facing identity of a catalog instrument. Revision is the literal 1 until the deferred content-revision step.</summary>
+public sealed record DingPatchIdentity(string PatchId, string FaustName, int Revision);
+
 public static class DingCatalog
 {
+    /// <summary>The only derivation of PatchId, FaustName and revision from an instrument id. Host, AquaLower and the tests call this.</summary>
+    public static DingPatchIdentity Identity(DingInstrument instrument) =>
+        new($"dings.{instrument.Id}", $"dings_{instrument.Id.Replace('-', '_')}", 1);
+
     public static readonly IReadOnlyDictionary<string, DingEvent> Events = new DingEvent[]
     {
         new("session.start", "Opening welcome", [new(0, 0), new(7, 220)]),

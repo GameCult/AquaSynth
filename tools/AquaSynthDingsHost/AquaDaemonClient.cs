@@ -17,7 +17,8 @@ public sealed class AquaDaemonClient : IAsyncDisposable
         {
             EnsureStarted();
             var id = $"ding-{Guid.NewGuid():N}";
-            var envelope = new { command = "instrument.sample", payload = new { commandId = id, patchId = $"dings.{instrument.Id}", faustName = $"dings_{instrument.Id.Replace('-', '_')}", script = instrument.Script, durationSeconds = 1.5f, gain, controls = new Dictionary<string, float> { ["/ding/frequency"] = frequency }, revision = 1 } };
+            var identity = DingCatalog.Identity(instrument);
+            var envelope = new { command = "instrument.sample", payload = new { commandId = id, patchId = identity.PatchId, faustName = identity.FaustName, script = instrument.Script, durationSeconds = 1.5f, gain, controls = new Dictionary<string, float> { ["/ding/frequency"] = frequency }, revision = identity.Revision } };
             await process!.StandardInput.WriteLineAsync(JsonSerializer.Serialize(envelope, json));
             await process.StandardInput.FlushAsync(cancellationToken);
             var line = await process.StandardOutput.ReadLineAsync(cancellationToken) ?? throw new InvalidOperationException("Aqua daemon closed before returning a render receipt.");

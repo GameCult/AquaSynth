@@ -16,7 +16,7 @@ if (args.Length == 2 && args[0] == "--dings")
     var instruments = new List<object>();
     foreach (var ins in DingCatalog.Instruments.Values.OrderBy(i => i.Id, StringComparer.Ordinal))
     {
-        var export = FaustEmitter.EmitScript(ins.Script, new FaustExportOptions("dings_" + ins.Id.Replace('-', '_')));
+        var export = FaustEmitter.EmitScript(ins.Script, new FaustExportOptions(DingCatalog.Identity(ins).FaustName));
         File.WriteAllText(Path.Combine(dingDir, ins.Id + ".dsp"), export.Source);
         instruments.Add(new { id = ins.Id, rootFrequency = ins.RootFrequency, dsp = ins.Id + ".dsp", controlPath = "/ding/frequency", warnings = export.Warnings });
         Console.WriteLine($"{ins.Id}: {export.Source.Length} chars, {export.Warnings.Count} warnings");
