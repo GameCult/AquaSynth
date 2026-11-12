@@ -47,7 +47,13 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
         Assert.Equal(0f, lips);
         Assert.True(PatchScript.TryPlaceDistanceCentimeters("voiced_alveolar_nasal", out var ridge));
         Assert.Equal(2.555f, ridge);
-        foreach (var descriptor in new[] { "voiceless_velar_plosive", "voiced_uvular_fricative", "voiced_palatal_approximant", "voiced_plosive", "" })
+        // velar: between the narrowest dorsal section of /u/ (section 26, 6.97 cm from the lips) and the narrowest pharyngeal section of /a/
+        // (section 13, 12.14 cm); 9.81 cm is the 0.44 fraction of the 17.52 cm tract, which sits within 0.05 cm of the centre of a ladder cell
+        // (their mean, 9.555 cm, is 0.3 cm from one)
+        Assert.True(PatchScript.TryPlaceDistanceCentimeters("voiceless_velar_plosive", out var velar));
+        Assert.InRange(velar, 6.97f, 12.14f);
+        Assert.Equal(9.81f, velar, 3);
+        foreach (var descriptor in new[] { "voiced_uvular_fricative", "voiced_palatal_approximant", "voiced_plosive", "" })
         {
             Assert.False(PatchScript.TryPlaceDistanceCentimeters(descriptor, out var cm), descriptor);
             Assert.True(float.IsNaN(cm), $"{descriptor} claims {cm}");
@@ -99,5 +105,15 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
         Assert.Equal(0.65f, (t[1].TimeSeconds - 0.18f) / 0.095f, 3);
         var b = Diameter(Word("b"));
         Assert.True(b[0] > 0 && Math.Abs(b[0] - b[1]) < 1e-6f, "the lip-sealed stop keeps the 0.03 aperture spline (its source text is pinned)");
+    }
+
+    [Fact]
+    public void VelarBurstGoesInAtTheVelarPlaceAndFurtherBackThanTheRidge()
+    {
+        var k = Word("k", "voiceless_velar_plosive");
+        Assert.True(HasPositionSurface(k));
+        Assert.All(SitePoints(k, "w_1_c"), v => Assert.Equal(1 - 9.81f / StoryVowelAreas.MeanLengthCentimeters, v, 4));
+        Assert.Contains("_injection0_site", Faust(k));
+        Assert.Equal(1 - 9.81f / StoryVowelAreas.MeanLengthCentimeters, ConstrictionIndex(k, "w_1_c") / BIndex, 4);
     }
 }

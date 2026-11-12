@@ -1743,6 +1743,12 @@ public static class PatchScript
         // the ladder's counterpart of the tube check's closed end after section 37 of 44 (14.73 cm).
         private const float AlveolarRidgeCentimetersFromLips = 2.555f;
 
+        // The velar closure, cm behind the lip plane: between the narrowest dorsal section of /u/ (section 26, 6.97 cm) and the narrowest
+        // pharyngeal section of /a/ (section 13, 12.14 cm) of the Story 2008 area functions. 9.81 cm is the 0.44 fraction the table held before
+        // it had distances; it lies within 0.05 cm of the centre of oral ladder cell 10 of 24 (0.4375 of the tract), and the closure's Gaussian is narrower
+        // than a cell; the mean of the two sections, 9.555 cm, would fall 0.3 cm from the nearest cell centre (not tried).
+        private const float VelarCentimetersFromLips = 9.81f;
+
         // Where a consonant closes. One entry per place, first token match wins. A place with a distance is placed by it, in cm behind the
         // lip plane, and its normalized position (0 glottis, 1 lips) is 1 - distance / tract length, for the vowel_set section index and the
         // hand-written-script fraction alike. A place with no distance is "fraction only": its fraction of the tract length from the glottis,
@@ -1757,7 +1763,7 @@ public static class PatchScript
             new(["postalveolar", "palatoalveolar"], null, 0.70f),
             new(["retroflex"], null, 0.64f),
             new(["palatal"], null, 0.56f),
-            new(["velar"], null, 0.44f),
+            new(["velar"], VelarCentimetersFromLips, 0f),
             new(["uvular"], null, 0.34f),
             new(["pharyngeal", "epiglottal"], null, 0.20f),
             new(["glottal"], null, 0.05f),
