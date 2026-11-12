@@ -259,7 +259,9 @@ user. Any process of that user can send `Play`. There is no per-caller identity 
 pipe: `DingsCommand` carries an instrument, not a caller, so the Host cannot know who
 asked.
 
-## PROPOSED: one owner (a recommendation for the stewarding decision, not decided)
+**Status (2026-11-12): the owner is RULED.** The operator tier, relayed through Persona, ruled that `DingCatalog` is the single owner of Dings patch identity. The sections below were written as a proposal; they are kept as the analysis behind the ruling. Their per-step claims are still unverified plans, except step 1, which landed on branch `aqua/dingcatalog-owner-step1`.
+
+## One owner: DingCatalog (ruled; analysis below was written as a PROPOSAL)
 
 **Proposal.** `DingCatalog` (`src/AquaSynth.Dings`) becomes the only place that decides
 what a voice is, and also the only place that derives the daemon keys from it. Its
@@ -267,6 +269,8 @@ instrument gains a content revision (a hash of `Script` plus the parameters that
 and one function in that assembly produces `PatchId`, `FaustName` and the revision for
 the daemon (`AquaLower` and the test need only the faust-name part of it, not
 `patchId` or revision). Everything else keys on the catalog id and takes the rest from the catalog.
+
+End state versus this change: the content revision named above is deferred (step 3 of the migration order). Until it lands, `revision` is the literal 1 and the catalog function returns it; the revision hash is not part of the first consolidation.
 
 **What the others become.**
 - B (Host/daemon): the Host stops composing `patchId`/`faustName`/`revision`; it calls
@@ -338,3 +342,21 @@ what the MCP bridge can learn about its caller.
   and whether the Host's `Ping`/`GetVolume` have different callers in practice. The
   pipe protocol above is from reading, not from a captured exchange. Nothing was built,
   run, or listened to for this note.
+
+## Migration plan (ruled 2026-11-12: DingCatalog is the owner)
+
+Rules for every step: deprecate before removing (mark the old path with a pointer, keep it working, delete in a later pass after the window); `patchId`, `faustName`, `revision = 1`, session ids, compile keys and `sessions/<...>.cc` names stay byte-identical until step 3; no change to the Host or pipe protocol. Deprecation window: one merged release of the owner path with the old path still working and marked; removal only in a separate PR after the operator hears or reviews nothing regressed.
+
+**Step 1 (done in this change).** `DingCatalog.Identity(instrument)` returns `PatchId`, `FaustName`, `Revision` (literal 1). `AquaDaemonClient` and `AquaLower --dings` call it. The guard test no longer carries a private copy of the rule: it compares against literals per instrument, and `IdentityPinsTheOldDerivedValuesForAllFourInstruments` pins the old derived values for all four.
+- Verify: the pin test; `DingCatalogTests` and `StoreFileNameTests`; `AquaLower --dings tools/aqua-feel/lowered-dings` leaves `git status` clean (the checked-in mirror is byte-identical).
+- Not verified: the Host sending the same JSON to the daemon at runtime (compile-checked and read, not run against a daemon).
+- Rollback: revert the commit; no stored state or wire format moved.
+- Echo sites in this step: the `lowered-dings` mirror is tied to the catalog by `AquaLower` calling `Identity` and stays test-guarded. Earcon Workshop `IDENTITIES` is NOT tied: it is browser JS with its own voice model (`fmRatio`, `harmonics`, seconds-based decay) and shares only ids, so tying needs a generated file and a build step, which is step 5. It is marked deprecated with a pointer, and still works.
+
+**Step 2. Agent identity for the registry** (`AgentInstrumentRegistry` key). Blocked on the open question (what the bridge can learn about its caller). Verify: a test that the same agent id maps to the same instrument across sessions, and listening before and after, which nobody has done. Deprecate: keep the session-id keyed path behind the new key for one release. Rollback: revert; assignments are an in-memory cache.
+
+**Step 3. Content revision** (replace the literal 1 with a catalog hash). Deliberately breaks byte-identity: compile keys, session ids and `sessions/<...>.cc` names all change. Needs its own ruling on what feeds the hash and whether old session files are left or removed. Verify: receipts before and after, with the old keys listed as expected to change. Rollback: revert to literal 1; new session files stay as orphans, harmless.
+
+**Step 4. One validation gate** (`DingService` versus `DingsPlaybackHost`). Make the Host the owner and let the bridge forward; keep the bridge check as deprecated fail-fast for one window. Verify: `DingsBridgeTests`. Rollback: revert; both gates read one dictionary, so behaviour is the same either way.
+
+**Step 5. Echo sites by reference.** (a) Neutral fallback in `tools/dings-voices/build.mjs` names a catalog instrument id. (b) Earcon Workshop `IDENTITIES`: export the shared ids and root frequencies from the catalog into a checked-in file (as `lowered-dings` is), guarded by a test, and have `earcon.js` read it; the voice-model parameters stay workshop-owned and the drifted values (table in section E) need an owner's decision first. Deprecation: `IDENTITIES` keeps its inline values, marked, until the generated file is read in production. Verify: `tools/earcon-workshop/test.mjs`, the guard test, and an ear check, since the workshop values were never tuned to the catalog. Rollback: revert; the inline values still exist.
