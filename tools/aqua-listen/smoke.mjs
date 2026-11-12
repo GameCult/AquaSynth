@@ -37,9 +37,10 @@ check(v.listener === "Tester" && v.device === "headphones" && v.clips[0].verdict
 check(v.consent === true && v.clips.length === total, "consent recorded, every clip present");
 await page.click("#copy-json");
 check((await page.evaluate(() => navigator.clipboard.readText())) === text, "Copy button puts the full JSON on the clipboard");
-await page.evaluate(() => { navigator.clipboard.writeText = () => Promise.reject(new Error("denied")); });
+// http-Android shape: no async clipboard API at all, so only the execCommand path can copy
+await page.evaluate(() => { Object.defineProperty(navigator, "clipboard", { value: undefined, configurable: true }); window.__copied = null; document.execCommand = (c) => { window.__copied = document.activeElement.value; return c === "copy"; }; });
 await page.click("#copy-json");
-check(/Copied|blocked/.test(await page.textContent("#export-msg")), "copy falls back to execCommand without throwing");
+check((await page.textContent("#export-msg")).startsWith("Copied") && (await page.evaluate(() => window.__copied)) === text, "without the clipboard API, the execCommand fallback copies the full JSON");
 await page.reload();
 await page.click("#export");
 check((await page.inputValue("#export-text")).includes('"verdict": "fix"'), "reload loses nothing: export after reload still has the answers");
