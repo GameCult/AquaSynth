@@ -145,5 +145,13 @@ Re-measure 2026-11-12. The stress, nasal and lax-vowel figures were taken on mai
   /ʊ/ 486/894 against 478/850 (+1.7/+5.2 %), 469/1123 (+3.7/-20.4 %), 437/1023 (+11.3/-12.6 %). No defect found.
 - Phones the tract cannot make: `WordRender` refuses /t/, /d/, /k/, /l/ with exit 4 (`UNSUPPORTED PHONES (the tract has no gesture for them; nothing rendered): t`); the table holds p b m n s z ʃ ʒ ʍ w and the Story vowels. A direct `phoneme_gesture` on an unknown IPA symbol still falls back to an alveolar approximant (`GestureDescriptor`); not changed here.
 
+Burst-window mutants (hand-applied in a scratch worktree on af0e44f plus the cut, never committed, 2026-11-12; `BurstGainAroundGesture`). The rendered test `PlosiveBurstExistsOnlyAroundItsOwnRelease` did not kill any of them, so `PlosiveBurstGainWindowIsOneRampEitherSide` reads the window off the spline (opens one ramp, 0.15 of the gesture, before the plosive; closed one ramp after it):
+
+| Mutant | Rendered test | Window test |
+|---|---|---|
+| ramp 0.15 x duration to 0 | survived | killed |
+| ramp 0.15 x duration to 1.0 x duration | survived | killed |
+| last point at start+duration+ramp moved to start+duration+3*ramp | survived | killed |
+
 Mutations (hand-applied, restored, each run against the named tests): pitch ratio ignored, burst removed, burst not shaped by opening, burst gain x20 (0.06 to 1.2), stress duration ignored,
 stress pitch ignored, stress amplitude ignored, secondary equal to primary, probe timeline sample rate re-hardcoded to 48000: nine of nine killed. Script: `work/mut-b3.sh` in the aqua workspace.

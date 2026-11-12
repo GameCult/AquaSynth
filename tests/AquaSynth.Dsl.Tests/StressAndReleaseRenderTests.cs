@@ -130,6 +130,19 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         Assert.True(trailing < atRelease / 10, "no burst noise in the vowel, the nasal and the tail after the plosive");
     }
 
+    // The burst gain's window, read off the spline itself: it opens one ramp (0.15 of the gesture) before the plosive and has closed one ramp after it.
+    // The rendered test above survived three mutants of the window (ramp 0, ramp 1.0 of the gesture, end moved to 3 ramps), so the bound is pinned here.
+    [Fact]
+    public void PlosiveBurstGainWindowIsOneRampEitherSide()
+    {
+        IpaGestureExperimentTarget Phone(string label, string ipa, float seconds) => new($"w_{label}", ipa, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone("2_b", "b", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_n", "n", 0.095f), 1f)], 140);
+        var window = PatchScript.Parse(script).ControlSplines.Single(s => s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal) && s.Points.Any(p => p.Value > 0));
+        const double start = 0.275, duration = 0.095, ramp = 0.15 * duration;
+        Assert.Equal((start - ramp, start + duration + ramp), (window.Points.Min(p => (double)p.TimeSeconds), window.Points.Max(p => (double)p.TimeSeconds)), new TupleTolerance(1e-4));
+    }
+
     // /ɑ C ɑ/ at the scaffold's own durations (vowel 0.18 s, consonant 0.095 s). Returns the render and the consonant's [start, end).
     private (float[]? Samples, double From, double To) VowelConsonantVowel(string ipa, float frequency = 140)
     {
@@ -244,4 +257,10 @@ public sealed class FaustSkipTests
         Assert.Equal(toolchain is null, new FaustFactAttribute().Skip is not null);
         Assert.Equal(toolchain is null, new FaustTheoryAttribute().Skip is not null);
     }
+}
+
+file sealed class TupleTolerance(double eps) : IEqualityComparer<(double, double)>
+{
+    public bool Equals((double, double) x, (double, double) y) => Math.Abs(x.Item1 - y.Item1) < eps && Math.Abs(x.Item2 - y.Item2) < eps;
+    public int GetHashCode((double, double) value) => 0;
 }
