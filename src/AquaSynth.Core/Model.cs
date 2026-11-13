@@ -479,7 +479,7 @@ public sealed record SourcePort(
     float NoiseHighPassHz = 0f);
 
 // The glottal flow waveform of a primitive source port. Saw is the band-limited saw the tilt lowpass shapes; Rosenberg is the
-// Rosenberg C pulse (open phase 0.4 of the period, return phase 0.16), zero-mean and scaled to the saw's rms so the two differ in shape, not level.
+// Rosenberg C pulse (open phase 0.4 of the period, return phase 0.16), zero-mean and scaled to the saw's rms at the source. The rendered level still differs: the tract passes less of the pulse (-2.4 dB output rms on /ɑmi/).
 public enum GlottalPulse
 {
     Saw,

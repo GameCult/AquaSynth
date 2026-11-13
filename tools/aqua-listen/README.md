@@ -57,7 +57,7 @@ The blank verdict files this was meant to match were not found under `/opt/commo
 
 ### Kits in the repo
 
-`kits/tract-weak-spots` and `kits/tract-stops` hold a `kit.json`, the `phones/*.json` that WordRender reads, and a `render.sh` that renders the clips (`render.sh <repo-root> <out-root>`; needs CULTLIB_ROOT and AQUASYNTH_FAUST_HOME, see the script header). Build a page from the rendered clips:
+`kits/voice-source` is the voice-source kit: one phrase, five pairs, each pair changing one source parameter (`pulse=`, `noise=`, `noise_hp=` on the scaffold's `source_port`, set through `WordRender --source`); `predictions.md` was committed before any clip was rendered, `hnr.py` names the noise settings in dB, `clips.py` makes the clip files. `kits/tract-weak-spots` and `kits/tract-stops` hold a `kit.json`, the `phones/*.json` that WordRender reads, and a `render.sh` that renders the clips (`render.sh <repo-root> <out-root>`; needs CULTLIB_ROOT and AQUASYNTH_FAUST_HOME, see the script header). Build a page from the rendered clips:
 `node tools/aqua-listen/build.mjs --manifest tools/aqua-listen/kits/tract-stops/kit.json --clips <out-root>/clips --out <out-root>/dist`. The titles in those kit.json files carry measured figures, a prediction and a falsifier; the page hides them from the listener.
 
 ### Pictures and burst notes (for a reader who cannot listen)
