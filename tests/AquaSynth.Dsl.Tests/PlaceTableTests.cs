@@ -40,6 +40,26 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
         Assert.Equal(NIndex, n);
     }
 
+    // The side stub is declared only for a word with a lateral: the script and the Faust source of /apa/ /aba/ /ana/ /ata/ are the bytes the scaffold
+    // gave before the lateral cut (SHA-256 prefixes taken on the head of /k/, 8d50819 plus /d/).
+    [Fact]
+    public void ExistingWordsSourcesUnchanged()
+    {
+        foreach (var (ipa, scriptSha, faustSha) in new[]
+        {
+            ("p", "61A96E0AE8C68F52", "28022E56A77DB5B1"), ("b", "5D5A6B653DC5D37D", "2FB84E792B878BFE"),
+            ("n", "BDF24A66659D7BD6", "ABEB5D03DC9637DB"), ("t", "9DFBCDB5131F9776", "30E144D54F7E026F"),
+        })
+        {
+            var script = Word(ipa);
+            var faust = FaustEmitter.Emit(PatchScript.Parse(script), new FaustExportOptions("pin", SampleRate: 48000)).Source;
+            Assert.Equal(scriptSha, Sha(script));
+            Assert.Equal(faustSha, Sha(faust));
+        }
+
+        Assert.Contains(PatchScript.SideStubBranch, Word("l"));
+    }
+
     [Fact]
     public void UnknownPlaceHasNoDistance()
     {

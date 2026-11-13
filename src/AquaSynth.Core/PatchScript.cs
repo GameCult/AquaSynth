@@ -13,6 +13,10 @@ public static class PatchScript
     /// that names another phone falls back to an alveolar approximant; a caller that must not be approximated asks here first.
     /// Vowels come from <see cref="StoryVowelAreas"/>, the one table that also says which measured tract shape each selects.
     /// </summary>
+    /// <summary>The branch port a lateral gesture opens: a closed side stub beside the oral path at the alveolar ridge (the sublingual cavity).
+    /// A script that gestures a lateral without declaring it is refused, not approximated.</summary>
+    public const string SideStubBranch = "side_stub";
+
     public static bool TryIpaDescriptor(string ipa, out string descriptor)
     {
         if (StoryVowelAreas.TryVowelForIpa(ipa, out var vowelDescriptor, out _))
@@ -30,6 +34,7 @@ public static class PatchScript
             "k" => "voiceless_velar_plosive",
             "m" => "voiced_bilabial_nasal",
             "n" => "voiced_alveolar_nasal",
+            "l" => "voiced_alveolar_lateral_approximant",
             "s" => "voiceless_alveolar_fricative",
             "z" => "voiced_alveolar_fricative",
             "ʃ" => "voiceless_postalveolar_fricative",
@@ -1559,7 +1564,7 @@ public static class PatchScript
             // A stop whose seal is the tongue (not the lips) is closed completely and until the contact opens (0.65): at the nasal's 0.03 cm
             // aperture a /t/ closure measured -10.4 dB re its vowels against /p/ -19.7 (the lips seal /p/ whatever the tongue does), and
             // rendered -21.5 dB with the aperture at 0 (area floor 1e-6 cm^2).
-            var closureHold = tokens.Contains("nasal") ? 0.8f : stopsBehindTheLips ? 0.65f : 0.5f;
+            var closureHold = tokens.Contains("nasal") || tokens.Contains("lateral") ? 0.8f : stopsBehindTheLips ? 0.65f : 0.5f;
             var closed = stopsBehindTheLips ? 0f : constriction;
             AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, closed), (closureHold, closed), (1, Math.Min(0.65f, constriction + 0.2f)));
 
@@ -1583,7 +1588,7 @@ public static class PatchScript
                 // it by the stored pressure and the opening (see PrimitiveContactExpression). The gain exists only around this plosive:
                 // a surface holds its last value after its last point (and its first before its first), so a gain left at its level
                 // made noise at every later contact state, the final nasal's closure and the tail included.
-                BurstGainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, stopsBehindTheLips ? TongueStopBurstGain : PlosiveBurstGain);
+                GainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, stopsBehindTheLips ? TongueStopBurstGain : PlosiveBurstGain);
                 PlaceBurst(name, tokens, place, start, duration);
                 AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
@@ -1596,6 +1601,13 @@ public static class PatchScript
             else
             {
                 AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.55f), (1, 0.65f));
+            }
+
+            // A lateral opens the side stub for its gesture and only then (the stub is closed before and after, as the burst gain is).
+            if (tokens.Contains("lateral") && _branchPortsByName.ContainsKey(SideStubBranch))
+            {
+                var branch = _branchPorts.FindIndex(candidate => candidate.Name.Equals(SideStubBranch, StringComparison.OrdinalIgnoreCase));
+                GainAroundGesture($"{name}_side_stub", $"/vocal/branches/{branch}/opening", start, duration, 1f);
             }
         }
 
@@ -1643,9 +1655,9 @@ public static class PatchScript
             AddAuthoredSpline(name, surfacePath, start, duration, (0, normalized), (1, normalized));
         }
 
-        // Zero before and after the gesture, the gain through it; the ramps are 0.15 of the gesture long and run into the neighbouring
+        // A surface that is zero before and after the gesture and the given level through it (the plosive burst gain, the lateral's side stub opening); the ramps are 0.15 of the gesture long and run into the neighbouring
         // phones (the leading one is cut where the word begins).
-        private void BurstGainAroundGesture(string name, string surfacePath, float start, float duration, float gain)
+        private void GainAroundGesture(string name, string surfacePath, float start, float duration, float gain)
         {
             if (!_controlSurfacesByPath.TryGetValue(surfacePath, out var surface) || surface.MaxValue <= surface.MinValue)
             {
@@ -1751,6 +1763,10 @@ public static class PatchScript
         // than a cell; the mean of the two sections, 9.555 cm, would fall 0.3 cm from the nearest cell centre (not tried).
         private const float VelarCentimetersFromLips = 9.81f;
 
+        // The lateral's midline: the tongue tip meets the ridge and the flow leaves by the sides, here the side stub's neighbour, the oral path
+        // through a midline held nearly shut for the gesture (to 0.8, as the nasal). A DESIGN VALUE set so the lateral reads between the vowels and the nasals.
+        private const float LateralMidlineDiameter = 0.06f;
+
         // Where a consonant closes. One entry per place, first token match wins. A place with a distance is placed by it, in cm behind the
         // lip plane, and its normalized position (0 glottis, 1 lips) is 1 - distance / tract length, for the vowel_set section index and the
         // hand-written-script fraction alike. A place with no distance is "fraction only": its fraction of the tract length from the glottis,
@@ -1802,6 +1818,7 @@ public static class PatchScript
         {
             if (tokens.Contains("plosive") || tokens.Contains("stop") || tokens.Contains("nasal")) return 0.03f;
             if (tokens.Contains("fricative")) return 0.16f;
+            if (tokens.Contains("lateral")) return LateralMidlineDiameter;
             if (tokens.Contains("approximant")) return 0.48f;
             if (tokens.Contains("trill") || tokens.Contains("tap") || tokens.Contains("flap")) return 0.24f;
             return 0.55f;
@@ -2791,6 +2808,11 @@ public static class PatchScript
             var intensity = Math.Clamp(GetFloat(fields, line, 1, "intensity", "gain", "strength"), 0, 2);
             var pitchRatio = Math.Clamp(GetFloat(fields, line, 1, "pitch_ratio", "f0_ratio"), 0.5f, 2f);
             var descriptor = GestureDescriptor(ipa, fields);
+            if (DescriptorTokens(descriptor).Contains("lateral") && !_branchPortsByName.ContainsKey(SideStubBranch))
+            {
+                throw new PatchScriptException(line, $"a lateral gesture needs the `{SideStubBranch}` branch port (the sublingual stub); it is not approximated by a plain approximant");
+            }
+
             var name = TryGetAny(fields, ["name", "n"], out var nameText)
                 ? nameText
                 : $"ipa_{SafeName(ipa)}_{_phonemeGestures.Count}";

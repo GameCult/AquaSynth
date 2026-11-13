@@ -473,4 +473,69 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         Assert.True(leading < atRelease / 20, "no burst before the plosive's own gesture");
         Assert.True(trailing < atRelease / 10, "no burst after the plosive");
     }
+
+    // /l/ over /ɑ _ ɑ/ at the scaffold's durations. Envelope of the consonant's middle 60 percent at the harmonics of f0 (the largest power within a
+    // quarter of f0 of k * f0), in dB: the spectrum of a periodic source is a line spectrum, so extrema are read from the harmonic envelope.
+    private (double[] Hz, double[] Db) HarmonicEnvelope(float[] x, double from, double to, double f0 = 140, double maxHz = 5000)
+    {
+        var a = (int)((from + 0.2 * (to - from)) * Rate);
+        var n = (int)(0.6 * (to - from) * Rate);
+        var seg = Enumerable.Range(0, n).Select(i => x[a + i] * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (n - 1)))).ToArray();
+        double Power(double hz)
+        {
+            double re = 0, im = 0;
+            for (var i = 0; i < n; i++) { var w = 2 * Math.PI * hz * i / Rate; re += seg[i] * Math.Cos(w); im -= seg[i] * Math.Sin(w); }
+            return re * re + im * im;
+        }
+
+        var hz = new List<double>();
+        var db = new List<double>();
+        for (var k = 1; k * f0 < maxHz; k++)
+        {
+            hz.Add(k * f0);
+            db.Add(10 * Math.Log10(Math.Max(1e-30, Enumerable.Range(-3, 7).Max(j => Power(k * f0 + j * f0 / 12)))));
+        }
+
+        return (hz.ToArray(), db.ToArray());
+    }
+
+    // The lateral's own dip: the envelope with the side stub open less the same render with it shut, at its lowest between 2 and 3 kHz. The
+    // difference isolates the stub's antiresonance from the valleys between the vowel's formants, which the shut render has as deep.
+    private static (double DipHz, double Depth) LateralDip(double[] hz, double[] db, double[] shutDb)
+    {
+        var i = Enumerable.Range(0, hz.Length).Where(j => hz[j] >= 2000 && hz[j] <= 3000).MinBy(j => db[j] - shutDb[j]);
+        return (hz[i], shutDb[i] - db[i]);
+    }
+
+    // The lateral's antiresonance: the closed side stub beside the oral path (sublingual cavity). With the stub open the 2 to 3 kHz harmonics fall at
+    // least 6 dB under the same render with it shut (a DESIGN criterion; no /l/ spectrum was retrieved). The lateral is continuous: the render with
+    // and without release_flow is the same render.
+    [Fact]
+    public void LateralHasAnAntiresonanceAndNoBurst()
+    {
+        var (x, from, to) = VowelConsonantVowel("l");
+        if (x is null) return;
+        var (hz, db) = HarmonicEnvelope(x, from, to);
+        var (shut, _, _) = VowelConsonantVowel("l", edit: WithShutSideStub);
+        var (_, shutDb) = HarmonicEnvelope(shut!, from, to);
+        var (dipHz, depth) = LateralDip(hz, db, shutDb);
+        var (nb, _, _) = VowelConsonantVowel("l", edit: WithoutBurst);
+        output.WriteLine($"/l/ stub open {depth:F1} dB under stub shut at {dipHz:F0} Hz (2-3 kHz); max |with - without release_flow| {x.Zip(nb!, (a, b) => Math.Abs(a - b)).Max():G3}");
+        Assert.True(depth >= 6, $"the 2-3 kHz dip is {depth:F1} dB under the shut-stub render");
+        Assert.Equal(x, nb);
+    }
+
+    private static SynthPatch WithShutSideStub(SynthPatch p) =>
+        p with { ControlSplines = p.ControlSplines.Where(s => s.SurfacePath != "/vocal/branches/1/opening").ToArray() };
+
+    // Between the vowels and the nasals in level: -4 to -10 dB re the flanking vowels (a DESIGN band; /n/ reads -9.6, /m/ -11.8 in the same measure).
+    [Fact]
+    public void LateralLevelIsBetweenTheVowelsAndTheNasals()
+    {
+        var (x, from, to) = VowelConsonantVowel("l");
+        if (x is null) return;
+        var db = ConsonantDbReVowels(x, from, to);
+        output.WriteLine($"/l/ {db:F1} dB re the flanking vowels");
+        Assert.InRange(db, -10, -4);
+    }
 }
