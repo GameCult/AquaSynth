@@ -45,6 +45,10 @@ public static partial class FaustEmitter
         source.AppendLine("bez(t,a,b,c,d) = (1.0 - t) * (1.0 - t) * (1.0 - t) * a + 3.0 * (1.0 - t) * (1.0 - t) * t * b + 3.0 * (1.0 - t) * t * t * c + t * t * t * d;");
         source.AppendLine("seg_bez(t,t0,d,a,b,c,e) = bez(clip01((t - t0) / max(0.0001, d)), a, b, c, e);");
         source.AppendLine("smooth01(x) = clip01(x) * clip01(x) * (3.0 - 2.0 * clip01(x));");
+        // si.smoo starts every control at 0 and climbs to it: a word began with the tract shut, the vowel weights at 0 and the source off,
+        // and the first ~100 ms of every render were that climb (the level rose 40 dB over the first 100 ms of an isolated vowel, and
+        // the bandwidths fell from ~300 Hz to 90). This smoother starts at its input and smooths from there.
+        source.AppendLine("smoo_init(x) = loop ~ _ with { pole = ba.tau2pole(0.005); loop(prev) = select2(1 - 1', prev * pole + x * (1.0 - pole), x); };");
         source.AppendLine("seg_smooth(t,t0,d,a,b) = a + (b - a) * smooth01((t - t0) / max(0.0001, d));");
         source.AppendLine("seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));");
         source.AppendLine("seg_curve(c,t,t0,d,a,b) = select2(c < 0.5, seg_exp(t,t0,d,a,b), seg(t,t0,d,a,b));");
@@ -152,7 +156,7 @@ public static partial class FaustEmitter
             var baseId = $"{id}_base";
             var normalized = $"{id}_normalized";
             var physical = $"{id}_physical";
-            var publicControl = $"hslider(\"{Escape(surface.Path)}\", {F(surface.DefaultNormalized)}, 0, 1, 0.001) : si.smoo";
+            var publicControl = $"hslider(\"{Escape(surface.Path)}\", {F(surface.DefaultNormalized)}, 0, 1, 0.001) : smoo_init";
             var boundControl = parameters.TryBindingExpression(surface.FieldPath, out var bindingExpression)
                 ? $"clip01(({bindingExpression} - {F(surface.MinValue)}) / max(0.000001, {F(surface.MaxValue - surface.MinValue)}))"
                 : publicControl;
@@ -172,7 +176,7 @@ public static partial class FaustEmitter
                     var splineId = $"{id}_spline_{splineIndex}";
                     EmitControlSpline(source, spline, splineId, surface.DefaultNormalized);
                     var depth = $"{splineId}_depth";
-                    source.AppendLine($"{depth} = hslider(\"/splines/{Escape(spline.Name)}/depth\", 1, 0, 1, 0.001) : si.smoo;");
+                    source.AppendLine($"{depth} = hslider(\"/splines/{Escape(spline.Name)}/depth\", 1, 0, 1, 0.001) : smoo_init;");
                     terms.Add($"(({splineId}_value - {F(surface.DefaultNormalized)}) * {depth})");
                 }
 
@@ -197,11 +201,11 @@ public static partial class FaustEmitter
         {
             var point = points[i];
             source.AppendLine($"{splineId}_p{i}_time = hslider(\"/splines/{Escape(spline.Name)}/{i}/time\", {F(point.TimeSeconds)}, 0, 120, 0.001);");
-            source.AppendLine($"{splineId}_p{i}_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/value\", {F(Math.Clamp(point.Value, 0, 1))}, 0, 1, 0.001) : si.smoo;");
+            source.AppendLine($"{splineId}_p{i}_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/value\", {F(Math.Clamp(point.Value, 0, 1))}, 0, 1, 0.001) : smoo_init;");
             source.AppendLine($"{splineId}_p{i}_out_time = hslider(\"/splines/{Escape(spline.Name)}/{i}/out_time\", {F(Math.Max(0, point.OutTimeOffsetSeconds))}, 0, 10, 0.001);");
-            source.AppendLine($"{splineId}_p{i}_out_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/out_value\", {F(point.OutValue == 0 ? point.Value : Math.Clamp(point.OutValue, 0, 1))}, 0, 1, 0.001) : si.smoo;");
+            source.AppendLine($"{splineId}_p{i}_out_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/out_value\", {F(point.OutValue == 0 ? point.Value : Math.Clamp(point.OutValue, 0, 1))}, 0, 1, 0.001) : smoo_init;");
             source.AppendLine($"{splineId}_p{i}_in_time = hslider(\"/splines/{Escape(spline.Name)}/{i}/in_time\", {F(Math.Max(0, point.InTimeOffsetSeconds))}, 0, 10, 0.001);");
-            source.AppendLine($"{splineId}_p{i}_in_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/in_value\", {F(point.InValue == 0 ? point.Value : Math.Clamp(point.InValue, 0, 1))}, 0, 1, 0.001) : si.smoo;");
+            source.AppendLine($"{splineId}_p{i}_in_value = hslider(\"/splines/{Escape(spline.Name)}/{i}/in_value\", {F(point.InValue == 0 ? point.Value : Math.Clamp(point.InValue, 0, 1))}, 0, 1, 0.001) : smoo_init;");
         }
 
         if (points.Length == 1)

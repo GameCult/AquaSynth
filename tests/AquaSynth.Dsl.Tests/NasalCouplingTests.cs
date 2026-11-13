@@ -68,7 +68,7 @@ public sealed class NasalCouplingTests
     }
 
     private static float Spline(SynthPatch patch, string namePrefix, string surfacePath) =>
-        patch.ControlSplines.Single(spline => spline.Name.StartsWith(namePrefix, StringComparison.Ordinal) && spline.SurfacePath == surfacePath).Points[0].Value;
+        patch.ControlSplines.Single(spline => spline.Name.StartsWith(namePrefix, StringComparison.Ordinal) && spline.SurfacePath == surfacePath).Points[^1].Value;   // a held place: the last point is the gesture's value whether or not a boundary ramp precedes it
 
     // Distance of a vowel_set consonant constriction from the lip plane in cm, from the constriction_index spline: the surface is a section
     // index in [0, sections] and the area model reads position = index / (sections - 1).

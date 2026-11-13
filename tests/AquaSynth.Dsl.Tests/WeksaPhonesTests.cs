@@ -148,10 +148,10 @@ public sealed class WeksaPhonesTests
         Assert.Equal([WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.VowelSeconds * WeksaWordPlan.CueFor(WeksaStress.Primary).Duration, WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.ConsonantSeconds, WeksaWordPlan.VowelSeconds],
             plan.Phones.Select(p => p.Target.DurationSeconds));
         var patch = PatchScript.Parse(IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140));
-        var ih = patch.ControlSplines.Where(s => s.Name.StartsWith("x_1_ɪ_vowel_", StringComparison.Ordinal)).ToDictionary(s => s.SurfacePath, s => s.Points[0].Value);
+        var ih = patch.ControlSplines.Where(s => s.Name.StartsWith("x_1_ɪ_vowel_", StringComparison.Ordinal)).ToDictionary(s => s.SurfacePath, s => s.Points[^1].Value);
         Assert.Equal(1f, ih["/vocal/areas/0/area/vowel_ih"]);
         Assert.Equal(0f, ih["/vocal/areas/0/area/vowel_i"]);
-        var oo = patch.ControlSplines.Where(s => s.Name.StartsWith("x_4_ʊ_vowel_", StringComparison.Ordinal)).ToDictionary(s => s.SurfacePath, s => s.Points[0].Value);
+        var oo = patch.ControlSplines.Where(s => s.Name.StartsWith("x_4_ʊ_vowel_", StringComparison.Ordinal)).ToDictionary(s => s.SurfacePath, s => s.Points[^1].Value);
         Assert.Equal(1f, oo["/vocal/areas/0/area/vowel_oo_short"]);
         Assert.Equal(0f, oo["/vocal/areas/0/area/vowel_u"]);
     }
@@ -190,7 +190,7 @@ public sealed class WeksaPhonesTests
         var none = patch(WeksaStress.None);
         var primary = patch(WeksaStress.Primary);
         float First(SynthPatch p, string prefix, string surface) =>
-            p.ControlSplines.Single(sp => sp.Name.StartsWith(prefix, StringComparison.Ordinal) && sp.SurfacePath == surface).Points[0].Value;
+            p.ControlSplines.Single(sp => sp.Name.StartsWith(prefix, StringComparison.Ordinal) && sp.SurfacePath == surface).Points[^1].Value;
 
         // pitch_ratio surface range 0.5..2: normalized (1.06 - .5) / 1.5; unstressed holds 1 -> (1 - .5) / 1.5.
         Assert.Equal((1.06f - .5f) / 1.5f, First(primary, "w_1_i_source_pitch", "/vocal/sources/0/pitch_ratio"), 4);

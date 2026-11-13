@@ -278,7 +278,7 @@ public static class IpaGestureExperiment
         probe_timeline name=flow network=voice blocks=12 block_size=64
         {{SideStubDeclarations(sideStub)}}vocal_network name=voice paths=oral_path,nasal_path{{(sideStub ? ",side_stub_path" : "")}} sources=folds contacts=contact branches=velopharynx{{(sideStub ? "," + PatchScript.SideStubBranch : "")}} radiation=mouth,nostril{{(sideStub ? ",side_stub_end" : "")}} probe=flow
         {{string.Join("\n", gestureLines)}}
-        vocal network=voice freq={{Format(frequency)}} gain=.7 sustain={{Format(sustain)}}
+        vocal network=voice freq={{Format(frequency)}} gain=.7 attack=.012 sustain={{Format(sustain)}}
         """;
 
     private static IReadOnlyList<IpaGestureMetricSummary> SummarizeMetrics(IReadOnlyList<IpaGestureExperimentMetric> metrics) =>
