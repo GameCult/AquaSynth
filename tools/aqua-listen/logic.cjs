@@ -127,4 +127,16 @@ function pickLegacySave(manifest, entries) {
   return best;
 }
 
-module.exports = { SCHEMA, VERDICTS, DEVICES, AUDIO_EXT, validateManifest, planOrder, buildVerdict, verdictMarkdown, rng, saveKey, pickLegacySave };
+// A save as stored -> the state the page runs on, or null. Normalises answers/pairs to plain objects (a hand-edited or old save
+// must not crash the page). pairSig records the manifest's clip order the pair picks were made under; a pick's A/B/same is
+// relative to that order, so a save with a missing or different pairSig keeps seed and answers and loses its pairs. A legacy
+// (hash-keyed) save has no pairSig and cannot be checked: its pairs are kept and stamped with the current signature.
+const pairSig = (manifest) => manifest.clips.map((c) => c.id).join(",");
+const plain = (o) => (o && typeof o === "object" && !Array.isArray(o) ? o : {});
+function restoreSave(manifest, saved, legacy) {
+  if (!saved || typeof saved !== "object" || !saved.seed) return null;
+  const sig = pairSig(manifest), keep = legacy || saved.pairSig === sig;
+  return Object.assign({}, saved, { answers: plain(saved.answers), pairs: keep ? plain(saved.pairs) : {}, pairSig: sig });
+}
+
+module.exports = { SCHEMA, VERDICTS, DEVICES, AUDIO_EXT, validateManifest, planOrder, buildVerdict, verdictMarkdown, rng, saveKey, pickLegacySave, pairSig, restoreSave };

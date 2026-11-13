@@ -147,4 +147,27 @@ test("legacy migration ignores other kits, foreign clip ids, malformed keys and 
     { key: "aqua-listen:k1:93312816", state: null }, { key: "aqua-listen:k1:93312816", state: { answers: ans } }])
     assert.equal(L.pickLegacySave(m, [e]), null, JSON.stringify(e.key) + JSON.stringify(e.state));
 });
+test("restoreSave: reordered clips keep answers and seed but drop pair picks; same order keeps them", () => {
+  const m = mf([clip("a", { pair: "b" }), clip("b", { pair: "a" }), clip("c")]), rev = mf([...m.clips].reverse());
+  const saved = { ...st({ a: { verdict: "keep" }, c: { verdict: "fix" } }, { "a|b": "A" }), pairSig: L.pairSig(m) };
+  assert.deepEqual(L.restoreSave(m, saved, false).pairs, { "a|b": "A" });
+  const r = L.restoreSave(rev, saved, false);
+  assert.deepEqual(r.pairs, {}); assert.equal(r.seed, 7); assert.equal(r.answers.a.verdict, "keep"); assert.equal(r.pairSig, L.pairSig(rev));
+  assert.deepEqual(L.restoreSave(m, st({}, { "a|b": "A" }), false).pairs, {}, "no signature: pairs dropped");
+  assert.deepEqual(L.restoreSave(m, st({}, { "a|b": "A" }), true).pairs, { "a|b": "A" }, "legacy adoption keeps pairs");
+  assert.equal(L.restoreSave(m, st({}, { "a|b": "A" }), true).pairSig, L.pairSig(m), "and stamps the current signature");
+  assert.equal(L.restoreSave(m, { answers: {} }, false), null);
+});
+test("restoreSave: a save without pairs or with array answers is normalised, not left to crash the page", () => {
+  const m = mf([clip("a")]);
+  for (const bad of [{ seed: 3 }, { seed: 3, answers: [], pairs: null }, { seed: 3, answers: "x", pairs: [] }]) {
+    const r = L.restoreSave(m, bad, true); assert.deepEqual(r.answers, {}); assert.deepEqual(r.pairs, {});
+    L.buildVerdict(m, L.planOrder(m.clips, r.seed), r, "now");
+  }
+});
+test("the built page keys its save through saveKey and never builds a hash key", () => {
+  const h = buildKit(mf([clip("a")]), dir).html;
+  assert.ok(h.includes("KEY = L.saveKey(kit.manifest)"));
+  assert.ok(!/kit\.hash/.test(h) && !/KEY = [`"']/.test(h) && !/localStorage\.(set|get)Item\(`/.test(h), "no hash-form or string-built key in the page source");
+});
 console.log(`${n} tests passed`);

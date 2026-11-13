@@ -6,12 +6,11 @@
 
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode: the export still works */ } };
   const read = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
-  const valid = (s) => (s && s.seed ? s : null);
   const legacyEntries = () => { const e = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); e.push({ key: k, state: read(k) }); } return e; };
   // Own key first; if empty, adopt a hash-keyed save from an earlier build of this kit (L.pickLegacySave) and keep using the new key.
   const load = () => {
-    const own = valid(read(KEY)); if (own) return own;
-    try { const from = L.pickLegacySave(kit.manifest, legacyEntries()); return from ? valid(read(from)) : null; } catch (e) { return null; }
+    const own = L.restoreSave(kit.manifest, read(KEY), false); if (own) return own;
+    try { const from = L.pickLegacySave(kit.manifest, legacyEntries()); return from ? L.restoreSave(kit.manifest, read(from), true) : null; } catch (e) { return null; }
   };
   const h = (tag, attrs, ...kids) => {
     const e = document.createElement(tag);
@@ -97,7 +96,7 @@
       ...cards,
       h("div", { class: "card" }, h("h2", {}, "Finished?"), notes,
         h("p", { class: "hint" }, "Export shows your answers as text you can copy, share or download. Unanswered sounds are exported as blank. Your answers stay saved in this browser until you erase them."),
-        h("div", { class: "row" }, h("button", { id: "export", onclick: exportAll }, "Export my answers"), h("button", { class: "quiet", onclick: reset }, "Erase my answers")), h("div", { id: "export-panel" })));
+        h("div", { class: "row" }, h("button", { id: "export", onclick: exportAll }, "Export my answers"), h("button", { class: "quiet", onclick: reset }, "Erase this kit's saved answers")), h("div", { id: "export-panel" })));
     progress();
   }
 
@@ -129,7 +128,7 @@
     panel.replaceChildren(h("h3", {}, "Your answers"), msg, area, h("div", { class: "row" }, buttons));
     area.focus(); area.select(); panel.scrollIntoView();
   }
-  function reset() { if (confirm("Erase every answer you've given in this browser?")) { try { localStorage.removeItem(KEY); for (let k; (k = L.pickLegacySave(kit.manifest, legacyEntries())); ) localStorage.removeItem(k); } catch (e) {} location.reload(); } }
+  function reset() { if (confirm("Erase the answers this page has saved in this browser for this kit, including any older saved copy of them? Other pages are not touched.")) { try { localStorage.removeItem(KEY); for (let k; (k = L.pickLegacySave(kit.manifest, legacyEntries())); ) localStorage.removeItem(k); } catch (e) {} location.reload(); } }
 
   if (load() && load().consent) start(); else consent();
 })();

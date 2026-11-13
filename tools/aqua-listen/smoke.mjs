@@ -89,8 +89,12 @@ check(await pg.evaluate((k) => localStorage.getItem(k) !== null, `aqua-listen:ot
 await pg.evaluate(([k, v]) => { localStorage.setItem(k, v); localStorage.setItem(Object.keys(localStorage).find((x) => x.startsWith("aqua-listen.v2:")), v); }, [oldKey, old(13, "fix")]);
 await pg.reload();
 check(await pg.locator("#clip-" + ids[ids.length - 1]).locator("input[value=fix]").isChecked(), "migration: an existing new-key save is used, not overwritten by the hash-keyed one");
+// a save with no pairs and array answers must not crash the page; a reordered kit keeps answers and drops pair picks
+await pg.evaluate(([k]) => { localStorage.clear(); localStorage.setItem(k, JSON.stringify({ seed: 5, answers: [], consent: true })); }, [(await pg.evaluate(() => 0), `aqua-listen.v2:${mfst}:${[...ids].sort().join(",")}`)]);
+await pg.reload();
+check(await pg.locator("audio").count() === ids.length && errs2.length === 0, "a save without pairs and with array answers loads without errors");
 await pg.evaluate(([k, v]) => localStorage.setItem(k, v), [oldKey, old(14, "drop")]);
-pg.once("dialog", (d) => d.accept()); await pg.click("text=Erase my answers"); await pg.waitForLoadState();
+pg.once("dialog", (d) => d.accept()); await pg.click("text=Erase this kit's saved answers"); await pg.waitForLoadState();
 check(await pg.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("aqua-listen:") && !k.includes("other-kit") || k.startsWith("aqua-listen.v2:")).length) === 0 && await pg.locator("#consent").count() === 1, "erase removes the new-key save and the adoptable hash-keyed one (nothing resurrects)");
 check(errs2.length === 0, `persistence: no page errors (${errs2.join("; ")})`);
 srv.close();
