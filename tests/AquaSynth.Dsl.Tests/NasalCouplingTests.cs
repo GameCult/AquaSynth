@@ -91,7 +91,8 @@ public sealed class NasalCouplingTests
     [Fact]
     public void WithoutVowelSetTheConstrictionStaysOnTheNormalizedPlaceFraction()
     {
-        // The earlier surface semantics are kept for hand-written scripts: the place fraction is the normalized spline value itself.
+        // The earlier surface semantics are kept for hand-written scripts: the place fraction is the normalized spline value itself. A place
+        // with a distance in the place table is that distance from the lips over the morphology's length (1 - 2.555 / 17 for /n/, 1 for /m/).
         var patch = PatchScript.Parse("""
             morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.6,1.3,.9 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 lip_opening=1.5
             morphology name=nasal length_cm=12 diameters=.05,.35,.6,.8
@@ -107,7 +108,7 @@ public sealed class NasalCouplingTests
             vocal network=voice freq=150 gain=.2 sustain=.6
             """);
 
-        Assert.Equal(.78f, Spline(patch, "en_constriction_index", "/vocal/areas/0/area/constriction_index"));
-        Assert.Equal(.96f, Spline(patch, "em_constriction_index", "/vocal/areas/0/area/constriction_index"));
+        Assert.Equal(1 - 2.555f / 17, Spline(patch, "en_constriction_index", "/vocal/areas/0/area/constriction_index"), 5);
+        Assert.Equal(1f, Spline(patch, "em_constriction_index", "/vocal/areas/0/area/constriction_index"), 5);
     }
 }

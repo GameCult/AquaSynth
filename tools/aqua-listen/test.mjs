@@ -101,6 +101,17 @@ test("build refuses a missing file and a manifest escape, naming them", () => {
   assert.throws(() => buildKit(mf([clip("a", { file: "../x.wav" })]), dir), /relative path/);
   assert.throws(() => buildKit(mf([clip("a", { title: "" })]), dir), /title is required/);
 });
+test("pictures ride in a collapsed block only for clips that have both, and only then does the policy admit data: images", () => {
+  const pics = mkdtempSync(join(tmpdir(), "aqua-listen-img-")), png = Buffer.from("89504e470d0a1a0a", "hex");
+  writeFileSync(join(pics, "a.spec.png"), png); writeFileSync(join(pics, "a.wave.png"), png); writeFileSync(join(pics, "b.spec.png"), png);
+  const withPics = buildKit(manifest, dir, pics), data = JSON.parse(/<script id="kit-data" type="application\/json">(.*?)<\/script>/s.exec(withPics.html)[1]);
+  assert.deepEqual(Object.keys(data.images), ["a"]);
+  assert.deepEqual(data.images.a.map((p) => p.label), ["spectrogram", "waveform"]);
+  assert.match(withPics.html, /media-src blob:; img-src data:/);
+  const bare = buildKit(manifest, dir);
+  assert.doesNotMatch(bare.html, /img-src/); assert.deepEqual(JSON.parse(/<script id="kit-data" type="application\/json">(.*?)<\/script>/s.exec(bare.html)[1]).images, {});
+  assert.notEqual(withPics.hash, bare.hash);
+});
 test("markup in a title cannot break the page", () => {
   const m = mf([clip("a", { title: "</script><b>" , feel: "</script>"})]);
   const h = buildKit(m, dir).html;

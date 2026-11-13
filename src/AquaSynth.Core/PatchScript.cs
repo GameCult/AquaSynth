@@ -13,6 +13,10 @@ public static class PatchScript
     /// that names another phone falls back to an alveolar approximant; a caller that must not be approximated asks here first.
     /// Vowels come from <see cref="StoryVowelAreas"/>, the one table that also says which measured tract shape each selects.
     /// </summary>
+    /// <summary>The branch port a lateral gesture opens: a closed side stub beside the oral path at the alveolar ridge (the sublingual cavity).
+    /// A script that gestures a lateral without declaring it is refused, not approximated.</summary>
+    public const string SideStubBranch = "side_stub";
+
     public static bool TryIpaDescriptor(string ipa, out string descriptor)
     {
         if (StoryVowelAreas.TryVowelForIpa(ipa, out var vowelDescriptor, out _))
@@ -25,8 +29,12 @@ public static class PatchScript
         {
             "p" => "voiceless_bilabial_plosive",
             "b" => "voiced_bilabial_plosive",
+            "t" => "voiceless_alveolar_plosive",
+            "d" => "voiced_alveolar_plosive",
+            "k" => "voiceless_velar_plosive",
             "m" => "voiced_bilabial_nasal",
             "n" => "voiced_alveolar_nasal",
+            "l" => "voiced_alveolar_lateral_approximant",
             "s" => "voiceless_alveolar_fricative",
             "z" => "voiced_alveolar_fricative",
             "ʃ" => "voiceless_postalveolar_fricative",
@@ -38,6 +46,11 @@ public static class PatchScript
         descriptor = known ?? "";
         return known is not null;
     }
+
+    /// <summary>The distance in cm from the lip plane at which a descriptor's place closes, or false when the place has no distance
+    /// (fraction only, or no place named): a caller must not invent one.</summary>
+    public static bool TryPlaceDistanceCentimeters(string descriptor, out float centimeters) =>
+        Compiler.TryPlaceDistanceCentimeters(descriptor, out centimeters);
 
     public static SynthPatch Parse(string script)
     {
@@ -1504,7 +1517,7 @@ public static class PatchScript
             }
         }
 
-        private void EmitPhonemeGestureSplines(string name, string descriptor, float start, float duration, float intensity, float pitchRatio = 1f)
+        private void EmitPhonemeGestureSplines(string name, string descriptor, float start, float duration, float intensity, int line, float pitchRatio = 1f)
         {
             var tokens = DescriptorTokens(descriptor);
             var voiced = tokens.Contains("voiced") || tokens.Contains("vowel") || tokens.Contains("nasal") || tokens.Contains("approximant");
@@ -1513,7 +1526,6 @@ public static class PatchScript
                 voiced = false;
             }
 
-            var place = PlaceTarget(tokens);
             var constriction = ConstrictionTarget(tokens);
             var pressure = Math.Clamp(0.45f + 0.30f * intensity, 0, 1);
             AddAuthoredSpline($"{name}_source_pressure", "/vocal/sources/0/pressure", start, duration, (0, 0.4f), (0.2f, pressure), (1, pressure * 0.85f));
@@ -1527,17 +1539,18 @@ public static class PatchScript
 
             if (tokens.Contains("vowel"))
             {
-                EmitVowelGesture(name, descriptor, start, duration);
+                EmitVowelGesture(name, descriptor, start, duration, line);
                 return;
             }
 
+            var length = _areaFunctions.Count > 0 ? _areaFunctions[0].Shape.LengthCentimeters : StoryVowelAreas.MeanLengthCentimeters;
+            var place = PlaceFraction(tokens, length);
             if (_areaFunctions.Count > 0 && _areaFunctions[0].Vowels is not null && _areaFunctions[0].Deformation is { } control)
             {
                 // Under vowel_set the constriction is placed by distance along the tract: the surface is a section index, so a normalized
                 // place fraction would land at fraction * sections / (sections - 1) of the tract, past the lips for a labial.
                 var sections = Math.Max(2, _areaFunctions[0].Shape.Sections);
-                var position = ConsonantPositionFromGlottis(tokens, place, _areaFunctions[0].Shape.LengthCentimeters);
-                HoldOnSurface($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, position * (sections - 1) / control.IndexScale);
+                HoldOnSurface($"{name}_constriction_index", "/vocal/areas/0/area/constriction_index", start, duration, place * (sections - 1) / control.IndexScale);
             }
             else
             {
@@ -1547,8 +1560,13 @@ public static class PatchScript
             // A nasal stop holds its oral closure for as long as the velum and the contact stay put (to 0.8 of the gesture): the murmur is the
             // closed-mouth sound, and an alveolar closure that began to open at 0.5 let the oral tract radiate again over the last third (/n/ read
             // -3.8 dB under its vowels against /m/ -13.2 dB, whose lips hold to 0.7).
-            var closureHold = tokens.Contains("nasal") ? 0.8f : 0.5f;
-            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, constriction), (closureHold, constriction), (1, Math.Min(0.65f, constriction + 0.2f)));
+            var stopsBehindTheLips = (tokens.Contains("plosive") || tokens.Contains("stop")) && !(tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial"));
+            // A stop whose seal is the tongue (not the lips) is closed completely and until the contact opens (0.65): at the nasal's 0.03 cm
+            // aperture a /t/ closure measured -10.4 dB re its vowels against /p/ -19.7 (the lips seal /p/ whatever the tongue does), and
+            // rendered -21.5 dB with the aperture at 0 (area floor 1e-6 cm^2).
+            var closureHold = tokens.Contains("nasal") || tokens.Contains("lateral") ? 0.8f : stopsBehindTheLips ? 0.65f : 0.5f;
+            var closed = stopsBehindTheLips ? 0f : constriction;
+            AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, closed), (closureHold, closed), (1, Math.Min(0.65f, constriction + 0.2f)));
 
             if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial") || tokens.Contains("rounded"))
             {
@@ -1570,7 +1588,8 @@ public static class PatchScript
                 // it by the stored pressure and the opening (see PrimitiveContactExpression). The gain exists only around this plosive:
                 // a surface holds its last value after its last point (and its first before its first), so a gain left at its level
                 // made noise at every later contact state, the final nasal's closure and the tail included.
-                BurstGainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, PlosiveBurstGain);
+                GainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, stopsBehindTheLips ? TongueStopBurstGain : PlosiveBurstGain);
+                PlaceBurst(name, tokens, place, start, duration);
                 AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
             else if (tokens.Contains("fricative"))
@@ -1583,13 +1602,25 @@ public static class PatchScript
             {
                 AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.55f), (1, 0.65f));
             }
+
+            // A lateral opens the side stub for its gesture and only then (the stub is closed before and after, as the burst gain is).
+            if (tokens.Contains("lateral") && _branchPortsByName.ContainsKey(SideStubBranch))
+            {
+                var branch = _branchPorts.FindIndex(candidate => candidate.Name.Equals(SideStubBranch, StringComparison.OrdinalIgnoreCase));
+                GainAroundGesture($"{name}_side_stub", $"/vocal/branches/{branch}/opening", start, duration, 1f);
+            }
         }
 
         // A vowel gesture raises the weight of the descriptor's Story vowel to 1 and holds every other vowel weight at 0 (the schwa and
         // any vowel descriptor without a Story shape hold all of them at 0: the geometric-mean shape). The constriction and the lip cap
-        // stay open, the velum closed. On a morphology without vowel_set the vowel surfaces do not exist and nothing is held.
-        private void EmitVowelGesture(string name, string descriptor, float start, float duration)
+        // stay open, the velum closed. A vowel gesture on a morphology without vowel_set is a parse error: the vowel surfaces do not exist.
+        private void EmitVowelGesture(string name, string descriptor, float start, float duration, int line)
         {
+            if (_areaFunctions.Count == 0 || _areaFunctions[0].Vowels is null)
+            {
+                throw new PatchScriptException(line, $"vowel gesture `{name}` needs a vowel_set before it: without one the vowel surfaces do not exist and the gesture would shape nothing");
+            }
+
             var target = StoryVowelAreas.IdForDescriptor(descriptor);
             foreach (var vowel in StoryVowelAreas.All)
             {
@@ -1629,9 +1660,9 @@ public static class PatchScript
             AddAuthoredSpline(name, surfacePath, start, duration, (0, normalized), (1, normalized));
         }
 
-        // Zero before and after the gesture, the gain through it; the ramps are 0.15 of the gesture long and run into the neighbouring
+        // A surface that is zero before and after the gesture and the given level through it (the plosive burst gain, the lateral's side stub opening); the ramps are 0.15 of the gesture long and run into the neighbouring
         // phones (the leading one is cut where the word begins).
-        private void BurstGainAroundGesture(string name, string surfacePath, float start, float duration, float gain)
+        private void GainAroundGesture(string name, string surfacePath, float start, float duration, float gain)
         {
             if (!_controlSurfacesByPath.TryGetValue(surfacePath, out var surface) || surface.MaxValue <= surface.MinValue)
             {
@@ -1650,6 +1681,40 @@ public static class PatchScript
             var spline = new ControlSpline(UniqueSplineName(name), surfacePath, points.ToArray(), ControlSplineInterpolation.Bezier);
             _controlSplines.Add(spline);
             _controlSplinesByName[spline.Name] = spline;
+        }
+
+        // The place a plosive's burst enters the tract: the contact's position. A labial plosive keeps its burst at the glottal end (position 0)
+        // and writes nothing while no other plosive has driven the position, so a word of labials is unchanged (the position surface does not
+        // exist, and the exporter sends a burst in at the glottal end unless its contact has that surface); once any other plosive
+        // drives it, every labial plosive of the word writes position 0 too, or it would hold that plosive's place.
+        private bool _burstSiteDriven;
+        private readonly List<(string Name, float Start, float Duration)> _labialPlosives = [];
+
+        private void PlaceBurst(string name, HashSet<string> tokens, float place, float start, float duration)
+        {
+            var labial = tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial");
+            if (labial && !_burstSiteDriven)
+            {
+                _labialPlosives.Add((name, start, duration));
+                return;
+            }
+
+            if (!_burstSiteDriven)
+            {
+                _burstSiteDriven = true;
+                if (_constrictionContacts.Count > 0)
+                {
+                    var contact = _constrictionContacts[0];
+                    RegisterNormalizedPrimitiveSurface(OwnerField("/vocal/contacts/0", "position"), contact.Name, "position", contact.Position);
+                }
+
+                foreach (var (labialName, labialStart, labialDuration) in _labialPlosives)
+                {
+                    HoldOnSurface($"{labialName}_burst_site", "/vocal/contacts/0/position", labialStart, labialDuration, 0);
+                }
+            }
+
+            HoldOnSurface($"{name}_burst_site", "/vocal/contacts/0/position", start, duration, labial ? 0 : place);
         }
 
         private static string GestureDescriptor(string ipa, IReadOnlyDictionary<string, string> fields)
@@ -1686,40 +1751,79 @@ public static class PatchScript
         // following vowel; no published burst level was retrieved.
         private const float PlosiveBurstGain = 0.06f;
 
+        // The same for a stop sealed by the tongue, whose burst goes in at the closure (LadderInjection) and reaches the lips almost
+        // unfiltered: at 0.06 the isolated /t/ burst peaked at 0.76 of the following vowel's peak (/b/ 0.19; the rule is under half), at
+        // 0.03 it is about half that. A DESIGN VALUE set by that measurement.
+        private const float TongueStopBurstGain = 0.03f;
+
         // Distance from the lip plane to the alveolar ridge in cm. A DESIGN VALUE; no source for the distance was retrieved. 2.555 cm puts the
         // closure on the centre of ladder cell 20 of 24 of the scaffold tract (17.52 cm at 48 kHz and 350 m/s: (20.5 / 24) * 17.52 = 14.965 cm
         // from the glottis), the cell grid being what a narrow constriction (scaffold constriction_width .03, e-fold 0.63 cm) can close; it is
         // the ladder's counterpart of the tube check's closed end after section 37 of 44 (14.73 cm).
         private const float AlveolarRidgeCentimetersFromLips = 2.555f;
 
-        // Normalized position (0 glottis, 1 lips) of a consonant's constriction in the vowel_set path: labials at the lip plane, alveolars
-        // AlveolarRidgeCentimetersFromLips behind it, every other place at its PlaceTarget fraction of the tract length.
-        private static float ConsonantPositionFromGlottis(HashSet<string> tokens, float placeFraction, float lengthCentimeters)
+        // The velar closure, cm behind the lip plane: between the narrowest dorsal section of /u/ (section 26, 6.97 cm) and the narrowest
+        // pharyngeal section of /a/ (section 13, 12.14 cm) of the Story 2008 area functions. 9.81 cm is the 0.44 fraction the table held before
+        // it had distances; it lies within 0.05 cm of the centre of oral ladder cell 10 of 24 (0.4375 of the tract), and the closure's Gaussian is narrower
+        // than a cell; the mean of the two sections, 9.555 cm, would fall 0.3 cm from the nearest cell centre (not tried).
+        private const float VelarCentimetersFromLips = 9.81f;
+
+        // The lateral's midline: the tongue tip meets the ridge and the flow leaves by the sides, here the side stub's neighbour, the oral path
+        // through a midline held nearly shut for the gesture (to 0.8, as the nasal). A DESIGN VALUE set so the lateral reads between the vowels and the nasals.
+        private const float LateralMidlineDiameter = 0.06f;
+
+        // Where a consonant closes. One entry per place, first token match wins. A place with a distance is placed by it, in cm behind the
+        // lip plane, and its normalized position (0 glottis, 1 lips) is 1 - distance / tract length, for the vowel_set section index and the
+        // hand-written-script fraction alike. A place with no distance is "fraction only": its fraction of the tract length from the glottis,
+        // a hand-set DESIGN VALUE, and no later cut may read a distance from it (TryPlaceDistanceCentimeters says absent).
+        private readonly record struct PlaceEntry(string[] Tokens, float? CentimetersFromLips, float Fraction);
+
+        private static readonly PlaceEntry[] Places =
+        [
+            new(["bilabial", "labiodental", "labial"], 0f, 0f),
+            new(["dental"], null, 0.88f),
+            new(["alveolar"], AlveolarRidgeCentimetersFromLips, 0f),
+            new(["postalveolar", "palatoalveolar"], null, 0.70f),
+            new(["retroflex"], null, 0.64f),
+            new(["palatal"], null, 0.56f),
+            new(["velar"], VelarCentimetersFromLips, 0f),
+            new(["uvular"], null, 0.34f),
+            new(["pharyngeal", "epiglottal"], null, 0.20f),
+            new(["glottal"], null, 0.05f),
+        ];
+
+        private const float PlaceFractionWhenUnnamed = 0.70f;
+
+        private static PlaceEntry? FindPlace(HashSet<string> tokens)
         {
-            if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial")) return 1;
-            if (tokens.Contains("alveolar")) return 1 - AlveolarRidgeCentimetersFromLips / lengthCentimeters;
-            return placeFraction;
+            foreach (var place in Places)
+            {
+                if (place.Tokens.Any(tokens.Contains)) return place;
+            }
+
+            return null;
         }
 
-        private static float PlaceTarget(HashSet<string> tokens)
+        internal static bool TryPlaceDistanceCentimeters(string descriptor, out float centimeters)
         {
-            if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial")) return 0.96f;
-            if (tokens.Contains("dental")) return 0.88f;
-            if (tokens.Contains("alveolar")) return 0.78f;
-            if (tokens.Contains("postalveolar") || tokens.Contains("palatoalveolar")) return 0.70f;
-            if (tokens.Contains("retroflex")) return 0.64f;
-            if (tokens.Contains("palatal")) return 0.56f;
-            if (tokens.Contains("velar")) return 0.44f;
-            if (tokens.Contains("uvular")) return 0.34f;
-            if (tokens.Contains("pharyngeal") || tokens.Contains("epiglottal")) return 0.20f;
-            if (tokens.Contains("glottal")) return 0.05f;
-            return 0.70f;
+            centimeters = FindPlace(DescriptorTokens(descriptor))?.CentimetersFromLips ?? float.NaN;
+            return !float.IsNaN(centimeters);
         }
+
+        // Normalized position of a place along a tract of the given length: 0 glottis, 1 lips.
+        private static float PlaceFraction(HashSet<string> tokens, float lengthCentimeters) =>
+            FindPlace(tokens) switch
+            {
+                { CentimetersFromLips: { } cm } => 1 - cm / lengthCentimeters,
+                { } place => place.Fraction,
+                _ => PlaceFractionWhenUnnamed
+            };
 
         private static float ConstrictionTarget(HashSet<string> tokens)
         {
             if (tokens.Contains("plosive") || tokens.Contains("stop") || tokens.Contains("nasal")) return 0.03f;
             if (tokens.Contains("fricative")) return 0.16f;
+            if (tokens.Contains("lateral")) return LateralMidlineDiameter;
             if (tokens.Contains("approximant")) return 0.48f;
             if (tokens.Contains("trill") || tokens.Contains("tap") || tokens.Contains("flap")) return 0.24f;
             return 0.55f;
@@ -2709,12 +2813,17 @@ public static class PatchScript
             var intensity = Math.Clamp(GetFloat(fields, line, 1, "intensity", "gain", "strength"), 0, 2);
             var pitchRatio = Math.Clamp(GetFloat(fields, line, 1, "pitch_ratio", "f0_ratio"), 0.5f, 2f);
             var descriptor = GestureDescriptor(ipa, fields);
+            if (DescriptorTokens(descriptor).Contains("lateral") && !_branchPortsByName.ContainsKey(SideStubBranch))
+            {
+                throw new PatchScriptException(line, $"a lateral gesture needs the `{SideStubBranch}` branch port (the sublingual stub); it is not approximated by a plain approximant");
+            }
+
             var name = TryGetAny(fields, ["name", "n"], out var nameText)
                 ? nameText
                 : $"ipa_{SafeName(ipa)}_{_phonemeGestures.Count}";
 
             _phonemeGestures.Add(new PhonemeGesture(name, ipa, descriptor, start, duration, intensity));
-            EmitPhonemeGestureSplines(name, descriptor, start, duration, intensity, pitchRatio);
+            EmitPhonemeGestureSplines(name, descriptor, start, duration, intensity, line, pitchRatio);
         }
 
         private void AddControlCurve(IReadOnlyDictionary<string, string> fields, int line)

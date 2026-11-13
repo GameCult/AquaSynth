@@ -264,7 +264,7 @@ static async Task SongScoreAsync(Dictionary<string, string> options)
             var timelineNetwork = patch.VocalNetworks.FirstOrDefault();
             var timeline = timelineNetwork is null
                 ? Array.Empty<ProbeTimelineSample>()
-                : ProbeTimelineReport.Build(patch, timelineNetwork.Name, 12);
+                : ProbeTimelineReport.Build(patch, timelineNetwork.Name, 12, challenge.SampleRate);
             await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv(timeline), Encoding.UTF8);
             timelineFacts = PrimitiveTimelineFactExtractor.Extract(timeline).ToArray();
             var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId, SampleRate: challenge.SampleRate)).Source;

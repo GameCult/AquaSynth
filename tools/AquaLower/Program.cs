@@ -16,6 +16,7 @@ if (args.Length == 2 && args[0] == "--dings")
     var instruments = new List<object>();
     foreach (var ins in DingCatalog.Instruments.Values.OrderBy(i => i.Id, StringComparer.Ordinal))
     {
+        // 48000 (the FaustExportOptions default) is the Ding catalog contract: DingCatalogTests pins the sources at that rate.
         var export = FaustEmitter.EmitScript(ins.Script, new FaustExportOptions(DingCatalog.Identity(ins).FaustName));
         File.WriteAllText(Path.Combine(dingDir, ins.Id + ".dsp"), export.Source);
         instruments.Add(new { id = ins.Id, rootFrequency = ins.RootFrequency, dsp = ins.Id + ".dsp", controlPath = "/ding/frequency", warnings = export.Warnings });
@@ -42,6 +43,7 @@ foreach (var spec in args.Skip(2))
     var warnings = new List<string>();
     if (path.EndsWith(".aqua", StringComparison.Ordinal))
     {
+        // 48000 (the FaustExportOptions default): AquaLower lowers for the 48 kHz hosts.
         var export = FaustEmitter.EmitScript(text, new FaustExportOptions(name));
         source = export.Source;
         warnings.AddRange(export.Warnings);
