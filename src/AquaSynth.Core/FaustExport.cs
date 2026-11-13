@@ -49,9 +49,10 @@ public static partial class FaustEmitter
         // and the first ~100 ms of every render were that climb (the level rose 40 dB over the first 100 ms of an isolated vowel, and
         // the bandwidths fell from ~300 Hz to 90). smoo_from starts at its input and smooths from there. smoo_init is si.smoo's own
         // pole (1 - 44.1 / SR, a 22.7 ms time constant), so live control moves exactly as fast as before; only the start differs.
-        // The step is written prev + (x - prev) * (1 - pole), not prev * pole + x * (1 - pole): a control that never moves then
-        // stays at its input to the bit, where the other form rounds away from it by up to ~4e-5.
-        source.AppendLine("smoo_from(pole, x) = loop ~ _ with { loop(prev) = select2(1 - 1', prev + (x - prev) * (1.0 - pole), x); };");
+        // Started at its input a constant control holds there to the bit; started at 0 (si.smoo, si.smooth) it stalls 1e-5 to 5e-5 short of it,
+        // in either way of writing the step. The source's pitch-ratio smoother starts at its input for that reason: from 0 the 2744 Hz alias
+        // source ran 0.12 Hz flat and leaked its harmonics into the alias measurement.
+        source.AppendLine("smoo_from(pole, x) = loop ~ _ with { loop(prev) = select2(1 - 1', prev * pole + x * (1.0 - pole), x); };");
         source.AppendLine("smoo_init(x) = smoo_from(1.0 - 44.1 / ma.SR, x);");
         source.AppendLine("seg_smooth(t,t0,d,a,b) = a + (b - a) * smooth01((t - t0) / max(0.0001, d));");
         source.AppendLine("seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));");
