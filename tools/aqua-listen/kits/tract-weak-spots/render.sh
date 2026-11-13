@@ -6,6 +6,7 @@
 # <out-root>/out/<w>/<w>.wav   140 Hz renders; v_<vowel>_s is the vowel with primary stress, nibu has it on /i/
 # <out-root>/out148/v_<vowel>  the unstressed vowel at 148.4 Hz (140 x 1.06: the f0 rise of primary stress alone)
 # <out-root>/outnb/<w>         the same word with --no-burst (plosive release_flow splines dropped)
+# <out-root>/images, burst-notes.*  clip_images.py: PNGs per clip and the burst times (needs numpy + matplotlib: PYTHON=<python with both>)
 # <out-root>/clips/*.wav       the files kit.json names;   weak_spots.py <out-root> measures the rest
 set -eu
 REPO=$(cd "$1" && pwd); OUT=$2; PRE=${3:-}; JOBS=${4:-4}; HERE=$REPO/tools/aqua-listen/kits/tract-weak-spots
@@ -15,7 +16,7 @@ job() { n=$1; o=$2; f=$3; shift 3; dotnet "$OUT/wr/WordRender.dll" "$OUT/$o/$n" 
 export -f job; export OUT HERE
 {
   for n in nibu nibu_flat v_i v_i_s bin bun ba ama ana v_ih v_oo_short v_ah v_ah_s v_e v_e_s v_o v_o_s v_u v_u_s; do echo "$n out 140"; done
-  for n in bin ba bun; do echo "$n outnb 140 --no-burst"; done
+  for n in bin ba bun nibu nibu_flat; do echo "$n outnb 140 --no-burst"; done
   for v in i e ah o u ih oo_short; do echo "v_$v out148 148.4"; done
 } | xargs -P "$JOBS" -L1 bash -c 'job "$@"' _
 if [ -n "$PRE" ]; then
@@ -27,3 +28,4 @@ C=$OUT/clips
 cp "$OUT/out/nibu_flat/nibu_flat.wav" "$C/nibu_flat.wav"; cp "$OUT/out/nibu_flat/nibu_flat.wav" "$C/nibu_flat_after.wav"   # one render, two ids: the before/after pair is one-to-one
 for n in nibu v_i v_i_s v_ih v_oo_short ama ana ba bun; do cp "$OUT/out/$n/$n.wav" "$C/$n.wav"; done
 for n in ba bun; do cp "$OUT/outnb/$n/$n.wav" "$C/${n}_noburst.wav"; done
+${PYTHON:-python3} -I "$REPO/tools/aqua-listen/clip_images.py" "$C" "$OUT/images" --kit "$HERE/kit.json" --renders "$OUT"

@@ -30,6 +30,13 @@ public static partial class FaustEmitter
         public string Refl(int i) => $"{Prefix}_r{i}";
     }
 
+    // A flow that enters the path at a cell rather than at the glottal end: Position is a Faust expression for the normalized place (0 glottis,
+    // 1 lips) and Flow the signal as it would enter the first cell. It is spread over the two cells whose centres bracket the place (a hat of
+    // width one cell), so the place can move between gestures and a place at or behind the first cell centre is the glottal end. The ladder
+    // carries flow waves, so the same noise pressure in a cell of area A is a flow of Flow * A / A(first cell): a burst at the closure,
+    // where the area is nearly zero, is small until the constriction opens (measured: unscaled it was 30 times louder in the closure).
+    private sealed record LadderInjection(string Position, string Flow);
+
     private sealed record LadderJunction(LadderPath Oral, LadderPath Branch, int Interface, string Velum, string Left, string Right, string Nose);
 
     private static int LadderCells(WaveguidePath path, TractAreaFunction shape, FaustExportOptions options) =>
@@ -47,6 +54,7 @@ public static partial class FaustEmitter
         string name,
         IReadOnlyList<LadderPath> members,
         IReadOnlyDictionary<string, string> inputs,
+        IReadOnlyDictionary<string, IReadOnlyList<LadderInjection>> injections,
         IReadOnlyDictionary<string, string> admittances,
         ParameterMap parameters,
         List<string> warnings)
@@ -88,6 +96,15 @@ public static partial class FaustEmitter
         foreach (var member in members)
         {
             var targetJunction = targets.GetValueOrDefault(member);
+            var sites = new List<(string Site, string Flow)>();
+            foreach (var injection in injections.GetValueOrDefault(member.Path.Name) ?? [])
+            {
+                var site = $"{member.Prefix}_injection{sites.Count}_site";
+                source.AppendLine($"    {site} = min({F(member.Cells - 0.5f)}, max(0.5, ({injection.Position}) * {F(member.Cells)}));");
+                sites.Add((site, injection.Flow));
+            }
+
+            string Injected(int cell) => string.Concat(sites.Select(entry => $" + max(0.0, 1.0 - abs({F(cell + 0.5f)} - {entry.Site})) * ({entry.Flow}) * {member.A(cell)} / {member.A(0)}"));
             for (var i = 0; i < member.Cells; i++)
             {
                 if (i == 0 && targetJunction is not null)
@@ -113,12 +130,12 @@ public static partial class FaustEmitter
 
             equations.AppendLine(targetJunction is { } entering
                 ? $"        '{member.R(0)} = ({entering.Oral.L(entering.Interface)} + {entering.Oral.R(entering.Interface - 1)}) * (1.0 + {entering.Nose}) * {loss} + {entering.Nose} * {member.L(0)} * {loss};"
-                : $"        '{member.R(0)} = ({member.L(0)} * {F(LadderGlottalReflection)} + {(inputs.TryGetValue(member.Path.Name, out var input) ? input : "0.0")}) * {loss};");
+                : $"        '{member.R(0)} = ({member.L(0)} * {F(LadderGlottalReflection)} + {(inputs.TryGetValue(member.Path.Name, out var input) ? input : "0.0")}{Injected(0)}) * {loss};");
             for (var i = 1; i < member.Cells; i++)
             {
                 equations.AppendLine(joinedAt.TryGetValue((member, i), out var join)
                     ? $"        '{member.R(i)} = ({join.Right} * {member.L(i)} + (1.0 + {join.Right}) * ({member.R(i - 1)} + {join.Branch.L(0)})) * {loss};"
-                    : $"        '{member.R(i)} = ({member.R(i - 1)} - {member.Refl(i)} * ({member.R(i - 1)} + {member.L(i)})) * {loss};");
+                    : $"        '{member.R(i)} = ({member.R(i - 1)} - {member.Refl(i)} * ({member.R(i - 1)} + {member.L(i)}){Injected(i)}) * {loss};");
             }
 
             for (var i = 0; i < last; i++)

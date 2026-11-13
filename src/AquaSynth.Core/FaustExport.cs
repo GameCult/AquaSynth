@@ -608,6 +608,7 @@ public static partial class FaustEmitter
         // are both in this network is a ladder junction instead and exchanges no flow term.
         var memberNames = members.Select(member => member.Path.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var injections = new Dictionary<string, IReadOnlyList<LadderInjection>>(StringComparer.OrdinalIgnoreCase);
         foreach (var member in members)
         {
             var path = member.Path;
@@ -618,13 +619,24 @@ public static partial class FaustEmitter
                 .Where(term => term is not null)
                 .Cast<string>()
                 .ToList();
-            var contactTerms = network.Contacts
-                .Select(contactName => contacts.TryGetValue(contactName, out var contact) && contact.Path.Equals(path.Name, StringComparison.OrdinalIgnoreCase)
-                    ? PrimitiveContactExpression(source, patch, name, contact, parameters, options, keepAlive)
-                    : null)
-                .Where(term => term is not null)
-                .Cast<string>()
-                .ToList();
+            var contactTerms = new List<string>();
+            var pathInjections = new List<LadderInjection>();
+            foreach (var contactName in network.Contacts)
+            {
+                if (!contacts.TryGetValue(contactName, out var contact) || !contact.Path.Equals(path.Name, StringComparison.OrdinalIgnoreCase)) continue;
+                var (released, burst) = PrimitiveContactExpression(source, patch, name, contact, parameters, options, keepAlive);
+                // A contact that has a position control surface lets its burst go in at that place; one whose place is a fixed number
+                // keeps the burst at the glottal end with the rest of the path input.
+                var position = OwnerField($"/vocal/contacts/{ConstrictionContactIndex(patch, contact)}", "position");
+                if (patch.ControlSurfaces.Any(surface => surface.FieldPath.Equals(position, StringComparison.OrdinalIgnoreCase)))
+                {
+                    contactTerms.Add(released);
+                    pathInjections.Add(new LadderInjection(parameters.Expression(position, contact.Position), burst));
+                }
+                else contactTerms.Add($"({released} + {burst})");
+            }
+
+            injections[path.Name] = pathInjections;
             var branchTerms = network.Branches
                 .Select(branchName => branches.TryGetValue(branchName, out var branch) && branch.FromPath.Equals(path.Name, StringComparison.OrdinalIgnoreCase) && !memberNames.Contains(branch.ToPath)
                     ? PrimitiveBranchExpression(source, patch, name, branch, parameters, options, keepAlive)
@@ -650,7 +662,7 @@ public static partial class FaustEmitter
 
         var (lips, glottalPressures) = members.Count == 0
             ? (new Dictionary<string, string>(), new Dictionary<string, string>())
-            : EmitVocalLadder(source, patch, network, name, members, inputs, admittances, parameters, warnings);
+            : EmitVocalLadder(source, patch, network, name, members, inputs, injections, admittances, parameters, warnings);
 
         foreach (var member in members)
         {
@@ -743,7 +755,7 @@ public static partial class FaustEmitter
         return flow;
     }
 
-    private static string PrimitiveContactExpression(
+    private static (string Released, string Burst) PrimitiveContactExpression(
         StringBuilder source,
         SynthPatch patch,
         string voiceName,
@@ -770,7 +782,7 @@ public static partial class FaustEmitter
         keepAlive.Add(reservoir);
         keepAlive.Add(burst);
         keepAlive.Add(released);
-        return $"({released} + {burst})";
+        return (released, burst);
     }
 
     // Open fraction of a branch port: the ladder reads it as the velum area when the branch joins two paths of the network,

@@ -144,11 +144,11 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     }
 
     // /ɑ C ɑ/ at the scaffold's own durations (vowel 0.18 s, consonant 0.095 s). Returns the render and the consonant's [start, end).
-    private (float[]? Samples, double From, double To) VowelConsonantVowel(string ipa, float frequency = 140)
+    private (float[]? Samples, double From, double To) VowelConsonantVowel(string ipa, float frequency = 140, string descriptor = "", Func<SynthPatch, SynthPatch>? edit = null)
     {
         var script = IpaGestureExperiment.BuildWordScript(
-            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], frequency);
-        return (Render(script, 0.5f), 0.18, 0.275);
+            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, descriptor, 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], frequency);
+        return (Render(script, 0.5f, edit), 0.18, 0.275);
     }
 
     // Level of the consonant's middle 60 percent against the mean power of the steady parts of the two flanking vowels (the 70 ms before the
@@ -220,14 +220,326 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     [FaustTheory]
     [InlineData("b", -34, -26)]
     [InlineData("p", -60, -38)]
+    [InlineData("d", -34, -26)]
     public void PlosiveClosureCarriesTheVoiceBarOnlyWhenVoiced(string ipa, double lowDb, double highDb)
+    {
+        var db = VoiceBarDb(ipa);
+        if (double.IsNaN(db)) return;
+        output.WriteLine($"/{ipa}/ closure {db:F1} dB re the following vowel");
+        Assert.InRange(db, lowDb, highDb);
+    }
+
+    // The closure's deviation (the slow offset of a shutting tract is not sound) against the following vowel's, for a word-initial consonant.
+    private double VoiceBarDb(string ipa)
     {
         var script = IpaGestureExperiment.BuildWordScript(
             [(new IpaGestureExperimentTarget("w_0_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_1_a", "a", "", 0.18f), 1f)], 140);
         var x = Render(script, 0.4f);
-        var db = 20 * Math.Log10(Math.Max(1e-9, Deviation(x, 0.03, 0.058)) / Deviation(x, 0.15, 0.25));
-        output.WriteLine($"/{ipa}/ closure {db:F1} dB re the following vowel");
-        Assert.InRange(db, lowDb, highDb);
+        return x is null ? double.NaN : 20 * Math.Log10(Math.Max(1e-9, Deviation(x, 0.03, 0.058)) / Deviation(x, 0.15, 0.25));
+    }
+
+    private static SynthPatch WithoutBurst(SynthPatch p) =>
+        p with { ControlSplines = p.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() };
+
+    // The closure of a stop is the part before its contact opens (0.65 of the gesture), 0.2 of the gesture in from its start, without the burst.
+    // A tongue closure at the nasal's 0.03 cm aperture leaked: /t/ read -14.3 dB re the flanking vowels against /p/ -22.1 (the lips seal /p/);
+    // completely closed it reads -24.3.
+    [Fact]
+    public void ATongueSealedStopClosureIsAsQuietAsTheLipSealedOne()
+    {
+        double Closure(string ipa, string descriptor)
+        {
+            var (x, from, to) = VowelConsonantVowel(ipa, descriptor: descriptor, edit: WithoutBurst);
+            if (x is null) return double.NaN;
+            var vowels = Math.Sqrt((Math.Pow(Rms(x, from - 0.08, from - 0.01), 2) + Math.Pow(Rms(x, to + 0.03, to + 0.12), 2)) / 2);
+            return 20 * Math.Log10(Rms(x, from + 0.2 * (to - from), from + 0.65 * (to - from)) / vowels);
+        }
+
+        var p = Closure("p", "voiceless_bilabial_plosive");
+        var t = Closure("t", "voiceless_alveolar_plosive");
+        output.WriteLine($"closure re vowels: /p/ {p:F1} dB, /t/ {t:F1} dB");
+        if (double.IsNaN(p)) return;
+        Assert.True(t <= p + 1, $"the /t/ closure ({t:F1} dB) is as quiet as /p/ ({p:F1} dB)");
+    }
+
+    [Fact]
+    public void ATongueSealedStopBurstStaysUnderHalfTheFollowingVowel()
+    {
+        var (x, from, to) = VowelConsonantVowel("t", descriptor: "voiceless_alveolar_plosive");
+        var (nb, _, _) = VowelConsonantVowel("t", descriptor: "voiceless_alveolar_plosive", edit: WithoutBurst);
+        if (x is null || nb is null) return;
+        var burst = x.Zip(nb, (a, b) => a - b).ToArray();
+        var peak = Peak(burst, from + 0.6 * (to - from), to + 0.01);
+        var vowel = Peak(x, to + 0.06, to + 0.17);
+        output.WriteLine($"/t/ burst peak {peak:F4}, vowel peak {vowel:F4}, ratio {peak / vowel:F2}");
+        Assert.True(peak > 0.004, "audible");
+        Assert.True(peak < vowel / 2, "under half the following vowel's peak, as /b/");
+    }
+
+    // The /b/ test over the alveolar stop, by its table entry (before the entry the phone was unsupported, and a hand script approximated it).
+    [Fact]
+    public void AlveolarStopBurstExistsOnlyAroundItsOwnRelease_t()
+    {
+        IpaGestureExperimentTarget Phone(string label, string ipa, float seconds) => new($"w_{label}", ipa, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone("2_t", "t", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_n", "n", 0.095f), 1f)], 140);
+        var withBurst = Render(script, 0.77f);
+        var withoutBurst = Render(script, 0.77f, WithoutBurst);
+        if (withBurst is null || withoutBurst is null) return;
+        var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
+        const double tFrom = 0.275, tTo = 0.37;
+        var atRelease = Peak(burst, tFrom + 0.095 * 0.6, tTo + 0.02);
+        var leading = Peak(burst, 0, tFrom);
+        var trailing = Peak(burst, tTo + 0.12, 0.77);
+        output.WriteLine($"/t/ burst peak {atRelease:F4} at the release, {leading:F5} before the plosive, {trailing:F5} after it");
+        Assert.True(atRelease > 0.004, "the burst is a transient of audible size");
+        Assert.True(leading < atRelease / 20, "no burst before the plosive's own gesture");
+        Assert.True(trailing < atRelease / 10, "no burst after the plosive");
+    }
+
+    // Chodroff and Wilson 2014: /t/ burst peak 5216 Hz, /k/ 2868. The band 3.5 to 7 kHz is a DESIGN tolerance around the /t/ figure.
+    // Peak of the isolated burst's spectrum from 1 kHz up (the weak_spots.burst_spectrum definition: 20 ms Hann window from the release, 400 Hz smoothing).
+    [Fact]
+    public void StopTBurstSpectrumIsInTheLiteratureBand()
+    {
+        var (x, from, to) = VowelConsonantVowel("t");
+        var (nb, _, _) = VowelConsonantVowel("t", edit: WithoutBurst);
+        if (x is null || nb is null) return;
+        var start = (int)((from + 0.65 * (to - from)) * Rate);
+        const int n = 960;
+        var seg = Enumerable.Range(0, n).Select(i => (x[start + i] - nb[start + i]) * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (n - 1)))).ToArray();
+        double Power(double hz)
+        {
+            double re = 0, im = 0;
+            for (var i = 0; i < n; i++) { var a = 2 * Math.PI * hz * i / Rate; re += seg[i] * Math.Cos(a); im -= seg[i] * Math.Sin(a); }
+            return re * re + im * im;
+        }
+
+        var grid = Enumerable.Range(0, 180).Select(k => 1000.0 + 50 * k).ToArray();
+        var power = grid.Select(Power).ToArray();
+        var smooth = power.Select((_, k) => Enumerable.Range(Math.Max(0, k - 4), Math.Min(9, power.Length - Math.Max(0, k - 4))).Average(j => power[j])).ToArray();
+        var peak = grid[Array.IndexOf(smooth, smooth.Max())];
+        output.WriteLine($"/t/ burst spectral peak {peak:F0} Hz");
+        Assert.InRange(peak, 3500, 7000);
+    }
+
+    // /k/ over the /t/ tests: its own place (the velar distance in the place table), closure sealed by the tongue, burst under half the vowel.
+    // The spec asks /k/'s closure to be at or below /p/'s. It is not: with the voiceless source as /p/ and /t/ have it the closure reads
+    // -14.9 dB re the vowels (/p/ -20.4, /t/ -24.9). The tract itself seals: with the glottal source's flow scale held at 0 over the gesture the
+    // same closure reads -22.7 dB, under /p/; with the source on, the 150 Hz voicing is what reaches the output through a closure that leaves
+    // only a short rear cavity (the glottal pressure that the tract wall radiates is higher the smaller that cavity is). Silencing voicing in
+    // voiceless stops would change /p/ and /t/ (pinned byte for byte), so the criterion is reported as unmet (fork), not met by a /k/ special case.
+    // The second assertion is a regression bound on the measured leak, not the criterion.
+    [Fact]
+    public void AVelarStopClosureSealsAndItsLeakIsTheGlottalSource()
+    {
+        static SynthPatch WithoutSource(SynthPatch p) =>
+            WithoutBurst(p) with
+            {
+                ControlSplines = WithoutBurst(p).ControlSplines
+                    .Select(s => s.Name.StartsWith("w_1_c_source_level", StringComparison.Ordinal)
+                        ? s with { Points = s.Points.Select(q => q with { Value = 0, OutValue = 0, InValue = 0 }).ToArray() }
+                        : s).ToArray()
+            };
+
+        double Closure(string ipa, string descriptor, Func<SynthPatch, SynthPatch> edit)
+        {
+            var (x, from, to) = VowelConsonantVowel(ipa, descriptor: descriptor, edit: edit);
+            if (x is null) return double.NaN;
+            var vowels = Math.Sqrt((Math.Pow(Rms(x, from - 0.08, from - 0.01), 2) + Math.Pow(Rms(x, to + 0.03, to + 0.12), 2)) / 2);
+            return 20 * Math.Log10(Rms(x, from + 0.2 * (to - from), from + 0.65 * (to - from)) / vowels);
+        }
+
+        var p = Closure("p", "voiceless_bilabial_plosive", WithoutBurst);
+        var k = Closure("k", "voiceless_velar_plosive", WithoutBurst);
+        var kSilent = Closure("k", "voiceless_velar_plosive", WithoutSource);
+        output.WriteLine($"closure re vowels: /p/ {p:F1} dB, /k/ {k:F1} dB, /k/ with the glottal source off {kSilent:F1} dB");
+        if (double.IsNaN(p)) return;
+        Assert.True(kSilent <= p, $"the /k/ closure seals: without the glottal source it is {kSilent:F1} dB, at or under /p/ ({p:F1} dB)");
+        Assert.True(k <= -12, $"the /k/ closure with the source is {k:F1} dB (regression bound; the criterion, at or under /p/ {p:F1} dB, is not met)");
+    }
+
+    [Fact]
+    public void AVelarStopBurstStaysUnderHalfTheFollowingVowel()
+    {
+        var (x, from, to) = VowelConsonantVowel("k", descriptor: "voiceless_velar_plosive");
+        var (nb, _, _) = VowelConsonantVowel("k", descriptor: "voiceless_velar_plosive", edit: WithoutBurst);
+        if (x is null || nb is null) return;
+        var burst = x.Zip(nb, (a, b) => a - b).ToArray();
+        var peak = Peak(burst, from + 0.6 * (to - from), to + 0.01);
+        var vowel = Peak(x, to + 0.06, to + 0.17);
+        output.WriteLine($"/k/ burst peak {peak:F4}, vowel peak {vowel:F4}, ratio {peak / vowel:F2}");
+        Assert.True(peak > 0.004, "audible");
+        Assert.True(peak < vowel / 2, "under half the following vowel's peak, as /t/ and /b/");
+    }
+
+    [Fact]
+    public void VelarStopBurstExistsOnlyAroundItsOwnRelease_k()
+    {
+        IpaGestureExperimentTarget Phone(string label, string ipa, float seconds) => new($"w_{label}", ipa, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone("2_k", "k", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_n", "n", 0.095f), 1f)], 140);
+        var withBurst = Render(script, 0.77f);
+        var withoutBurst = Render(script, 0.77f, WithoutBurst);
+        if (withBurst is null || withoutBurst is null) return;
+        var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
+        const double kFrom = 0.275, kTo = 0.37;
+        var atRelease = Peak(burst, kFrom + 0.095 * 0.6, kTo + 0.02);
+        var leading = Peak(burst, 0, kFrom);
+        var trailing = Peak(burst, kTo + 0.12, 0.77);
+        output.WriteLine($"/k/ burst peak {atRelease:F4} at the release, {leading:F5} before the plosive, {trailing:F5} after it");
+        Assert.True(atRelease > 0.004, "the burst is a transient of audible size");
+        Assert.True(leading < atRelease / 20, "no burst before the plosive's own gesture");
+        Assert.True(trailing < atRelease / 10, "no burst after the plosive");
+    }
+
+    // Chodroff and Wilson 2014: /k/ burst peak 2868 Hz. The band 2 to 4 kHz is a DESIGN tolerance around it, fixed before the first measurement.
+    // The peak is judged against the literature and against /t/ measured the same way (a velar burst enters further back, so its peak is lower).
+    // The centroid is reported, not asserted: over this 1 to 10 kHz grid /k/ reads 4626 Hz against /t/ 3629 Hz, higher though its peak is lower,
+    // because the /k/ burst has broadband energy above its peak, and no literature centroid for /k/ was retrieved to judge it by.
+    private (double Peak, double Centroid) BurstSpectrum(string ipa, string descriptor)
+    {
+        var (x, from, to) = VowelConsonantVowel(ipa, descriptor: descriptor);
+        var (nb, _, _) = VowelConsonantVowel(ipa, descriptor: descriptor, edit: WithoutBurst);
+        if (x is null || nb is null) return (double.NaN, double.NaN);
+        var start = (int)((from + 0.65 * (to - from)) * Rate);
+        const int n = 960;
+        var seg = Enumerable.Range(0, n).Select(i => (x[start + i] - nb[start + i]) * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (n - 1)))).ToArray();
+        double Power(double hz)
+        {
+            double re = 0, im = 0;
+            for (var i = 0; i < n; i++) { var a = 2 * Math.PI * hz * i / Rate; re += seg[i] * Math.Cos(a); im -= seg[i] * Math.Sin(a); }
+            return re * re + im * im;
+        }
+
+        var grid = Enumerable.Range(0, 180).Select(k => 1000.0 + 50 * k).ToArray();
+        var power = grid.Select(Power).ToArray();
+        var smooth = power.Select((_, k) => Enumerable.Range(Math.Max(0, k - 4), Math.Min(9, power.Length - Math.Max(0, k - 4))).Average(j => power[j])).ToArray();
+        return (grid[Array.IndexOf(smooth, smooth.Max())], grid.Zip(power, (f, w) => f * w).Sum() / power.Sum());
+    }
+
+    [Fact]
+    public void StopKBurstPeakIsInTheLiteratureBandAndLowerThanT()
+    {
+        var (peak, centroid) = BurstSpectrum("k", "voiceless_velar_plosive");
+        if (double.IsNaN(peak)) return;
+        var (tPeak, tCentroid) = BurstSpectrum("t", "voiceless_alveolar_plosive");
+        output.WriteLine($"/k/ burst spectral peak {peak:F0} Hz, centroid {centroid:F0} Hz; /t/ peak {tPeak:F0} Hz, centroid {tCentroid:F0} Hz");
+        Assert.InRange(peak, 2000, 4000);
+        Assert.True(peak < tPeak, $"/k/ peak {peak:F0} Hz is under /t/ {tPeak:F0} Hz");
+    }
+
+    // /d/ is /t/ with voicing, as /b/ is /p/ with voicing: the same gesture, so the splines that shape the tract are identical and the two differ
+    // in the voice bar through the closure and in nothing else the burst carries. Chodroff and Wilson 2014: /d/ burst peak 4878 Hz, /t/ 5216.
+    [Fact]
+    public void StopDDiffersFromStopTOnlyByVoicing()
+    {
+        static SynthPatch Word(string ipa) => PatchScript.Parse(IpaGestureExperiment.BuildWordScript(
+            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], 140));
+        static string[] Shape(SynthPatch p) => p.ControlSplines
+            .Where(s => s.Name.StartsWith("w_1_c", StringComparison.Ordinal) && !s.Name.StartsWith("w_1_c_source", StringComparison.Ordinal))
+            .Select(s => s.SurfacePath + "|" + s.Name[5..] + "|" + string.Join(";", s.Points.Select(q => $"{q.TimeSeconds:R}:{q.Value:R}")))
+            .Order().ToArray();
+        var t = Shape(Word("t"));
+        var d = Shape(Word("d"));
+        output.WriteLine($"/t/ {t.Length} consonant splines, /d/ {d.Length}");
+        Assert.NotEmpty(d);
+        Assert.Equal(t, d);
+
+        var tDb = VoiceBarDb("t");
+        var dDb = VoiceBarDb("d");
+        output.WriteLine($"closure re the following vowel: /t/ {tDb:F1} dB, /d/ {dDb:F1} dB");
+        if (double.IsNaN(tDb)) return;
+        Assert.True(dDb >= tDb + 8, $"the voice bar lifts the /d/ closure ({dDb:F1} dB) at least 8 dB over /t/ ({tDb:F1} dB)");
+        var (dPeak, _) = BurstSpectrum("d", "");
+        var (tPeak, _) = BurstSpectrum("t", "");
+        output.WriteLine($"burst spectral peak: /t/ {tPeak:F0} Hz, /d/ {dPeak:F0} Hz");
+        Assert.True(Math.Abs(dPeak - tPeak) <= 1000, $"/d/ burst peak {dPeak:F0} Hz within 1 kHz of /t/ {tPeak:F0} Hz");
+    }
+
+    [Fact]
+    public void StopDBurstExistsOnlyAroundItsOwnRelease()
+    {
+        IpaGestureExperimentTarget Phone(string label, string ipa, float seconds) => new($"w_{label}", ipa, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone("2_d", "d", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_n", "n", 0.095f), 1f)], 140);
+        var withBurst = Render(script, 0.77f);
+        var withoutBurst = Render(script, 0.77f, WithoutBurst);
+        if (withBurst is null || withoutBurst is null) return;
+        var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
+        const double dFrom = 0.275, dTo = 0.37;
+        var atRelease = Peak(burst, dFrom + 0.095 * 0.6, dTo + 0.02);
+        var leading = Peak(burst, 0, dFrom);
+        var trailing = Peak(burst, dTo + 0.12, 0.77);
+        output.WriteLine($"/d/ burst peak {atRelease:F4} at the release, {leading:F5} before the plosive, {trailing:F5} after it");
+        Assert.True(atRelease > 0.004, "the burst is a transient of audible size");
+        Assert.True(leading < atRelease / 20, "no burst before the plosive's own gesture");
+        Assert.True(trailing < atRelease / 10, "no burst after the plosive");
+    }
+
+    // /l/ over /ɑ _ ɑ/ at the scaffold's durations. Envelope of the consonant's middle 60 percent at the harmonics of f0 (the largest power within a
+    // quarter of f0 of k * f0), in dB: the spectrum of a periodic source is a line spectrum, so extrema are read from the harmonic envelope.
+    private (double[] Hz, double[] Db) HarmonicEnvelope(float[] x, double from, double to, double f0 = 140, double maxHz = 5000)
+    {
+        var a = (int)((from + 0.2 * (to - from)) * Rate);
+        var n = (int)(0.6 * (to - from) * Rate);
+        var seg = Enumerable.Range(0, n).Select(i => x[a + i] * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (n - 1)))).ToArray();
+        double Power(double hz)
+        {
+            double re = 0, im = 0;
+            for (var i = 0; i < n; i++) { var w = 2 * Math.PI * hz * i / Rate; re += seg[i] * Math.Cos(w); im -= seg[i] * Math.Sin(w); }
+            return re * re + im * im;
+        }
+
+        var hz = new List<double>();
+        var db = new List<double>();
+        for (var k = 1; k * f0 < maxHz; k++)
+        {
+            hz.Add(k * f0);
+            db.Add(10 * Math.Log10(Math.Max(1e-30, Enumerable.Range(-3, 7).Max(j => Power(k * f0 + j * f0 / 12)))));
+        }
+
+        return (hz.ToArray(), db.ToArray());
+    }
+
+    // The lateral's own dip: the envelope with the side stub open less the same render with it shut, at its lowest between 2 and 3 kHz. The
+    // difference isolates the stub's antiresonance from the valleys between the vowel's formants, which the shut render has as deep.
+    private static (double DipHz, double Depth) LateralDip(double[] hz, double[] db, double[] shutDb)
+    {
+        var i = Enumerable.Range(0, hz.Length).Where(j => hz[j] >= 2000 && hz[j] <= 3000).MinBy(j => db[j] - shutDb[j]);
+        return (hz[i], shutDb[i] - db[i]);
+    }
+
+    // The lateral's antiresonance: the closed side stub beside the oral path (sublingual cavity). With the stub open the 2 to 3 kHz harmonics fall at
+    // least 6 dB under the same render with it shut (a DESIGN criterion; no /l/ spectrum was retrieved). The lateral is continuous: the render with
+    // and without release_flow is the same render.
+    [Fact]
+    public void LateralHasAnAntiresonanceAndNoBurst()
+    {
+        var (x, from, to) = VowelConsonantVowel("l");
+        if (x is null) return;
+        var (hz, db) = HarmonicEnvelope(x, from, to);
+        var (shut, _, _) = VowelConsonantVowel("l", edit: WithShutSideStub);
+        var (_, shutDb) = HarmonicEnvelope(shut!, from, to);
+        var (dipHz, depth) = LateralDip(hz, db, shutDb);
+        var (nb, _, _) = VowelConsonantVowel("l", edit: WithoutBurst);
+        output.WriteLine($"/l/ stub open {depth:F1} dB under stub shut at {dipHz:F0} Hz (2-3 kHz); max |with - without release_flow| {x.Zip(nb!, (a, b) => Math.Abs(a - b)).Max():G3}");
+        Assert.True(depth >= 6, $"the 2-3 kHz dip is {depth:F1} dB under the shut-stub render");
+        Assert.Equal(x, nb);
+    }
+
+    private static SynthPatch WithShutSideStub(SynthPatch p) =>
+        p with { ControlSplines = p.ControlSplines.Where(s => s.SurfacePath != "/vocal/branches/1/opening").ToArray() };
+
+    // Between the vowels and the nasals in level: -4 to -10 dB re the flanking vowels (a DESIGN band; /n/ reads -9.6, /m/ -11.8 in the same measure).
+    [Fact]
+    public void LateralLevelIsBetweenTheVowelsAndTheNasals()
+    {
+        var (x, from, to) = VowelConsonantVowel("l");
+        if (x is null) return;
+        var db = ConsonantDbReVowels(x, from, to);
+        output.WriteLine($"/l/ {db:F1} dB re the flanking vowels");
+        Assert.InRange(db, -10, -4);
     }
 }
 

@@ -69,6 +69,77 @@ public sealed class WeksaPhonesTests
     }
 
     [Fact]
+    public void WeksaWordPlanAcceptsT()
+    {
+        var word = WeksaPhonesReader.Parse(Line($"[{Ph("ɑ", "none")},{Ph("t", "none")},{Ph("ɑ", "none")}]"));
+        var plan = WeksaWordPlan.From(word, "ata");
+        Assert.True(plan.Renderable);
+        Assert.Empty(plan.Unsupported);
+        // t names a plosive, not the approximant GestureDescriptor falls back to for a phone the table lacks
+        Assert.True(PatchScript.TryIpaDescriptor("t", out var descriptor));
+        Assert.Equal("voiceless_alveolar_plosive", descriptor);
+        var patch = PatchScript.Parse(IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140));
+        Assert.Contains(patch.ControlSplines, s => s.SurfacePath == "/vocal/contacts/0/release_flow" && s.Name.StartsWith("ata_1_t", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WeksaWordPlanAcceptsD()
+    {
+        var word = WeksaPhonesReader.Parse(Line($"[{Ph("ɑ", "none")},{Ph("d", "none")},{Ph("ɑ", "none")}]"));
+        var plan = WeksaWordPlan.From(word, "ada");
+        Assert.True(plan.Renderable, string.Join(",", plan.Unsupported.Select(p => p.Ipa)));
+        Assert.Empty(plan.Unsupported);
+        // d names a plosive, not the approximant GestureDescriptor falls back to for a phone the table lacks
+        Assert.True(PatchScript.TryIpaDescriptor("d", out var descriptor));
+        Assert.Equal("voiced_alveolar_plosive", descriptor);
+        var patch = PatchScript.Parse(IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140));
+        Assert.Contains(patch.ControlSplines, s => s.SurfacePath == "/vocal/contacts/0/release_flow" && s.Name.StartsWith("ada_1_d", StringComparison.Ordinal));
+    }
+
+    // The lateral gate passed (a closed side stub on the oral path gives a dip: LateralHasAnAntiresonanceAndNoBurst), so /l/ is in the table, as a
+    // lateral and never as the approximant GestureDescriptor falls back to.
+    [Fact]
+    public void LateralGateOutcomeIsRecorded()
+    {
+        var word = WeksaPhonesReader.Parse(Line($"[{Ph("ɑ", "none")},{Ph("l", "none")},{Ph("ɑ", "none")}]"));
+        var plan = WeksaWordPlan.From(word, "ala");
+        Assert.True(plan.Renderable, string.Join(",", plan.Unsupported.Select(p => p.Ipa)));
+        Assert.Empty(plan.Unsupported);
+        Assert.True(PatchScript.TryIpaDescriptor("l", out var descriptor));
+        Assert.Equal("voiced_alveolar_lateral_approximant", descriptor);
+        Assert.NotEqual("voiced_alveolar_approximant", descriptor);
+        var script = IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140);
+        var patch = PatchScript.Parse(script);
+        Assert.Contains(patch.BranchPorts, b => b.Name == PatchScript.SideStubBranch);
+        Assert.Contains(patch.ControlSplines, s => s.SurfacePath == "/vocal/branches/1/opening" && s.Name.StartsWith("ala_1_l", StringComparison.Ordinal));
+        // continuous, no burst: the lateral has no release_flow spline at all
+        Assert.DoesNotContain(patch.ControlSplines, s => s.SurfacePath == "/vocal/contacts/0/release_flow" && s.Name.StartsWith("ala_1_l", StringComparison.Ordinal));
+    }
+
+    // A lateral gesture on a scaffold without the side stub is refused, not rendered as an approximant.
+    [Fact]
+    public void ALateralWithoutTheSideStubIsRefused()
+    {
+        var script = IpaGestureExperiment.BuildWordScript([(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f)], 140)
+            + "\nphoneme_gesture name=w_hand ipa=l descriptor=voiced_alveolar_lateral_approximant start=.2 dur=.1 intensity=1";
+        var error = Assert.Throws<PatchScriptException>(() => PatchScript.Parse(script));
+        Assert.Contains(PatchScript.SideStubBranch, error.Message);
+    }
+
+    [Fact]
+    public void WeksaWordPlanAcceptsK()
+    {
+        var word = WeksaPhonesReader.Parse(Line($"[{Ph("ɑ", "none")},{Ph("k", "none")},{Ph("ɑ", "none")}]"));
+        var plan = WeksaWordPlan.From(word, "aka");
+        Assert.True(plan.Renderable, string.Join(",", plan.Unsupported.Select(p => p.Ipa)));
+        Assert.Empty(plan.Unsupported);
+        Assert.True(PatchScript.TryIpaDescriptor("k", out var descriptor));
+        Assert.Equal("voiceless_velar_plosive", descriptor);
+        var patch = PatchScript.Parse(IpaGestureExperiment.BuildWordScript(plan.Phones.ToArray(), 140));
+        Assert.Contains(patch.ControlSplines, s => s.SurfacePath == "/vocal/contacts/0/release_flow" && s.Name.StartsWith("aka_1_k", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void NearCloseVowelsRenderAsVowelsWithTheirOwnStoryShape()
     {
         var word = WeksaPhonesReader.Parse(Line($"[{Ph("b", "none")},{Ph("ɪ", "primary")},{Ph("n", "none")},{Ph("b", "none")},{Ph("ʊ", "none")}]"));
@@ -135,7 +206,7 @@ public sealed class WeksaPhonesTests
     {
         foreach (var ipa in new[] { "n", "i", "b", "u", "a", "ə", "ɪ", "ʊ", "e", "ɛ", "æ", "ʌ", "ɑ", "ɔ", "o" })
             Assert.True(PatchScript.TryIpaDescriptor(ipa, out var descriptor) && descriptor.EndsWith("_vowel", StringComparison.Ordinal) == "iuaəɪʊeɛæʌɑɔo".Contains(ipa));
-        foreach (var ipa in new[] { "ŋ", "θ", "ɹ", "l" })
+        foreach (var ipa in new[] { "ŋ", "θ", "ɹ" })
             Assert.False(PatchScript.TryIpaDescriptor(ipa, out _));
     }
 }

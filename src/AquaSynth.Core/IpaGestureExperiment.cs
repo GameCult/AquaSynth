@@ -222,7 +222,33 @@ public static class IpaGestureExperiment
             start += duration;
         }
 
-        return Scaffold(lines, Math.Clamp(start + tailSeconds, 0.15f, 4f), frequency);
+        return Scaffold(lines, Math.Clamp(start + tailSeconds, 0.15f, 4f), frequency, phones.Any(phone => NeedsSideStub(phone.Target)));
+    }
+
+    // A lateral is the one gesture that opens the side stub (PatchScript.SideStubBranch); a word without one is scaffolded without it, byte for byte.
+    private static bool NeedsSideStub(IpaGestureExperimentTarget target) =>
+        (target.Descriptor.Length > 0 ? target.Descriptor : PatchScript.TryIpaDescriptor(target.Ipa, out var known) ? known : "")
+            .Contains("lateral", StringComparison.OrdinalIgnoreCase);
+
+    // The sublingual cavity beside a lateral's midline contact: a closed side branch of the oral tract at the alveolar ridge. Its quarter-wave
+    // antiresonance (c / 4L, lowered by the junction and the orifice) is the lateral's dip; the length is a DESIGN VALUE placing it between 2 and 3 kHz
+    // (no primary dimension retrieved). Cross-section 1 cm^2, four cells of the stub's own morphology; the first cell is the orifice, the branch
+    // opening times the port maximum (NasalTractAreas). The end is closed (reflection +1, aperture 0: it radiates nothing).
+    private const string SideStubLengthCentimeters = "3";
+    private const string SideStubAreas = "1,1,1,1";
+
+    private static string SideStubDeclarations(bool sideStub)
+    {
+        if (!sideStub) return "";
+        PatchScript.TryPlaceDistanceCentimeters("alveolar", out var ridge);
+        var at = 1f - ridge / StoryVowelAreas.MeanLengthCentimeters;
+        return $"""
+            morphology name=side_stub length_cm={SideStubLengthCentimeters} areas={SideStubAreas}
+            waveguide_path name=side_stub_path morphology=side_stub speed={TractSpeedMetersPerSecond} strategy=thiran order=1 max_delay=4096 loss=.98
+            branch_port name={PatchScript.SideStubBranch} from=oral_path from_position={Format(at)} to=side_stub_path opening=0 coupling=1
+            radiation_load name=side_stub_end path=side_stub_path kind=lip position=1 aperture=0 reflection=1 impedance=.28
+
+            """;
     }
 
     private static string GestureLine(IpaGestureExperimentTarget target, float start, float duration, float intensity) =>
@@ -237,7 +263,7 @@ public static class IpaGestureExperiment
     // murmur read -4.2 dB (/m/) and -2.2 dB (/n/) re the flanking vowels; the target is 8 to 16 dB under (no primary level or bandwidth retrieved).
     private const string NasalPathLoss = ".975";
 
-    private static string Scaffold(IReadOnlyList<string> gestureLines, float sustain, float frequency) => $$"""
+    private static string Scaffold(IReadOnlyList<string> gestureLines, float sustain, float frequency, bool sideStub = false) => $$"""
         patch gain=.45
         morphology name=oral length_cm={{Format(StoryVowelAreas.MeanLengthCentimeters)}} diameters=.55,.75,1.05,1.45,1.25,.8 tongue_index=3 tongue_diameter=1.4 constriction_index=4 constriction_diameter=1 constriction_width=.03 lip_opening=4
         vowel_set area_function=oral source={{StoryVowelAreas.Source}}
@@ -250,7 +276,7 @@ public static class IpaGestureExperiment
         radiation_load name=mouth path=oral_path kind=lip position=1 aperture=.8 reflection=-1 impedance=.28
         radiation_load name=nostril path=nasal_path kind=lip position=1 aperture=.8 reflection=-1 impedance=.28
         probe_timeline name=flow network=voice blocks=12 block_size=64
-        vocal_network name=voice paths=oral_path,nasal_path sources=folds contacts=contact branches=velopharynx radiation=mouth,nostril probe=flow
+        {{SideStubDeclarations(sideStub)}}vocal_network name=voice paths=oral_path,nasal_path{{(sideStub ? ",side_stub_path" : "")}} sources=folds contacts=contact branches=velopharynx{{(sideStub ? "," + PatchScript.SideStubBranch : "")}} radiation=mouth,nostril{{(sideStub ? ",side_stub_end" : "")}} probe=flow
         {{string.Join("\n", gestureLines)}}
         vocal network=voice freq={{Format(frequency)}} gain=.7 sustain={{Format(sustain)}}
         """;
