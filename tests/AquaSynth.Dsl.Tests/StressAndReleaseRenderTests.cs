@@ -151,6 +151,51 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         Assert.Equal((release - ramp, start + duration + ramp), (window.Points.Min(p => (double)p.TimeSeconds), window.Points.Max(p => (double)p.TimeSeconds)), new TupleTolerance(1e-4));
     }
 
+    // The contact opening, the tongue's constriction and the lips all leave their shut value at the instant the burst gain window opens: one
+    // owner, StopReleaseStartSeconds. Read off the splines, so a stale constant in one of them (the contact opening 20 ms early while the
+    // burst keeps the owner's time) fails here and not only through a closure level that happens to cross a bound.
+    [Theory]
+    [InlineData("b", "w_2_b")]
+    [InlineData("t", "w_2_t")]
+    [InlineData("k", "w_2_k")]
+    public void AStopsArticulatorsOpenWhereItsBurstGainWindowOpens(string ipa, string name)
+    {
+        IpaGestureExperimentTarget Phone(string label, string symbol, float seconds) => new($"w_{label}", symbol, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone($"2_{ipa}", ipa, 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f)], 140);
+        var splines = PatchScript.Parse(script).ControlSplines;
+        const double start = 0.275, duration = 0.095;
+        var release = start + PatchScript.StopReleaseStartSeconds((float)duration);
+        var gain = splines.Single(s => s.Name.StartsWith(name, StringComparison.Ordinal) && s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal));
+        var ramp = 0.15 * (start + duration - release);
+        Assert.Equal(release - ramp, gain.Points.Min(p => (double)p.TimeSeconds), 1e-4);
+        var paths = ipa == "b"
+            ? new[] { "/vocal/contacts/0/opening", "/vocal/areas/0/area/constriction_diameter", "/vocal/areas/0/area/lip_opening", "/vocal/radiation/0/aperture" }
+            : ["/vocal/contacts/0/opening", "/vocal/areas/0/area/constriction_diameter"];
+        foreach (var path in paths)
+        {
+            var spline = splines.Single(s => s.Name.StartsWith(name, StringComparison.Ordinal) && s.SurfacePath == path);
+            Assert.Equal(release, spline.Points.Where(p => p.TimeSeconds < start + duration - 1e-6).Max(p => (double)p.TimeSeconds), 1e-4);
+        }
+    }
+
+    // The nasal keeps its murmur's small lip opening where a stop shuts the lips (0.04 cm against 0): the shut-lip term is the stop's only.
+    // Extending it to nasals moves /m/'s first nasal formant by 30 Hz and its murmur level by 0.4 dB and no render test notices, so the
+    // value is read off the splines.
+    [Theory]
+    [InlineData("m", 0.04f)]
+    [InlineData("b", 0f)]
+    public void OnlyAStopShutsTheLipsCompletely(string ipa, float shut)
+    {
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], 140);
+        foreach (var path in new[] { "/vocal/areas/0/area/lip_opening", "/vocal/radiation/0/aperture" })
+        {
+            var spline = PatchScript.Parse(script).ControlSplines.Single(s => s.Name.StartsWith("w_1_c", StringComparison.Ordinal) && s.SurfacePath == path);
+            Assert.Equal(shut, spline.Points.Min(p => p.Value), 1e-4);
+        }
+    }
+
     // /ɑ C ɑ/ at the scaffold's own durations (vowel 0.18 s, consonant 0.095 s). Returns the render and the consonant's [start, end).
     private (float[]? Samples, double From, double To) VowelConsonantVowel(string ipa, float frequency = 140, string descriptor = "", Func<SynthPatch, SynthPatch>? edit = null)
     {
