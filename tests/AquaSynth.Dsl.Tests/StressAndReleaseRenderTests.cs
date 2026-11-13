@@ -378,40 +378,44 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     }
 
     // /k/ over the /t/ tests: its own place (the velar distance in the place table), closure sealed by the tongue, burst under half the vowel.
-    // The spec asks /k/'s closure to be at or below /p/'s. It is not: with the voiceless source as /p/ and /t/ have it the closure reads
-    // -14.9 dB re the vowels (/p/ -20.4, /t/ -24.9). The tract itself seals: with the glottal source's flow scale held at 0 over the gesture the
-    // same closure reads -22.7 dB, under /p/; with the source on, the 150 Hz voicing is what reaches the output through a closure that leaves
-    // only a short rear cavity (the glottal pressure that the tract wall radiates is higher the smaller that cavity is). Silencing voicing in
-    // voiceless stops would change /p/ and /t/ (pinned byte for byte), so the criterion is reported as unmet (fork), not met by a /k/ special case.
-    // The second assertion is a regression bound on the measured leak, not the criterion.
+    // The spec asks /k/'s closure to be at or below /p/'s. With the voiceless source as /p/ and /t/ have it, it is not, and was not on main
+    // either (-14.9 dB re the vowels, /p/ -20.4): the 150 Hz voicing reaches the output through a closure that leaves only a short rear cavity.
+    // Silencing voicing in voiceless stops would change /p/ and /t/ (pinned byte for byte), so the criterion stays unmet (fork).
+    // The measure is the source-on closure in its settled part (25 ms after the 30 ms closing ramp has finished, to 5 ms before the release),
+    // because the source-off closure cannot see a leak: with the source off nothing drives the tract, and leaks of .02, .05 and .1 of the
+    // diameter scale read -21.1, -21.2 and -21.2 dB over .21 to .263 s against -21.0 sealed, while the source-on closure reads 1.8, 1.8 and
+    // 4.1 dB louder in the settled part. The closure
+    // right after the ramp is no use either: the seal completes at the end of the ramp with the vowel's tail still in the rear cavity (the
+    // source-off /k/ read -21.0 dB over .21 to .263 s with the ramp and -27.5 with the contact and the constriction stepped shut; main's
+    // 30 ms-later window read -25.7), and that decays within the first 25 ms.
+    // The test therefore proves its own measure first (a leak injected into the tongue's closed diameter must read 3 dB louder) and then bounds
+    // the sealed closure (-16.5 measured; the .02 leak reads -14.7).
     [Fact]
-    public void AVelarStopClosureSealsAndItsLeakIsTheGlottalSource()
+    public void AVelarStopClosureSealsAndTheMeasureSeesALeak()
     {
-        static SynthPatch WithoutSource(SynthPatch p) =>
+        static SynthPatch Leaking(SynthPatch p) =>
             WithoutBurst(p) with
             {
                 ControlSplines = WithoutBurst(p).ControlSplines
-                    .Select(s => s.Name.StartsWith("w_1_c_source_level", StringComparison.Ordinal)
-                        ? s with { Points = s.Points.Select(q => q with { Value = 0, OutValue = 0, InValue = 0 }).ToArray() }
+                    .Select(s => s.Name == "w_1_c_constriction_diameter"
+                        ? s with { Points = s.Points.Select(q => q.Value == s.Points.Min(v => v.Value) ? q with { Value = 0.1f, OutValue = 0, InValue = 0 } : q).ToArray() }
                         : s).ToArray()
             };
 
-        double Closure(string ipa, string descriptor, Func<SynthPatch, SynthPatch> edit)
+        double Closure(Func<SynthPatch, SynthPatch> edit)
         {
-            var (x, from, to) = VowelConsonantVowel(ipa, descriptor: descriptor, edit: edit);
+            var (x, from, to) = VowelConsonantVowel("k", descriptor: "voiceless_velar_plosive", edit: edit);
             if (x is null) return double.NaN;
             var vowels = Math.Sqrt((Math.Pow(Rms(x, from - 0.08, from - 0.01), 2) + Math.Pow(Rms(x, to + 0.03, to + 0.12), 2)) / 2);
-            return 20 * Math.Log10(Rms(x, ClosureFrom(from), ReleaseAt(from, to)) / vowels);
+            return 20 * Math.Log10(Rms(x, ClosureFrom(from) + 0.025, ReleaseAt(from, to) - 0.005) / vowels);
         }
 
-        var p = Closure("p", "voiceless_bilabial_plosive", WithoutBurst);
-        var k = Closure("k", "voiceless_velar_plosive", WithoutBurst);
-        var kSilent = Closure("k", "voiceless_velar_plosive", WithoutSource);
-        output.WriteLine($"closure re vowels: /p/ {p:F1} dB, /k/ {k:F1} dB, /k/ with the glottal source off {kSilent:F1} dB");
-        if (double.IsNaN(p)) return;
-        // Two ringing tails compared, not a design value: with the lips shut /p/ is 22.0 dB, /k/ without the source 21.0 (base 22.7 before the closing ramp delayed the velar seal). 2 dB is the tolerance.
-        Assert.True(kSilent <= p + 2, $"the /k/ closure seals: without the glottal source it is {kSilent:F1} dB, within 2 dB of /p/ ({p:F1} dB)");
-        Assert.True(k <= -12, $"the /k/ closure with the source is {k:F1} dB (regression bound; the criterion, at or under /p/ {p:F1} dB, is not met)");
+        var sealedClosure = Closure(WithoutBurst);
+        var leaking = Closure(Leaking);
+        output.WriteLine($"/k/ closure re vowels, source on, settled part: sealed {sealedClosure:F1} dB, with a 0.1 leak {leaking:F1} dB");
+        if (double.IsNaN(sealedClosure)) return;
+        Assert.True(leaking >= sealedClosure + 3, $"the measure sees a leak: sealed {sealedClosure:F1} dB, leaking {leaking:F1} dB");
+        Assert.True(sealedClosure <= -15, $"the /k/ closure seals: {sealedClosure:F1} dB re the vowels (a .02 leak reads about 1.8 dB louder than the measured -16.5)");
     }
 
     [Fact]
