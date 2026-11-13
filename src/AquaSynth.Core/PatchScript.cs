@@ -26,6 +26,7 @@ public static class PatchScript
             "p" => "voiceless_bilabial_plosive",
             "b" => "voiced_bilabial_plosive",
             "t" => "voiceless_alveolar_plosive",
+            "d" => "voiced_alveolar_plosive",
             "k" => "voiceless_velar_plosive",
             "m" => "voiced_bilabial_nasal",
             "n" => "voiced_alveolar_nasal",

@@ -217,15 +217,22 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     [Theory]
     [InlineData("b", -34, -26)]
     [InlineData("p", -60, -38)]
+    [InlineData("d", -34, -26)]
     public void PlosiveClosureCarriesTheVoiceBarOnlyWhenVoiced(string ipa, double lowDb, double highDb)
+    {
+        var db = VoiceBarDb(ipa);
+        if (double.IsNaN(db)) return;
+        output.WriteLine($"/{ipa}/ closure {db:F1} dB re the following vowel");
+        Assert.InRange(db, lowDb, highDb);
+    }
+
+    // The closure's deviation (the slow offset of a shutting tract is not sound) against the following vowel's, for a word-initial consonant.
+    private double VoiceBarDb(string ipa)
     {
         var script = IpaGestureExperiment.BuildWordScript(
             [(new IpaGestureExperimentTarget("w_0_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_1_a", "a", "", 0.18f), 1f)], 140);
         var x = Render(script, 0.4f);
-        if (x is null) return;
-        var db = 20 * Math.Log10(Math.Max(1e-9, Deviation(x, 0.03, 0.058)) / Deviation(x, 0.15, 0.25));
-        output.WriteLine($"/{ipa}/ closure {db:F1} dB re the following vowel");
-        Assert.InRange(db, lowDb, highDb);
+        return x is null ? double.NaN : 20 * Math.Log10(Math.Max(1e-9, Deviation(x, 0.03, 0.058)) / Deviation(x, 0.15, 0.25));
     }
 
     private static SynthPatch WithoutBurst(SynthPatch p) =>
@@ -417,5 +424,53 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         output.WriteLine($"/k/ burst spectral peak {peak:F0} Hz, centroid {centroid:F0} Hz; /t/ peak {tPeak:F0} Hz, centroid {tCentroid:F0} Hz");
         Assert.InRange(peak, 2000, 4000);
         Assert.True(peak < tPeak, $"/k/ peak {peak:F0} Hz is under /t/ {tPeak:F0} Hz");
+    }
+
+    // /d/ is /t/ with voicing, as /b/ is /p/ with voicing: the same gesture, so the splines that shape the tract are identical and the two differ
+    // in the voice bar through the closure and in nothing else the burst carries. Chodroff and Wilson 2014: /d/ burst peak 4878 Hz, /t/ 5216.
+    [Fact]
+    public void StopDDiffersFromStopTOnlyByVoicing()
+    {
+        static SynthPatch Word(string ipa) => PatchScript.Parse(IpaGestureExperiment.BuildWordScript(
+            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], 140));
+        static string[] Shape(SynthPatch p) => p.ControlSplines
+            .Where(s => s.Name.StartsWith("w_1_c", StringComparison.Ordinal) && !s.Name.StartsWith("w_1_c_source", StringComparison.Ordinal))
+            .Select(s => s.SurfacePath + "|" + s.Name[5..] + "|" + string.Join(";", s.Points.Select(q => $"{q.TimeSeconds:R}:{q.Value:R}")))
+            .Order().ToArray();
+        var t = Shape(Word("t"));
+        var d = Shape(Word("d"));
+        output.WriteLine($"/t/ {t.Length} consonant splines, /d/ {d.Length}");
+        Assert.NotEmpty(d);
+        Assert.Equal(t, d);
+
+        var tDb = VoiceBarDb("t");
+        var dDb = VoiceBarDb("d");
+        output.WriteLine($"closure re the following vowel: /t/ {tDb:F1} dB, /d/ {dDb:F1} dB");
+        if (double.IsNaN(tDb)) return;
+        Assert.True(dDb >= tDb + 8, $"the voice bar lifts the /d/ closure ({dDb:F1} dB) at least 8 dB over /t/ ({tDb:F1} dB)");
+        var (dPeak, _) = BurstSpectrum("d", "");
+        var (tPeak, _) = BurstSpectrum("t", "");
+        output.WriteLine($"burst spectral peak: /t/ {tPeak:F0} Hz, /d/ {dPeak:F0} Hz");
+        Assert.True(Math.Abs(dPeak - tPeak) <= 1000, $"/d/ burst peak {dPeak:F0} Hz within 1 kHz of /t/ {tPeak:F0} Hz");
+    }
+
+    [Fact]
+    public void StopDBurstExistsOnlyAroundItsOwnRelease()
+    {
+        IpaGestureExperimentTarget Phone(string label, string ipa, float seconds) => new($"w_{label}", ipa, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone("2_d", "d", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_n", "n", 0.095f), 1f)], 140);
+        var withBurst = Render(script, 0.77f);
+        var withoutBurst = Render(script, 0.77f, WithoutBurst);
+        if (withBurst is null || withoutBurst is null) return;
+        var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
+        const double dFrom = 0.275, dTo = 0.37;
+        var atRelease = Peak(burst, dFrom + 0.095 * 0.6, dTo + 0.02);
+        var leading = Peak(burst, 0, dFrom);
+        var trailing = Peak(burst, dTo + 0.12, 0.77);
+        output.WriteLine($"/d/ burst peak {atRelease:F4} at the release, {leading:F5} before the plosive, {trailing:F5} after it");
+        Assert.True(atRelease > 0.004, "the burst is a transient of audible size");
+        Assert.True(leading < atRelease / 20, "no burst before the plosive's own gesture");
+        Assert.True(trailing < atRelease / 10, "no burst after the plosive");
     }
 }
