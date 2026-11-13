@@ -1,0 +1,89 @@
+{
+ "kit": {
+  "id": "voice-source-1",
+  "title": "Synthetic voice: one source change at a time",
+  "note": "The same short phrase, five pairs. In each pair only one thing about the voice's sound source differs. Tell us what you hear in the voice itself: buzz, edge, kazoo, breath, hiss. There are no wrong answers; 'no difference' is a real answer."
+ },
+ "clips": [
+  {
+   "id": "pulse-saw",
+   "file": "saw_a.wav",
+   "group": "pulse",
+   "pair": "pulse-rosenberg",
+   "title": "Measured: HNR 29.9 dB, output rms 0.0530, peak 0.224. Scaffold source: band-limited saw through the tilt lowpass.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "pulse-rosenberg",
+   "file": "ros.wav",
+   "group": "pulse",
+   "pair": "pulse-saw",
+   "title": "Measured: HNR 29.1 dB, output rms 0.0400 (-2.4 dB re saw), peak 0.102 (-6.8 dB). Band energy re total, 0-0.5/0.5-1.5/1.5-3/3-6 kHz: saw -2.3/-4.0/-24.0/-24.9 dB, Rosenberg -0.3/-12.4/-43.7/-40.3 dB. PREDICTION: darker and rounder than the saw, less buzz and edge, F2 of /i/ weaker; loudness the same (that last part is already falsified at the output: it is 2.4 dB quieter). FALSIFIED if no difference is heard, if it is heard as buzzier or brighter, or if it is heard as the same kazoo quality.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "pulsematch-saw",
+   "file": "saw_b.wav",
+   "group": "pulsematch",
+   "pair": "pulsematch-rosenberg",
+   "title": "Measured: HNR 29.9 dB, output rms 0.0530, peak 0.224. Byte copy of pulse-saw's render.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "pulsematch-rosenberg",
+   "file": "ros_matched.wav",
+   "group": "pulsematch",
+   "pair": "pulsematch-saw",
+   "title": "Measured: HNR 29.1 dB, output rms 0.0529 (matched to the saw), peak 0.135. The Rosenberg render times 1.324 (+2.44 dB). PREDICTION: the same darker, rounder voice as in pair 'pulse', and no longer the quieter one. FALSIFIED if at matched rms it is no longer heard as darker/rounder (then loudness carried the first pair), or if it is heard as louder or brighter.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "noise-clean",
+   "file": "clean.wav",
+   "group": "noise",
+   "pair": "noise-hnr20",
+   "title": "Measured: HNR 29.9 dB, output rms 0.0530, peak 0.224. The scaffold's noise floor (0.05); noise 0 measures 30.8, the method's ceiling here.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "noise-hnr20",
+   "file": "w20.wav",
+   "group": "noise",
+   "pair": "noise-clean",
+   "title": "Measured: HNR 19.8 dB, output rms 0.0532, peak 0.231. White glottal noise raised to 0.33. PREDICTION: audible breath/hiss under the voice; a listener who called the clean voice a kazoo or buzzer hears this as less pure-tone but still a machine. FALSIFIED if B is not noisier; if the noise is heard as a separate hiss stream not fused with the voice; or if A and B are the same kazoo to the same degree (then purity of the periodicity is not what makes it a kazoo).",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "colour-white20",
+   "file": "w20_b.wav",
+   "group": "colour",
+   "pair": "colour-hp20",
+   "title": "Measured: HNR 19.8 dB, output rms 0.0532, peak 0.231. Byte copy of noise-hnr20's render.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "colour-hp20",
+   "file": "h20.wav",
+   "group": "colour",
+   "pair": "colour-white20",
+   "title": "Measured: HNR 20.1 dB, output rms 0.0532, peak 0.238. Noise high-passed at 2 kHz (2nd order), level 0.33. PREDICTION: reads as hiss or 's'-like air, more separable from the voice than the white noise at the same HNR; the white one reads as roughness or breathy voice. FALSIFIED if no difference is heard, or if B is less hissy than A.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "aspiration-hp25",
+   "file": "h25.wav",
+   "group": "aspiration",
+   "pair": "aspiration-hp15",
+   "title": "Measured: HNR 25.7 dB, output rms 0.0530, peak 0.231. High-passed noise at level 0.165. PREDICTION: at most faintly airy, may be called no different from a clean voice. FALSIFIED if A is already clearly hissy.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "aspiration-hp15",
+   "file": "h15.wav",
+   "group": "aspiration",
+   "pair": "aspiration-hp25",
+   "title": "Measured: HNR 14.9 dB, output rms 0.0538, peak 0.250. High-passed noise at level 0.6. PREDICTION: clearly hissy, breathier than A. FALSIFIED if B is not hissier than A.",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  }
+ ]
+}

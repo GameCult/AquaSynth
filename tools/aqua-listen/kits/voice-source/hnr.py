@@ -32,8 +32,7 @@ def hnr(x, fs, f0=140.0, win=0.04, hop=0.01):
         if not f.any():
             continue
         ac = np.fft.irfft(np.abs(np.fft.rfft(f, nfft)) ** 2)[:n]
-        ac = ac / ac[0] / wac
-        r = float(np.clip(ac[lo:hi].max(), 1e-6, 1 - 1e-6))
+        r = float(np.clip((ac[lo:hi] / ac[0] / wac[lo:hi]).max(), 1e-6, 1 - 1e-6))
         out.append(10 * np.log10(r / (1 - r)))
     return float(np.median(out)), len(out)
 
