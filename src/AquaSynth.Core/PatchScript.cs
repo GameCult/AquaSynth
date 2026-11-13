@@ -8,11 +8,6 @@ public sealed class PatchScriptException(int line, string message) : Exception($
 }
 public static class PatchScript
 {
-    /// <summary>
-    /// The DSL's own IPA table: the phones a phoneme_gesture knows without an explicit descriptor. A hand-written script
-    /// that names another phone falls back to an alveolar approximant; a caller that must not be approximated asks here first.
-    /// Vowels come from <see cref="StoryVowelAreas"/>, the one table that also says which measured tract shape each selects.
-    /// </summary>
     /// <summary>The branch port a lateral gesture opens: a closed side stub beside the oral path at the alveolar ridge (the sublingual cavity).
     /// A script that gestures a lateral without declaring it is refused, not approximated.</summary>
     public const string SideStubBranch = "side_stub";
@@ -33,6 +28,11 @@ public static class PatchScript
     /// gain window opens here; a test that wants the release reads it from here.</summary>
     public static float StopReleaseStartSeconds(float durationSeconds) => durationSeconds - MathF.Min(StopReleaseSeconds, 0.3f * durationSeconds);
 
+    /// <summary>
+    /// The DSL's own IPA table: the phones a phoneme_gesture knows without an explicit descriptor. A hand-written script
+    /// that names another phone falls back to an alveolar approximant; a caller that must not be approximated asks here first.
+    /// Vowels come from <see cref="StoryVowelAreas"/>, the one table that also says which measured tract shape each selects.
+    /// </summary>
     public static bool TryIpaDescriptor(string ipa, out string descriptor)
     {
         if (StoryVowelAreas.TryVowelForIpa(ipa, out var vowelDescriptor, out _))
