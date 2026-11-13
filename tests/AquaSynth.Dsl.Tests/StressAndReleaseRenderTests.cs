@@ -389,7 +389,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     // source-off /k/ read -21.0 dB over .21 to .263 s with the ramp and -27.5 with the contact and the constriction stepped shut; main's
     // 30 ms-later window read -25.7), and that decays within the first 25 ms.
     // The test therefore proves its own measure first (a leak injected into the tongue's closed diameter must read 3 dB louder) and then bounds
-    // the sealed closure (-16.5 measured; the .02 leak reads -14.7).
+    // the sealed closure (-16.5 measured; a .005, .03 or .035 leak reads -15.1, a .02 leak -14.7).
     [Fact]
     public void AVelarStopClosureSealsAndTheMeasureSeesALeak()
     {
@@ -415,7 +415,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         output.WriteLine($"/k/ closure re vowels, source on, settled part: sealed {sealedClosure:F1} dB, with a 0.1 leak {leaking:F1} dB");
         if (double.IsNaN(sealedClosure)) return;
         Assert.True(leaking >= sealedClosure + 3, $"the measure sees a leak: sealed {sealedClosure:F1} dB, leaking {leaking:F1} dB");
-        Assert.True(sealedClosure <= -15, $"the /k/ closure seals: {sealedClosure:F1} dB re the vowels (a .02 leak reads about 1.8 dB louder than the measured -16.5)");
+        Assert.True(sealedClosure <= -15.5, $"the /k/ closure seals: {sealedClosure:F1} dB re the vowels (measured -16.5; leaks of .005 to .1 read -15.1 to -12.4, the measure is not monotonic in the leak, so the bound sits under the weakest of them)");
     }
 
     [Fact]

@@ -50,14 +50,13 @@ public sealed class StopClosureAndControlRenderTests(ITestOutputHelper output)
     // fill that band (/d/ read -11.6 dB with the source on and -52.8 with it off; with the source on it swings between -13.5 and -9.3 dB
     // with f0 alone, 139.5 to 145 Hz, as the harmonics fall on and off the 100 Hz grid), so with the source on the measure cannot tell the
     // voicing from the hiss. Source off, the burst gain held through the closure read +5 dB (/p/) and +14 dB (/t/, /d/) on 3b62b9c; gated,
-    // every stop reads -52 dB. -30 is the bound between the two. /g/ has no burst gain to hold (the gate mutant leaves it at -52 dB); it is here as a stop that must stay quiet.
+    // every stop reads -52 dB. -30 is the bound between the two. /g/ is not here: it is not in TryIpaDescriptor, so it would render the default approximant and could not fail.
     [FaustTheory]
     [InlineData("p")]
     [InlineData("b")]
     [InlineData("t")]
     [InlineData("d")]
     [InlineData("k")]
-    [InlineData("g")]
     public void ClosingIntoAStopMakesNoHighFrequencyNoise(string ipa)
     {
         var parsed = PatchScript.Parse(Word(ipa));
