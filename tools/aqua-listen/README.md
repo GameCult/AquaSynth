@@ -54,6 +54,11 @@ The blank verdict files this was meant to match were not found under `/opt/commo
 
 `PLAYWRIGHT_CORE=/path/to/playwright-core CHROME=/path/to/chrome node smoke.mjs dist/listen.html` ticks through consent, answers a clip, reloads, exports, and fails on any network request or page error. It is not in `node test.mjs` because the repo carries no browser dependency.
 
+### Kits in the repo
+
+`kits/tract-weak-spots` and `kits/tract-stops` hold a `kit.json`, the `phones/*.json` that WordRender reads, and a `render.sh` that renders the clips (`render.sh <repo-root> <out-root>`; needs CULTLIB_ROOT and AQUASYNTH_FAUST_HOME, see the script header). Build a page from the rendered clips:
+`node tools/aqua-listen/build.mjs --manifest tools/aqua-listen/kits/tract-stops/kit.json --clips <out-root>/clips --out <out-root>/dist`. The titles in those kit.json files carry measured figures, a prediction and a falsifier; the page hides them from the listener.
+
 ## Files
 
 `logic.cjs` validation, ordering, export shape (shared by build, page, tests) · `build.mjs` assembles the page · `web/` page template, glue and styles · `test.mjs` · `smoke.mjs`
