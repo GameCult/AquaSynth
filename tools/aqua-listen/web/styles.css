@@ -16,3 +16,4 @@ button:disabled { opacity: 0.4; cursor: default; }
 .bar { position: sticky; top: 0; background: var(--bg); padding: 0.5rem 0; border-bottom: 1px solid var(--line); z-index: 1; }
 .pair { border: 2px dashed var(--line); border-radius: 10px; padding: 0 0.75rem; margin: 1rem 0; }
 small, .hint { opacity: 0.75; }
+img.pic { max-width: 100%; height: auto; display: block; margin: 0.5rem 0; }

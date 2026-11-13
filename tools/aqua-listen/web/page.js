@@ -1,4 +1,4 @@
-// Page glue. The kit (manifest, content hash, base64 audio) is in #kit-data; logic is AquaListen (logic.cjs, inlined).
+// Page glue. The kit (manifest, content hash, base64 audio, optional base64 PNGs per clip id) is in #kit-data; logic is AquaListen (logic.cjs, inlined).
 (() => {
   const L = globalThis.AquaListen, kit = JSON.parse(document.getElementById("kit-data").textContent);
   const app = document.getElementById("app"), KEY = `aqua-listen:${kit.manifest.kit.id}:${kit.hash}`;
@@ -62,6 +62,7 @@
       h("h2", {}, o.slot ? `Sound ${o.slot}` : `Sound ${n}`),
       h("p", { class: "feel" }, `It should feel: ${c.feel}`),
       audio,
+      (kit.images[id] || []).length ? h("details", {}, h("summary", {}, "Pictures of this sound (optional)"), kit.images[id].map((p) => h("img", { src: "data:image/png;base64," + p.b64, alt: p.label, class: "pic" }))) : [],
       h("div", { class: "row" }, h("span", {}, "Keep, fix or drop?"), radios("v-" + id, L.VERDICTS, a.verdict, (v) => touch(id, { verdict: v }))),
       h("div", { class: "row" }, h("span", {}, "Did it land? 1 = not at all, 5 = completely"), radios("l-" + id, [1, 2, 3, 4, 5], a.landed, (v) => touch(id, { landed: Number(v) }))),
       reason);

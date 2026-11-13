@@ -24,7 +24,7 @@ Privacy: the page has no network access at all (the browser is told to refuse it
 
 ```
 node build.mjs --manifest kit.json --clips ./clips --out ./dist     # writes dist/listen.html
-node test.mjs                                                        # 16 checks, no dependencies, no browser
+node test.mjs                                                        # 17 checks, no dependencies, no browser
 node smoke.mjs dist/listen.html                                      # optional browser smoke, see below
 ```
 
@@ -59,6 +59,12 @@ The blank verdict files this was meant to match were not found under `/opt/commo
 `kits/tract-weak-spots` and `kits/tract-stops` hold a `kit.json`, the `phones/*.json` that WordRender reads, and a `render.sh` that renders the clips (`render.sh <repo-root> <out-root>`; needs CULTLIB_ROOT and AQUASYNTH_FAUST_HOME, see the script header). Build a page from the rendered clips:
 `node tools/aqua-listen/build.mjs --manifest tools/aqua-listen/kits/tract-stops/kit.json --clips <out-root>/clips --out <out-root>/dist`. The titles in those kit.json files carry measured figures, a prediction and a falsifier; the page hides them from the listener.
 
+### Pictures and burst notes (for a reader who cannot listen)
+
+`clip_images.py <clips> <images> [--kit kit.json --renders <out-root>]` writes `<stem>.spec.png` (spectrogram, Hann 512 / hop 128, 0-8 kHz, -90..0 dB re the clip peak) and `<stem>.wave.png` (fixed +-0.5) for every wav, byte-identical between runs, and with `--kit --renders` also `burst-notes.md` and `burst-notes.json` next to the images: per plosive closure start, release (start of the with-minus-without `--no-burst` difference above 1/20 of its peak), burst end and the window to look in. Both kits' `render.sh` end with it. Requirement: `python3` with numpy and matplotlib (Agg), set `PYTHON=` to one that has them; no scipy, nothing for the dotnet build. Test: `python3 -I test_clip_images.py`.
+
+`build.mjs --images <images>` embeds a clip's two pictures in a collapsed "Pictures of this sound" block (matched by the wav's stem) and lets the page's policy admit `data:` images, only then. The burst notes are never read by the build and never enter `listen.html` or `kit.json`: give the page to the listener and the notes to whoever reads the pictures.
+
 ## Files
 
-`logic.cjs` validation, ordering, export shape (shared by build, page, tests) · `build.mjs` assembles the page · `web/` page template, glue and styles · `test.mjs` · `smoke.mjs`
+`clip_images.py` + `test_clip_images.py` pictures and burst notes · `kits/` · `logic.cjs` validation, ordering, export shape (shared by build, page, tests) · `build.mjs` assembles the page · `web/` page template, glue and styles · `test.mjs` · `smoke.mjs`
