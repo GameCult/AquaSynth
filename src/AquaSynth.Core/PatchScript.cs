@@ -1624,7 +1624,7 @@ public static class PatchScript
             // closed-mouth sound, and an alveolar closure that began to open at 0.5 let the oral tract radiate again over the last third (/n/ read
             // -3.8 dB under its vowels against /m/ -13.2 dB, whose lips hold to 0.7).
             var stopsBehindTheLips = (tokens.Contains("plosive") || tokens.Contains("stop")) && !(tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial"));
-            // A stop whose seal is the tongue (not the lips) is closed completely and until the contact opens (0.65): at the nasal's 0.03 cm
+            // A stop whose seal is the tongue (not the lips) is closed completely and until the contact opens (StopReleaseStartSeconds): at the nasal's 0.03 cm
             // aperture a /t/ closure measured -10.4 dB re its vowels against /p/ -19.7 (the lips seal /p/ whatever the tongue does), and
             // rendered -21.5 dB with the aperture at 0 (area floor 1e-6 cm^2).
             // Every stop holds all its articulators shut until StopReleaseSeconds before its end and opens in that time: the burst is the
