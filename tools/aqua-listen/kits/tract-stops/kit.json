@@ -1,0 +1,78 @@
+{
+ "kit": {
+  "id": "tract-stops-1",
+  "title": "Articulatory vocal tract: stops and the lateral",
+  "note": "Short synthetic words from the tract model. Tell us what you hear; there are no wrong answers. Some are pairs: rate both, then say which you prefer."
+ },
+ "clips": [
+  {
+   "id": "stop-t",
+   "file": "ata.wav",
+   "group": "stop",
+   "title": "/ɑtɑ/ at 140 Hz. Measured: closure -24.9 dB re the flanking vowels (/p/ -20.4), burst peak 0.39 of the vowel peak, burst spectral peak 3950 Hz (inside 3.5-7 kHz; CW14 5216), burst only around its own release. PREDICTION: heard as 'ah-tah', a crisp tongue-tip tap-and-release with a sharp click on the release; the twin without the burst loses that click and sounds softer, like a stop with no edge. FALSIFIED if heard as 'ah-kah' or 'ah-pah', or if the burst is not audible against the no-burst twin.",
+   "feel": "'ah-tah': the tongue tip taps behind the teeth between two open vowels",
+   "pair": "stop-t-noburst"
+  },
+  {
+   "id": "stop-t-noburst",
+   "file": "ata_noburst.wav",
+   "group": "stop",
+   "title": "/ɑtɑ/ rendered with --no-burst (plosive release_flow splines dropped), otherwise the same word. Measured: no burst energy by construction (the release_flow splines are dropped); closure and transitions as in the burst render. PREDICTION: still a stop by closure and formant transitions, but soft, with no click at the release. FALSIFIED if it sounds the same as the burst twin.",
+   "feel": "the same word with a gentler, softer release",
+   "pair": "stop-t"
+  },
+  {
+   "id": "stop-d",
+   "file": "ada.wav",
+   "group": "stop",
+   "title": "/ɑdɑ/ at 140 Hz. Measured: voice bar -28.9 dB re the following vowel (/t/ -38.7, /b/ -29.2, /p/ -40.1), burst spectral peak 3950 Hz, same as /t/ (CW14 d 4878), burst peak 0.0603 at the release and none before or after; the 7 consonant splines are identical to /t/'s. PREDICTION: 'ah-dah': a tongue-tip stop with voicing through the closure, a softer release than /t/. FALSIFIED if heard as /t/ or /n/ or /l/, or if no voicing is audible in the closure.",
+   "feel": "'ah-dah': the tongue tip taps behind the teeth, with the voice kept humming",
+   "pair": "stop-d-noburst"
+  },
+  {
+   "id": "stop-d-noburst",
+   "file": "ada_noburst.wav",
+   "group": "stop",
+   "title": "/ɑdɑ/ rendered with --no-burst, otherwise the same word. Measured: voice bar unchanged at the closure; no burst energy. PREDICTION: the voice bar still marks a stop, but the release is smooth. FALSIFIED if it sounds the same as the burst twin.",
+   "feel": "the same word with a gentler, softer release",
+   "pair": "stop-d"
+  },
+  {
+   "id": "stop-k",
+   "file": "aka.wav",
+   "group": "stop",
+   "title": "/ɑkɑ/ at 140 Hz. Measured: burst peak 0.45 of the vowel peak, burst spectral peak 3100 Hz (Chodroff and Wilson 2014: 2868 Hz; /t/ 3950 Hz by the same measure), burst only at its own release; closure -14.9 dB re vowels against /p/ -20.4, so the closure is NOT at or under /p/ (the voicing the voiceless source still carries leaks through it). PREDICTION: 'ah-kah', a back-of-the-tongue stop with a duller, lower burst than /t/; the closure is audibly less empty than in /apa/. FALSIFIED if heard as /t/ or /p/, or if the closure carries a clear hum that makes it sound like /g/.",
+   "feel": "'ah-kah': the back of the tongue lifts to the roof of the mouth between two open vowels",
+   "pair": "stop-k-noburst"
+  },
+  {
+   "id": "stop-k-noburst",
+   "file": "aka_noburst.wav",
+   "group": "stop",
+   "title": "/ɑkɑ/ rendered with --no-burst, otherwise the same word. Measured: no burst energy; closure unchanged from the burst render. PREDICTION: a softer, less distinct stop whose place is carried by the transitions alone. FALSIFIED if it sounds the same as the burst twin, or if the place is lost altogether.",
+   "feel": "the same word with a gentler, softer release",
+   "pair": "stop-k"
+  },
+  {
+   "id": "stop-l",
+   "file": "ala.wav",
+   "group": "lateral",
+   "title": "/ɑlɑ/ at 140 Hz, a lateral with a closed side stub (midline narrowed to 0.06 cm, not closed: the ladder cannot hold parallel side channels). Measured: level -5.0 dB re the flanking vowels, F1 263 Hz (design 250-400: met), F2 725 Hz (design 1000-1300: NOT MET, F2 is about 300 Hz too low), side stub notch 13.4 dB at 2.8 kHz against the same render with the stub shut, no burst. PREDICTION: heard as a liquid between the vowels, possibly dark ('ahl-ah' as in a dark /l/) because F2 is low; may be heard as a nasal or /w/ rather than /l/. FALSIFIED if heard as a plain vowel glide with no consonant, or as a stop.",
+   "feel": "'ah-lah': the tongue tip touches behind the teeth while the sound flows past the sides"
+  },
+  {
+   "id": "stop-p",
+   "file": "apa.wav",
+   "group": "stop",
+   "title": "/ɑpɑ/ at 140 Hz, the labial reference. Measured: closure -20.4 dB re the flanking vowels (-19.9 in the burst-site probe), burst enters at the glottal end (pinned labial burst), /p/ voice bar -40.1 dB. PREDICTION: 'ah-pah', a lip stop; the reference against which /t/ and /k/ are judged. FALSIFIED if heard as /b/ (voiced), or if the lip closure sounds leaky.",
+   "feel": "'ah-pah': the lips close and pop open between two open vowels"
+  },
+  {
+   "id": "stop-b",
+   "file": "aba.wav",
+   "group": "stop",
+   "title": "/ɑbɑ/ at 140 Hz, the voiced labial reference. Measured: voice bar -29.2 dB re the following vowel (/p/ -40.1). PREDICTION: 'ah-bah', lips close with voicing kept through the closure; softer than /p/. FALSIFIED if heard as /p/ or as /m/.",
+   "feel": "'ah-bah': the lips close and open with the voice humming"
+  }
+ ]
+}
