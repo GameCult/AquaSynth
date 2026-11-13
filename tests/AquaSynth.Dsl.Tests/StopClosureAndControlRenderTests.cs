@@ -45,24 +45,37 @@ public sealed class StopClosureAndControlRenderTests(ITestOutputHelper output)
 
     // The 30 ms boundary ramp into a stop moves the contact, constriction and lip surfaces through every aperture between open and shut. The
     // burst noise is 4 * opening * (1 - opening) times a gain, and the gain was held through the closure, so each of those passes was a 15-20 ms
-    // hiss before the stop (>4 kHz share of the 6 ms frames at 188 ms of /ata/: -1 dB; 5 dB over the vowel's own >4 kHz energy in /apa/'s whole
-    // closing interval, 14 dB in /ata/, against 33 and 21 dB under it with the closure stepped). The interval is the stop's start to its release,
-    // against the same length of the vowel before it.
+    // hiss before the stop. The interval is the stop's start to its release, against the same length of the vowel before it, in the >4 kHz
+    // band, with the glottal source silent and the burst gain kept: the voiced stops' own voicing runs through the ramp and its harmonics
+    // fill that band (/d/ read -11.6 dB with the source on and -52.8 with it off; with the source on it swings between -13.5 and -9.3 dB
+    // with f0 alone, 139.5 to 145 Hz, as the harmonics fall on and off the 100 Hz grid), so with the source on the measure cannot tell the
+    // voicing from the hiss. Source off, the burst gain held through the closure read +5 dB (/p/) and +14 dB (/t/, /d/) on 3b62b9c; gated,
+    // every stop reads -52 dB. -30 is the bound between the two. /g/ has no burst gain to hold (the gate mutant leaves it at -52 dB); it is here as a stop that must stay quiet.
     [FaustTheory]
-    [InlineData("t")]
     [InlineData("p")]
     [InlineData("b")]
+    [InlineData("t")]
+    [InlineData("d")]
+    [InlineData("k")]
+    [InlineData("g")]
     public void ClosingIntoAStopMakesNoHighFrequencyNoise(string ipa)
     {
-        using var patch = Compile(FaustEmitter.Emit(PatchScript.Parse(Word(ipa)), new FaustExportOptions("stop_closure", SampleRate: Rate)).Source, 0.5f);
+        var parsed = PatchScript.Parse(Word(ipa));
+        var voiceless = parsed with
+        {
+            ControlSplines = parsed.ControlSplines.Select(s => s.Name.StartsWith("w_1_c_source_level", StringComparison.Ordinal)
+                ? s with { Points = s.Points.Select(q => q with { Value = 0, OutValue = 0, InValue = 0 }).ToArray() }
+                : s).ToArray()
+        };
+        using var patch = Compile(FaustEmitter.Emit(voiceless, new FaustExportOptions("stop_closure", SampleRate: Rate)).Source, 0.5f);
         var x = patch!.Render(0.5f);
         const double from = 0.18;
         var release = PatchScript.StopReleaseStartSeconds(0.095f);
         var closing = HighPower(x, from, from + release);
         var vowel = HighPower(x, from - release, from);
         var db = 10 * Math.Log10(closing / vowel);
-        output.WriteLine($"/{ipa}/ >4 kHz energy of the closing interval {db:F1} dB re the vowel's before it");
-        Assert.True(db < -12, $"/{ipa}/ closes with {db:F1} dB re the vowel's own >4 kHz energy");
+        output.WriteLine($"/{ipa}/ >4 kHz energy of the closing interval {db:F1} dB re the vowel's before it, source silent");
+        Assert.True(db < -30, $"/{ipa}/ closes with {db:F1} dB re the vowel's own >4 kHz energy");
     }
 
     // The Faust lowering of a Bezier segment ignores the handle times and runs the curve on the linear fraction of the segment; the C# timeline
