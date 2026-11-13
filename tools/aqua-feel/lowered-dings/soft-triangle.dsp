@@ -16,6 +16,8 @@ seg(t,t0,d,a,b) = a + (b - a) * clip01((t - t0) / max(0.0001, d));
 bez(t,a,b,c,d) = (1.0 - t) * (1.0 - t) * (1.0 - t) * a + 3.0 * (1.0 - t) * (1.0 - t) * t * b + 3.0 * (1.0 - t) * t * t * c + t * t * t * d;
 seg_bez(t,t0,d,a,b,c,e) = bez(clip01((t - t0) / max(0.0001, d)), a, b, c, e);
 smooth01(x) = clip01(x) * clip01(x) * (3.0 - 2.0 * clip01(x));
+smoo_from(pole, x) = loop ~ _ with { loop(prev) = select2(1 - 1', prev + (x - prev) * (1.0 - pole), x); };
+smoo_init(x) = smoo_from(1.0 - 44.1 / ma.SR, x);
 seg_smooth(t,t0,d,a,b) = a + (b - a) * smooth01((t - t0) / max(0.0001, d));
 seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));
 seg_curve(c,t,t0,d,a,b) = select2(c < 0.5, seg_exp(t,t0,d,a,b), seg(t,t0,d,a,b));

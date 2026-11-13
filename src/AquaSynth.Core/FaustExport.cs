@@ -47,8 +47,12 @@ public static partial class FaustEmitter
         source.AppendLine("smooth01(x) = clip01(x) * clip01(x) * (3.0 - 2.0 * clip01(x));");
         // si.smoo starts every control at 0 and climbs to it: a word began with the tract shut, the vowel weights at 0 and the source off,
         // and the first ~100 ms of every render were that climb (the level rose 40 dB over the first 100 ms of an isolated vowel, and
-        // the bandwidths fell from ~300 Hz to 90). This smoother starts at its input and smooths from there.
-        source.AppendLine("smoo_init(x) = loop ~ _ with { pole = ba.tau2pole(0.005); loop(prev) = select2(1 - 1', prev * pole + x * (1.0 - pole), x); };");
+        // the bandwidths fell from ~300 Hz to 90). smoo_from starts at its input and smooths from there. smoo_init is si.smoo's own
+        // pole (1 - 44.1 / SR, a 22.7 ms time constant), so live control moves exactly as fast as before; only the start differs.
+        // The step is written prev + (x - prev) * (1 - pole), not prev * pole + x * (1 - pole): a control that never moves then
+        // stays at its input to the bit, where the other form rounds away from it by up to ~4e-5.
+        source.AppendLine("smoo_from(pole, x) = loop ~ _ with { loop(prev) = select2(1 - 1', prev + (x - prev) * (1.0 - pole), x); };");
+        source.AppendLine("smoo_init(x) = smoo_from(1.0 - 44.1 / ma.SR, x);");
         source.AppendLine("seg_smooth(t,t0,d,a,b) = a + (b - a) * smooth01((t - t0) / max(0.0001, d));");
         source.AppendLine("seg_exp(t,t0,d,a,b) = exp(log(max(0.00001, a)) + (log(max(0.00001, b)) - log(max(0.00001, a))) * clip01((t - t0) / max(0.0001, d)));");
         source.AppendLine("seg_curve(c,t,t0,d,a,b) = select2(c < 0.5, seg_exp(t,t0,d,a,b), seg(t,t0,d,a,b));");
@@ -743,7 +747,9 @@ public static partial class FaustEmitter
         var impedance = parameters.Expression(OwnerField(owner, "impedance"), port.Impedance);
         var flowScale = parameters.Expression(OwnerField(owner, "flow_scale"), port.FlowScale);
         // f0 is the voice frequency times the source's ratio (the stress cue), smoothed over 10 ms so a step in the ratio is a glide.
-        var pitchRatio = $"({parameters.Expression(OwnerField(owner, "pitch_ratio"), port.PitchRatio)} : si.smooth(ba.tau2pole(0.01)))";
+        // Its own 10 ms smoother also starts at its input: from 0 it glided the source's pitch up from nothing at the start of every word
+        // (the control feeding it used to hide that under its own 100 ms climb) and rounded to a value up to ~4e-5 off its input.
+        var pitchRatio = $"smoo_from(ba.tau2pole(0.01), {parameters.Expression(OwnerField(owner, "pitch_ratio"), port.PitchRatio)})";
         var load = $"{voiceName}_primitive_source_{safe}_load_pressure";
         var voiced = $"{voiceName}_primitive_source_{safe}_voiced";
         var flow = $"{voiceName}_primitive_source_{safe}_flow";
