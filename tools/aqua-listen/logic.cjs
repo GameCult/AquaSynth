@@ -100,4 +100,43 @@ function verdictMarkdown(v) {
   return L.join("\n") + "\n";
 }
 
-module.exports = { SCHEMA, VERDICTS, DEVICES, AUDIO_EXT, validateManifest, planOrder, buildVerdict, verdictMarkdown, rng };
+// Autosave. The key names the kit by its id and its clip-id set, not by the content hash: a rebuild that fixes a note or
+// re-renders a clip is the same kit and keeps the listener's answers; a different clip-id set is a different kit and starts
+// fresh (the old entry is left untouched in the browser). Saved state is answers by clip id and pairs by "idA|idB", plus the
+// seed; the A/B/same value of a pair is positional (A is the first of the pair in the seed's order), so it stays meaningful
+// only while the manifest's clip order is unchanged.
+const SAVE_PREFIX = "aqua-listen.v2:";
+function saveKey(manifest) { return `${SAVE_PREFIX}${manifest.kit.id}:${manifest.clips.map((c) => c.id).sort().join(",")}`; }
+
+// Earlier pages keyed the save by `aqua-listen:<kitid>:<8-hex content hash>`. Given every localStorage entry as
+// [{key, state}] (state already parsed, null if unparseable), returns the key of the legacy entry to adopt, or null:
+// same kit id, a seed, and answers/pairs that mention only clip ids of this kit. Fullest entry wins (most answered fields);
+// ties go to the later key so the choice is deterministic.
+function pickLegacySave(manifest, entries) {
+  const ids = new Set(manifest.clips.map((c) => c.id)), prefix = `aqua-listen:${manifest.kit.id}:`;
+  let best = null, bestScore = -1;
+  for (const { key, state } of entries) {
+    if (typeof key !== "string" || !key.startsWith(prefix) || !/^[0-9a-f]{8}$/.test(key.slice(prefix.length))) continue;
+    if (!state || typeof state !== "object" || !state.seed || typeof state.answers !== "object" || !state.answers) continue;
+    const pairs = state.pairs && typeof state.pairs === "object" ? state.pairs : {};
+    if (!Object.keys(state.answers).every((id) => ids.has(id))) continue;
+    if (!Object.keys(pairs).every((k) => k.split("|").every((id) => ids.has(id)))) continue;
+    const score = Object.values(state.answers).reduce((n, a) => n + (a ? ["verdict", "landed", "reason"].filter((f) => a[f]).length : 0), 0) + Object.keys(pairs).length;
+    if (score > bestScore || (score === bestScore && key > best)) { best = key; bestScore = score; }
+  }
+  return best;
+}
+
+// A save as stored -> the state the page runs on, or null. Normalises answers/pairs to plain objects (a hand-edited or old save
+// must not crash the page). pairSig records the manifest's clip order the pair picks were made under; a pick's A/B/same is
+// relative to that order, so a save with a missing or different pairSig keeps seed and answers and loses its pairs. A legacy
+// (hash-keyed) save has no pairSig and cannot be checked: its pairs are kept and stamped with the current signature.
+const pairSig = (manifest) => manifest.clips.map((c) => c.id).join(",");
+const plain = (o) => (o && typeof o === "object" && !Array.isArray(o) ? o : {});
+function restoreSave(manifest, saved, legacy) {
+  if (!saved || typeof saved !== "object" || !saved.seed) return null;
+  const sig = pairSig(manifest), keep = legacy || saved.pairSig === sig;
+  return Object.assign({}, saved, { answers: plain(saved.answers), pairs: keep ? plain(saved.pairs) : {}, pairSig: sig });
+}
+
+module.exports = { SCHEMA, VERDICTS, DEVICES, AUDIO_EXT, validateManifest, planOrder, buildVerdict, verdictMarkdown, rng, saveKey, pickLegacySave, pairSig, restoreSave };

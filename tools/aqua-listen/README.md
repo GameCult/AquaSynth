@@ -18,13 +18,13 @@ A listening-test kit: a folder of sound clips and a manifest become **one HTML f
 7. Your answers save themselves in your browser as you go. You can close the tab and come back to the same file later.
 8. When done, press **Export my answers**. Your answers appear in a text box. Press **Copy answers (JSON)** and paste them into a message to whoever gave you the page (or press **Share**, or **Select all** and use your phone's Copy). **Download verdict.json** and **Download verdict.md** are separate buttons, one file per tap, for browsers that allow downloads. Nothing leaves your computer except what you copy, share or download.
 
-Privacy: the page has no network access at all (the browser is told to refuse it), no account, no tracking. "Erase my answers" at the bottom wipes what the page saved.
+Privacy: the page has no network access at all (the browser is told to refuse it), no account, no tracking. "Erase this kit's saved answers" at the bottom removes what this page saved in this browser for this kit, including an older saved copy of it that the page would otherwise adopt; other pages are not touched.
 
 ## For the person building a kit
 
 ```
 node build.mjs --manifest kit.json --clips ./clips --out ./dist     # writes dist/listen.html
-node test.mjs                                                        # 17 checks, no dependencies, no browser
+node test.mjs                                                        # 23 checks, no dependencies, no browser
 node smoke.mjs dist/listen.html                                      # optional browser smoke, see below
 ```
 
@@ -42,7 +42,8 @@ node smoke.mjs dist/listen.html                                      # optional 
 - Title, id and group are hidden from the listener and appear only in the export. The intended feel is shown, since "did it land" needs it.
 - Order is shuffled from a random seed kept with the listener's answers (it is in the export). A pair is shuffled as one unit, with A/B position shuffled inside it.
 - Audio is embedded as-is (base64), so the page is about 1.4x the clip bytes. The build warns over 100 MB.
-- Autosave key is the kit id plus a hash of the manifest and clip bytes: a rebuilt kit with changed clips starts fresh instead of mixing answers.
+- Autosave key is the kit id plus the sorted clip ids (`aqua-listen.v2:<kit id>:<ids>`), not the content hash: a rebuilt page (edited note, re-rendered clip) keeps the listener's answers, and a kit with a different clip-id set starts fresh while the old entry stays in the browser. Saved state is the shuffle seed, answers by clip id and pair choices by `idA|idB`; a pair's A/B/same value is positional (A is the first of the pair in the seed's order), so it holds only while the manifest's clip order is unchanged. When the new key is empty, the page adopts the fullest earlier `aqua-listen:<kit id>:<hash>` save whose answers name only this kit's clips; a save already under the new key is never overwritten. The save also records `pairSig`, the manifest's clip ids in manifest order: on load, a save whose `pairSig` is missing or different keeps its seed and answers and drops its pair picks, so reordering or re-pairing clips never reassigns a pick (an adopted hash-keyed save has no signature and cannot be checked, so its pairs are kept and stamped with the current one). A save missing `pairs`, or with `answers` that is not an object, is normalised to empty rather than crashing the page. "Erase this kit's saved answers" removes the new key and any adoptable hash-keyed save of this kit.
+- Known limits: a clip re-rendered under the same id inherits the verdict given to its earlier version, because answers are keyed by id. A stale cached copy of an old page keeps writing to its old hash key, which the new page does not read after it has adopted its copy.
 
 ### Export
 
@@ -52,7 +53,7 @@ The blank verdict files this was meant to match were not found under `/opt/commo
 
 ### Browser smoke
 
-`PLAYWRIGHT_CORE=/path/to/playwright-core CHROME=/path/to/chrome node smoke.mjs dist/listen.html` ticks through consent, answers a clip, reloads, exports, and fails on any network request or page error. It is not in `node test.mjs` because the repo carries no browser dependency.
+`PLAYWRIGHT_CORE=/path/to/playwright-core CHROME=/path/to/chrome node smoke.mjs dist/listen.html` ticks through consent, answers a clip, reloads, exports, then serves the page over a local http server, rebuilds it with a different content hash and checks that answers survive, that a hash-keyed save is adopted, and that erase leaves nothing to resurrect; it fails on any network request or page error. It is not in `node test.mjs` because the repo carries no browser dependency.
 
 ### Kits in the repo
 
