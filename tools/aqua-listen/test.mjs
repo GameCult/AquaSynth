@@ -117,4 +117,34 @@ test("markup in a title cannot break the page", () => {
   const h = buildKit(m, dir).html;
   assert.equal((h.match(/<\/script>/g) || []).length, 3);
 });
+const st = (answers, pairs = {}) => ({ seed: 7, answers, pairs, consent: true });
+test("autosave key is stable across a content-hash change and moves with the clip-id set", () => {
+  const m = mf([clip("b"), clip("a")]);
+  assert.equal(L.saveKey(m), L.saveKey(mf([clip("a"), clip("b", { title: "reworded", feel: "other" })])), "title/feel edits and clip order do not move the key");
+  assert.notEqual(L.saveKey(m), L.saveKey(mf([clip("a"), clip("b"), clip("c")])));
+  assert.notEqual(L.saveKey(m), L.saveKey(mf([clip("a"), clip("z")])));
+  assert.notEqual(L.saveKey(m), L.saveKey({ kit: { id: "k2", title: "Kit" }, clips: m.clips }));
+  assert.ok(!/^aqua-listen:/.test(L.saveKey(m)), "new keys are never mistaken for hash-keyed legacy entries");
+  const dir2 = mkdtempSync(join(tmpdir(), "aqlk-")); writeFileSync(join(dir2, "a.wav"), Buffer.alloc(50)); writeFileSync(join(dir2, "b.wav"), Buffer.alloc(50));
+  const b1 = buildKit(m, dir2); writeFileSync(join(dir2, "b.wav"), Buffer.alloc(51)); const b2 = buildKit(m, dir2);
+  assert.notEqual(b1.hash, b2.hash);
+  assert.ok(b1.html.includes("saveKey") && !b1.html.includes("${kit.hash}"), "the built page keys on saveKey, not the hash");
+});
+test("legacy migration adopts the hash-keyed entry of the same kit", () => {
+  const m = mf([clip("a"), clip("b")]);
+  const old = { key: "aqua-listen:k1:93312816", state: st({ a: { verdict: "keep", landed: 3 } }) };
+  assert.equal(L.pickLegacySave(m, [{ key: "unrelated", state: null }, old]), old.key);
+  const fuller = { key: "aqua-listen:k1:00000001", state: st({ a: { verdict: "keep", landed: 3, reason: "x" }, b: { verdict: "fix" } }) };
+  assert.equal(L.pickLegacySave(m, [old, fuller]), fuller.key, "the fuller entry wins");
+});
+test("legacy migration ignores other kits, foreign clip ids, malformed keys and empty state", () => {
+  const m = mf([clip("a"), clip("b")]), ans = { a: { verdict: "keep" } };
+  for (const e of [
+    { key: "aqua-listen:k2:93312816", state: st(ans) },                         // another kit
+    { key: "aqua-listen:k1:93312816", state: st({ zz: { verdict: "keep" } }) },  // foreign clip id in answers
+    { key: "aqua-listen:k1:93312816", state: st(ans, { "a|zz": "A" }) },          // foreign clip id in pairs
+    { key: "aqua-listen:k1:nothex", state: st(ans) }, { key: "aqua-listen:k1:93312816:x", state: st(ans) },
+    { key: "aqua-listen:k1:93312816", state: null }, { key: "aqua-listen:k1:93312816", state: { answers: ans } }])
+    assert.equal(L.pickLegacySave(m, [e]), null, JSON.stringify(e.key) + JSON.stringify(e.state));
+});
 console.log(`${n} tests passed`);

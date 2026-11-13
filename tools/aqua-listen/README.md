@@ -42,7 +42,7 @@ node smoke.mjs dist/listen.html                                      # optional 
 - Title, id and group are hidden from the listener and appear only in the export. The intended feel is shown, since "did it land" needs it.
 - Order is shuffled from a random seed kept with the listener's answers (it is in the export). A pair is shuffled as one unit, with A/B position shuffled inside it.
 - Audio is embedded as-is (base64), so the page is about 1.4x the clip bytes. The build warns over 100 MB.
-- Autosave key is the kit id plus a hash of the manifest and clip bytes: a rebuilt kit with changed clips starts fresh instead of mixing answers.
+- Autosave key is the kit id plus the sorted clip ids (`aqua-listen.v2:<kit id>:<ids>`), not the content hash: a rebuilt page (edited note, re-rendered clip) keeps the listener's answers, and a kit with a different clip-id set starts fresh while the old entry stays in the browser. Saved state is the shuffle seed, answers by clip id and pair choices by `idA|idB`; a pair's A/B/same value is positional (A is the first of the pair in the seed's order), so it holds only while the manifest's clip order is unchanged. When the new key is empty, the page adopts the fullest earlier `aqua-listen:<kit id>:<hash>` save whose answers name only this kit's clips; a save already under the new key is never overwritten. "Erase my answers" removes the new key and any adoptable hash-keyed save.
 
 ### Export
 
@@ -52,7 +52,7 @@ The blank verdict files this was meant to match were not found under `/opt/commo
 
 ### Browser smoke
 
-`PLAYWRIGHT_CORE=/path/to/playwright-core CHROME=/path/to/chrome node smoke.mjs dist/listen.html` ticks through consent, answers a clip, reloads, exports, and fails on any network request or page error. It is not in `node test.mjs` because the repo carries no browser dependency.
+`PLAYWRIGHT_CORE=/path/to/playwright-core CHROME=/path/to/chrome node smoke.mjs dist/listen.html` ticks through consent, answers a clip, reloads, exports, then serves the page over a local http server, rebuilds it with a different content hash and checks that answers survive, that a hash-keyed save is adopted, and that erase leaves nothing to resurrect; it fails on any network request or page error. It is not in `node test.mjs` because the repo carries no browser dependency.
 
 ### Kits in the repo
 

@@ -1,11 +1,18 @@
 // Page glue. The kit (manifest, content hash, base64 audio, optional base64 PNGs per clip id) is in #kit-data; logic is AquaListen (logic.cjs, inlined).
 (() => {
   const L = globalThis.AquaListen, kit = JSON.parse(document.getElementById("kit-data").textContent);
-  const app = document.getElementById("app"), KEY = `aqua-listen:${kit.manifest.kit.id}:${kit.hash}`;
+  const app = document.getElementById("app"), KEY = L.saveKey(kit.manifest);
   let state = null, order = null;
 
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* private mode: the export still works */ } };
-  const load = () => { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && s.seed ? s : null; } catch (e) { return null; } };
+  const read = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+  const valid = (s) => (s && s.seed ? s : null);
+  const legacyEntries = () => { const e = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); e.push({ key: k, state: read(k) }); } return e; };
+  // Own key first; if empty, adopt a hash-keyed save from an earlier build of this kit (L.pickLegacySave) and keep using the new key.
+  const load = () => {
+    const own = valid(read(KEY)); if (own) return own;
+    try { const from = L.pickLegacySave(kit.manifest, legacyEntries()); return from ? valid(read(from)) : null; } catch (e) { return null; }
+  };
   const h = (tag, attrs, ...kids) => {
     const e = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs || {})) { if (k === "class") e.className = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v); }
@@ -122,7 +129,7 @@
     panel.replaceChildren(h("h3", {}, "Your answers"), msg, area, h("div", { class: "row" }, buttons));
     area.focus(); area.select(); panel.scrollIntoView();
   }
-  function reset() { if (confirm("Erase every answer you've given in this browser?")) { try { localStorage.removeItem(KEY); } catch (e) {} location.reload(); } }
+  function reset() { if (confirm("Erase every answer you've given in this browser?")) { try { localStorage.removeItem(KEY); for (let k; (k = L.pickLegacySave(kit.manifest, legacyEntries())); ) localStorage.removeItem(k); } catch (e) {} location.reload(); } }
 
   if (load() && load().consent) start(); else consent();
 })();
