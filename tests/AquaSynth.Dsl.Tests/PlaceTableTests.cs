@@ -19,7 +19,7 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
             .Single(s => s.Name.StartsWith($"{name}_constriction_index", StringComparison.Ordinal) && s.SurfacePath == "/vocal/areas/0/area/constriction_index").Points[^1].Value;   // the held place; a boundary ramp may precede it
 
     // Re-pinned on the phone-transition cut (boundary ramps, 12 ms stop release, smoo_init, vocal attack): these ids moved on purpose; the invariant
-    // that survives is that a word of labials writes no position surface (below), not these bytes. Pre-cut values on af0e44f: the vowel_set constriction_index spline value of /b/ and /n/ (and the hash of the whole script and of the
+    // that survives is that a word of labials writes no position surface (below), not these bytes. Faust ids re-pinned again on the PR 52 fix pass (smoo_init pole and step, pitch-ratio smoother, shut lips for stops, spline handles; the scripts are unchanged). Pre-cut values on af0e44f: the vowel_set constriction_index spline value of /b/ and /n/ (and the hash of the whole script and of the
     // Faust source for /apa/ and /aba/, which this cut must not change by a byte; the ids are a SHA-256 prefix).
     private const float BIndex = 0.8333333f, NIndex = 0.7118056f;
 
@@ -29,7 +29,7 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
         var b = ConstrictionIndex(Word("b"), "w_1_c");
         var n = ConstrictionIndex(Word("n"), "w_1_c");
         output.WriteLine($"b {b:R} n {n:R}");
-        foreach (var (ipa, scriptSha, faustSha) in new[] { ("p", "0E86DB0F40C0F12A", "7FDFCB446676787E"), ("b", "A63403EBAAD016FB", "574AC2CE7AD191FC") })
+        foreach (var (ipa, scriptSha, faustSha) in new[] { ("p", "0E86DB0F40C0F12A", "784DFE4F27E0C6FA"), ("b", "A63403EBAAD016FB", "A9CF3BE4FC70CEBC") })
         {
             var script = Word(ipa);
             var faust = FaustEmitter.Emit(PatchScript.Parse(script), new FaustExportOptions("pin", SampleRate: 48000)).Source;
@@ -48,8 +48,8 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
     {
         foreach (var (ipa, scriptSha, faustSha) in new[]
         {
-            ("p", "0E86DB0F40C0F12A", "7FDFCB446676787E"), ("b", "A63403EBAAD016FB", "574AC2CE7AD191FC"),
-            ("n", "5C3FA24E40D9DE26", "AD4C6E3371E089CF"), ("t", "45941CCFD93561B3", "3FF82CED153C1543"),
+            ("p", "0E86DB0F40C0F12A", "784DFE4F27E0C6FA"), ("b", "A63403EBAAD016FB", "A9CF3BE4FC70CEBC"),
+            ("n", "5C3FA24E40D9DE26", "45D129AFFDE320EC"), ("t", "45941CCFD93561B3", "95FABFEA9E608DC9"),
         })
         {
             var script = Word(ipa);
