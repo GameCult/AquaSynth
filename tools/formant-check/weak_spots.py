@@ -59,6 +59,10 @@ def stress(root):
     out["nibu_i_150_250ms_db"] = db(rms(xb, sr, .15, .25), rms(xa, sr, .15, .25))
     return out
 
+def release_at(c0, c1):
+    """Where a stop's articulators begin to open: StopReleaseStartSeconds in PatchScript.cs (the end less min(12 ms, 0.3 of the gesture))."""
+    return c1 - min(0.012, 0.3 * (c1 - c0))
+
 def burst(root, name, c0, c1, sub="out"):
     """c0..c1: the b gesture's start and end in seconds; v1: the vowel's steady part after it."""
     x, sr = load(root, sub, name); nb, _ = load(root, "outnb", name)
@@ -70,11 +74,12 @@ def burst(root, name, c0, c1, sub="out"):
     below = [k for k in range(int(tpk * 500), len(env)) if env[k] < pk * .1]
     decay_ms = round((below[0] / 500 - tpk) * 1000, 0) if below else None
     last = x[int((c1 + .06) * sr):]
-    return {"closure_peak": round(peak(x, sr, c0, c0 + .6 * (c1 - c0)), 4), "release_peak_full": round(peak(x, sr, c0 + .6 * (c1 - c0), c1 + .005), 4),
+    rel = release_at(c0, c1)
+    return {"closure_peak": round(peak(x, sr, c0, rel), 4), "release_peak_full": round(peak(x, sr, rel, c1 + .005), 4),
             "burst_peak": round(pk, 4), "burst_peak_ms": round(tpk * 1000), "burst_to_tenth_ms": decay_ms, "vowel_peak": round(vp, 4),
-            "burst_re_vowel_db": db(pk, vp), "release_peak_re_vowel_db": db(peak(x, sr, c0 + .6 * (c1 - c0), c1 + .005), vp),
+            "burst_re_vowel_db": db(pk, vp), "release_peak_re_vowel_db": db(peak(x, sr, rel, c1 + .005), vp),
             "burst_rms_in_30ms_after_peak_re_vowel_rms_db": db(rms(d, sr, tpk, tpk + .03), rms(x, sr, c1 + .06, c1 + .17)),
-            "burst_peak_from_120ms_after_release_to_end": round(peak(d, sr, c1 + .12, n / sr), 4), "burst_diff_samples_nonzero_before_closure_end": int(np.count_nonzero(np.abs(d[:int((c0 + .6 * (c1 - c0)) * sr)]) > 1e-9)),
+            "burst_peak_from_120ms_after_release_to_end": round(peak(d, sr, c1 + .12, n / sr), 4), "burst_diff_samples_nonzero_before_closure_end": int(np.count_nonzero(np.abs(d[:int(rel * sr)]) > 1e-9)),
             "file_end_rms_last_100ms": round(rms(x, sr, len(x) / sr - .1, len(x) / sr), 5), "vowel_rms": round(rms(x, sr, c1 + .06, c1 + .17), 4)}
 
 BURST_BANDS = ((0, 1000), (1000, 2000), (2000, 3500), (3500, 7000), (7000, 24000))

@@ -24,6 +24,11 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         using (patch) return patch!.Render(seconds);
     }
 
+    // The stop's release time and the start of its closure (every articulator at its shut value, after the boundary ramp into it), both from the
+    // one owner in PatchScript rather than as fractions of the gesture; the consonant is [from, to).
+    private static double ReleaseAt(double from, double to) => from + PatchScript.StopReleaseStartSeconds((float)(to - from));
+    private static double ClosureFrom(double from) => from + PatchScript.PhoneTransitionSeconds;
+
     private static double Rms(float[] x, double from, double to)
     {
         var a = (int)(from * Rate);
@@ -95,7 +100,8 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         var withoutBurst = Render(script, 0.4f, p => p with { ControlSplines = p.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() });
         // Everything but the burst's noise is deterministic and shared, so the difference of the two renders is the burst alone.
         var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
-        const double releaseFrom = 0.095 * 0.65, vowelFrom = 0.095;
+        const double vowelFrom = 0.095;
+        var releaseFrom = ReleaseAt(0, vowelFrom);
         var vowelPeak = Peak(withBurst, vowelFrom + 0.06, vowelFrom + 0.18);
         var burstPeak = Peak(burst, releaseFrom, vowelFrom + 0.01);
         var burstBeforeRelease = Peak(burst, 0, releaseFrom - 0.005);
@@ -121,7 +127,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         var withoutBurst = Render(script, 0.77f, p => p with { ControlSplines = p.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() });
         var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
         const double bFrom = 0.275, bTo = 0.37;
-        var atRelease = Peak(burst, bFrom + 0.095 * 0.6, bTo + 0.02);
+        var atRelease = Peak(burst, ReleaseAt(bFrom, bTo) - 0.003, bTo + 0.02);
         var leading = Peak(burst, 0, bFrom);
         var trailing = Peak(burst, bTo + 0.12, 0.77);
         output.WriteLine($"burst peak {atRelease:F4} at the release, {leading:F4} before the plosive (n, a), {trailing:F4} after it (a, n, tail)");
@@ -130,17 +136,64 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         Assert.True(trailing < atRelease / 10, "no burst noise in the vowel, the nasal and the tail after the plosive");
     }
 
-    // The burst gain's window, read off the spline itself: it opens one ramp (0.15 of the gesture) before the plosive and has closed one ramp after it.
-    // The rendered test above survived three mutants of the window (ramp 0, ramp 1.0 of the gesture, end moved to 3 ramps), so the bound is pinned here.
+    // The burst gain's window, read off the spline itself: it exists only from the stop's release start, one ramp (0.15 of the release window)
+    // before it and one after the stop's end. A gain held through the closure made the closing ramp a hiss (ClosingIntoAStopMakesNoHighFrequencyNoise).
     [Fact]
-    public void PlosiveBurstGainWindowIsOneRampEitherSide()
+    public void PlosiveBurstGainWindowIsOneRampEitherSideOfTheRelease()
     {
         IpaGestureExperimentTarget Phone(string label, string ipa, float seconds) => new($"w_{label}", ipa, "", seconds);
         var script = IpaGestureExperiment.BuildWordScript(
             [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone("2_b", "b", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_n", "n", 0.095f), 1f)], 140);
         var window = PatchScript.Parse(script).ControlSplines.Single(s => s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal) && s.Points.Any(p => p.Value > 0));
-        const double start = 0.275, duration = 0.095, ramp = 0.15 * duration;
-        Assert.Equal((start - ramp, start + duration + ramp), (window.Points.Min(p => (double)p.TimeSeconds), window.Points.Max(p => (double)p.TimeSeconds)), new TupleTolerance(1e-4));
+        const double start = 0.275, duration = 0.095;
+        var release = start + PatchScript.StopReleaseStartSeconds((float)duration);
+        var ramp = 0.15 * (start + duration - release);
+        Assert.Equal((release - ramp, start + duration + ramp), (window.Points.Min(p => (double)p.TimeSeconds), window.Points.Max(p => (double)p.TimeSeconds)), new TupleTolerance(1e-4));
+    }
+
+    // The contact opening, the tongue's constriction and the lips all leave their shut value at the instant the burst gain window opens: one
+    // owner, StopReleaseStartSeconds. Read off the splines, so a stale constant in one of them (the contact opening 20 ms early while the
+    // burst keeps the owner's time) fails here and not only through a closure level that happens to cross a bound.
+    [Theory]
+    [InlineData("b", "w_2_b")]
+    [InlineData("t", "w_2_t")]
+    [InlineData("k", "w_2_k")]
+    public void AStopsArticulatorsOpenWhereItsBurstGainWindowOpens(string ipa, string name)
+    {
+        IpaGestureExperimentTarget Phone(string label, string symbol, float seconds) => new($"w_{label}", symbol, "", seconds);
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(Phone("0_n", "n", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (Phone($"2_{ipa}", ipa, 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f)], 140);
+        var splines = PatchScript.Parse(script).ControlSplines;
+        const double start = 0.275, duration = 0.095;
+        var release = start + PatchScript.StopReleaseStartSeconds((float)duration);
+        var gain = splines.Single(s => s.Name.StartsWith(name, StringComparison.Ordinal) && s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal));
+        var ramp = 0.15 * (start + duration - release);
+        Assert.Equal(release - ramp, gain.Points.Min(p => (double)p.TimeSeconds), 1e-4);
+        var paths = ipa == "b"
+            ? new[] { "/vocal/contacts/0/opening", "/vocal/areas/0/area/constriction_diameter", "/vocal/areas/0/area/lip_opening", "/vocal/radiation/0/aperture" }
+            : ["/vocal/contacts/0/opening", "/vocal/areas/0/area/constriction_diameter"];
+        foreach (var path in paths)
+        {
+            var spline = splines.Single(s => s.Name.StartsWith(name, StringComparison.Ordinal) && s.SurfacePath == path);
+            Assert.Equal(release, spline.Points.Where(p => p.TimeSeconds < start + duration - 1e-6).Max(p => (double)p.TimeSeconds), 1e-4);
+        }
+    }
+
+    // The nasal keeps its murmur's small lip opening where a stop shuts the lips (0.04 cm against 0): the shut-lip term is the stop's only.
+    // Extending it to nasals moves /m/'s first nasal formant by 30 Hz and its murmur level by 0.4 dB and no render test notices, so the
+    // value is read off the splines.
+    [Theory]
+    [InlineData("m", 0.04f)]
+    [InlineData("b", 0f)]
+    public void OnlyAStopShutsTheLipsCompletely(string ipa, float shut)
+    {
+        var script = IpaGestureExperiment.BuildWordScript(
+            [(new IpaGestureExperimentTarget("w_0_a", "a", "", 0.18f), 1f), (new IpaGestureExperimentTarget("w_1_c", ipa, "", 0.095f), 1f), (new IpaGestureExperimentTarget("w_2_a", "a", "", 0.18f), 1f)], 140);
+        foreach (var path in new[] { "/vocal/areas/0/area/lip_opening", "/vocal/radiation/0/aperture" })
+        {
+            var spline = PatchScript.Parse(script).ControlSplines.Single(s => s.Name.StartsWith("w_1_c", StringComparison.Ordinal) && s.SurfacePath == path);
+            Assert.Equal(shut, spline.Points.Min(p => p.Value), 1e-4);
+        }
     }
 
     // /ɑ C ɑ/ at the scaffold's own durations (vowel 0.18 s, consonant 0.095 s). Returns the render and the consonant's [start, end).
@@ -241,7 +294,8 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     private static SynthPatch WithoutBurst(SynthPatch p) =>
         p with { ControlSplines = p.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() };
 
-    // The closure of a stop is the part before its contact opens (0.65 of the gesture), 0.2 of the gesture in from its start, without the burst.
+    // The closure of a stop is the part after the boundary ramp into it and before its release, without the burst (the ramp is the tract still
+    // shutting on the vowel's decaying voicing; its noise is measured by ClosingIntoAStopMakesNoHighFrequencyNoise).
     // A tongue closure at the nasal's 0.03 cm aperture leaked: /t/ read -14.3 dB re the flanking vowels against /p/ -22.1 (the lips seal /p/);
     // completely closed it reads -24.3.
     [Fact]
@@ -252,7 +306,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
             var (x, from, to) = VowelConsonantVowel(ipa, descriptor: descriptor, edit: WithoutBurst);
             if (x is null) return double.NaN;
             var vowels = Math.Sqrt((Math.Pow(Rms(x, from - 0.08, from - 0.01), 2) + Math.Pow(Rms(x, to + 0.03, to + 0.12), 2)) / 2);
-            return 20 * Math.Log10(Rms(x, from + 0.2 * (to - from), from + 0.65 * (to - from)) / vowels);
+            return 20 * Math.Log10(Rms(x, ClosureFrom(from), ReleaseAt(from, to)) / vowels);
         }
 
         var p = Closure("p", "voiceless_bilabial_plosive");
@@ -269,7 +323,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         var (nb, _, _) = VowelConsonantVowel("t", descriptor: "voiceless_alveolar_plosive", edit: WithoutBurst);
         if (x is null || nb is null) return;
         var burst = x.Zip(nb, (a, b) => a - b).ToArray();
-        var peak = Peak(burst, from + 0.6 * (to - from), to + 0.01);
+        var peak = Peak(burst, ReleaseAt(from, to) - 0.003, to + 0.01);
         var vowel = Peak(x, to + 0.06, to + 0.17);
         output.WriteLine($"/t/ burst peak {peak:F4}, vowel peak {vowel:F4}, ratio {peak / vowel:F2}");
         Assert.True(peak > 0.004, "audible");
@@ -288,7 +342,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         if (withBurst is null || withoutBurst is null) return;
         var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
         const double tFrom = 0.275, tTo = 0.37;
-        var atRelease = Peak(burst, tFrom + 0.095 * 0.6, tTo + 0.02);
+        var atRelease = Peak(burst, ReleaseAt(tFrom, tTo) - 0.003, tTo + 0.02);
         var leading = Peak(burst, 0, tFrom);
         var trailing = Peak(burst, tTo + 0.12, 0.77);
         output.WriteLine($"/t/ burst peak {atRelease:F4} at the release, {leading:F5} before the plosive, {trailing:F5} after it");
@@ -305,7 +359,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         var (x, from, to) = VowelConsonantVowel("t");
         var (nb, _, _) = VowelConsonantVowel("t", edit: WithoutBurst);
         if (x is null || nb is null) return;
-        var start = (int)((from + 0.65 * (to - from)) * Rate);
+        var start = (int)(ReleaseAt(from, to) * Rate);
         const int n = 960;
         var seg = Enumerable.Range(0, n).Select(i => (x[start + i] - nb[start + i]) * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (n - 1)))).ToArray();
         double Power(double hz)
@@ -324,39 +378,44 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
     }
 
     // /k/ over the /t/ tests: its own place (the velar distance in the place table), closure sealed by the tongue, burst under half the vowel.
-    // The spec asks /k/'s closure to be at or below /p/'s. It is not: with the voiceless source as /p/ and /t/ have it the closure reads
-    // -14.9 dB re the vowels (/p/ -20.4, /t/ -24.9). The tract itself seals: with the glottal source's flow scale held at 0 over the gesture the
-    // same closure reads -22.7 dB, under /p/; with the source on, the 150 Hz voicing is what reaches the output through a closure that leaves
-    // only a short rear cavity (the glottal pressure that the tract wall radiates is higher the smaller that cavity is). Silencing voicing in
-    // voiceless stops would change /p/ and /t/ (pinned byte for byte), so the criterion is reported as unmet (fork), not met by a /k/ special case.
-    // The second assertion is a regression bound on the measured leak, not the criterion.
+    // The spec asks /k/'s closure to be at or below /p/'s. With the voiceless source as /p/ and /t/ have it, it is not, and was not on main
+    // either (-14.9 dB re the vowels, /p/ -20.4): the 150 Hz voicing reaches the output through a closure that leaves only a short rear cavity.
+    // Silencing voicing in voiceless stops would change /p/ and /t/ (pinned byte for byte), so the criterion stays unmet (fork).
+    // The measure is the source-on closure in its settled part (25 ms after the 30 ms closing ramp has finished, to 5 ms before the release),
+    // because the source-off closure cannot see a leak: with the source off nothing drives the tract, and leaks of .02, .05 and .1 of the
+    // diameter scale read -21.1, -21.2 and -21.2 dB over .21 to .263 s against -21.0 sealed, while the source-on closure reads 1.8, 1.8 and
+    // 4.1 dB louder in the settled part. The closure
+    // right after the ramp is no use either: the seal completes at the end of the ramp with the vowel's tail still in the rear cavity (the
+    // source-off /k/ read -21.0 dB over .21 to .263 s with the ramp and -27.5 with the contact and the constriction stepped shut; main's
+    // 30 ms-later window read -25.7), and that decays within the first 25 ms.
+    // The test therefore proves its own measure first (a leak injected into the tongue's closed diameter must read 3 dB louder) and then bounds
+    // the sealed closure (-16.5 measured; a .005, .03 or .035 leak reads -15.1, a .02 leak -14.7).
     [Fact]
-    public void AVelarStopClosureSealsAndItsLeakIsTheGlottalSource()
+    public void AVelarStopClosureSealsAndTheMeasureSeesALeak()
     {
-        static SynthPatch WithoutSource(SynthPatch p) =>
+        static SynthPatch Leaking(SynthPatch p) =>
             WithoutBurst(p) with
             {
                 ControlSplines = WithoutBurst(p).ControlSplines
-                    .Select(s => s.Name.StartsWith("w_1_c_source_level", StringComparison.Ordinal)
-                        ? s with { Points = s.Points.Select(q => q with { Value = 0, OutValue = 0, InValue = 0 }).ToArray() }
+                    .Select(s => s.Name == "w_1_c_constriction_diameter"
+                        ? s with { Points = s.Points.Select(q => q.Value == s.Points.Min(v => v.Value) ? q with { Value = 0.1f, OutValue = 0, InValue = 0 } : q).ToArray() }
                         : s).ToArray()
             };
 
-        double Closure(string ipa, string descriptor, Func<SynthPatch, SynthPatch> edit)
+        double Closure(Func<SynthPatch, SynthPatch> edit)
         {
-            var (x, from, to) = VowelConsonantVowel(ipa, descriptor: descriptor, edit: edit);
+            var (x, from, to) = VowelConsonantVowel("k", descriptor: "voiceless_velar_plosive", edit: edit);
             if (x is null) return double.NaN;
             var vowels = Math.Sqrt((Math.Pow(Rms(x, from - 0.08, from - 0.01), 2) + Math.Pow(Rms(x, to + 0.03, to + 0.12), 2)) / 2);
-            return 20 * Math.Log10(Rms(x, from + 0.2 * (to - from), from + 0.65 * (to - from)) / vowels);
+            return 20 * Math.Log10(Rms(x, ClosureFrom(from) + 0.025, ReleaseAt(from, to) - 0.005) / vowels);
         }
 
-        var p = Closure("p", "voiceless_bilabial_plosive", WithoutBurst);
-        var k = Closure("k", "voiceless_velar_plosive", WithoutBurst);
-        var kSilent = Closure("k", "voiceless_velar_plosive", WithoutSource);
-        output.WriteLine($"closure re vowels: /p/ {p:F1} dB, /k/ {k:F1} dB, /k/ with the glottal source off {kSilent:F1} dB");
-        if (double.IsNaN(p)) return;
-        Assert.True(kSilent <= p, $"the /k/ closure seals: without the glottal source it is {kSilent:F1} dB, at or under /p/ ({p:F1} dB)");
-        Assert.True(k <= -12, $"the /k/ closure with the source is {k:F1} dB (regression bound; the criterion, at or under /p/ {p:F1} dB, is not met)");
+        var sealedClosure = Closure(WithoutBurst);
+        var leaking = Closure(Leaking);
+        output.WriteLine($"/k/ closure re vowels, source on, settled part: sealed {sealedClosure:F1} dB, with a 0.1 leak {leaking:F1} dB");
+        if (double.IsNaN(sealedClosure)) return;
+        Assert.True(leaking >= sealedClosure + 3, $"the measure sees a leak: sealed {sealedClosure:F1} dB, leaking {leaking:F1} dB");
+        Assert.True(sealedClosure <= -15.5, $"the /k/ closure seals: {sealedClosure:F1} dB re the vowels (measured -16.5; leaks of .005 to .1 read -15.1 to -12.4, the measure is not monotonic in the leak, so the bound sits under the weakest of them)");
     }
 
     [Fact]
@@ -366,7 +425,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         var (nb, _, _) = VowelConsonantVowel("k", descriptor: "voiceless_velar_plosive", edit: WithoutBurst);
         if (x is null || nb is null) return;
         var burst = x.Zip(nb, (a, b) => a - b).ToArray();
-        var peak = Peak(burst, from + 0.6 * (to - from), to + 0.01);
+        var peak = Peak(burst, ReleaseAt(from, to) - 0.003, to + 0.01);
         var vowel = Peak(x, to + 0.06, to + 0.17);
         output.WriteLine($"/k/ burst peak {peak:F4}, vowel peak {vowel:F4}, ratio {peak / vowel:F2}");
         Assert.True(peak > 0.004, "audible");
@@ -384,7 +443,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         if (withBurst is null || withoutBurst is null) return;
         var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
         const double kFrom = 0.275, kTo = 0.37;
-        var atRelease = Peak(burst, kFrom + 0.095 * 0.6, kTo + 0.02);
+        var atRelease = Peak(burst, ReleaseAt(kFrom, kTo) - 0.003, kTo + 0.02);
         var leading = Peak(burst, 0, kFrom);
         var trailing = Peak(burst, kTo + 0.12, 0.77);
         output.WriteLine($"/k/ burst peak {atRelease:F4} at the release, {leading:F5} before the plosive, {trailing:F5} after it");
@@ -402,7 +461,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         var (x, from, to) = VowelConsonantVowel(ipa, descriptor: descriptor);
         var (nb, _, _) = VowelConsonantVowel(ipa, descriptor: descriptor, edit: WithoutBurst);
         if (x is null || nb is null) return (double.NaN, double.NaN);
-        var start = (int)((from + 0.65 * (to - from)) * Rate);
+        var start = (int)(ReleaseAt(from, to) * Rate);
         const int n = 960;
         var seg = Enumerable.Range(0, n).Select(i => (x[start + i] - nb[start + i]) * (0.5 - 0.5 * Math.Cos(2 * Math.PI * i / (n - 1)))).ToArray();
         double Power(double hz)
@@ -468,7 +527,7 @@ public sealed class StressAndReleaseRenderTests(ITestOutputHelper output)
         if (withBurst is null || withoutBurst is null) return;
         var burst = withBurst.Zip(withoutBurst, (x, y) => x - y).ToArray();
         const double dFrom = 0.275, dTo = 0.37;
-        var atRelease = Peak(burst, dFrom + 0.095 * 0.6, dTo + 0.02);
+        var atRelease = Peak(burst, ReleaseAt(dFrom, dTo) - 0.003, dTo + 0.02);
         var leading = Peak(burst, 0, dFrom);
         var trailing = Peak(burst, dTo + 0.12, 0.77);
         output.WriteLine($"/d/ burst peak {atRelease:F4} at the release, {leading:F5} before the plosive, {trailing:F5} after it");

@@ -17,6 +17,22 @@ public static class PatchScript
     /// A script that gestures a lateral without declaring it is refused, not approximated.</summary>
     public const string SideStubBranch = "side_stub";
 
+    // Seconds an articulator takes to move from where the previous phone left it to this phone's first value. A tract does not step
+    // between phones: the merged surface curve held the previous value up to the boundary and jumped, and a jump in a ladder cell's
+    // area is a transient the ear hears as a click (nibu: peak 0.40 and 0.49 against a 0.2 vowel, at the 95 and 275 ms boundaries),
+    // and it leaves the consonant without the formant transitions that tell /b/ from a fade-in. A DESIGN VALUE inside the 20-50 ms
+    // of a CV formant transition; no measurement of this tract retrieved.
+    public const float PhoneTransitionSeconds = 0.03f;
+
+    // Seconds a stop takes to open from full closure; its burst lasts about this long. A DESIGN VALUE inside the 5-15 ms of a
+    // stop burst; no measurement of this tract retrieved. The opening's noise is still shaped by the exporter.
+    private const float StopReleaseSeconds = 0.012f;
+
+    /// <summary>Seconds after the start of a stop gesture of the given duration at which its articulators begin to open (the stop is
+    /// shut until then). The one owner of the release time: the contact, lip and constriction splines hold shut to here and the burst
+    /// gain window opens here; a test that wants the release reads it from here.</summary>
+    public static float StopReleaseStartSeconds(float durationSeconds) => durationSeconds - MathF.Min(StopReleaseSeconds, 0.3f * durationSeconds);
+
     public static bool TryIpaDescriptor(string ipa, out string descriptor)
     {
         if (StoryVowelAreas.TryVowelForIpa(ipa, out var vowelDescriptor, out _))
@@ -1494,9 +1510,56 @@ public static class PatchScript
                         duration * 0.25f,
                         Math.Clamp(point.value, 0, 1)))
                 .ToArray();
+            splinePoints = FollowSegments(WithPhoneTransition(surfacePath, start, duration, splinePoints));
             var spline = new ControlSpline(splineName, surfacePath, splinePoints, ControlSplineInterpolation.Bezier);
             _controlSplines.Add(spline);
             _controlSplinesByName[spline.Name] = spline;
+        }
+
+
+
+        // Prepends the boundary ramp: a point at the gesture start holding the value the surface has there, then the gesture's first
+        // point PhoneTransitionSeconds later (at most 0.4 of the gesture, and before its second point). The first phone of a word, and
+        // a surface the earlier phones never touched, keep their value from the start.
+        private ControlSplinePoint[] WithPhoneTransition(string surfacePath, float start, float duration, ControlSplinePoint[] points)
+        {
+            ControlSplinePoint? previous = null;
+            foreach (var spline in _controlSplines)
+            {
+                if (!spline.SurfacePath.Equals(surfacePath, StringComparison.OrdinalIgnoreCase)) continue;
+                foreach (var point in spline.Points)
+                {
+                    if (point.TimeSeconds <= start + 0.000001f && (previous is null || point.TimeSeconds >= previous.TimeSeconds)) previous = point;
+                }
+            }
+
+            if (previous is null || points.Length < 2 || MathF.Abs(previous.Value - points[0].Value) <= 0.0005f) return points;
+            var ramp = MathF.Min(PhoneTransitionSeconds, 0.4f * duration);
+            ramp = MathF.Min(ramp, points[1].TimeSeconds - points[0].TimeSeconds);
+            if (ramp < 0.002f) return points;
+            var handle = ramp / 3;
+            var first = points[0];
+            var lead = new ControlSplinePoint(first.TimeSeconds, previous.Value, handle, previous.Value, handle, previous.Value);
+            var arrival = first with { TimeSeconds = first.TimeSeconds + ramp, InTimeOffsetSeconds = handle, InValue = first.Value };
+            return [lead, arrival, .. points.Skip(1)];
+        }
+
+        // Sets every handle's time to a third of the segment it belongs to. The Faust lowering evaluates a segment's Bezier on the
+        // linear fraction of its time and ignores the handle times; a handle of a third makes the C# timeline (which solves the curve's
+        // time for its parameter) agree with it exactly. A handle longer than the segment (0.25 of the gesture on a 12 ms opening) folds
+        // the C# curve back on itself.
+        private static ControlSplinePoint[] FollowSegments(ControlSplinePoint[] points)
+        {
+            if (points.Length < 2) return points;
+            var shaped = new ControlSplinePoint[points.Length];
+            for (var i = 0; i < points.Length; i++)
+            {
+                var after = (i + 1 < points.Length ? points[i + 1].TimeSeconds - points[i].TimeSeconds : points[i].TimeSeconds - points[i - 1].TimeSeconds) / 3;
+                var before = (i > 0 ? points[i].TimeSeconds - points[i - 1].TimeSeconds : points[1].TimeSeconds - points[0].TimeSeconds) / 3;
+                shaped[i] = points[i] with { InTimeOffsetSeconds = before, OutTimeOffsetSeconds = after };
+            }
+
+            return shaped;
         }
 
         private string UniqueSplineName(string name)
@@ -1561,18 +1624,25 @@ public static class PatchScript
             // closed-mouth sound, and an alveolar closure that began to open at 0.5 let the oral tract radiate again over the last third (/n/ read
             // -3.8 dB under its vowels against /m/ -13.2 dB, whose lips hold to 0.7).
             var stopsBehindTheLips = (tokens.Contains("plosive") || tokens.Contains("stop")) && !(tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial"));
-            // A stop whose seal is the tongue (not the lips) is closed completely and until the contact opens (0.65): at the nasal's 0.03 cm
+            // A stop whose seal is the tongue (not the lips) is closed completely and until the contact opens (StopReleaseStartSeconds): at the nasal's 0.03 cm
             // aperture a /t/ closure measured -10.4 dB re its vowels against /p/ -19.7 (the lips seal /p/ whatever the tongue does), and
             // rendered -21.5 dB with the aperture at 0 (area floor 1e-6 cm^2).
-            var closureHold = tokens.Contains("nasal") || tokens.Contains("lateral") ? 0.8f : stopsBehindTheLips ? 0.65f : 0.5f;
+            // Every stop holds all its articulators shut until StopReleaseSeconds before its end and opens in that time: the burst is the
+            // opening, and an opening spread over a third of the gesture (33 ms of the 95 ms /b/) made the burst a fricative's length
+            // (the phone recogniser heard /v/ before the vowel, Meta heard "fah then bah").
+            var isStop = tokens.Contains("plosive") || tokens.Contains("stop");
+            var stopHold = StopReleaseStartSeconds(duration) / duration;
+            var closureHold = tokens.Contains("nasal") || tokens.Contains("lateral") ? 0.8f : isStop ? stopHold : 0.5f;
             var closed = stopsBehindTheLips ? 0f : constriction;
             AddAuthoredSpline($"{name}_constriction_diameter", "/vocal/areas/0/area/constriction_diameter", start, duration, (0, closed), (closureHold, closed), (1, Math.Min(0.65f, constriction + 0.2f)));
 
             if (tokens.Contains("bilabial") || tokens.Contains("labiodental") || tokens.Contains("labial") || tokens.Contains("rounded"))
             {
-                var lipTarget = tokens.Contains("approximant") ? 0.38f : tokens.Contains("fricative") ? 0.18f : 0.04f;
-                AddAuthoredSpline($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, (0, lipTarget), (0.7f, lipTarget), (1, 0.45f));
-                AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, lipTarget), (0.7f, lipTarget), (1, 0.75f));
+                // A stop's lips are shut, not at a 0.04 leak: at 0.04 the closed-mouth voice bar of /b/ read -19.1 dB re the following vowel (the
+                // test's design value is -34 to -26) and /p/ -30.1 (-60 to -38); shut, -27.7 and -38.8. A nasal keeps its murmur's small opening.
+                var lipTarget = tokens.Contains("approximant") ? 0.38f : tokens.Contains("fricative") ? 0.18f : isStop ? 0f : 0.04f;
+                AddAuthoredSpline($"{name}_lip_area", "/vocal/areas/0/area/lip_opening", start, duration, (0, lipTarget), (isStop ? stopHold : 0.7f, lipTarget), (1, 0.45f));
+                AddAuthoredSpline($"{name}_lip_radiation", "/vocal/radiation/0/aperture", start, duration, (0, lipTarget), (isStop ? stopHold : 0.7f, lipTarget), (1, 0.75f));
             }
 
             if (tokens.Contains("nasal"))
@@ -1582,13 +1652,18 @@ public static class PatchScript
             }
             else if (tokens.Contains("plosive") || tokens.Contains("stop"))
             {
-                AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.02f), (0.65f, 0.02f), (1, 0.9f));
-                AddAuthoredSpline($"{name}_stored_pressure", "/vocal/contacts/0/stored_pressure", start, duration, (0, 0.4f), (0.65f, 0.75f), (1, 0.05f));
+                AddAuthoredSpline($"{name}_contact", "/vocal/contacts/0/opening", start, duration, (0, 0.02f), (stopHold, 0.02f), (1, 0.9f));
+                AddAuthoredSpline($"{name}_stored_pressure", "/vocal/contacts/0/stored_pressure", start, duration, (0, 0.4f), (stopHold, 0.75f), (1, 0.05f));
                 // The release burst is turbulence at the opening constriction: its gain is held for the plosive and the exporter shapes
                 // it by the stored pressure and the opening (see PrimitiveContactExpression). The gain exists only around this plosive:
                 // a surface holds its last value after its last point (and its first before its first), so a gain left at its level
                 // made noise at every later contact state, the final nasal's closure and the tail included.
-                GainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start, duration, stopsBehindTheLips ? TongueStopBurstGain : PlosiveBurstGain);
+                // The exporter's burst is noise times 4 * opening * (1 - opening): it sounds whenever the contact passes between shut and open
+                // in either direction, so a gain held through the closure made the 30 ms closing ramp a 15-20 ms hiss before every stop (the
+                // >4 kHz share of the frames before /t/ was -1 dB against -57 dB with the closure stepped). The gain exists only from the
+                // stop's release start to its end, one ramp (0.15 of that window) either side.
+                var releaseStart = StopReleaseStartSeconds(duration);
+                GainAroundGesture($"{name}_release_flow", "/vocal/contacts/0/release_flow", start + releaseStart, duration - releaseStart, stopsBehindTheLips ? TongueStopBurstGain : PlosiveBurstGain);
                 PlaceBurst(name, tokens, place, start, duration);
                 AddAuthoredSpline($"{name}_velum", "/vocal/branches/0/opening", start, duration, (0, VelumClosed), (1, VelumClosed));
             }
@@ -1670,15 +1745,14 @@ public static class PatchScript
             }
 
             var level = Math.Clamp((gain - surface.MinValue) / (surface.MaxValue - surface.MinValue), 0, 1);
-            var handle = duration * 0.25f;
-            ControlSplinePoint At(float time, float value) => new(time, value, handle, value, handle, value);
+            ControlSplinePoint At(float time, float value) => new(time, value, 0, value, 0, value);
             var ramp = duration * 0.15f;
             var points = new List<ControlSplinePoint>();
             if (start > 0) points.Add(At(Math.Max(0, start - ramp), 0));
             points.Add(At(start, level));
             points.Add(At(start + duration, level));
             points.Add(At(start + duration + ramp, 0));
-            var spline = new ControlSpline(UniqueSplineName(name), surfacePath, points.ToArray(), ControlSplineInterpolation.Bezier);
+            var spline = new ControlSpline(UniqueSplineName(name), surfacePath, FollowSegments(points.ToArray()), ControlSplineInterpolation.Bezier);
             _controlSplines.Add(spline);
             _controlSplinesByName[spline.Name] = spline;
         }

@@ -16,9 +16,10 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
 
     private static float ConstrictionIndex(string script, string name) =>
         PatchScript.Parse(script).ControlSplines
-            .Single(s => s.Name.StartsWith($"{name}_constriction_index", StringComparison.Ordinal) && s.SurfacePath == "/vocal/areas/0/area/constriction_index").Points[0].Value;
+            .Single(s => s.Name.StartsWith($"{name}_constriction_index", StringComparison.Ordinal) && s.SurfacePath == "/vocal/areas/0/area/constriction_index").Points[^1].Value;   // the held place; a boundary ramp may precede it
 
-    // Pre-cut values on af0e44f: the vowel_set constriction_index spline value of /b/ and /n/ (and the hash of the whole script and of the
+    // Re-pinned on the phone-transition cut (boundary ramps, 12 ms stop release, smoo_init, vocal attack): these ids moved on purpose; the invariant
+    // that survives is that a word of labials writes no position surface (below), not these bytes. Faust ids re-pinned again on the PR 52 fix passes (smoo_init pole, pitch-ratio smoother, shut lips for stops, spline handles; the scripts are unchanged; the last move is the smoo_from step line only, which reverts to prev * pole + x * (1 - pole): the old ids come back when that line is put back). Pre-cut values on af0e44f: the vowel_set constriction_index spline value of /b/ and /n/ (and the hash of the whole script and of the
     // Faust source for /apa/ and /aba/, which this cut must not change by a byte; the ids are a SHA-256 prefix).
     private const float BIndex = 0.8333333f, NIndex = 0.7118056f;
 
@@ -28,7 +29,7 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
         var b = ConstrictionIndex(Word("b"), "w_1_c");
         var n = ConstrictionIndex(Word("n"), "w_1_c");
         output.WriteLine($"b {b:R} n {n:R}");
-        foreach (var (ipa, scriptSha, faustSha) in new[] { ("p", "61A96E0AE8C68F52", "28022E56A77DB5B1"), ("b", "5D5A6B653DC5D37D", "2FB84E792B878BFE") })
+        foreach (var (ipa, scriptSha, faustSha) in new[] { ("p", "0E86DB0F40C0F12A", "358106F493D1783D"), ("b", "A63403EBAAD016FB", "AE80CF31EF1DDC9C") })
         {
             var script = Word(ipa);
             var faust = FaustEmitter.Emit(PatchScript.Parse(script), new FaustExportOptions("pin", SampleRate: 48000)).Source;
@@ -47,8 +48,8 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
     {
         foreach (var (ipa, scriptSha, faustSha) in new[]
         {
-            ("p", "61A96E0AE8C68F52", "28022E56A77DB5B1"), ("b", "5D5A6B653DC5D37D", "2FB84E792B878BFE"),
-            ("n", "BDF24A66659D7BD6", "ABEB5D03DC9637DB"), ("t", "9DFBCDB5131F9776", "30E144D54F7E026F"),
+            ("p", "0E86DB0F40C0F12A", "358106F493D1783D"), ("b", "A63403EBAAD016FB", "AE80CF31EF1DDC9C"),
+            ("n", "5C3FA24E40D9DE26", "B2B9C5E1015B60A9"), ("t", "45941CCFD93561B3", "0AACE6D26F648FB0"),
         })
         {
             var script = Word(ipa);
@@ -109,8 +110,9 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
         var script = IpaGestureExperiment.BuildWordScript(
             [(Phone("0_b", "b", 0.095f), 1f), (Phone("1_a", "a", 0.18f), 1f), (new IpaGestureExperimentTarget("w_2_t", "t", "voiceless_alveolar_plosive", 0.095f), 1f), (Phone("3_a", "a", 0.18f), 1f), (Phone("4_p", "p", 0.095f), 1f)], 140);
         Assert.All(SitePoints(script, "w_0_b"), v => Assert.Equal(0f, v));
-        Assert.All(SitePoints(script, "w_4_p"), v => Assert.Equal(0f, v));
-        Assert.All(SitePoints(script, "w_2_t"), v => Assert.True(v > 0.8f));
+        Assert.All(SitePoints(script, "w_4_p").Skip(1), v => Assert.Equal(0f, v));
+        // after the 30 ms boundary ramp from the previous plosive's place (the first point is that place)
+        Assert.All(SitePoints(script, "w_2_t").Skip(1), v => Assert.True(v > 0.8f));
     }
 
     [Fact]
@@ -120,11 +122,13 @@ public sealed class PlaceTableTests(ITestOutputHelper output)
             .Single(s => s.Name.StartsWith("w_1_c_constriction_diameter", StringComparison.Ordinal)).Points.Select(p => p.Value).ToArray();
         var t = PatchScript.Parse(Word("t", "voiceless_alveolar_plosive")).ControlSplines
             .Single(s => s.Name.StartsWith("w_1_c_constriction_diameter", StringComparison.Ordinal)).Points;
-        Assert.Equal(0f, t[0].Value);
+        // lead-in (the vowel's open 1), arrival, closure hold, end: shut from the arrival to the hold, and the hold ends StopReleaseSeconds before the stop does
+        Assert.Equal(1f, t[0].Value);
         Assert.Equal(0f, t[1].Value);
-        Assert.Equal(0.65f, (t[1].TimeSeconds - 0.18f) / 0.095f, 3);
+        Assert.Equal(0f, t[2].Value);
+        Assert.Equal(1 - 0.012f / 0.095f, (t[2].TimeSeconds - 0.18f) / 0.095f, 3);
         var b = Diameter(Word("b"));
-        Assert.True(b[0] > 0 && Math.Abs(b[0] - b[1]) < 1e-6f, "the lip-sealed stop keeps the 0.03 aperture spline (its source text is pinned)");
+        Assert.True(b[1] > 0 && Math.Abs(b[1] - b[2]) < 1e-6f, "the lip-sealed stop keeps the 0.03 aperture spline (its source text is pinned)");
     }
 
     [Fact]
