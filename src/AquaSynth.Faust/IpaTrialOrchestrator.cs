@@ -309,12 +309,12 @@ public static class IpaTrialOrchestrator
             File.Copy(candidate.ScriptPath, scriptCopy, overwrite: true);
             var script = await File.ReadAllTextAsync(scriptCopy, cancellationToken).ConfigureAwait(false);
             var patch = PatchScript.Parse(script);
-            var timeline = ProbeTimelineReport.Build(patch, "voice", Math.Max(1, options.TimelineBlocks));
+            var referenceFixture = PinkTromboneParityFixtures.ById(mapped.target.ReferenceFixtureId);
+            var reference = referenceRenderer.Render(referenceFixture.Controls, mapped.target.Target.DurationSeconds + .18f);
+            var timeline = ProbeTimelineReport.Build(patch, "voice", Math.Max(1, options.TimelineBlocks), reference.SampleRate);
             var timelinePath = Path.Combine(timelineRoot, $"{safeCandidateId}.csv");
             await File.WriteAllTextAsync(timelinePath, ProbeTimelineReport.ToCsv(timeline), cancellationToken).ConfigureAwait(false);
 
-            var referenceFixture = PinkTromboneParityFixtures.ById(mapped.target.ReferenceFixtureId);
-            var reference = referenceRenderer.Render(referenceFixture.Controls, mapped.target.Target.DurationSeconds + .18f);
             var source = FaustEmitter.EmitScript(script, new FaustExportOptions(safeCandidateId, SampleRate: reference.SampleRate)).Source;
             var dspPath = Path.Combine(candidateDir, "candidate.dsp");
             await File.WriteAllTextAsync(dspPath, source, cancellationToken).ConfigureAwait(false);

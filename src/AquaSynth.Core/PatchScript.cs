@@ -1517,7 +1517,7 @@ public static class PatchScript
             }
         }
 
-        private void EmitPhonemeGestureSplines(string name, string descriptor, float start, float duration, float intensity, float pitchRatio = 1f)
+        private void EmitPhonemeGestureSplines(string name, string descriptor, float start, float duration, float intensity, int line, float pitchRatio = 1f)
         {
             var tokens = DescriptorTokens(descriptor);
             var voiced = tokens.Contains("voiced") || tokens.Contains("vowel") || tokens.Contains("nasal") || tokens.Contains("approximant");
@@ -1539,7 +1539,7 @@ public static class PatchScript
 
             if (tokens.Contains("vowel"))
             {
-                EmitVowelGesture(name, descriptor, start, duration);
+                EmitVowelGesture(name, descriptor, start, duration, line);
                 return;
             }
 
@@ -1613,9 +1613,14 @@ public static class PatchScript
 
         // A vowel gesture raises the weight of the descriptor's Story vowel to 1 and holds every other vowel weight at 0 (the schwa and
         // any vowel descriptor without a Story shape hold all of them at 0: the geometric-mean shape). The constriction and the lip cap
-        // stay open, the velum closed. On a morphology without vowel_set the vowel surfaces do not exist and nothing is held.
-        private void EmitVowelGesture(string name, string descriptor, float start, float duration)
+        // stay open, the velum closed. A vowel gesture on a morphology without vowel_set is a parse error: the vowel surfaces do not exist.
+        private void EmitVowelGesture(string name, string descriptor, float start, float duration, int line)
         {
+            if (_areaFunctions.Count == 0 || _areaFunctions[0].Vowels is null)
+            {
+                throw new PatchScriptException(line, $"vowel gesture `{name}` needs a vowel_set before it: without one the vowel surfaces do not exist and the gesture would shape nothing");
+            }
+
             var target = StoryVowelAreas.IdForDescriptor(descriptor);
             foreach (var vowel in StoryVowelAreas.All)
             {
@@ -2818,7 +2823,7 @@ public static class PatchScript
                 : $"ipa_{SafeName(ipa)}_{_phonemeGestures.Count}";
 
             _phonemeGestures.Add(new PhonemeGesture(name, ipa, descriptor, start, duration, intensity));
-            EmitPhonemeGestureSplines(name, descriptor, start, duration, intensity, pitchRatio);
+            EmitPhonemeGestureSplines(name, descriptor, start, duration, intensity, line, pitchRatio);
         }
 
         private void AddControlCurve(IReadOnlyDictionary<string, string> fields, int line)
