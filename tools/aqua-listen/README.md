@@ -24,7 +24,7 @@ Privacy: the page has no network access at all (the browser is told to refuse it
 
 ```
 node build.mjs --manifest kit.json --clips ./clips --out ./dist     # writes dist/listen.html
-node test.mjs                                                        # 17 checks, no dependencies, no browser
+node test.mjs                                                        # 20 checks, no dependencies, no browser
 node smoke.mjs dist/listen.html                                      # optional browser smoke, see below
 ```
 
