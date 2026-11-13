@@ -758,13 +758,20 @@ public static partial class FaustEmitter
         // Harmonic glottal source: a band-limited saw through a one-pole lowpass. Tilt 0 is the brightest source and 1 the
         // steepest rolloff; the cutoff sweeps five octaves, 6400 Hz down to 200 Hz, and sits below Nyquist.
         var cutoff = $"min(0.45 * ma.SR, 200.0 * pow(2.0, (1.0 - clip01({parameters.Expression(OwnerField(owner, "tilt"), port.Tilt)})) * 5.0))";
-        source.AppendLine($"    {voiced} = (os.sawtooth(({frequency}) * {pitchRatio}) : fi.lowpass(1, {cutoff})) * clip01({opening}) * clip01(0.25 + {tension});");
-        source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * (({voiced}) * ma.tanh((({pressure}) * (0.5 + {tension})) / max(0.05, {impedance})) + 0.08 * no.noise * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)})", -2, 2)};");
+        var wave = port.Pulse == GlottalPulse.Rosenberg ? RosenbergPulse($"(({frequency}) * {pitchRatio})") : $"os.sawtooth(({frequency}) * {pitchRatio})";
+        source.AppendLine($"    {voiced} = ({wave} : fi.lowpass(1, {cutoff})) * clip01({opening}) * clip01(0.25 + {tension});");
+        source.AppendLine($"    {flow} = {ProbeSignal(options, $"/debug/{voiceName}/source/{port.Name}/flow", $"({flowScale}) * (({voiced}) * ma.tanh((({pressure}) * (0.5 + {tension})) / max(0.05, {impedance})) + 0.08 * {(port.NoiseHighPassHz > 0 ? $"(no.noise : fi.highpass(2, {port.NoiseHighPassHz.ToString("0.###", CultureInfo.InvariantCulture)}))" : "no.noise")} * {parameters.Expression(OwnerField(owner, "noise"), port.Noise)})", -2, 2)};");
         keepAlive.Add(load);
         keepAlive.Add(voiced);
         keepAlive.Add(flow);
         return flow;
     }
+
+    // Rosenberg C flow pulse of one period (phase p of 0..1): opening 0.5 (1 - cos(pi p / 0.4)) for p < 0.4, return cos(pi/2 (p - 0.4) / 0.16)
+    // for the next 0.16, closed after. Its mean is 0.4 / 2 + 0.16 * 2 / pi = 0.301859 and its rms about that mean is 0.372667; it is made zero-mean
+    // and scaled by 0.57735 / 0.372667 = 1.549 to the rms of os.sawtooth (1 / sqrt 3), so a swap of the pulse leaves the level where it was.
+    private static string RosenbergPulse(string frequency) =>
+        $"(((os.lf_sawpos({frequency}) : (\\(p).(select2(p < 0.4, select2(p < 0.56, 0.0, cos(ma.PI * 0.5 * (p - 0.4) / 0.16)), 0.5 * (1.0 - cos(ma.PI * p / 0.4)))))) - 0.301859) * 1.549)";
 
     private static (string Released, string Burst) PrimitiveContactExpression(
         StringBuilder source,

@@ -474,7 +474,17 @@ public sealed record SourcePort(
     float Impedance = 0.35f,
     float FlowScale = 0.02f,
     float Tilt = 0.5f,
-    float PitchRatio = 1f);
+    float PitchRatio = 1f,
+    GlottalPulse Pulse = GlottalPulse.Saw,
+    float NoiseHighPassHz = 0f);
+
+// The glottal flow waveform of a primitive source port. Saw is the band-limited saw the tilt lowpass shapes; Rosenberg is the
+// Rosenberg C pulse (open phase 0.4 of the period, return phase 0.16), zero-mean and scaled to the saw's rms so the two differ in shape, not level.
+public enum GlottalPulse
+{
+    Saw,
+    Rosenberg
+}
 
 public sealed record ConstrictionContact(
     string Name,

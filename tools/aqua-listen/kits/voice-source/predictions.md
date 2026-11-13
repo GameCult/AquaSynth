@@ -14,3 +14,11 @@ Source-side numbers (computed from the two source formulas alone, harmonics of 1
 Measured HNR (hnr.py, Boersma autocorrelation, median over voiced frames) is reported next to each clip after rendering; a target missed by more than 2 dB is stated as missed, and the noise value is not retuned to the answer.
 
 What this kit cannot say: LF (the Liljencrants-Fant model) is not tested; the pulse is Rosenberg C with fixed open phase 0.4 and return 0.16. One listener, one phrase, one f0, one device.
+
+## Added after the calibration renders, before the kit renders
+
+Eight calibration renders of the same phrase were made to turn noise settings into dB (nobody listened to them). They gave: noise 0 -> HNR 30.8 dB (the method's ceiling on this phrase), white noise .1/.16/.25 -> 27.7/25.2/22.2, noise high-passed at 2 kHz .2/.4/.7/1.0 -> 24.5/18.4/13.6/10.6, and Rosenberg at the scaffold's noise -> 29.1 dB. They also showed the Rosenberg render is 2.4 dB lower in output rms and 6.8 dB lower in peak than the saw, although the SOURCE rms is matched: the tract passes the saw's strong upper harmonics and the pulse has none. The first prediction row's "loudness the same" is therefore already known to be false at the output; it stays in the table as written.
+
+A fifth pair is added so loudness cannot carry the answer: the Rosenberg render scaled up by its measured rms deficit against the saw (a gain on the clip, applied by the kit's render script), against the same saw render. Prediction: the same darker, rounder B as the pulse pair, and B is no longer the quieter one. FALSIFIED if B at matched rms is no longer heard as darker/rounder (then loudness, not shape, carried the first pair), or if it is heard as louder or brighter.
+
+Targets chosen from the calibration fit: white .33 -> HNR 20 dB; high-passed .33 -> 20 dB, .165 -> 25 dB, .6 -> 15 dB.

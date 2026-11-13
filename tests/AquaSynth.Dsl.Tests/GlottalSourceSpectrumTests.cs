@@ -12,19 +12,19 @@ public sealed class GlottalSourceSpectrumTests(ITestOutputHelper output)
     private const int Rate = 48000;
     private const float Pitch = 137f;
 
-    private static string Script(float tilt, float pitch) => $$"""
+    private static string Script(float tilt, float pitch, string extra = "") => $$"""
         morphology name=oral length_cm=17 diameters=.6,.8,1.2,1.5,.9
         waveguide_path name=oral_path morphology=oral loss=.998
-        source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.45 noise=0 impedance=.3 tilt={{tilt}}
+        source_port name=folds path=oral_path pressure=.7 tension=.55 opening=.45 noise=0 impedance=.3 tilt={{tilt}} {{extra}}
         radiation_load name=mouth path=oral_path aperture=.8 reflection=-.82 impedance=.28
         vocal_network name=voice paths=oral_path sources=folds radiation=mouth
         vocal network=voice freq={{pitch}} gain=.2 sustain=1.5
         """;
 
     // One second of steady output, so every harmonic of Pitch and every other integer-Hz frequency sits on its own DFT bin.
-    private float[]? Render(float tilt, float pitch = Pitch, int skip = 4800)
+    private float[]? Render(float tilt, float pitch = Pitch, int skip = 4800, string extra = "")
     {
-        var source = FaustEmitter.Emit(PatchScript.Parse(Script(tilt, pitch)), new FaustExportOptions("glottal_spectrum")).Source;
+        var source = FaustEmitter.Emit(PatchScript.Parse(Script(tilt, pitch, extra)), new FaustExportOptions("glottal_spectrum")).Source;
         using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(SampleRate: Rate));
         if (!compiler.TryCompileSource(new AquaSynthCompileIdentity("glottal_spectrum", "glottal_spectrum", ""), source, 1.4f, out var patch, out var error))
         {
@@ -121,5 +121,43 @@ public sealed class GlottalSourceSpectrumTests(ITestOutputHelper output)
 
         var defaulted = PatchScript.Parse(Script(.8f, Pitch).Replace("tilt=0.8", "", StringComparison.Ordinal));
         Assert.Equal(.5f, Assert.Single(defaulted.SourcePorts).Tilt, 5);
+    }
+
+    [Fact]
+    public void PulseAndNoiseHighPassAreAuthoredSourceFieldsDefaultingToSawAndWhite()
+    {
+        var port = Assert.Single(PatchScript.Parse(Script(.5f, Pitch, "pulse=rosenberg noise_hp=2000")).SourcePorts);
+        Assert.Equal(GlottalPulse.Rosenberg, port.Pulse);
+        Assert.Equal(2000f, port.NoiseHighPassHz);
+        var defaulted = Assert.Single(PatchScript.Parse(Script(.5f, Pitch)).SourcePorts);
+        Assert.Equal(GlottalPulse.Saw, defaulted.Pulse);
+        Assert.Equal(0f, defaulted.NoiseHighPassHz);
+        Assert.Throws<PatchScriptException>(() => PatchScript.Parse(Script(.5f, Pitch, "pulse=triangle")));
+    }
+
+    [Fact]
+    public void OnlyTheRosenbergPulseEmitsThePhasorAndOnlyAHighPassedSourceEmitsTheNoiseFilter()
+    {
+        string Emit(string extra) => FaustEmitter.Emit(PatchScript.Parse(Script(.5f, Pitch, extra)), new FaustExportOptions("pulse_emit")).Source;
+        Assert.DoesNotContain("lf_sawpos", Emit(""), StringComparison.Ordinal);
+        Assert.Contains("lf_sawpos", Emit("pulse=rosenberg"), StringComparison.Ordinal);
+        Assert.DoesNotContain("fi.highpass(2, 2000", Emit(""), StringComparison.Ordinal);
+        Assert.Contains("fi.highpass(2, 2000", Emit("noise_hp=2000"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RosenbergPulseIsPeriodicAtThePitchAndRendersWithinTwoDbOfTheSawsLevel()
+    {
+        var saw = Render(.5f);
+        var pulse = Render(.5f, extra: "pulse=rosenberg");
+        if (saw is null || pulse is null) return;
+
+        double Rms(float[] w) => Math.Sqrt(w.Sum(v => (double)v * v) / w.Length);
+        var difference = Db(Rms(pulse) / Rms(saw));
+        output.WriteLine($"rosenberg rms {Rms(pulse):E3} saw rms {Rms(saw):E3} ({difference:F2} dB)");
+        Assert.InRange(difference, -2, 2);
+        var fundamental = Magnitude(pulse, Pitch);
+        var between = Magnitude(pulse, Pitch * 1.5);
+        Assert.True(Db(between / fundamental) < -30, $"energy between harmonics {Db(between / fundamental):F1} dB re the fundamental");
     }
 }

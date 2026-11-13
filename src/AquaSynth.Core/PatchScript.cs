@@ -968,7 +968,9 @@ public static class PatchScript
                 GetBoundFloat(fields, line, 0.35f, $"/vocal/sources/{_sourcePorts.Count}/impedance", "impedance", "load", "source_impedance"),
                 GetBoundFloat(fields, line, 0.02f, $"/vocal/sources/{_sourcePorts.Count}/flow_scale", "flow_scale", "scale"),
                 GetBoundFloat(fields, line, 0.5f, $"/vocal/sources/{_sourcePorts.Count}/tilt", "tilt", "spectral_tilt"),
-                GetBoundFloat(fields, line, 1f, $"/vocal/sources/{_sourcePorts.Count}/pitch_ratio", "pitch_ratio", "f0_ratio"));
+                GetBoundFloat(fields, line, 1f, $"/vocal/sources/{_sourcePorts.Count}/pitch_ratio", "pitch_ratio", "f0_ratio"),
+                ParseGlottalPulse(GetAny(fields, ["pulse", "glottal_pulse"], "saw"), line),
+                Math.Clamp(GetFloat(fields, line, 0f, "noise_highpass", "noise_hp"), 0f, 8000f));
             _sourcePorts.Add(port);
             _sourcePortsByName[name] = port;
             RegisterSourcePortSurfaces(_sourcePorts.Count - 1, port);
@@ -4441,6 +4443,13 @@ public static class PatchScript
         "resonator" or "proxy" or "formant" or "waveguide" or "kl" or "kelly-lochbaum" or "kelly_lochbaum" or "tube" =>
             throw new PatchScriptException(line, $"legacy tract propagation mode `{value}` has been removed; use `propagation=graph`"),
         _ => throw new PatchScriptException(line, $"unknown tract propagation mode `{value}`")
+    };
+
+    private static GlottalPulse ParseGlottalPulse(string value, int line) => value.ToLowerInvariant() switch
+    {
+        "saw" or "sawtooth" => GlottalPulse.Saw,
+        "rosenberg" => GlottalPulse.Rosenberg,
+        _ => throw new PatchScriptException(line, $"unknown glottal pulse `{value}` (saw, rosenberg)")
     };
 
     private static AcousticSourceKind ParseAcousticSourceKind(string value, int line) => value.ToLowerInvariant() switch

@@ -8,12 +8,17 @@ using AquaSynth.Faust;
 // Offline probe: one word, segmented by Weksa (the phones line of `weksa lower --phones`), as a run of IPA gestures on the
 // IpaGestureExperiment scaffold, rendered through the native libfaust path to a mono 16-bit WAV plus script.aqua, source.dsp
 // and manifest.json. It measures peak, rms and NaN; it cannot say how the word sounds.
-// usage: WordRender <outDir> <label> <freq-hz> <phones.json> [--no-burst]
+// usage: WordRender <outDir> <label> <freq-hz> <phones.json> [--no-burst] [--source "key=value ..."]
+// --source sets or replaces fields on the scaffold's `source_port` line (pulse=rosenberg, noise_hp=2000, tilt=.3): one source parameter changed, the phrase untouched.
+// noise=X also flattens the gesture noise splines to X: the gestures hold /vocal/sources/0/noise at 0.05 through a vowel and the spline wins over the slider's base value, so the field alone changes nothing. Meant for voiced-only phrases (a fricative's rise is flattened too).
 // --no-burst drops the plosive release_flow splines (the same edit the burst test makes), so a render pair isolates the burst.
 // exit: 0 rendered, 1 compile or non-finite output, 2 usage, 3 phones file refused, 4 phones the tract cannot make (listed, nothing rendered)
 const int Rate = 48000, Frames = 512;
-var noBurst = args.Length == 5 && args[4] == "--no-burst";
-if (args.Length != 4 && !noBurst) { Console.Error.WriteLine("usage: WordRender <outDir> <label> <freq-hz> <phones.json> [--no-burst]"); return 2; }
+var noBurst = args.Skip(4).Contains("--no-burst");
+var sourceAt = Array.IndexOf(args, "--source");
+var sourceFields = sourceAt >= 0 && sourceAt + 1 < args.Length ? args[sourceAt + 1] : "";
+var extra = args.Length - 4 - (noBurst ? 1 : 0) - (sourceAt >= 0 ? 2 : 0);
+if (args.Length < 4 || extra != 0 || (sourceAt >= 0 && (sourceAt < 4 || sourceAt + 1 >= args.Length))) { Console.Error.WriteLine("usage: WordRender <outDir> <label> <freq-hz> <phones.json> [--no-burst] [--source \"key=value ...\"]"); return 2; }
 var outDir = Path.GetFullPath(args[0]);
 var label = args[1];
 var freq = float.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture);
@@ -36,6 +41,19 @@ var phones = plan.Phones.ToArray();
 Directory.CreateDirectory(outDir);
 
 var script = IpaGestureExperiment.BuildWordScript(phones, freq);
+float? noiseLevel = null;
+foreach (var field in sourceFields.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+{
+    var key = field.Split('=')[0];
+    if (key == "noise" && float.TryParse(field[6..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var nv)) noiseLevel = nv;
+    var lines = script.Split('\n');
+    var at = Array.FindIndex(lines, l => l.TrimStart().StartsWith("source_port name=folds ", StringComparison.Ordinal));
+    if (at < 0 || !field.Contains('=')) { Console.Error.WriteLine($"REFUSED --source field `{field}`"); return 2; }
+    var tokens = lines[at].TrimEnd().Split(' ').Where(t => !t.StartsWith(key + "=", StringComparison.Ordinal)).Append(field);
+    lines[at] = lines[at][..(lines[at].Length - lines[at].TrimStart().Length)] + string.Join(' ', tokens.Where(t => t.Length > 0));
+    script = string.Join('\n', lines);
+}
+
 File.WriteAllText(Path.Combine(outDir, "script.aqua"), script + "\n");
 var seconds = phones.Sum(p => p.Item1.DurationSeconds) + 0.12f;
 var home = AquaSynthFaustToolchain.Find();
@@ -44,6 +62,8 @@ using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(Sampl
 // The exporter emits one merged spline per surface (the ControlSplineTimeline curve), so the DSP carries the word's motion
 // itself and no slider is driven from outside.
 var parsed = PatchScript.Parse(script);
+if (noiseLevel is { } nz)
+    parsed = parsed with { ControlSplines = parsed.ControlSplines.Select(sp => sp.SurfacePath != "/vocal/sources/0/noise" ? sp : sp with { Points = sp.Points.Select(pt => pt with { Value = nz, OutValue = nz, InValue = nz }).ToArray() }).ToArray() };
 if (noBurst) parsed = parsed with { ControlSplines = parsed.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() };
 var source = FaustEmitter.Emit(parsed, new FaustExportOptions(label, SampleRate: Rate)).Source;
 File.WriteAllText(Path.Combine(outDir, "source.dsp"), source);
@@ -87,7 +107,7 @@ using (var w = new BinaryWriter(File.Create(wav)))
 var rms = Math.Sqrt(sum / pcm.Length);
 File.WriteAllText(Path.Combine(outDir, "manifest.json"), JsonSerializer.Serialize(new
 {
-    label, freq, noBurst, weksa = new { word.Language, word.Source, Phones = word.Phones.Select(p => new { p.Ipa, Stress = p.Stress.ToString() }) }, seconds, sampleRate = Rate, frames = pcm.Length, peak, rms, nonFinite = nan,
+    label, freq, noBurst, sourceFields, weksa = new { word.Language, word.Source, Phones = word.Phones.Select(p => new { p.Ipa, Stress = p.Stress.ToString() }) }, seconds, sampleRate = Rate, frames = pcm.Length, peak, rms, nonFinite = nan,
     wavSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(wav))).ToLowerInvariant(),
     scriptSha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(outDir, "script.aqua")))).ToLowerInvariant(),
     os = RuntimeInformation.OSDescription, faustHome = home
