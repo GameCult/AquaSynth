@@ -230,7 +230,12 @@ What the corrections change here:
   its own choice at confidence B, and it is a thing to try in the listener trial,
   not a measured recommendation. Nothing in section 4 depends on it.
 - **Do not rest a niche on Mimir's identity figure.** Row 4's 0.908-0.997 is a
-  clean-roundtrip figure; under degradation Kiko reads 0.5-0.9. Rows 6 and 28
+  clean-roundtrip figure; the "0.5-0.9 under degradation" reading that was
+  relayed alongside it is **unsourced in Mimir's source** (Void and Kiko,
+  #minds, 2026-11-14) and is not used here. Two more relayed claims are
+  likewise unsourced and **not used anywhere in this grammar**: "the event slot
+  repeats about every 41 s" and "timing 0.19-0.73 / 0.5-0.9 degraded". No rule
+  in section 4 or 5 depends on any of them. Rows 6 and 28
   are confounded, so the "too-short songs collapse" thresholds are not a
   design floor for this grammar.
 - **A word identifies an event slot, not a source** (row 22). Mimir's evidence
