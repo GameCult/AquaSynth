@@ -770,7 +770,7 @@ public static partial class FaustEmitter
     // Rosenberg C flow pulse of one period (phase p of 0..1): opening 0.5 (1 - cos(pi p / 0.4)) for p < 0.4, return cos(pi/2 (p - 0.4) / 0.16)
     // for the next 0.16, closed after. Its mean is 0.4 / 2 + 0.16 * 2 / pi = 0.301859 and its rms about that mean is 0.372667; it is made zero-mean
     // and scaled by 0.57735 / 0.372667 = 1.549 to the rms of os.sawtooth (1 / sqrt 3), so a swap of the pulse leaves the SOURCE level where it was (the rendered level moves: the pulse has no strong upper harmonics for the tract to pass).
-    private static string RosenbergPulse(string frequency) =>
+    public static string RosenbergPulse(string frequency) =>
         $"(((os.lf_sawpos({frequency}) : (\\(p).(select2(p < 0.4, select2(p < 0.56, 0.0, cos(ma.PI * 0.5 * (p - 0.4) / 0.16)), 0.5 * (1.0 - cos(ma.PI * p / 0.4)))))) - 0.301859) * 1.549)";
 
     private static (string Released, string Burst) PrimitiveContactExpression(
