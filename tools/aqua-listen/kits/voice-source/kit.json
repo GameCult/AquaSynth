@@ -1,0 +1,89 @@
+{
+ "kit": {
+  "id": "voice-source-1",
+  "title": "Synthetic voice: one source change at a time",
+  "note": "The same short phrase, five pairs. In each pair only one thing about the voice's sound source differs. Tell us what you hear in the voice itself: buzz, edge, kazoo, breath, hiss. There are no wrong answers; 'no difference' is a real answer."
+ },
+ "clips": [
+  {
+   "id": "pulse-saw",
+   "file": "saw_a.wav",
+   "group": "pulse",
+   "pair": "pulse-rosenberg",
+   "title": "saw pulse, scaffold noise",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "pulse-rosenberg",
+   "file": "ros.wav",
+   "group": "pulse",
+   "pair": "pulse-saw",
+   "title": "Rosenberg pulse, scaffold noise",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "pulsematch-saw",
+   "file": "saw_b.wav",
+   "group": "pulsematch",
+   "pair": "pulsematch-rosenberg",
+   "title": "saw pulse, scaffold noise",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "pulsematch-rosenberg",
+   "file": "ros_matched.wav",
+   "group": "pulsematch",
+   "pair": "pulsematch-saw",
+   "title": "Rosenberg pulse, level matched to the saw",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "noise-clean",
+   "file": "clean.wav",
+   "group": "noise",
+   "pair": "noise-hnr20",
+   "title": "scaffold noise",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "noise-hnr20",
+   "file": "w20.wav",
+   "group": "noise",
+   "pair": "noise-clean",
+   "title": "white noise, level .33",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "colour-white20",
+   "file": "w20_b.wav",
+   "group": "colour",
+   "pair": "colour-hp20",
+   "title": "white noise, level .33",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "colour-hp20",
+   "file": "h20.wav",
+   "group": "colour",
+   "pair": "colour-white20",
+   "title": "noise high-passed at 2 kHz, level .33",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "aspiration-hp25",
+   "file": "h25.wav",
+   "group": "aspiration",
+   "pair": "aspiration-hp15",
+   "title": "noise high-passed at 2 kHz, level .165",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  },
+  {
+   "id": "aspiration-hp15",
+   "file": "h15.wav",
+   "group": "aspiration",
+   "pair": "aspiration-hp25",
+   "title": "noise high-passed at 2 kHz, level .6",
+   "feel": "the short made-up phrase 'ah-mee' in a synthetic voice; listen to the voice itself (buzz, edge, breath), not the words"
+  }
+ ]
+}
