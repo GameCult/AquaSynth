@@ -21,9 +21,9 @@ treated as in force.
   two could differ, the Heimdall document wins and this doc follows.
 - The Mimir harvest (`ratatoskr:follow_up:symphony-grammar-harvest-mimir`) is now
   readable: [`docs/gamecult/symphony-grammar-harvest.md` in GameCult/Ratatoskr at
-  `d5b9e335`](https://eureka.gamecult.org/forge/GameCult/Ratatoskr/src/commit/d5b9e3353689ee8d2d01eef451dda41b3595fbbd/docs/gamecult/symphony-grammar-harvest.md)
+  `39c99240`](https://eureka.gamecult.org/forge/GameCult/Ratatoskr/src/commit/39c99240420736a6d064a92dc2cc5b2624efa529/docs/gamecult/symphony-grammar-harvest.md)
   (Void's read of GameCult/Mimir at `c6f4541`, as corrected by Ratatoskr #160;
-  that commit is on Ratatoskr `dev`, the file is not on `main` yet, and the
+  that commit is on Ratatoskr `main`, and the
   harvest was merged without a Soul pass). Section 4.1
   reconciles against both. The first draft of section 4 predates them.
 
@@ -214,7 +214,7 @@ Rules:
 
 ### 4.1 Reconciled against the Mimir harvest
 
-Read: the harvest at `d5b9e335` (linked in section 0; not copied here), in the
+Read: the harvest at `39c99240` (linked in section 0; not copied here), in the
 wording of Ratatoskr #160, Void's corrections to it. Rows are cited below by what
 they say, not by number.
 
