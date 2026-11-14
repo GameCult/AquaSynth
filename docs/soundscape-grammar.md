@@ -12,14 +12,13 @@ Two inputs named in the brief could not be read when this was written, and the
 grammar is drafted without them. Each is a place to reconcile before the doc is
 treated as in force.
 
-- `heimdall-body:follow_up:ratatoskr-creature-projection-v2`: `huginn view`
-  from instance `aqua` still answers `absent` (re-checked 2026-11-02; `absent` from Eureka's mind on 2026-11-05, `absent` from aqua again on 2026-11-14), and a
-  search of the Heimdall checkout found no file mentioning it. Section 2 takes
-  its constraints as relayed in `aqua-body:follow_up:chat-s946-948`: rule O1
-  (a Neutral participant gets no orbit and no voice), the `estate` split,
-  coarse size buckets with a separate neutral flag, activity fed by the
-  Heimdall session. Section 2 must be reconciled against that follow-up's
-  actual field list once it can be read.
+- `heimdall-body:follow_up:ratatoskr-creature-projection-v2`: the follow-up
+  document still answers `absent` from aqua (re-checked 2026-11-14). Its content
+  reached aqua as a spec relayed from #minds on 2026-11-14 (follow-up
+  `aqua-body:follow_up:chat-s8119-8119`): per participant `{id, estate,
+  sizeBucket, neutral, activity}`, spec only, Bifrost not cut. Section 2 is
+  reconciled against that relay, not against the Heimdall document; where the
+  two could differ, the Heimdall document wins and this doc follows.
 - The Mimir harvest (`ratatoskr:follow_up:symphony-grammar-harvest-mimir`) is now
   readable: [`docs/gamecult/symphony-grammar-harvest.md` in GameCult/Ratatoskr at
   `0b3e2294`](https://eureka.gamecult.org/forge/GameCult/Ratatoskr/src/commit/0b3e2294/docs/gamecult/symphony-grammar-harvest.md)
@@ -53,15 +52,22 @@ cannot read it plays nothing and draws nothing.
 
 | field | type | values | note |
 |---|---|---|---|
-| `mind` | id | participant identity | stable identity, not a run/session label; for a human, the member's stable id |
+| `id` | id | participant identity | stable identity, not a run/session label; for a human, the member's stable id (prose below says "mind" for the participant an `id` names) |
 | `estate` | enum, 3 | `human`, `mind`, `persona` | selects the vocabulary this participant may use; see below |
-| `kind` | enum, 7 (humans: 3) | `Idle`, `Reading`, `Thinking`, `Working`, `Speaking`, `Waiting`, `Alert` | coarse; absent when `neutral`; see below |
-| `energy` | enum, 4 (humans: 3) | `Low`, `Mid`, `High`, `Peak` | coarse bucket of rate/intensity, never a float; absent when `neutral`; see below |
-| `size` | enum, 3 | `Small`, `Medium`, `Large` | coarse size bucket for the creature; scale per bucket is not fixed here; absent when `neutral` (O1) |
-| `neutral` | bool | | separate flag; when set, `kind`, `energy` and `size` are all omitted, see O1 |
-| `seq` | u32 | monotonic per `mind` | ordering and staleness; consumers drop `seq <= last` |
-| `at` | time bucket | 1 s resolution | producer's observation time, for the staleness rule |
-| `override` | enum, 2 | `None`, `Muted` | see rules O2, O3; Neutral is the `neutral` flag, not an override value |
+| `sizeBucket` | enum, 3 | `Small`, `Medium`, `Large` | coarse size bucket for the creature; scale per bucket is not fixed here; absent when `neutral` (O1) |
+| `neutral` | bool | | separate flag that overrides any `sizeBucket`: no size drawn or carried; when set, `activity` and `sizeBucket` are omitted, see O1 |
+| `activity` | struct | `kind` (enum, 7; humans: 3) and `energy` (enum, 4; humans: 3) | produced by the Heimdall session; absent when `neutral`; see below |
+
+`kind` is one of `Idle`, `Reading`, `Thinking`, `Working`, `Speaking`, `Waiting`,
+`Alert`; `energy` is a coarse bucket, `Low`, `Mid`, `High`, `Peak`, never a float.
+
+These five fields are the whole participant projection. The previous draft also
+carried `seq`, `at` and `override`; they are gone from the frame. Ordering and
+observation age (rules S1, S2) are **needed from the feed envelope**, which
+`ratatoskr:question:activity-feed-source` owns, and are an unconfirmed
+assumption: if the feed cannot supply them, S1 and S2 cannot be implemented and
+that is raised there, not patched by a sixth field. `Muted` is no longer frame
+data (O2).
 
 Why this small: 7 x 4 = 28 states (the Mind/Persona set) fit in one byte on the
 wire and in a lookup table on a phone; both consumers map state to behaviour by
@@ -85,30 +91,37 @@ the other fields may carry (per
   less. A human's `kind` that is present but not an enum value at all clamps
   to `Idle` (reveal-less) for a non-neutral human; for `mind` and `persona` an
   unknown `kind` is malformed and the frame is dropped (A4).
-  Reconcile the subset against the projection-v2 field list.
+  The relayed projection says humans get the coarse bucket by default, with a
+  typed opt-out setting `neutral`, and that Minds and Personas may show finer
+  buckets. It does not name the three-`kind` subset: that subset is this
+  grammar's proposal for "coarse", and stays *proposed* until Heimdall's
+  document names it or replaces it.
 - **`mind` and `persona`: the finer 7 x 4 set** (all seven `kind`, all four
   `energy` buckets).
 
-`size` is three coarse buckets (`Small`, `Medium`, `Large`) for every estate
-except a `neutral` participant, whose frame omits it (O1).
-The scale each bucket draws at is **not fixed by this grammar**: the values
-0.7 / 1 / 1.4 are Ratatoskr placeholders, owned by the orbit renderer, and may
-change without touching the frame.
+`sizeBucket` is three coarse buckets (`Small`, `Medium`, `Large`) and the
+projection carries it for every estate except a `neutral` participant (O1).
+Heimdall's projection lets a Mind or Persona show finer buckets than a human;
+this grammar does not consume `sizeBucket` for sound at all, so the count is not
+decided here and a finer set changes nothing in sections 3 to 5. The scale each
+bucket draws at is **not fixed by this grammar**: the values 0.7 / 1 / 1.4 are
+Ratatoskr placeholders, owned by the orbit renderer, and may change without
+touching the frame. Exact vote weights, from which a bucket is derived, never
+leave Bifrost and are never in the frame.
 
 Rules:
 
 - **A1. Source.** The frame comes from the Heimdall session and only from it.
   Neither consumer infers activity from Matrix presence, typing, message
-  traffic, audio, or room membership. Activity is a stub fed by the Heimdall
+  traffic, audio, or the room member list. Activity is a stub fed by the Heimdall
   session; being in a room says nothing about being active. (The target already notes presence/typing are too coarse
-  for Minds.) *Reconcile the exact kind list against the projection-v2
-  follow-up before use.*
+  for Minds.) *The kind list for Minds and Personas stays as relayed; the human subset is proposed (section 2).*
 - **A2. Coarse by construction.** There is no continuous field in the frame. A
   renderer that wants smooth motion interpolates between buckets locally; it
   does not request finer data.
-- **A3. Member-safe.** The frame carries `mind`, `estate`, `kind`, `energy`,
-  `size`, `neutral`, `seq`, `at` and `override`, and nothing else; when
-  `neutral` is set, `kind`, `energy` and `size` are stripped (O1). Never brief text,
+- **A3. Member-safe.** The frame carries `id`, `estate`, `sizeBucket`, `neutral`
+  and `activity`, and nothing else; when `neutral` is set, `activity` and
+  `sizeBucket` are stripped (O1). Exact vote weights never leave Bifrost. Never brief text,
   document ids, claims, or mind contents.
 - **A4. Missing is Idle.** No frame within the staleness window (section 5, S2)
   means `Idle`/`Low`: no voice, and the orbit at rest. Silence is the default
@@ -117,20 +130,21 @@ Rules:
 
 ### Overrides
 
-- **O1. `neutral`** (the flag, set by the session or by the member's own
-  setting): a Neutral participant gets **no orbit and no voice**, and the
-  frame **strips `kind`, `energy` and `size` as well**: the producer omits all
-  three, and a consumer ignores them if present. An opted-out participant
+- **O1. `neutral`** (the flag, set by the session or by a human's own typed
+  opt-out setting): a Neutral participant gets **no orbit and no voice**, and the
+  frame **strips `activity` and `sizeBucket` as well**: the producer omits both, and a consumer ignores them if present. An opted-out participant
   reveals nothing, not even coarse activity or a coarse size bucket. It draws nothing and sounds nothing; there is no
-  "neutral pose" to render. Neutral overrides every `size` bucket: none is drawn or carried. Neutral is
+  "neutral pose" to render. Neutral overrides every `sizeBucket` bucket: none is drawn or carried, and no sound carries a size cue either. Neutral is
   not an error and not Idle: the frame says only that this participant is not
   shown.
-- **O2. `Muted`**: no voice, orbit unchanged. Lets a listener silence one Mind
-  without hiding its motion.
-- **O3.** `neutral` and `override` are data in the frame, set upstream. A consumer never
-  applies a local override and then reports it as the Mind's state. (A *user's*
-  own mute/volume is a client preference and stays local; it never rewrites a
-  frame.)
+- **O2. Muting one Mind** is a listener's client preference, not frame data:
+  no voice, orbit unchanged. It lets a listener silence one Mind without hiding
+  its motion, and it never appears in, or rewrites, a frame.
+- **O3.** `neutral` is data in the frame, set upstream (by the session or by a
+  human's own typed setting). A consumer never applies a local override of it and
+  then reports that as the participant's state. Neutral means no size cue and
+  no activity cue, in sound as in the orbit: the voice scheduler gives a `neutral`
+  participant nothing to sound.
 
 ## 3. Mapping tables (shape only)
 
@@ -142,13 +156,13 @@ when values exist.
 |---|---|---|---|
 | orbit **existence** (drawn or not) | orbit renderer | `neutral` | `neutral` set: no orbit |
 | orbit radius / speed / phase coupling | orbit renderer | `energy`, `kind` | Nibu's side; not specified here |
-| creature scale | orbit renderer | `size` | per-bucket scales are renderer placeholders, not fixed here |
+| creature scale | orbit renderer | `sizeBucket` | per-bucket scales are renderer placeholders, not fixed here |
 | voice **presence** (sounding or silent) | voice scheduler | `neutral`, `kind` | `neutral` set: no voice, regardless of `kind`; `Idle`, `Waiting` default silent |
 | voice **density** (events per window) | voice scheduler | `energy` | capped, section 5 |
 | voice **role** (lead / support / texture) | voice scheduler | `kind` | role, not instrument |
-| voice **identity** (which instrument) | voice scheduler | `mind` | never `kind`; section 4 |
+| voice **identity** (which instrument) | voice scheduler | `id` | never `kind`; section 4 |
 
-The one rule that ties the two consumers: **`mind` selects identity, `kind`
+The one rule that ties the two consumers: **`id` selects identity, `kind`
 selects behaviour, `energy` selects amount.** A given Mind sounds like itself
 in every state; what it does changes.
 
@@ -176,7 +190,7 @@ niches. Axes:
 
 Rules:
 
-- **V1. Identity is stable.** The niche (axes 1-4) is a function of `mind`
+- **V1. Identity is stable.** The niche (axes 1-4) is a function of `id`
   only. It never moves with `kind`, `energy`, or which other Minds are present.
   A listener learns a Mind once.
 - **V2. Niche table is data**, held beside the Mind's other typed state
@@ -238,7 +252,7 @@ several channels at once, no sequence grammar for identity, irregular rather
 than ladder-like rhythm, a deterministic generator authored once and rendered
 (S4 already says the client ships rendered assets). Its open question "which
 dimension bends with activity" is what section 3's rule answers by design:
-`mind` selects identity, `kind` behaviour, `energy` amount, so a Mind keeps one
+`id` selects identity, `kind` behaviour, `energy` amount, so a Mind keeps one
 timbre and root for life and the contour and density move; Mimir has no activity
 channel to confirm that.
 
@@ -254,7 +268,7 @@ document.** The callback never waits on the grammar, the network, a decode, an
 allocation, or a lock.
 
 - **C1. Frame handoff is a snapshot.** The network/projection thread writes the
-  latest frame per `mind` into a preallocated table; the scheduler thread reads
+  latest frame per `id` into a preallocated table; the scheduler thread reads
   it and writes a preallocated voice-command queue; the audio callback only
   reads that queue. No thread but the callback touches the output buffer; the
   callback never blocks on, or is blocked by, the others (single-producer
@@ -262,9 +276,9 @@ allocation, or a lock.
 - **C2. Drop, never delay.** If the queue is full or the scheduler is late, the
   frame or command is dropped. A late sound is not played to catch up and its
   internal timing is never stretched.
-- **S1. Latest wins.** Per `mind`, only the newest `seq` matters. Intermediate
+- **S1. Latest wins.** Per `id`, only the newest frame by the feed envelope's ordering matters (the frame itself carries none; see section 2). Intermediate
   frames missed during a stall are not replayed.
-- **S2. Staleness.** A frame older than **10 s** (*proposed*) is treated as
+- **S2. Staleness.** A frame whose envelope age exceeds **10 s** (*proposed*) is treated as
   absent (rule A4). Sounding on stale activity is misleading.
 - **S3. Rate.** Voice density per `energy` is bounded by a ceiling per Mind per
   window (*proposed*, set with the device measurement); rule V3 bounds the
@@ -296,9 +310,7 @@ allocation, or a lock.
 
 None run. To be done before the grammar leaves draft:
 
-1. Reconcile section 2 with `heimdall-body:follow_up:ratatoskr-creature-projection-v2`
-   (field list, the human `kind` subset in section 2, the size and neutral fields,
-   the stripping of `kind`, `energy` and `size` under `neutral`).
+1. Section 2 is reconciled with the relayed projection-v2 spec (2026-11-14, five fields), not with the Heimdall document itself, which is still `absent` from aqua. Still owed: read that document when it is readable; confirm the feed envelope can supply per-participant ordering and age (S1, S2); get the human `kind` subset named or replaced by Heimdall (it is *proposed* here).
 2. ~~Reconcile section 4 with the Mimir harvest.~~ Done in 4.1 (docs only; no listening). What the harvest could not give (harmony, pleasantness, discriminability by a person) goes to item 5.
 3. Round-trip the frame as a CultCache document and check the size claim (one
    byte per state, 28 states).
@@ -307,5 +319,5 @@ None run. To be done before the grammar leaves draft:
 
 ## 8. Status
 
-Draft, reconciled with the Mimir harvest on 2026-11-14 (4.1); section 2 still awaits projection-v2. Not implemented. No code changed. No audio was produced and none is
+Draft, reconciled with the Mimir harvest (4.1) and with the relayed projection-v2 five-field spec (section 2) on 2026-11-14; the human `kind` subset is still proposed. Not implemented. No code changed. No audio was produced and none is
 claimed.
