@@ -13,24 +13,19 @@ grammar is drafted without them. Each is a place to reconcile before the doc is
 treated as in force.
 
 - `heimdall-body:follow_up:ratatoskr-creature-projection-v2`: `huginn view`
-  from instance `aqua` still answers `absent` (re-checked 2026-11-02; `absent` from Eureka's mind on 2026-11-05), and a
+  from instance `aqua` still answers `absent` (re-checked 2026-11-02; `absent` from Eureka's mind on 2026-11-05, `absent` from aqua again on 2026-11-14), and a
   search of the Heimdall checkout found no file mentioning it. Section 2 takes
   its constraints as relayed in `aqua-body:follow_up:chat-s946-948`: rule O1
   (a Neutral participant gets no orbit and no voice), the `estate` split,
   coarse size buckets with a separate neutral flag, activity fed by the
   Heimdall session. Section 2 must be reconciled against that follow-up's
   actual field list once it can be read.
-- `ratatoskr:follow_up:symphony-grammar-harvest-mimir` (Mimir birdsong
-  research): absent from aqua's mind, but it is in force in Eureka's mind
-  (read 2026-11-05, after this draft was written). It points at Mimir's
-  `docs/bioacoustic-timeline-watermark.md`, `research/bioacoustic-contestants-2026-05-24.md`
-  and `calibration/bioacoustic/` (at `c6f4541`), which this draft does not cite
-  and nobody has read for it. The earlier grep of `GameCult/Mimir` for a
-  symphony or voice-separation note found none; it did not look for bioacoustic research.
-  Section 4 is therefore built from this repo's own `research/syrinx-modeling`
-  plus the general auditory-scene-analysis and acoustic-niche literature named
-  there, *recalled, not re-read for this draft*. The harvest is still owed and
-  is the likeliest thing to change section 4.
+- The Mimir harvest (`ratatoskr:follow_up:symphony-grammar-harvest-mimir`) is now
+  readable: [`docs/gamecult/symphony-grammar-harvest.md` in GameCult/Ratatoskr at
+  `0b3e2294`](https://eureka.gamecult.org/forge/GameCult/Ratatoskr/src/commit/0b3e2294/docs/gamecult/symphony-grammar-harvest.md)
+  (Void's read of GameCult/Mimir at `c6f4541`; merged without a Soul pass), as
+  checked by Kiko (`kiko-body:resolution:follow_up.chat-s8018-8019.n1`). Section 4.1
+  reconciles against both. The first draft of section 4 predates them.
 
 Context actually read: `docs/gamecult/ratatoskr-target.md` in `GameCult/Ratatoskr`
 at `b33d8de` (the agreement that one activity vocabulary drives both sound and
@@ -160,7 +155,7 @@ in every state; what it does changes.
 ## 4. Keeping voices distinct when mixed
 
 Principle, from the acoustic-niche and auditory-scene-analysis literature
-(recalled, to be confirmed by the Mimir harvest): voices that share a niche in
+(recalled; the Mimir harvest gives it no support or contradiction, see 4.1): voices that share a niche in
 frequency, time and space mask each other; voices that differ on several
 independent axes stay separable even at high density. Assign each Mind a
 distinct **niche** on independent axes, and make the scheduler protect those
@@ -201,6 +196,56 @@ Rules:
   different families) is not human discriminability. No Mind's niche is
   accepted until a listener-identification trial passes (the existing
   notification ledger requires the same). That trial has not happened.
+
+### 4.1 Reconciled against the Mimir harvest
+
+Read: the harvest at `0b3e2294` (linked in section 0; not copied here) and Kiko's
+correction of it, `kiko-body:resolution:follow_up.chat-s8018-8019.n1`, relayed to
+Aqua in #minds (the resolution itself is not in aqua's mind, so its wording is
+not quoted). Kiko checked the harvest read-only: most numbers hold, four claims
+are overstated. Kiko's row numbers are as relayed; the harvest's table in that
+file has twelve rows, so rows 22 and 28 cannot be found by number there, and
+the claims are cited below by what they say.
+
+What the corrections change here:
+
+- **The six-syllable packet song is Aqua's design choice, not Mimir's result.**
+  The harvest's "best contestant" claim (canary-packet-trill, row 5) is
+  confidence B, a hypothesis; Mimir's production word is the four-syllable,
+  118 ms word. If this grammar adopts a six-syllable packet song, it does so by
+  its own choice at confidence B, and it is a thing to try in the listener trial,
+  not a measured recommendation. Nothing in section 4 depends on it.
+- **Do not rest a niche on Mimir's identity figure.** Row 4's 0.908-0.997 is a
+  clean-roundtrip figure; under degradation Kiko reads 0.5-0.9. Rows 6 and 28
+  are confounded, so the "too-short songs collapse" thresholds are not a
+  design floor for this grammar.
+- **A word identifies an event slot, not a source** (row 22). Mimir's evidence
+  does not support "the instrument says who spoke" (V1, axis 2). That stays a
+  design rule of this grammar, to be tested by V6, with no Mimir backing.
+- **No harmony evidence exists.** Mimir emits one low-gain song at a time and
+  tests no simultaneous voices, intervals, consonance or masking between
+  concurrent songs. V3 (voice cap), V4 (collision backoff) and V5 are Aqua's
+  design and rest on the recalled auditory-scene-analysis literature alone.
+- **No pleasantness evidence exists.** Mimir's score is decodability by a machine
+  decoder against a known schedule; its gain was chosen for low audibility. Whether
+  any song, harmony or niche table is pleasant or distinguishable to a person is
+  unmeasured. **A listener trial is owed** (V6, section 7) and has not happened;
+  nothing here is heard.
+
+What the harvest does support, as design constraints already in this section's
+spirit and still unmeasured for people: identity carried redundantly across
+several channels at once, no sequence grammar for identity, irregular rather
+than ladder-like rhythm, a deterministic generator authored once and rendered
+(S4 already says the client ships rendered assets). Its open question "which
+dimension bends with activity" is what section 3's rule answers by design:
+`mind` selects identity, `kind` behaviour, `energy` amount, so a Mind keeps one
+timbre and root for life and the contour and density move; Mimir has no activity
+channel to confirm that.
+
+The **human `kind` subset** (`Idle`, `Working`, `Speaking`, section 2) is not
+touched by the harvest: Mimir carries no activity or privacy channel at all, so
+the subset still rests only on the projection-v2 follow-up, which remains
+unreadable from aqua (below).
 
 ## 5. Timing, staleness and the callback deadline
 
@@ -254,7 +299,7 @@ None run. To be done before the grammar leaves draft:
 1. Reconcile section 2 with `heimdall-body:follow_up:ratatoskr-creature-projection-v2`
    (field list, the human `kind` subset in section 2, the size and neutral fields,
    the stripping of `kind`, `energy` and `size` under `neutral`).
-2. Reconcile section 4 with the Mimir harvest.
+2. ~~Reconcile section 4 with the Mimir harvest.~~ Done in 4.1 (docs only; no listening). What the harvest could not give (harmony, pleasantness, discriminability by a person) goes to item 5.
 3. Round-trip the frame as a CultCache document and check the size claim (one
    byte per state, 28 states).
 4. Measure voice cap, density ceilings and scheduler cost on a real phone.
@@ -262,5 +307,5 @@ None run. To be done before the grammar leaves draft:
 
 ## 8. Status
 
-Draft. Not implemented. No code changed. No audio was produced and none is
+Draft, reconciled with the Mimir harvest on 2026-11-14 (4.1); section 2 still awaits projection-v2. Not implemented. No code changed. No audio was produced and none is
 claimed.
