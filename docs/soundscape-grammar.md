@@ -21,9 +21,10 @@ treated as in force.
   two could differ, the Heimdall document wins and this doc follows.
 - The Mimir harvest (`ratatoskr:follow_up:symphony-grammar-harvest-mimir`) is now
   readable: [`docs/gamecult/symphony-grammar-harvest.md` in GameCult/Ratatoskr at
-  `0b3e2294`](https://eureka.gamecult.org/forge/GameCult/Ratatoskr/src/commit/0b3e2294/docs/gamecult/symphony-grammar-harvest.md)
-  (Void's read of GameCult/Mimir at `c6f4541`; merged without a Soul pass), as
-  checked by Kiko (`kiko-body:resolution:follow_up.chat-s8018-8019.n1`). Section 4.1
+  `d5b9e335`](https://eureka.gamecult.org/forge/GameCult/Ratatoskr/src/commit/d5b9e3353689ee8d2d01eef451dda41b3595fbbd/docs/gamecult/symphony-grammar-harvest.md)
+  (Void's read of GameCult/Mimir at `c6f4541`, as corrected by Ratatoskr #160;
+  that commit is on Ratatoskr `dev`, the file is not on `main` yet, and the
+  harvest was merged without a Soul pass). Section 4.1
   reconciles against both. The first draft of section 4 predates them.
 
 Context actually read: `docs/gamecult/ratatoskr-target.md` in `GameCult/Ratatoskr`
@@ -213,32 +214,37 @@ Rules:
 
 ### 4.1 Reconciled against the Mimir harvest
 
-Read: the harvest at `0b3e2294` (linked in section 0; not copied here) and Kiko's
-correction of it, `kiko-body:resolution:follow_up.chat-s8018-8019.n1`, relayed to
-Aqua in #minds (the resolution itself is not in aqua's mind, so its wording is
-not quoted). Kiko checked the harvest read-only: most numbers hold, four claims
-are overstated. Kiko's row numbers are as relayed; the harvest's table in that
-file has twelve rows, so rows 22 and 28 cannot be found by number there, and
-the claims are cited below by what they say.
+Read: the harvest at `d5b9e335` (linked in section 0; not copied here), in the
+wording of Ratatoskr #160, Void's corrections to it. Rows are cited below by what
+they say, not by number.
 
 What the corrections change here:
 
 - **The six-syllable packet song is Aqua's design choice, not Mimir's result.**
-  The harvest's "best contestant" claim (canary-packet-trill, row 5) is
+  The harvest's "best contestant" claim (canary-packet-trill) is
   confidence B, a hypothesis; Mimir's production word is the four-syllable,
   118 ms word. If this grammar adopts a six-syllable packet song, it does so by
   its own choice at confidence B, and it is a thing to try in the listener trial,
   not a measured recommendation. Nothing in section 4 depends on it.
-- **Do not rest a niche on Mimir's identity figure.** Row 4's 0.908-0.997 is a
-  clean-roundtrip figure; the "0.5-0.9 under degradation" reading that was
-  relayed alongside it is **unsourced in Mimir's source** (Void and Kiko,
-  #minds, 2026-11-14) and is not used here. Two more relayed claims are
-  likewise unsourced and **not used anywhere in this grammar**: "the event slot
-  repeats about every 41 s" and "timing 0.19-0.73 / 0.5-0.9 degraded". No rule
-  in section 4 or 5 depends on any of them. Rows 6 and 28
-  are confounded, so the "too-short songs collapse" thresholds are not a
-  design floor for this grammar.
-- **A word identifies an event slot, not a source** (row 22). Mimir's evidence
+- **Do not rest a niche on Mimir's identity figure.** The harvest's 0.908-0.997
+  is a clean-input identity range. Per #160 the degraded numbers have a receipt,
+  but a narrow one: identity 0.532-0.908 and timing 0.187-0.728 for the
+  `compact-fast-index` hypothesis only, across four degraded cases
+  (`artifacts/bioacoustic-training/bioacoustic-20260524-150729/compact-fast-index/*/summary.json`,
+  synthetic damage). #160's description (not the harvest text) adds that other
+  hypotheses in that run range wider (identity to 0.998, timing to 0.807). The earlier relayed
+  "0.5-0.9" is replaced by this scoped range. These are one decoder's scores on synthetic damage, not a
+  property of any song, and no rule in section 4 or 5 depends on them.
+- **The "event slot repeats about every 41 s" figure is derived, not measured.**
+  #160 says no receipt or doc states it: it is 128 words x 2 speakers = 256
+  events at 0.16 s spacing = 40.96 s, read from Mimir's code. No rule here
+  depends on it.
+- **The "too-short songs collapse" thresholds are not a design floor for this
+  grammar.** The harvest's own row reports them from one blur case under two
+  decoders (blur-light 4.358 with the razor decoder, 218.368 with the sprint
+  decoder), so they are decoder-dependent evidence on synthetic damage, not a
+  threshold for human listening.
+- **A word identifies an event slot, not a source** (the harvest's event-slot row). Mimir's evidence
   does not support "the instrument says who spoke" (V1, axis 2). That stays a
   design rule of this grammar, to be tested by V6, with no Mimir backing.
 - **No harmony evidence exists.** Mimir emits one low-gain song at a time and
