@@ -12,7 +12,7 @@ using AquaSynth.Faust;
 // --source sets or replaces fields on the scaffold's `source_port` line (pulse=rosenberg, noise_hp=2000, tilt=.3): one source parameter changed, the phrase untouched.
 // noise=X also flattens the gesture noise splines to X: the gestures hold /vocal/sources/0/noise at 0.05 through a vowel and the spline wins over the slider's base value, so the field alone changes nothing. Meant for voiced-only phrases (a fricative's rise is flattened too).
 // --no-burst drops the plosive release_flow splines (the same edit the burst test makes), so a render pair isolates the burst.
-// exit: 0 rendered, 1 compile or non-finite output, 2 usage, 3 phones file refused, 4 phones the tract cannot make (listed, nothing rendered)
+// exit: 0 rendered, 1 compile or non-finite output, 2 usage or a refused --source (unknown or repeated key, no value, non-number, negative, noise_hp outside 0-8000, a script the parser rejects), 3 phones file refused, 4 phones the tract cannot make (listed, nothing rendered)
 const int Rate = 48000, Frames = 512;
 var noBurst = args.Skip(4).Contains("--no-burst");
 var sourceAt = Array.IndexOf(args, "--source");
@@ -42,13 +42,27 @@ Directory.CreateDirectory(outDir);
 
 var script = IpaGestureExperiment.BuildWordScript(phones, freq);
 float? noiseLevel = null;
+// The fields a source_port accepts here, exactly as PatchScript spells them (case-sensitive): PatchScript ignores a key it does not know, so a typo would render the scaffold and record a change.
+string[] sourceKeys = ["pressure", "tension", "opening", "noise", "impedance", "flow_scale", "tilt", "pitch_ratio", "pulse", "noise_hp"];
+var seenKeys = new HashSet<string>(StringComparer.Ordinal);
 foreach (var field in sourceFields.Split(' ', StringSplitOptions.RemoveEmptyEntries))
 {
-    var key = field.Split('=')[0];
-    if (key == "noise" && float.TryParse(field[6..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var nv)) noiseLevel = nv;
+    string? refusal = null;
+    var eq = field.IndexOf('=');
+    var key = eq > 0 ? field[..eq] : field;
+    var value = eq > 0 ? field[(eq + 1)..] : "";
+    float number = 0;
+    if (eq <= 0 || value.Length == 0) refusal = "expected key=value";
+    else if (!sourceKeys.Contains(key, StringComparer.Ordinal)) refusal = $"unknown key `{key}` (keys: {string.Join(", ", sourceKeys)})";
+    else if (!seenKeys.Add(key)) refusal = $"key `{key}` given twice";
+    else if (key != "pulse" && !(float.TryParse(value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out number) && float.IsFinite(number))) refusal = $"`{key}` needs a number, got `{value}`";
+    else if (key == "noise_hp" && number is < 0 or > 8000) refusal = "`noise_hp` is a corner in Hz, 0 to 8000";
+    else if (key != "pulse" && number < 0) refusal = $"`{key}` is negative";
+    if (refusal is not null) { Console.Error.WriteLine($"REFUSED --source field `{field}`: {refusal}"); return 2; }
+    if (key == "noise") noiseLevel = number;
     var lines = script.Split('\n');
     var at = Array.FindIndex(lines, l => l.TrimStart().StartsWith("source_port name=folds ", StringComparison.Ordinal));
-    if (at < 0 || !field.Contains('=')) { Console.Error.WriteLine($"REFUSED --source field `{field}`"); return 2; }
+    if (at < 0) { Console.Error.WriteLine($"REFUSED --source field `{field}`: the scaffold has no source_port name=folds line"); return 2; }
     var tokens = lines[at].TrimEnd().Split(' ').Where(t => !t.StartsWith(key + "=", StringComparison.Ordinal)).Append(field);
     lines[at] = lines[at][..(lines[at].Length - lines[at].TrimStart().Length)] + string.Join(' ', tokens.Where(t => t.Length > 0));
     script = string.Join('\n', lines);
@@ -61,7 +75,9 @@ Console.WriteLine($"faust home: {home ?? "(not found)"}");
 using var compiler = new AquaSynthPatchCompiler(new AquaSynthNativeOptions(SampleRate: Rate));
 // The exporter emits one merged spline per surface (the ControlSplineTimeline curve), so the DSP carries the word's motion
 // itself and no slider is driven from outside.
-var parsed = PatchScript.Parse(script);
+SynthPatch parsed;
+try { parsed = PatchScript.Parse(script); }
+catch (PatchScriptException ex) { Console.Error.WriteLine($"REFUSED --source \"{sourceFields}\": {ex.Message}"); return 2; }
 if (noiseLevel is { } nz)
     parsed = parsed with { ControlSplines = parsed.ControlSplines.Select(sp => sp.SurfacePath != "/vocal/sources/0/noise" ? sp : sp with { Points = sp.Points.Select(pt => pt with { Value = nz, OutValue = nz, InValue = nz }).ToArray() }).ToArray() };
 if (noBurst) parsed = parsed with { ControlSplines = parsed.ControlSplines.Where(s => !s.SurfacePath.EndsWith("/release_flow", StringComparison.Ordinal)).ToArray() };
