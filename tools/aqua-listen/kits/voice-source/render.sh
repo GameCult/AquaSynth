@@ -1,6 +1,6 @@
 #!/bin/bash
 # Renders the voice-source-1 kit: the phrase /ɑmi/ (WordRender, 140 Hz, 48 kHz mono 16-bit), six renders that differ from the scaffold in ONE source field each:
-#   ref (none)  ros (pulse=rosenberg)  w20 (noise=.33, white, HNR ~20)  h20 (noise_hp=2000 noise=.33)  h25 (noise_hp=2000 noise=.165)  h15 (noise_hp=2000 noise=.6)
+#   ref (noise=.05, the scaffold's own effective level: byte-identical to a render with no --source)  ros (pulse=rosenberg)  w20 (noise=.33, white, HNR ~20)  h20 (noise_hp=2000 noise=.33)  h25 (noise_hp=2000 noise=.165)  h15 (noise_hp=2000 noise=.6)
 # then ros_matched: ros scaled by the measured output-rms ratio saw/rosenberg, so a pair can be heard without the level difference.
 #   render.sh <repo-root> <out-root> [jobs]
 # Needs CULTLIB_ROOT at the admitted CultLib revision and AQUASYNTH_FAUST_HOME. Under load each render is minutes (a Faust compile).

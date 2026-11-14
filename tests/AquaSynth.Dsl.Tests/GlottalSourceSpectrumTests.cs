@@ -155,7 +155,7 @@ public sealed class GlottalSourceSpectrumTests(ITestOutputHelper output)
         double Rms(float[] w) => Math.Sqrt(w.Sum(v => (double)v * v) / w.Length);
         var difference = Db(Rms(pulse) / Rms(saw));
         output.WriteLine($"rosenberg rms {Rms(pulse):E3} saw rms {Rms(saw):E3} ({difference:F2} dB)");
-        // The source rms is matched, the rendered level is not: the tract passes the saw's strong upper harmonics and the pulse has none (-3.2 dB here, -2.4 dB on /ɑmi/).
+        // The source rms is matched, the rendered level is not: the tract passes the saw's strong upper harmonics and the pulse has none (-3.2 dB here, -2.5 dB on /ɑmi/, measured -2.54).
         Assert.InRange(difference, -6, 0);
         var fundamental = Magnitude(pulse, Pitch);
         var between = Magnitude(pulse, Pitch * 1.5);
